@@ -595,6 +595,95 @@
 
   .save-status.show { opacity: 1; }
 
+  /* PASSWORD MODAL */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-overlay.visible {
+    display: flex;
+    animation: fadeIn 0.2s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .modal-box {
+    background: var(--bg-rich);
+    border: 1px solid rgba(192,32,42,0.3);
+    border-radius: 16px;
+    padding: 36px 32px;
+    width: 100%;
+    max-width: 360px;
+    text-align: center;
+    position: relative;
+  }
+
+  .modal-box h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.4rem;
+    color: var(--red-bright);
+    margin-bottom: 6px;
+  }
+
+  .modal-box p {
+    font-size: 0.85rem;
+    color: var(--cream-dim);
+    margin-bottom: 20px;
+  }
+
+  .modal-box input {
+    text-align: center;
+    font-size: 1.1rem;
+    letter-spacing: 0.15em;
+    margin-bottom: 14px;
+  }
+
+  .modal-error {
+    font-size: 0.8rem;
+    color: #ff6b6b;
+    margin-bottom: 10px;
+    min-height: 18px;
+  }
+
+  .modal-btn {
+    width: 100%;
+    padding: 12px;
+    background: var(--red);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Playfair Display', serif;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 10px;
+  }
+
+  .modal-btn:hover { background: var(--red-bright); }
+
+  .modal-cancel {
+    font-size: 0.8rem;
+    color: var(--cream-dim);
+    opacity: 0.5;
+    cursor: pointer;
+    background: none;
+    border: none;
+    font-family: inherit;
+    transition: opacity 0.2s;
+  }
+
+  .modal-cancel:hover { opacity: 1; }
+
   /* RESPONSIVE */
   @media (max-width: 560px) {
     .form-grid { grid-template-columns: 1fr; }
@@ -804,11 +893,33 @@
       </div>
     </div>
 
+    <div class="config-group">
+      <h4>Change Admin Password</h4>
+      <div class="config-row two">
+        <div class="form-group"><label>New Password</label><input type="password" id="cfg-new-password" placeholder="Enter new password"></div>
+        <div class="form-group"><label>Confirm Password</label><input type="password" id="cfg-confirm-password" placeholder="Confirm new password"></div>
+      </div>
+      <div style="font-size:0.8rem; color:#ff6b6b; min-height:18px;" id="passwordChangeError"></div>
+      <button class="save-config-btn" onclick="changePassword()" style="margin-top:8px;">Update Password</button>
+    </div>
+
     <button class="save-config-btn" onclick="saveConfig()">Save Changes</button>
     <span class="save-status" id="saveStatus">✓ Saved!</span>
   </div>
 
 </div><!-- /container -->
+
+<!-- PASSWORD MODAL -->
+<div class="modal-overlay" id="adminModal">
+  <div class="modal-box">
+    <h3>Store Admin</h3>
+    <p id="modalPrompt">Enter your admin password to continue.</p>
+    <input type="password" id="adminPasswordInput" placeholder="Password" autocomplete="off">
+    <div class="modal-error" id="modalError"></div>
+    <button class="modal-btn" onclick="submitAdminPassword()">Enter</button>
+    <button class="modal-cancel" onclick="closeAdminModal()">Cancel</button>
+  </div>
+</div>
 
 <script>
 // ============================================================
@@ -1043,15 +1154,97 @@ document.getElementById('signupForm').addEventListener('submit', async function(
 });
 
 // ============================================================
-// ADMIN TOGGLE
+// ADMIN PASSWORD PROTECTION
 // ============================================================
+const ADMIN_SESSION_KEY = 'birdhouseAdminAuth';
+
 function toggleAdmin() {
-  document.getElementById('adminPanel').classList.toggle('visible');
+  // If already authenticated this session, just toggle the panel
+  if (sessionStorage.getItem(ADMIN_SESSION_KEY) === 'true') {
+    document.getElementById('adminPanel').classList.toggle('visible');
+    return;
+  }
+  // Otherwise show the password modal
+  openAdminModal();
 }
 
-// ============================================================
-// INIT
-// ============================================================
+function openAdminModal() {
+  const config = loadConfig();
+  const hasPassword = !!config.adminPassword;
+  document.getElementById('modalPrompt').textContent = hasPassword
+    ? 'Enter your admin password to continue.'
+    : 'No password set yet. Create one now to protect your admin panel.';
+  document.getElementById('adminPasswordInput').value = '';
+  document.getElementById('modalError').textContent = '';
+  document.getElementById('adminModal').classList.add('visible');
+  setTimeout(() => document.getElementById('adminPasswordInput').focus(), 100);
+}
+
+function closeAdminModal() {
+  document.getElementById('adminModal').classList.remove('visible');
+}
+
+function submitAdminPassword() {
+  const config = loadConfig();
+  const input = document.getElementById('adminPasswordInput').value;
+  const errorEl = document.getElementById('modalError');
+
+  if (!input) {
+    errorEl.textContent = 'Please enter a password.';
+    return;
+  }
+
+  // No password set yet — treat this as first-time setup
+  if (!config.adminPassword) {
+    config.adminPassword = input;
+    localStorage.setItem('birdhouseConfig', JSON.stringify(config));
+    sessionStorage.setItem(ADMIN_SESSION_KEY, 'true');
+    closeAdminModal();
+    document.getElementById('adminPanel').classList.add('visible');
+    applyConfig(config);
+    return;
+  }
+
+  // Check password
+  if (input === config.adminPassword) {
+    sessionStorage.setItem(ADMIN_SESSION_KEY, 'true');
+    closeAdminModal();
+    document.getElementById('adminPanel').classList.add('visible');
+  } else {
+    errorEl.textContent = 'Incorrect password. Try again.';
+    document.getElementById('adminPasswordInput').value = '';
+    document.getElementById('adminPasswordInput').focus();
+  }
+}
+
+// Allow pressing Enter in the password field
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('adminPasswordInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitAdminPassword();
+    if (e.key === 'Escape') closeAdminModal();
+  });
+});
+
+function changePassword() {
+  const newPw  = document.getElementById('cfg-new-password').value;
+  const confPw = document.getElementById('cfg-confirm-password').value;
+  const errEl  = document.getElementById('passwordChangeError');
+
+  if (!newPw) { errEl.textContent = 'Please enter a new password.'; return; }
+  if (newPw !== confPw) { errEl.textContent = 'Passwords do not match.'; return; }
+  if (newPw.length < 4) { errEl.textContent = 'Password must be at least 4 characters.'; return; }
+
+  const config = loadConfig();
+  config.adminPassword = newPw;
+  localStorage.setItem('birdhouseConfig', JSON.stringify(config));
+  errEl.style.color = '#6fcf97';
+  errEl.textContent = '✓ Password updated!';
+  document.getElementById('cfg-new-password').value = '';
+  document.getElementById('cfg-confirm-password').value = '';
+  setTimeout(() => { errEl.textContent = ''; errEl.style.color = '#ff6b6b'; }, 3000);
+}
+
+
 document.addEventListener('DOMContentLoaded', () => {
   const config = loadConfig();
   applyConfig(config);
