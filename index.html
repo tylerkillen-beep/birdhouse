@@ -765,21 +765,21 @@
     <p class="admin-note">Changes here update the live site immediately and are saved to your browser. Update this when your menu, pricing, or schedule changes.</p>
 
     <div class="config-group">
-      <h4>Tier Pricing & Square Links</h4>
+      <h4>Tier Pricing, Square Links & Perks</h4>
       <div class="config-row">
         <div class="form-group"><label>Perch Price</label><input type="text" id="cfg-perch-price" placeholder="e.g. $15"></div>
         <div class="form-group"><label>Perch Square Link</label><input type="text" id="cfg-perch-link" placeholder="https://square.link/..."></div>
-        <div class="form-group"><label>Perch Description</label><input type="text" id="cfg-perch-desc" placeholder="e.g. 2 drinks/week"></div>
+        <div class="form-group"><label>Perch Perks (one per line)</label><textarea id="cfg-perch-desc" placeholder="2 drinks per week&#10;1 delivery day&#10;Standard menu" style="height:80px;"></textarea></div>
       </div>
       <div class="config-row">
         <div class="form-group"><label>Nest Price</label><input type="text" id="cfg-nest-price" placeholder="e.g. $25"></div>
         <div class="form-group"><label>Nest Square Link</label><input type="text" id="cfg-nest-link" placeholder="https://square.link/..."></div>
-        <div class="form-group"><label>Nest Description</label><input type="text" id="cfg-nest-desc" placeholder="e.g. 4 drinks/week"></div>
+        <div class="form-group"><label>Nest Perks (one per line)</label><textarea id="cfg-nest-desc" placeholder="4 drinks per week&#10;2 delivery days&#10;Full menu access" style="height:80px;"></textarea></div>
       </div>
       <div class="config-row">
         <div class="form-group"><label>Eagle's Nest Price</label><input type="text" id="cfg-eagles-price" placeholder="e.g. $40"></div>
         <div class="form-group"><label>Eagle's Nest Square Link</label><input type="text" id="cfg-eagles-link" placeholder="https://square.link/..."></div>
-        <div class="form-group"><label>Eagle's Nest Description</label><input type="text" id="cfg-eagles-desc" placeholder="e.g. Unlimited drinks"></div>
+        <div class="form-group"><label>Eagle's Nest Perks (one per line)</label><textarea id="cfg-eagles-desc" placeholder="Unlimited drinks&#10;Any delivery day&#10;Priority delivery&#10;Exclusive specials" style="height:80px;"></textarea></div>
       </div>
     </div>
 
@@ -836,13 +836,13 @@ function saveConfig() {
 
   config.tiers.perch.price      = document.getElementById('cfg-perch-price').value || config.tiers.perch.price;
   config.tiers.perch.link       = document.getElementById('cfg-perch-link').value;
-  config.tiers.perch.perks      = [document.getElementById('cfg-perch-desc').value].filter(Boolean);
+  config.tiers.perch.perks      = document.getElementById('cfg-perch-desc').value.split('\n').map(p => p.trim()).filter(Boolean);
   config.tiers.nest.price       = document.getElementById('cfg-nest-price').value || config.tiers.nest.price;
   config.tiers.nest.link        = document.getElementById('cfg-nest-link').value;
-  config.tiers.nest.perks       = [document.getElementById('cfg-nest-desc').value].filter(Boolean);
+  config.tiers.nest.perks       = document.getElementById('cfg-nest-desc').value.split('\n').map(p => p.trim()).filter(Boolean);
   config.tiers['eagles-nest'].price = document.getElementById('cfg-eagles-price').value || config.tiers['eagles-nest'].price;
   config.tiers['eagles-nest'].link  = document.getElementById('cfg-eagles-link').value;
-  config.tiers['eagles-nest'].perks = [document.getElementById('cfg-eagles-desc').value].filter(Boolean);
+  config.tiers['eagles-nest'].perks = document.getElementById('cfg-eagles-desc').value.split('\n').map(p => p.trim()).filter(Boolean);
 
   const daysVal = document.getElementById('cfg-days').value;
   if (daysVal) config.days = daysVal.split(',').map(d => d.trim()).filter(Boolean);
@@ -865,6 +865,21 @@ function saveConfig() {
 }
 
 function applyConfig(config) {
+  // Update tier cards
+  const tierKeys = ['perch', 'nest', 'eagles-nest'];
+  tierKeys.forEach(key => {
+    const card = document.querySelector(`.tier-card[data-tier="${key}"]`);
+    if (!card) return;
+    const tier = config.tiers[key];
+    if (tier.price) card.querySelector('.tier-price').innerHTML = `${tier.price} <span>/ month</span>`;
+    if (tier.perks && tier.perks.length) {
+      card.querySelector('.tier-perks').innerHTML = tier.perks
+        .filter(p => p.trim())
+        .map(p => `<li>${p.trim()}</li>`)
+        .join('');
+    }
+  });
+
   // Update delivery days checkboxes
   const daysContainer = document.getElementById('deliveryDays');
   daysContainer.innerHTML = '';
@@ -894,13 +909,13 @@ function applyConfig(config) {
   // Populate admin fields
   document.getElementById('cfg-perch-price').value      = config.tiers.perch.price || '';
   document.getElementById('cfg-perch-link').value       = config.tiers.perch.link || '';
-  document.getElementById('cfg-perch-desc').value       = (config.tiers.perch.perks || []).join(', ');
+  document.getElementById('cfg-perch-desc').value       = (config.tiers.perch.perks || []).join('\n');
   document.getElementById('cfg-nest-price').value       = config.tiers.nest.price || '';
   document.getElementById('cfg-nest-link').value        = config.tiers.nest.link || '';
-  document.getElementById('cfg-nest-desc').value        = (config.tiers.nest.perks || []).join(', ');
+  document.getElementById('cfg-nest-desc').value        = (config.tiers.nest.perks || []).join('\n');
   document.getElementById('cfg-eagles-price').value     = config.tiers['eagles-nest'].price || '';
   document.getElementById('cfg-eagles-link').value      = config.tiers['eagles-nest'].link || '';
-  document.getElementById('cfg-eagles-desc').value      = (config.tiers['eagles-nest'].perks || []).join(', ');
+  document.getElementById('cfg-eagles-desc').value      = (config.tiers['eagles-nest'].perks || []).join('\n');
   document.getElementById('cfg-days').value             = config.days.join(', ');
   document.getElementById('cfg-times').value            = config.times.join(', ');
   document.getElementById('cfg-menu').value             = config.menu.join('\n');
