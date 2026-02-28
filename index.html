@@ -24,8 +24,8 @@
       padding: 1.5rem 3rem; border-bottom: 1px solid var(--border);
       position: relative; z-index: 10; background: rgba(10,10,10,0.95);
     }
-    .logo { display: flex; align-items: center; text-decoration: none; }
-    .logo img { height: 52px; filter: drop-shadow(0 0 12px rgba(204,0,0,0.6)); }
+    .logo-header { display: flex; align-items: center; text-decoration: none; }
+    .logo-header img { height: 52px; filter: drop-shadow(0 0 12px rgba(204,0,0,0.6)); }
     nav a { font-size: 0.82rem; color: var(--gray); text-decoration: none; letter-spacing: 0.1em; text-transform: uppercase; margin-left: 2rem; transition: color 0.2s; }
     nav a:hover { color: var(--red-bright); }
 
@@ -61,89 +61,86 @@
       overflow: hidden;
     }
 
-    /* Cup image — centered, tall, faint */
+    /* Cup — fills most of the right panel height */
     .cup-wrap {
       position: relative;
-      width: 340px;
-      z-index: 1;
+      /* Make cup tall — 88% of viewport height */
+      height: 88vh;
+      width: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       animation: float 5s ease-in-out infinite;
+      z-index: 1;
     }
-    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-14px)} }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-16px)} }
 
-    .cup-wrap img.cup-img {
-      width: 100%;
-      opacity: 0.28;
-      filter: saturate(0.55) brightness(1.05);
-      display: block;
+    .cup-img {
+      height: 100%;
+      width: auto;
+      object-fit: contain;
+      opacity: 0.32;
+      filter: saturate(0.6) brightness(1.1);
+      /* Fade edges slightly */
+      mask-image: linear-gradient(to bottom, transparent 0%, black 5%, black 92%, transparent 100%);
+      -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 5%, black 92%, transparent 100%);
     }
 
-    /* Logo + glow rings — absolutely centered over the cup body
-       The cup body (below the dome lid) starts at roughly 38% from top */
+    /* Logo + glow — absolute over the cup body center */
     .cup-logo-wrap {
       position: absolute;
-      /* Center horizontally, place vertically in the middle of the cup body */
-      top: 64%;
+      /* Cup body starts below the dome (~38% from top) — center of body ~65% */
+      top: 62%;
       left: 50%;
       transform: translate(-50%, -50%);
       display: flex; align-items: center; justify-content: center;
+      z-index: 3;
     }
 
-    /* Flashing glow rings */
+    /* Glow layers — all flash in sync with staggered delays */
     .glow-core {
       position: absolute;
-      width: 180px; height: 180px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(204,0,0,0.45) 0%, rgba(204,0,0,0.15) 50%, transparent 72%);
+      width: 330px; height: 330px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(204,0,0,0.5) 0%, rgba(204,0,0,0.18) 50%, transparent 72%);
       animation: flash 1.8s ease-in-out infinite;
     }
     .glow-ring-1 {
       position: absolute;
-      width: 240px; height: 240px;
-      border-radius: 50%;
-      border: 1.5px solid rgba(204,0,0,0.55);
-      animation: flash 1.8s ease-in-out infinite;
-      animation-delay: 0.18s;
+      width: 450px; height: 450px; border-radius: 50%;
+      border: 2px solid rgba(204,0,0,0.6);
+      animation: flash 1.8s ease-in-out infinite; animation-delay: 0.2s;
     }
     .glow-ring-2 {
       position: absolute;
-      width: 310px; height: 310px;
-      border-radius: 50%;
-      border: 1px solid rgba(204,0,0,0.3);
-      animation: flash 1.8s ease-in-out infinite;
-      animation-delay: 0.36s;
+      width: 600px; height: 600px; border-radius: 50%;
+      border: 1.5px solid rgba(204,0,0,0.3);
+      animation: flash 1.8s ease-in-out infinite; animation-delay: 0.4s;
     }
     .glow-ring-3 {
       position: absolute;
-      width: 390px; height: 390px;
-      border-radius: 50%;
+      width: 765px; height: 765px; border-radius: 50%;
       border: 1px solid rgba(204,0,0,0.12);
-      animation: flash 1.8s ease-in-out infinite;
-      animation-delay: 0.54s;
+      animation: flash 1.8s ease-in-out infinite; animation-delay: 0.6s;
     }
     @keyframes flash {
-      0%   { transform: scale(0.9);  opacity: 0.4; }
-      50%  { transform: scale(1.08); opacity: 1;   }
-      100% { transform: scale(0.9);  opacity: 0.4; }
+      0%,100% { transform: scale(0.9);  opacity: 0.35; }
+      50%      { transform: scale(1.07); opacity: 1; }
     }
 
-    /* Slow rotating rings for depth */
+    /* Slow spin rings */
     .spin-ring { position: absolute; border-radius: 50%; border: 1px solid rgba(204,0,0,0.07); animation: spin linear infinite; }
-    .spin-ring-1 { width: 270px; height: 270px; animation-duration: 25s; }
-    .spin-ring-2 { width: 420px; height: 420px; animation-duration: 42s; animation-direction: reverse; border-color: rgba(204,0,0,0.04); }
+    .spin-ring-1 { width: 510px; height: 510px; animation-duration: 28s; }
+    .spin-ring-2 { width: 780px; height: 780px; animation-duration: 45s; animation-direction: reverse; border-color: rgba(204,0,0,0.04); }
     @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
 
-    /* The logo */
-    .cup-logo {
-      position: relative; z-index: 4;
-      animation: logo-float 5s ease-in-out infinite;
-    }
+    /* Logo */
+    .cup-logo { position: relative; z-index: 4; animation: logo-float 5s ease-in-out infinite; }
     .cup-logo img {
-      width: 160px;
-      filter: drop-shadow(0 0 18px rgba(204,0,0,1)) drop-shadow(0 0 45px rgba(204,0,0,0.6)) brightness(1.2);
+      width: 300px;
+      filter: drop-shadow(0 0 22px rgba(204,0,0,1)) drop-shadow(0 0 55px rgba(204,0,0,0.65)) brightness(1.2);
     }
-    @keyframes logo-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+    @keyframes logo-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
 
-    /* Fade-in left side */
     .fade-up { opacity:0; transform:translateY(20px); animation:fadeUp 0.7s forwards; }
     .fade-up:nth-child(1){animation-delay:0.1s} .fade-up:nth-child(2){animation-delay:0.25s} .fade-up:nth-child(3){animation-delay:0.4s} .fade-up:nth-child(4){animation-delay:0.55s}
     @keyframes fadeUp { to { opacity:1; transform:translateY(0); } }
@@ -160,7 +157,7 @@
 </head>
 <body>
   <header>
-    <a class="logo" href="#"><img src="logo.png" alt="The Birdhouse" /></a>
+    <a class="logo-header" href="#"><img src="logo.png" alt="The Birdhouse" /></a>
     <nav>
       <a href="#">Menu</a>
       <a href="#">About</a>
@@ -196,12 +193,8 @@
     </div>
 
     <div class="hero-right">
-      <!-- Cup with logo layered on top -->
       <div class="cup-wrap">
-        <!-- The faint cup image -->
         <img class="cup-img" src="coffee.png" alt="" />
-
-        <!-- Logo + flashing glow centered on the cup body -->
         <div class="cup-logo-wrap">
           <div class="spin-ring spin-ring-1"></div>
           <div class="spin-ring spin-ring-2"></div>
