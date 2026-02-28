@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Birdhouse — Place an Order</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --black: #0a0a0a; --red: #cc0000; --red-bright: #ff1a1a;
+      --gray: #555; --light-gray: #999; --white: #f0f0f0;
+      --card: #141414; --border: rgba(204,0,0,0.18); --border-dim: rgba(255,255,255,0.07);
+    }
+    body { background: var(--black); color: var(--white); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+    body::before { content:''; position:fixed; inset:0; background-image:linear-gradient(rgba(204,0,0,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(204,0,0,0.03) 1px,transparent 1px); background-size:40px 40px; pointer-events:none; z-index:0; }
+
+    /* Layout */
+    .layout { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+    .sidebar { background:#0d0000; border-right:1px solid var(--border); padding:1.75rem 1.25rem; position:sticky; top:0; height:100vh; display:flex; flex-direction:column; }
+    .sidebar-logo img { height:38px; filter:drop-shadow(0 0 8px rgba(204,0,0,0.5)); margin-bottom:2rem; }
+    .user-card { background:rgba(204,0,0,0.08); border:1px solid var(--border); border-radius:10px; padding:1rem; margin-bottom:1.75rem; }
+    .user-name { font-size:0.9rem; color:var(--white); font-weight:500; }
+    .user-points { font-size:0.72rem; color:var(--red-bright); margin-top:0.25rem; }
+    nav { flex:1; }
+    .nav-item { display:flex; align-items:center; gap:0.7rem; padding:0.7rem 0.9rem; border-radius:7px; color:var(--gray); font-size:0.85rem; text-decoration:none; cursor:pointer; transition:all 0.2s; margin-bottom:0.2rem; border:1px solid transparent; }
+    .nav-item:hover { color:var(--white); background:rgba(255,255,255,0.04); }
+    .nav-item.active { background:rgba(204,0,0,0.12); color:var(--red-bright); border-color:rgba(204,0,0,0.25); }
+    .signout-btn { background:none; border:1px solid rgba(255,255,255,0.08); border-radius:7px; padding:0.65rem 1rem; color:var(--gray); font-size:0.8rem; cursor:pointer; width:100%; text-align:left; transition:all 0.2s; display:flex; align-items:center; gap:0.5rem; font-family:'DM Sans',sans-serif; }
+    .signout-btn:hover { color:var(--white); }
+
+    .main { padding:2.5rem 3rem; position:relative; z-index:1; }
+    .page-eyebrow { font-size:0.65rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--red); margin-bottom:0.3rem; }
+    .page-title { font-family:'Bebas Neue',sans-serif; font-size:2.5rem; letter-spacing:0.04em; margin-bottom:0.5rem; }
+    .page-sub { color:var(--light-gray); font-size:0.88rem; margin-bottom:2rem; }
+
+    /* Steps indicator */
+    .steps { display:flex; align-items:center; gap:0; margin-bottom:2.5rem; }
+    .step { display:flex; align-items:center; gap:0.6rem; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--gray); }
+    .step.active { color:var(--red-bright); }
+    .step.done { color:var(--light-gray); }
+    .step-num { width:26px; height:26px; border-radius:50%; border:1px solid currentColor; display:flex; align-items:center; justify-content:center; font-size:0.72rem; flex-shrink:0; }
+    .step.active .step-num { background:var(--red); border-color:var(--red); color:white; }
+    .step.done .step-num { background:rgba(255,255,255,0.1); }
+    .step-line { flex:1; height:1px; background:rgba(255,255,255,0.06); margin:0 0.75rem; max-width:60px; }
+
+    /* Step panels */
+    .step-panel { display:none; }
+    .step-panel.active { display:block; }
+
+    /* Menu grid */
+    .category-label { font-size:0.65rem; letter-spacing:0.18em; text-transform:uppercase; color:var(--red); margin:1.5rem 0 0.75rem; }
+    .category-label:first-child { margin-top:0; }
+    .menu-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:0.85rem; margin-bottom:0.5rem; }
+    .menu-card { background:var(--card); border:1px solid var(--border-dim); border-radius:12px; padding:1.25rem; cursor:pointer; transition:all 0.2s; position:relative; }
+    .menu-card:hover { border-color:var(--border); transform:translateY(-2px); }
+    .menu-card.selected { border-color:var(--red); background:rgba(204,0,0,0.08); box-shadow:0 0 20px rgba(204,0,0,0.15); }
+    .menu-card-name { font-weight:500; font-size:0.95rem; margin-bottom:0.3rem; }
+    .menu-card-desc { font-size:0.78rem; color:var(--gray); line-height:1.4; }
+    .menu-card-check { position:absolute; top:0.85rem; right:0.85rem; width:20px; height:20px; border-radius:50%; background:var(--red); display:none; align-items:center; justify-content:center; font-size:0.7rem; box-shadow:0 0 10px rgba(204,0,0,0.5); }
+    .menu-card.selected .menu-card-check { display:flex; }
+    .no-menu { color:var(--gray); text-align:center; padding:3rem; font-size:0.9rem; }
+
+    /* Customize step */
+    .customize-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; }
+    .form-group { margin-bottom:1.25rem; }
+    label { display:block; font-size:0.7rem; font-weight:500; letter-spacing:0.1em; text-transform:uppercase; color:var(--gray); margin-bottom:0.5rem; }
+    .option-row { display:flex; flex-wrap:wrap; gap:0.5rem; }
+    .option-chip { padding:0.45rem 0.9rem; border:1px solid var(--border-dim); border-radius:20px; font-size:0.82rem; cursor:pointer; transition:all 0.2s; color:var(--light-gray); background:transparent; font-family:'DM Sans',sans-serif; }
+    .option-chip:hover { border-color:var(--border); color:var(--white); }
+    .option-chip.selected { background:var(--red); border-color:var(--red); color:white; box-shadow:0 0 10px rgba(204,0,0,0.3); }
+    input[type=text], select, textarea { width:100%; padding:0.85rem 1rem; border:1px solid var(--border-dim); border-radius:8px; background:#0f0f0f; font-family:'DM Sans',sans-serif; font-size:0.9rem; color:var(--white); outline:none; transition:border-color 0.2s; }
+    input:focus, select:focus, textarea:focus { border-color:var(--red); box-shadow:0 0 0 3px rgba(204,0,0,0.12); }
+    input::placeholder, textarea::placeholder { color:var(--gray); }
+    select option { background:#1a1a1a; }
+    textarea { resize:vertical; min-height:80px; }
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+
+    /* Order summary */
+    .order-summary-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:2rem; max-width:500px; }
+    .summary-line { display:flex; justify-content:space-between; align-items:flex-start; padding:0.75rem 0; border-bottom:1px solid var(--border-dim); font-size:0.88rem; }
+    .summary-line:last-of-type { border-bottom:none; }
+    .summary-key { color:var(--light-gray); }
+    .summary-val { color:var(--white); font-weight:500; text-align:right; max-width:60%; }
+    .loyalty-note { background:rgba(204,0,0,0.08); border:1px solid var(--border); border-radius:8px; padding:0.85rem 1rem; margin:1.25rem 0; font-size:0.82rem; color:var(--light-gray); display:flex; align-items:center; gap:0.6rem; }
+    .loyalty-note span { color:var(--red-bright); font-weight:500; }
+
+    /* Buttons */
+    .btn-primary { background:var(--red); color:white; border:none; border-radius:8px; padding:0.9rem 2rem; font-family:'DM Sans',sans-serif; font-size:0.9rem; font-weight:500; cursor:pointer; transition:all 0.2s; text-transform:uppercase; letter-spacing:0.06em; }
+    .btn-primary:hover { background:var(--red-bright); box-shadow:0 0 20px rgba(204,0,0,0.4); transform:translateY(-1px); }
+    .btn-primary:disabled { opacity:0.4; cursor:not-allowed; transform:none; }
+    .btn-ghost { background:transparent; color:var(--light-gray); border:1px solid var(--border-dim); border-radius:8px; padding:0.9rem 2rem; font-family:'DM Sans',sans-serif; font-size:0.9rem; cursor:pointer; transition:all 0.2s; text-transform:uppercase; letter-spacing:0.06em; }
+    .btn-ghost:hover { border-color:var(--border); color:var(--white); }
+    .btn-row { display:flex; gap:1rem; margin-top:2rem; }
+
+    /* Success */
+    .success-screen { text-align:center; padding:4rem 2rem; }
+    .success-icon { font-size:4rem; margin-bottom:1.5rem; display:block; animation:pop 0.5s ease; }
+    @keyframes pop { 0%{transform:scale(0)} 80%{transform:scale(1.1)} 100%{transform:scale(1)} }
+    .success-title { font-family:'Bebas Neue',sans-serif; font-size:3rem; letter-spacing:0.05em; margin-bottom:0.75rem; color:var(--red-bright); text-shadow:0 0 20px rgba(204,0,0,0.5); }
+    .success-sub { color:var(--light-gray); font-size:0.95rem; line-height:1.6; max-width:420px; margin:0 auto 2rem; }
+
+    @media (max-width:900px) { .layout{grid-template-columns:1fr} .sidebar{display:none} .main{padding:1.5rem} .customize-grid{grid-template-columns:1fr} }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo"><img src="../logo.png" alt="The Birdhouse" /></div>
+    <div class="user-card">
+      <div class="user-name" id="user-display-name">Loading...</div>
+      <div class="user-points" id="user-points-badge">0 points</div>
+    </div>
+    <nav>
+      <a class="nav-item" href="dashboard.html">📊 Overview</a>
+      <a class="nav-item active" href="order.html">☕ Place an Order</a>
+      <a class="nav-item" href="dashboard.html#history">📋 Order History</a>
+      <a class="nav-item" href="dashboard.html#subscription">📦 My Subscription</a>
+      <a class="nav-item" href="dashboard.html#loyalty">⭐ Loyalty Rewards</a>
+    </nav>
+    <button class="signout-btn" onclick="signOut()">← Sign Out</button>
+  </aside>
+
+  <main class="main">
+    <div class="page-eyebrow">Customer Portal</div>
+    <h1 class="page-title">Place an Order</h1>
+    <p class="page-sub">Choose your drink, customize it, and we'll deliver it to your room.</p>
+
+    <!-- Steps -->
+    <div class="steps">
+      <div class="step active" id="step-ind-1"><div class="step-num">1</div> Choose Drink</div>
+      <div class="step-line"></div>
+      <div class="step" id="step-ind-2"><div class="step-num">2</div> Customize</div>
+      <div class="step-line"></div>
+      <div class="step" id="step-ind-3"><div class="step-num">3</div> Delivery Details</div>
+      <div class="step-line"></div>
+      <div class="step" id="step-ind-4"><div class="step-num">4</div> Review & Pay</div>
+    </div>
+
+    <!-- Step 1: Choose drink -->
+    <div class="step-panel active" id="panel-1">
+      <div id="menu-container"><div class="no-menu">Loading menu...</div></div>
+      <div class="btn-row">
+        <button class="btn-primary" onclick="goToStep(2)" id="btn-next-1" disabled>Next: Customize →</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Customize -->
+    <div class="step-panel" id="panel-2">
+      <div class="customize-grid">
+        <div>
+          <div class="form-group">
+            <label>Size</label>
+            <div class="option-row" id="size-options"></div>
+          </div>
+          <div class="form-group">
+            <label>Milk Type</label>
+            <div class="option-row" id="milk-options"></div>
+          </div>
+          <div class="form-group">
+            <label>Add a Syrup <span style="color:var(--gray);font-weight:300">(optional)</span></label>
+            <div class="option-row" id="syrup-options"></div>
+          </div>
+        </div>
+        <div>
+          <div class="form-group">
+            <label>Special Instructions <span style="color:var(--gray);font-weight:300">(optional)</span></label>
+            <textarea id="special-instructions" placeholder="Extra shot, less sweet, extra hot..."></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-ghost" onclick="goToStep(1)">← Back</button>
+        <button class="btn-primary" onclick="goToStep(3)">Next: Delivery Details →</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Delivery details -->
+    <div class="step-panel" id="panel-3">
+      <div style="max-width:500px">
+        <div class="form-group">
+          <label>Room / Location</label>
+          <input type="text" id="delivery-room" placeholder="e.g. Room 204, Library, Gym" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Preferred Delivery Time</label>
+            <select id="delivery-time">
+              <option value="">Select a time...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Delivery Day</label>
+            <select id="delivery-day">
+              <option value="Today">Today</option>
+              <option value="Monday">Monday</option>
+              <option value="Tuesday">Tuesday</option>
+              <option value="Wednesday">Wednesday</option>
+              <option value="Thursday">Thursday</option>
+              <option value="Friday">Friday</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-ghost" onclick="goToStep(2)">← Back</button>
+        <button class="btn-primary" onclick="goToStep(4)">Review Order →</button>
+      </div>
+    </div>
+
+    <!-- Step 4: Review & Pay -->
+    <div class="step-panel" id="panel-4">
+      <div class="order-summary-card">
+        <div id="summary-lines"></div>
+        <div class="loyalty-note">⭐ You'll earn <span>+1 loyalty point</span> for this order!</div>
+        <div class="btn-row" style="margin-top:1.5rem">
+          <button class="btn-ghost" onclick="goToStep(3)">← Back</button>
+          <button class="btn-primary" onclick="submitOrder()" id="submit-btn">Pay with Square →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Success -->
+    <div class="step-panel" id="panel-success">
+      <div class="success-screen">
+        <span class="success-icon">☕</span>
+        <div class="success-title">Order Placed!</div>
+        <p class="success-sub">Your order has been saved and you'll be redirected to Square to complete payment. Check back soon for delivery updates!</p>
+        <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap">
+          <a class="btn-primary" href="order.html">Order Again</a>
+          <a class="btn-ghost" href="dashboard.html">Back to Dashboard</a>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  const sb = supabase.createClient('https://ljukrhneikqbabcmcpet.supabase.co','sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn');
+  let currentUser = null;
+  let menuItems = [];
+  let selectedItem = null;
+  let selectedSize = null;
+  let selectedMilk = null;
+  let selectedSyrup = null;
+  let currentStep = 1;
+
+  async function init() {
+    const {data:{session}} = await sb.auth.getSession();
+    if(!session){window.location.href='index.html';return;}
+    currentUser = session.user;
+    const meta = currentUser.user_metadata;
+    document.getElementById('user-display-name').textContent=(meta.first_name||'Eagle')+' '+(meta.last_name||'');
+    document.getElementById('user-points-badge').textContent=(meta.loyalty_points||0)+' points';
+    // Pre-fill room if saved
+    if(meta.room) document.getElementById('delivery-room').value = meta.room;
+    await loadMenu();
+    await loadDeliveryTimes();
+  }
+
+  async function loadMenu() {
+    const {data,error} = await sb.from('menu_items').select('*').eq('available',true).order('sort_order');
+    const container = document.getElementById('menu-container');
+    if(error||!data||!data.length){
+      container.innerHTML='<div class="no-menu">No menu items available yet. Check back soon!</div>';
+      return;
+    }
+    menuItems = data;
+    // Group by category
+    const categories = [...new Set(data.map(i=>i.category))];
+    container.innerHTML = categories.map(cat=>`
+      <div class="category-label">${cat}</div>
+      <div class="menu-grid">
+        ${data.filter(i=>i.category===cat).map(item=>`
+          <div class="menu-card" id="card-${item.id}" onclick="selectItem('${item.id}')">
+            <div class="menu-card-check">✓</div>
+            <div class="menu-card-name">${item.name}</div>
+            <div class="menu-card-desc">${item.description||''}</div>
+          </div>
+        `).join('')}
+      </div>
+    `).join('');
+  }
+
+  function selectItem(id) {
+    document.querySelectorAll('.menu-card').forEach(c=>c.classList.remove('selected'));
+    document.getElementById('card-'+id).classList.add('selected');
+    selectedItem = menuItems.find(i=>i.id===id);
+    document.getElementById('btn-next-1').disabled = false;
+    // Load customization options from item
+    loadCustomizationOptions();
+  }
+
+  function loadCustomizationOptions() {
+    if(!selectedItem) return;
+    const sizes = selectedItem.sizes || ['Small','Medium','Large'];
+    const milks = selectedItem.available_milks || ['Whole Milk','Oat Milk','Almond Milk','2% Milk'];
+    const syrups = selectedItem.available_syrups || ['Vanilla','Caramel','Hazelnut'];
+
+    document.getElementById('size-options').innerHTML = sizes.map(s=>`
+      <button class="option-chip ${s==='Medium'?'selected':''}" onclick="selectOption(this,'size','${s}')">${s}</button>
+    `).join('');
+    if(s==='Medium') selectedSize='Medium'; // default
+    selectedSize = 'Medium';
+
+    document.getElementById('milk-options').innerHTML = milks.map((m,i)=>`
+      <button class="option-chip ${i===0?'selected':''}" onclick="selectOption(this,'milk','${m}')">${m}</button>
+    `).join('');
+    selectedMilk = milks[0];
+
+    document.getElementById('syrup-options').innerHTML = `<button class="option-chip selected" onclick="selectOption(this,'syrup','None')">None</button>` +
+      syrups.map(s=>`<button class="option-chip" onclick="selectOption(this,'syrup','${s}')">${s}</button>`).join('');
+    selectedSyrup = 'None';
+  }
+
+  function selectOption(el, type, value) {
+    el.closest('.option-row').querySelectorAll('.option-chip').forEach(c=>c.classList.remove('selected'));
+    el.classList.add('selected');
+    if(type==='size') selectedSize=value;
+    if(type==='milk') selectedMilk=value;
+    if(type==='syrup') selectedSyrup=value;
+  }
+
+  async function loadDeliveryTimes() {
+    const {data} = await sb.from('store_config').select('value').eq('key','delivery_times').single();
+    const times = data?.value || ['7:30 AM','8:00 AM','9:00 AM','10:00 AM','11:00 AM','12:00 PM'];
+    const sel = document.getElementById('delivery-time');
+    times.forEach(t=>{ const o=document.createElement('option'); o.value=t; o.textContent=t; sel.appendChild(o); });
+  }
+
+  function goToStep(step) {
+    // Validate step 3
+    if(step===4){
+      const room = document.getElementById('delivery-room').value.trim();
+      const time = document.getElementById('delivery-time').value;
+      if(!room){alert('Please enter your room or delivery location.');return;}
+      if(!time){alert('Please select a delivery time.');return;}
+      buildSummary();
+    }
+    currentStep = step;
+    document.querySelectorAll('.step-panel').forEach(p=>p.classList.remove('active'));
+    document.getElementById('panel-'+step).classList.add('active');
+    // Update step indicators
+    for(let i=1;i<=4;i++){
+      const ind = document.getElementById('step-ind-'+i);
+      ind.className = 'step' + (i===step?' active':i<step?' done':'');
+    }
+    window.scrollTo(0,0);
+  }
+
+  function buildSummary() {
+    const room = document.getElementById('delivery-room').value;
+    const time = document.getElementById('delivery-time').value;
+    const day = document.getElementById('delivery-day').value;
+    const notes = document.getElementById('special-instructions').value;
+    const lines = [
+      {k:'Drink', v:selectedItem.name},
+      {k:'Size', v:selectedSize},
+      {k:'Milk', v:selectedMilk},
+      {k:'Syrup', v:selectedSyrup||'None'},
+      {k:'Delivery', v:`${day} at ${time}`},
+      {k:'Room', v:room},
+    ];
+    if(notes) lines.push({k:'Instructions', v:notes});
+    document.getElementById('summary-lines').innerHTML = lines.map(l=>`
+      <div class="summary-line"><span class="summary-key">${l.k}</span><span class="summary-val">${l.v}</span></div>
+    `).join('');
+  }
+
+  async function submitOrder() {
+    const btn = document.getElementById('submit-btn');
+    btn.disabled=true; btn.textContent='Saving order...';
+    const room = document.getElementById('delivery-room').value;
+    const time = document.getElementById('delivery-time').value;
+    const day = document.getElementById('delivery-day').value;
+    const notes = document.getElementById('special-instructions').value;
+    const meta = currentUser.user_metadata;
+
+    // Save order to Supabase
+    const {error} = await sb.from('orders').insert({
+      user_id: currentUser.id,
+      customer_name: (meta.first_name||'')+ ' '+(meta.last_name||''),
+      drink_name: selectedItem.name,
+      room,
+      size: selectedSize,
+      milk: selectedMilk,
+      syrup: selectedSyrup,
+      delivery_time: time,
+      delivery_day: day,
+      special_instructions: notes,
+      points_earned: 1,
+      status: 'pending'
+    });
+
+    if(error){ alert('Error saving order: '+error.message); btn.disabled=false; btn.textContent='Pay with Square →'; return; }
+
+    // Award loyalty point
+    const newPoints = (meta.loyalty_points||0)+1;
+    await sb.auth.updateUser({data:{loyalty_points: newPoints}});
+
+    // Show success then redirect to Square if link exists
+    document.querySelectorAll('.step-panel').forEach(p=>p.classList.remove('active'));
+    document.querySelectorAll('.step-ind').forEach(s=>s.className='step done');
+    document.getElementById('panel-success').classList.add('active');
+
+    // Redirect to Square after short delay if link configured
+    if(selectedItem.square_link){
+      setTimeout(()=>{ window.open(selectedItem.square_link,'_blank'); },1500);
+    }
+  }
+
+  async function signOut(){ await sb.auth.signOut(); window.location.href='index.html'; }
+  init();
+</script>
+</body>
+</html>
