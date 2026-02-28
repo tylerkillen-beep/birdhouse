@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Birdhouse — Customer Login</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --cream: #f5f0e8;
+      --brown: #2c1a0e;
+      --amber: #c47d2e;
+      --amber-light: #e8a94a;
+      --warm-gray: #8a7968;
+      --card-bg: #fff8f0;
+    }
+    body {
+      background: var(--cream);
+      color: var(--brown);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    /* Left decorative panel */
+    .panel-left {
+      background: var(--brown);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 4rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .panel-left::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 40% 40%, rgba(196,125,46,0.4) 0%, transparent 60%);
+    }
+    .panel-text {
+      position: relative;
+      z-index: 1;
+      color: var(--cream);
+      text-align: center;
+    }
+    .panel-emoji { font-size: 5rem; display: block; margin-bottom: 2rem; animation: float 4s ease-in-out infinite; }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+    .panel-title { font-family: 'Playfair Display', serif; font-size: 2.5rem; line-height: 1.1; margin-bottom: 1rem; }
+    .panel-title em { color: var(--amber-light); font-style: italic; }
+    .panel-sub { font-size: 0.9rem; opacity: 0.6; line-height: 1.6; max-width: 280px; }
+
+    /* Perks list */
+    .perks { margin-top: 2.5rem; text-align: left; }
+    .perk { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.9rem; font-size: 0.88rem; opacity: 0.8; }
+    .perk-icon { width: 28px; height: 28px; background: rgba(196,125,46,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; flex-shrink: 0; }
+
+    /* Right form panel */
+    .panel-right {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 4rem 3.5rem;
+    }
+
+    .back-link { font-size: 0.82rem; color: var(--warm-gray); text-decoration: none; letter-spacing: 0.05em; display: inline-flex; align-items: center; gap: 0.4rem; margin-bottom: 2.5rem; transition: color 0.2s; }
+    .back-link:hover { color: var(--amber); }
+
+    .form-header { margin-bottom: 2.5rem; }
+    .form-eyebrow { font-size: 0.72rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--amber); margin-bottom: 0.5rem; }
+    .form-title { font-family: 'Playfair Display', serif; font-size: 2.2rem; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 0; margin-bottom: 2rem; border: 1.5px solid rgba(44,26,14,0.15); border-radius: 10px; overflow: hidden; }
+    .tab { flex: 1; padding: 0.75rem; text-align: center; font-size: 0.85rem; font-weight: 500; cursor: pointer; background: transparent; border: none; color: var(--warm-gray); transition: all 0.2s; }
+    .tab.active { background: var(--brown); color: var(--cream); }
+
+    /* Form fields */
+    .form-group { margin-bottom: 1.25rem; }
+    label { display: block; font-size: 0.78rem; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--warm-gray); margin-bottom: 0.45rem; }
+    input {
+      width: 100%; padding: 0.85rem 1rem; border: 1.5px solid rgba(44,26,14,0.15); border-radius: 10px;
+      background: var(--card-bg); font-family: 'DM Sans', sans-serif; font-size: 0.95rem; color: var(--brown);
+      transition: border-color 0.2s, box-shadow 0.2s; outline: none;
+    }
+    input:focus { border-color: var(--amber); box-shadow: 0 0 0 3px rgba(196,125,46,0.12); }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+
+    .btn-primary {
+      width: 100%; padding: 1rem; background: var(--brown); color: var(--cream);
+      border: none; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 0.95rem;
+      font-weight: 500; cursor: pointer; transition: background 0.2s, transform 0.15s;
+      margin-top: 0.5rem; letter-spacing: 0.02em;
+    }
+    .btn-primary:hover { background: var(--amber); transform: translateY(-1px); }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    .msg { margin-top: 1rem; padding: 0.85rem 1rem; border-radius: 8px; font-size: 0.88rem; display: none; }
+    .msg.success { background: #d4edda; color: #155724; display: block; }
+    .msg.error { background: #f8d7da; color: #721c24; display: block; }
+
+    .divider { text-align: center; margin: 1.5rem 0; font-size: 0.8rem; color: var(--warm-gray); position: relative; }
+    .divider::before { content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: rgba(44,26,14,0.1); }
+    .divider span { background: var(--cream); padding: 0 1rem; position: relative; }
+
+    @media (max-width: 768px) {
+      body { grid-template-columns: 1fr; }
+      .panel-left { display: none; }
+      .panel-right { padding: 2.5rem 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="panel-left">
+    <div class="panel-text">
+      <span class="panel-emoji">☕</span>
+      <h2 class="panel-title">Order. Earn.<br><em>Enjoy.</em></h2>
+      <p class="panel-sub">Join The Birdhouse and get your daily brew delivered right to your classroom.</p>
+      <div class="perks">
+        <div class="perk"><div class="perk-icon">☕</div> Order from the full menu</div>
+        <div class="perk"><div class="perk-icon">⭐</div> Earn loyalty points on every order</div>
+        <div class="perk"><div class="perk-icon">📦</div> Subscription delivery plans</div>
+        <div class="perk"><div class="perk-icon">📍</div> Delivered to your room</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel-right">
+    <a class="back-link" href="../index.html">← Back to Home</a>
+
+    <div class="form-header">
+      <div class="form-eyebrow">Customer Portal</div>
+      <h1 class="form-title">Welcome back.</h1>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('login')">Sign In</button>
+      <button class="tab" onclick="showTab('signup')">Create Account</button>
+    </div>
+
+    <!-- Login Form -->
+    <div id="login-form">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="you@example.com" />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="••••••••" />
+      </div>
+      <button class="btn-primary" onclick="handleLogin()">Sign In →</button>
+      <div class="msg" id="login-msg"></div>
+    </div>
+
+    <!-- Signup Form -->
+    <div id="signup-form" style="display:none">
+      <div class="form-row">
+        <div class="form-group">
+          <label>First Name</label>
+          <input type="text" id="signup-first" placeholder="First" />
+        </div>
+        <div class="form-group">
+          <label>Last Name</label>
+          <input type="text" id="signup-last" placeholder="Last" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="signup-email" placeholder="you@example.com" />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="signup-password" placeholder="Min. 6 characters" />
+      </div>
+      <div class="form-group">
+        <label>Room / Location</label>
+        <input type="text" id="signup-room" placeholder="e.g. Room 204" />
+      </div>
+      <button class="btn-primary" onclick="handleSignup()">Create Account →</button>
+      <div class="msg" id="signup-msg"></div>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://ljukrhneikqbabcmcpet.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn';
+    const { createClient } = supabase;
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // Check if already logged in
+    sb.auth.getSession().then(({ data }) => {
+      if (data.session) window.location.href = 'dashboard.html';
+    });
+
+    function showTab(tab) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      event.target.classList.add('active');
+      document.getElementById('login-form').style.display = tab === 'login' ? 'block' : 'none';
+      document.getElementById('signup-form').style.display = tab === 'signup' ? 'block' : 'none';
+    }
+
+    function showMsg(id, text, type) {
+      const el = document.getElementById(id);
+      el.textContent = text;
+      el.className = 'msg ' + type;
+    }
+
+    async function handleLogin() {
+      const email = document.getElementById('login-email').value;
+      const password = document.getElementById('login-password').value;
+      const btn = event.target;
+      btn.disabled = true; btn.textContent = 'Signing in...';
+
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) {
+        showMsg('login-msg', error.message, 'error');
+        btn.disabled = false; btn.textContent = 'Sign In →';
+      } else {
+        window.location.href = 'dashboard.html';
+      }
+    }
+
+    async function handleSignup() {
+      const first = document.getElementById('signup-first').value;
+      const last = document.getElementById('signup-last').value;
+      const email = document.getElementById('signup-email').value;
+      const password = document.getElementById('signup-password').value;
+      const room = document.getElementById('signup-room').value;
+      const btn = event.target;
+      btn.disabled = true; btn.textContent = 'Creating account...';
+
+      const { data, error } = await sb.auth.signUp({
+        email, password,
+        options: {
+          data: { first_name: first, last_name: last, room, role: 'customer', loyalty_points: 0 }
+        }
+      });
+
+      if (error) {
+        showMsg('signup-msg', error.message, 'error');
+        btn.disabled = false; btn.textContent = 'Create Account →';
+      } else {
+        showMsg('signup-msg', 'Account created! Check your email to confirm, then sign in.', 'success');
+        btn.disabled = false; btn.textContent = 'Create Account →';
+      }
+    }
+  </script>
+
+</body>
+</html>
