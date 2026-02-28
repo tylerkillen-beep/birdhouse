@@ -47,39 +47,46 @@
     .step-panel { display:none; }
     .step-panel.active { display:block; }
 
-    /* Step 1 — Menu */
-    .category-label { font-size:0.65rem; letter-spacing:0.18em; text-transform:uppercase; color:var(--red); margin:1.5rem 0 0.75rem; }
-    .category-label:first-child { margin-top:0; }
-    .menu-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:0.85rem; margin-bottom:0.5rem; }
+    /* Menu sections */
+    .menu-section-header {
+      display:flex; align-items:center; gap:1rem;
+      margin:2rem 0 1rem;
+    }
+    .menu-section-header:first-child { margin-top:0; }
+    .menu-section-icon { font-size:1.4rem; }
+    .menu-section-title { font-family:'Bebas Neue',sans-serif; font-size:1.6rem; letter-spacing:0.05em; }
+    .menu-section-pill {
+      font-size:0.65rem; padding:0.25rem 0.7rem; border-radius:20px; font-weight:500; letter-spacing:0.06em;
+    }
+    .pill-hot { background:rgba(255,100,0,0.1); color:#ff9944; border:1px solid rgba(255,100,0,0.25); }
+    .pill-iced { background:rgba(80,160,255,0.1); color:#66aaff; border:1px solid rgba(80,160,255,0.25); }
+
+    .menu-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:0.85rem; }
     .menu-card { background:var(--card); border:1px solid var(--border-dim); border-radius:12px; padding:1.25rem; cursor:pointer; transition:all 0.2s; position:relative; }
     .menu-card:hover { border-color:var(--border); transform:translateY(-2px); }
     .menu-card.selected { border-color:var(--red); background:rgba(204,0,0,0.08); box-shadow:0 0 20px rgba(204,0,0,0.15); }
     .menu-card-name { font-weight:500; font-size:0.95rem; margin-bottom:0.25rem; }
-    .menu-card-desc { font-size:0.78rem; color:var(--gray); line-height:1.4; margin-bottom:0.6rem; }
-    .menu-card-tags { display:flex; gap:0.4rem; flex-wrap:wrap; }
-    .tag { font-size:0.65rem; padding:0.2rem 0.55rem; border-radius:20px; border:1px solid var(--border-dim); color:var(--light-gray); }
-    .tag.hot { border-color:rgba(255,120,0,0.3); color:#ff9944; }
-    .tag.iced { border-color:rgba(80,160,255,0.3); color:#66aaff; }
-    .menu-card-check { position:absolute; top:0.85rem; right:0.85rem; width:20px; height:20px; border-radius:50%; background:var(--red); display:none; align-items:center; justify-content:center; font-size:0.7rem; }
+    .menu-card-desc { font-size:0.78rem; color:var(--gray); line-height:1.4; }
+    .menu-card-check { position:absolute; top:0.85rem; right:0.85rem; width:20px; height:20px; border-radius:50%; background:var(--red); display:none; align-items:center; justify-content:center; font-size:0.7rem; box-shadow:0 0 10px rgba(204,0,0,0.5); }
     .menu-card.selected .menu-card-check { display:flex; }
     .no-menu { color:var(--gray); text-align:center; padding:3rem; font-size:0.9rem; background:var(--card); border-radius:12px; border:1px solid var(--border-dim); }
 
-    /* Step 2 — Customize */
-    .customize-grid { display:grid; grid-template-columns:1fr 1fr; gap:2rem; max-width:700px; }
+    /* Customize */
+    .customize-grid { display:grid; grid-template-columns:1fr 1fr; gap:2rem; max-width:680px; }
+    .selected-drink-banner {
+      display:flex; align-items:center; gap:1rem;
+      background:var(--card); border:1px solid var(--border); border-radius:10px;
+      padding:1rem 1.25rem; margin-bottom:1.75rem; max-width:680px;
+    }
+    .sdb-icon { font-size:1.5rem; }
+    .sdb-name { font-weight:500; font-size:1rem; }
+    .sdb-size { font-size:0.75rem; margin-top:0.2rem; }
+    .sdb-size.hot { color:#ff9944; }
+    .sdb-size.iced { color:#66aaff; }
+
     .form-group { margin-bottom:1.25rem; }
     label { display:block; font-size:0.7rem; font-weight:500; letter-spacing:0.1em; text-transform:uppercase; color:var(--gray); margin-bottom:0.5rem; }
     .option-row { display:flex; flex-wrap:wrap; gap:0.5rem; }
-
-    /* Temp type selector — bigger, prominent */
-    .temp-selector { display:flex; gap:1rem; margin-bottom:1.5rem; }
-    .temp-btn { flex:1; padding:1.1rem 1rem; border-radius:12px; border:1.5px solid var(--border-dim); background:var(--card); cursor:pointer; font-family:'DM Sans',sans-serif; font-size:0.9rem; font-weight:500; color:var(--gray); transition:all 0.2s; text-align:center; }
-    .temp-btn .temp-icon { font-size:1.6rem; display:block; margin-bottom:0.4rem; }
-    .temp-btn .temp-size { font-size:0.72rem; color:var(--gray); margin-top:0.2rem; letter-spacing:0.05em; }
-    .temp-btn.hot-btn.selected { border-color:rgba(255,120,0,0.6); background:rgba(255,100,0,0.08); color:#ff9944; box-shadow:0 0 16px rgba(255,100,0,0.15); }
-    .temp-btn.iced-btn.selected { border-color:rgba(80,160,255,0.6); background:rgba(80,160,255,0.08); color:#66aaff; box-shadow:0 0 16px rgba(80,160,255,0.15); }
-    .temp-btn:hover { border-color:var(--border); }
-    .temp-unavail { opacity:0.3; cursor:not-allowed; }
-
     .option-chip { padding:0.45rem 0.9rem; border:1px solid var(--border-dim); border-radius:20px; font-size:0.82rem; cursor:pointer; transition:all 0.2s; color:var(--light-gray); background:transparent; font-family:'DM Sans',sans-serif; }
     .option-chip:hover { border-color:var(--border); color:var(--white); }
     .option-chip.selected { background:var(--red); border-color:var(--red); color:white; box-shadow:0 0 10px rgba(204,0,0,0.3); }
@@ -87,28 +94,28 @@
     textarea:focus { border-color:var(--red); }
     textarea::placeholder { color:var(--gray); }
 
-    /* Step 3 — Delivery */
+    /* Delivery */
     input[type=text], select { width:100%; padding:0.85rem 1rem; border:1px solid var(--border-dim); border-radius:8px; background:#0f0f0f; font-family:'DM Sans',sans-serif; font-size:0.9rem; color:var(--white); outline:none; transition:border-color 0.2s; }
     input:focus, select:focus { border-color:var(--red); box-shadow:0 0 0 3px rgba(204,0,0,0.12); }
     input::placeholder { color:var(--gray); }
     select option { background:#1a1a1a; }
     .form-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
 
-    /* Step 4 — Review */
+    /* Review */
     .review-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:2rem; max-width:520px; }
-    .review-header { display:flex; align-items:center; gap:1rem; margin-bottom:1.5rem; padding-bottom:1.5rem; border-bottom:1px solid var(--border-dim); }
+    .review-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:1.5rem; padding-bottom:1.5rem; border-bottom:1px solid var(--border-dim); }
     .review-drink-name { font-family:'Bebas Neue',sans-serif; font-size:1.8rem; letter-spacing:0.04em; }
-    .review-temp-badge { font-size:0.72rem; padding:0.3rem 0.75rem; border-radius:20px; font-weight:500; }
-    .review-temp-badge.hot { background:rgba(255,100,0,0.1); color:#ff9944; border:1px solid rgba(255,100,0,0.25); }
-    .review-temp-badge.iced { background:rgba(80,160,255,0.1); color:#66aaff; border:1px solid rgba(80,160,255,0.25); }
+    .review-size-badge { font-size:0.72rem; padding:0.3rem 0.75rem; border-radius:20px; font-weight:500; margin-top:0.4rem; display:inline-block; }
+    .review-size-badge.hot { background:rgba(255,100,0,0.1); color:#ff9944; border:1px solid rgba(255,100,0,0.25); }
+    .review-size-badge.iced { background:rgba(80,160,255,0.1); color:#66aaff; border:1px solid rgba(80,160,255,0.25); }
     .review-line { display:flex; justify-content:space-between; padding:0.65rem 0; border-bottom:1px solid var(--border-dim); font-size:0.88rem; }
     .review-line:last-of-type { border-bottom:none; }
     .review-key { color:var(--light-gray); }
     .review-val { color:var(--white); font-weight:500; }
-    .loyalty-note { background:rgba(204,0,0,0.07); border:1px solid var(--border); border-radius:8px; padding:0.85rem 1rem; margin:1.25rem 0 0; font-size:0.82rem; color:var(--light-gray); display:flex; align-items:center; gap:0.6rem; }
+    .loyalty-note { background:rgba(204,0,0,0.07); border:1px solid var(--border); border-radius:8px; padding:0.85rem 1rem; margin-top:1.25rem; font-size:0.82rem; color:var(--light-gray); display:flex; align-items:center; gap:0.6rem; }
     .loyalty-note span { color:var(--red-bright); font-weight:500; }
 
-    /* Confirmation screen (after save, before Square) */
+    /* Confirmation */
     .confirm-screen { max-width:520px; }
     .confirm-icon { font-size:3rem; margin-bottom:1rem; display:block; animation:pop 0.4s ease; }
     @keyframes pop { 0%{transform:scale(0)} 80%{transform:scale(1.1)} 100%{transform:scale(1)} }
@@ -120,13 +127,11 @@
       padding:1.1rem 2.25rem; font-family:'DM Sans',sans-serif; font-size:1rem;
       font-weight:500; cursor:pointer; text-decoration:none;
       transition:all 0.2s; text-transform:uppercase; letter-spacing:0.07em;
-      box-shadow:0 0 30px rgba(204,0,0,0.35);
       animation:pulse-btn 2s ease-in-out infinite;
     }
     .square-btn:hover { background:var(--red-bright); box-shadow:0 0 40px rgba(204,0,0,0.6); transform:translateY(-2px); }
     @keyframes pulse-btn { 0%,100%{box-shadow:0 0 25px rgba(204,0,0,0.3)} 50%{box-shadow:0 0 45px rgba(204,0,0,0.6)} }
-    .square-btn-icon { font-size:1.2rem; }
-    .no-link-note { background:rgba(255,255,255,0.04); border:1px solid var(--border-dim); border-radius:8px; padding:1rem; font-size:0.85rem; color:var(--gray); margin-top:1rem; }
+    .no-link-note { background:rgba(255,255,255,0.04); border:1px solid var(--border-dim); border-radius:8px; padding:1rem 1.25rem; font-size:0.85rem; color:var(--gray); margin-top:0.5rem; line-height:1.6; }
     .skip-link { display:block; margin-top:1.25rem; font-size:0.82rem; color:var(--gray); text-decoration:none; transition:color 0.2s; }
     .skip-link:hover { color:var(--light-gray); }
 
@@ -138,7 +143,7 @@
     .btn-ghost:hover { border-color:var(--border); color:var(--white); }
     .btn-row { display:flex; gap:1rem; margin-top:2rem; flex-wrap:wrap; }
 
-    @media (max-width:900px) { .layout{grid-template-columns:1fr} .sidebar{display:none} .main{padding:1.5rem} .customize-grid{grid-template-columns:1fr} .temp-selector{flex-direction:column} }
+    @media (max-width:900px) { .layout{grid-template-columns:1fr} .sidebar{display:none} .main{padding:1.5rem} .customize-grid{grid-template-columns:1fr} }
   </style>
 </head>
 <body>
@@ -164,7 +169,6 @@
     <h1 class="page-title">Place an Order</h1>
     <p class="page-sub">Choose your drink, customize it, and we'll deliver it to your room.</p>
 
-    <!-- Step indicator -->
     <div class="steps">
       <div class="step active" id="step-ind-1"><div class="step-num">1</div> Choose Drink</div>
       <div class="step-line"></div>
@@ -187,19 +191,11 @@
 
     <!-- Step 2: Customize -->
     <div class="step-panel" id="panel-2">
-      <div class="form-group">
-        <label>Hot or Iced?</label>
-        <div class="temp-selector">
-          <button class="temp-btn hot-btn" id="btn-hot" onclick="selectTemp('hot')">
-            <span class="temp-icon">☕</span>
-            Hot
-            <div class="temp-size">12 oz</div>
-          </button>
-          <button class="temp-btn iced-btn" id="btn-iced" onclick="selectTemp('iced')">
-            <span class="temp-icon">🧊</span>
-            Iced
-            <div class="temp-size">16 oz</div>
-          </button>
+      <div class="selected-drink-banner">
+        <div class="sdb-icon" id="sdb-icon">☕</div>
+        <div>
+          <div class="sdb-name" id="sdb-name">—</div>
+          <div class="sdb-size" id="sdb-size">—</div>
         </div>
       </div>
       <div class="customize-grid">
@@ -216,13 +212,13 @@
         <div>
           <div class="form-group">
             <label>Special Instructions <span style="color:var(--gray);font-weight:300">(optional)</span></label>
-            <textarea id="special-instructions" placeholder="Extra shot, less sweet, extra hot..."></textarea>
+            <textarea id="special-instructions" placeholder="Extra shot, less sweet, light ice..."></textarea>
           </div>
         </div>
       </div>
       <div class="btn-row">
         <button class="btn-ghost" onclick="goToStep(1)">← Back</button>
-        <button class="btn-primary" id="btn-next-2" onclick="goToStep(3)" disabled>Next: Delivery →</button>
+        <button class="btn-primary" onclick="goToStep(3)">Next: Delivery →</button>
       </div>
     </div>
 
@@ -264,8 +260,8 @@
           <div>
             <div style="font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--red);margin-bottom:0.3rem">Your Order</div>
             <div class="review-drink-name" id="review-drink-name">—</div>
+            <div class="review-size-badge" id="review-size-badge">—</div>
           </div>
-          <div class="review-temp-badge" id="review-temp-badge">—</div>
         </div>
         <div id="review-lines"></div>
         <div class="loyalty-note">⭐ You'll earn <span>+1 loyalty point</span> for this order!</div>
@@ -276,29 +272,22 @@
       </div>
     </div>
 
-    <!-- Step 5: Confirmation + Square redirect -->
+    <!-- Step 5: Confirmation + Square button -->
     <div class="step-panel" id="panel-5">
       <div class="confirm-screen">
         <span class="confirm-icon">✅</span>
         <div class="confirm-title">Order Saved!</div>
-        <p class="confirm-sub">Your order details have been sent to our team. Now complete your payment through Square to confirm your order.</p>
-
+        <p class="confirm-sub">Your order details have been sent to our team. Complete your payment below to confirm your order — then we'll take care of the rest.</p>
         <div id="square-btn-wrap"></div>
-        <a class="skip-link" href="dashboard.html">← Back to dashboard (pay later / cash)</a>
+        <a class="skip-link" href="dashboard.html">← Back to dashboard (pay cash / pay later)</a>
       </div>
     </div>
-
   </main>
 </div>
 
 <script>
   const sb = supabase.createClient('https://ljukrhneikqbabcmcpet.supabase.co','sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn');
-  let currentUser = null;
-  let menuItems = [];
-  let selectedItem = null;
-  let selectedTemp = null; // 'hot' or 'iced'
-  let selectedMilk = null;
-  let selectedSyrup = 'None';
+  let currentUser = null, menuItems = [], selectedItem = null, selectedMilk = null, selectedSyrup = 'None';
 
   async function init() {
     const {data:{session}} = await sb.auth.getSession();
@@ -315,39 +304,77 @@
   async function loadMenu() {
     const {data,error} = await sb.from('menu_items').select('*').eq('available',true).order('sort_order');
     const container = document.getElementById('menu-container');
-    if(error||!data||!data.length){
-      container.innerHTML='<div class="no-menu">No menu items yet — check back soon!</div>';
-      return;
-    }
+    if(error||!data||!data.length){container.innerHTML='<div class="no-menu">No menu items yet — check back soon!</div>';return;}
     menuItems = data;
-    const cats = [...new Set(data.map(i=>i.category))];
-    container.innerHTML = cats.map(cat=>`
-      <div class="category-label">${cat}</div>
-      <div class="menu-grid">
-        ${data.filter(i=>i.category===cat).map(item=>`
-          <div class="menu-card" id="card-${item.id}" onclick="selectItem('${item.id}')">
-            <div class="menu-card-check">✓</div>
-            <div class="menu-card-name">${item.name}</div>
-            <div class="menu-card-desc">${item.description||''}</div>
-            <div class="menu-card-tags">
-              ${item.is_hot!==false?'<span class="tag hot">☕ Hot · 12oz</span>':''}
-              ${item.is_iced===true?'<span class="tag iced">🧊 Iced · 16oz</span>':''}
-            </div>
-          </div>`).join('')}
-      </div>`).join('');
+
+    const hotItems  = data.filter(i => i.is_hot !== false && i.is_iced !== true);
+    const icedItems = data.filter(i => i.is_iced === true);
+    // Items that are both get shown in both sections
+    const bothItems = data.filter(i => i.is_hot !== false && i.is_iced === true);
+
+    let html = '';
+
+    if(hotItems.length || bothItems.length) {
+      html += `
+        <div class="menu-section-header">
+          <span class="menu-section-icon">☕</span>
+          <span class="menu-section-title">Hot Drinks</span>
+          <span class="menu-section-pill pill-hot">12 oz</span>
+        </div>
+        <div class="menu-grid">
+          ${[...hotItems, ...bothItems].map(item => menuCard(item, 'hot')).join('')}
+        </div>`;
+    }
+
+    if(icedItems.length || bothItems.length) {
+      html += `
+        <div class="menu-section-header">
+          <span class="menu-section-icon">🧊</span>
+          <span class="menu-section-title">Iced Drinks</span>
+          <span class="menu-section-pill pill-iced">16 oz</span>
+        </div>
+        <div class="menu-grid">
+          ${[...icedItems, ...bothItems].map(item => menuCard(item, 'iced')).join('')}
+        </div>`;
+    }
+
+    container.innerHTML = html || '<div class="no-menu">No menu items yet.</div>';
   }
 
-  function selectItem(id) {
+  function menuCard(item, temp) {
+    // Use composite ID so same item can appear in both sections
+    const cardId = `card-${item.id}-${temp}`;
+    return `
+      <div class="menu-card" id="${cardId}" onclick="selectItem('${item.id}','${temp}')">
+        <div class="menu-card-check">✓</div>
+        <div class="menu-card-name">${item.name}</div>
+        <div class="menu-card-desc">${item.description||''}</div>
+      </div>`;
+  }
+
+  function selectItem(id, temp) {
     document.querySelectorAll('.menu-card').forEach(c=>c.classList.remove('selected'));
-    document.getElementById('card-'+id).classList.add('selected');
+    const card = document.getElementById(`card-${id}-${temp}`);
+    if(card) card.classList.add('selected');
     selectedItem = menuItems.find(i=>i.id===id);
-    selectedTemp = null;
+    selectedItem._selectedTemp = temp; // store which temp was picked
     document.getElementById('btn-next-1').disabled = false;
   }
 
   function loadCustomizationOptions() {
-    const milks = selectedItem.available_milks||['Whole Milk','Oat Milk','Almond Milk','2% Milk'];
-    const syrups = selectedItem.available_syrups||['Vanilla','Caramel','Hazelnut','Sugar Free Vanilla'];
+    const item = selectedItem;
+    const temp = item._selectedTemp;
+    const isIced = temp === 'iced';
+
+    // Banner
+    document.getElementById('sdb-icon').textContent = isIced ? '🧊' : '☕';
+    document.getElementById('sdb-name').textContent = item.name;
+    const sizeEl = document.getElementById('sdb-size');
+    sizeEl.textContent = isIced ? 'Iced · 16 oz' : 'Hot · 12 oz';
+    sizeEl.className = 'sdb-size ' + temp;
+
+    const milks  = item.available_milks  || ['Whole Milk','Oat Milk','Almond Milk','2% Milk'];
+    const syrups = item.available_syrups || ['Vanilla','Caramel','Hazelnut','Sugar Free Vanilla'];
 
     document.getElementById('milk-options').innerHTML = milks.map((m,i)=>
       `<button class="option-chip ${i===0?'selected':''}" onclick="selectChip(this,'milk','${m}')">${m}</button>`
@@ -358,37 +385,6 @@
       `<button class="option-chip selected" onclick="selectChip(this,'syrup','None')">None</button>` +
       syrups.map(s=>`<button class="option-chip" onclick="selectChip(this,'syrup','${s}')">${s}</button>`).join('');
     selectedSyrup = 'None';
-
-    // Configure temp buttons based on what item supports
-    const hotBtn = document.getElementById('btn-hot');
-    const icedBtn = document.getElementById('btn-iced');
-    const hasHot = selectedItem.is_hot !== false;
-    const hasIced = selectedItem.is_iced === true;
-
-    hotBtn.classList.remove('selected','temp-unavail');
-    icedBtn.classList.remove('selected','temp-unavail');
-    if(!hasHot) hotBtn.classList.add('temp-unavail');
-    if(!hasIced) icedBtn.classList.add('temp-unavail');
-
-    // Auto-select if only one option
-    if(hasHot && !hasIced) selectTemp('hot');
-    else if(hasIced && !hasHot) selectTemp('iced');
-
-    checkTempSelected();
-  }
-
-  function selectTemp(type) {
-    const item = selectedItem;
-    if(type==='hot' && item.is_hot===false) return;
-    if(type==='iced' && item.is_iced!==true) return;
-    selectedTemp = type;
-    document.getElementById('btn-hot').classList.toggle('selected', type==='hot');
-    document.getElementById('btn-iced').classList.toggle('selected', type==='iced');
-    checkTempSelected();
-  }
-
-  function checkTempSelected() {
-    document.getElementById('btn-next-2').disabled = !selectedTemp;
   }
 
   function selectChip(el, type, value) {
@@ -406,21 +402,23 @@
   }
 
   function buildReview() {
-    const room = document.getElementById('delivery-room').value;
-    const time = document.getElementById('delivery-time').value;
-    const day = document.getElementById('delivery-day').value;
+    const room  = document.getElementById('delivery-room').value;
+    const time  = document.getElementById('delivery-time').value;
+    const day   = document.getElementById('delivery-day').value;
     const notes = document.getElementById('special-instructions').value;
+    const temp  = selectedItem._selectedTemp;
+    const isIced = temp === 'iced';
 
     document.getElementById('review-drink-name').textContent = selectedItem.name;
-    const badge = document.getElementById('review-temp-badge');
-    badge.textContent = selectedTemp==='hot'?'☕ Hot · 12oz':'🧊 Iced · 16oz';
-    badge.className = 'review-temp-badge '+(selectedTemp==='hot'?'hot':'iced');
+    const badge = document.getElementById('review-size-badge');
+    badge.textContent = isIced ? '🧊 Iced · 16 oz' : '☕ Hot · 12 oz';
+    badge.className   = 'review-size-badge ' + temp;
 
     const lines = [
-      {k:'Milk', v:selectedMilk},
-      {k:'Syrup', v:selectedSyrup||'None'},
-      {k:'Delivery', v:`${day} at ${time||'—'}`},
-      {k:'Room', v:room||'—'},
+      {k:'Milk',     v: selectedMilk},
+      {k:'Syrup',    v: selectedSyrup||'None'},
+      {k:'Delivery', v: `${day} at ${time||'—'}`},
+      {k:'Room',     v: room||'—'},
     ];
     if(notes) lines.push({k:'Instructions', v:notes});
     document.getElementById('review-lines').innerHTML = lines.map(l=>
@@ -429,19 +427,14 @@
   }
 
   function goToStep(step) {
-    if(step===3){
-      const room=document.getElementById('delivery-room').value.trim();
-      // just move — validate on submit
-    }
-    if(step===4){
-      const room=document.getElementById('delivery-room').value.trim();
-      const time=document.getElementById('delivery-time').value;
+    if(step===2) loadCustomizationOptions();
+    if(step===4) {
+      const room = document.getElementById('delivery-room').value.trim();
+      const time = document.getElementById('delivery-time').value;
       if(!room){alert('Please enter your room or delivery location.');return;}
       if(!time){alert('Please select a delivery time.');return;}
       buildReview();
     }
-    if(step===2) loadCustomizationOptions();
-
     document.querySelectorAll('.step-panel').forEach(p=>p.classList.remove('active'));
     document.getElementById('panel-'+step).classList.add('active');
     for(let i=1;i<=5;i++){
@@ -454,20 +447,27 @@
   async function submitOrder() {
     const btn=document.getElementById('submit-btn');
     btn.disabled=true; btn.textContent='Saving...';
-    const room=document.getElementById('delivery-room').value;
-    const time=document.getElementById('delivery-time').value;
-    const day=document.getElementById('delivery-day').value;
-    const notes=document.getElementById('special-instructions').value;
-    const meta=currentUser.user_metadata;
+    const room  = document.getElementById('delivery-room').value;
+    const time  = document.getElementById('delivery-time').value;
+    const day   = document.getElementById('delivery-day').value;
+    const notes = document.getElementById('special-instructions').value;
+    const meta  = currentUser.user_metadata;
+    const temp  = selectedItem._selectedTemp;
+    const isIced = temp === 'iced';
 
     const {error} = await sb.from('orders').insert({
       user_id: currentUser.id,
       customer_name: (meta.first_name||'')+' '+(meta.last_name||''),
       drink_name: selectedItem.name,
-      room, size: selectedTemp==='hot'?'Hot 12oz':'Iced 16oz',
-      milk: selectedMilk, syrup: selectedSyrup,
-      delivery_time: time, delivery_day: day,
-      special_instructions: notes, points_earned: 1, status: 'pending'
+      room,
+      size: isIced ? 'Iced 16oz' : 'Hot 12oz',
+      milk: selectedMilk,
+      syrup: selectedSyrup,
+      delivery_time: time,
+      delivery_day: day,
+      special_instructions: notes,
+      points_earned: 1,
+      status: 'pending'
     });
 
     if(error){alert('Error saving order: '+error.message);btn.disabled=false;btn.textContent='Save Order & Continue →';return;}
@@ -475,23 +475,18 @@
     // Award loyalty point
     await sb.auth.updateUser({data:{loyalty_points:(meta.loyalty_points||0)+1}});
 
-    // Determine correct Square link
-    const squareLink = selectedTemp==='hot' ? selectedItem.square_link_hot : selectedItem.square_link_iced;
+    // Pick correct Square link
+    const squareLink = isIced ? selectedItem.square_link_iced : selectedItem.square_link_hot;
 
-    // Show confirmation with Square button
+    // Show confirmation
     document.querySelectorAll('.step-panel').forEach(p=>p.classList.remove('active'));
     document.getElementById('panel-5').classList.add('active');
-    for(let i=1;i<=5;i++){
-      const ind=document.getElementById('step-ind-'+i);
-      if(ind) ind.className='step done';
-    }
+    for(let i=1;i<=5;i++){const ind=document.getElementById('step-ind-'+i);if(ind)ind.className='step done';}
 
-    const wrap=document.getElementById('square-btn-wrap');
-    if(squareLink){
-      wrap.innerHTML=`<a class="square-btn" href="${squareLink}" target="_blank"><span class="square-btn-icon">💳</span> Complete Payment in Square</a>`;
-    } else {
-      wrap.innerHTML=`<div class="no-link-note">⚠️ No payment link set up for this item yet. Please pay cash or contact staff to complete your order.</div>`;
-    }
+    const wrap = document.getElementById('square-btn-wrap');
+    wrap.innerHTML = squareLink
+      ? `<a class="square-btn" href="${squareLink}" target="_blank">💳 Complete Payment in Square</a>`
+      : `<div class="no-link-note">⚠️ No payment link set up for this item yet.<br>Please pay cash or contact staff to complete your order.</div>`;
 
     window.scrollTo(0,0);
   }
