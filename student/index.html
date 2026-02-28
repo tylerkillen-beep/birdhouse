@@ -4,175 +4,97 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>The Birdhouse — Team Login</title>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --cream: #f5f0e8;
-      --brown: #2c1a0e;
-      --rust: #9b3a1a;
-      --rust-light: #c4602e;
-      --amber: #c47d2e;
-      --warm-gray: #8a7968;
-      --card-bg: #fff8f0;
+      --black: #0a0a0a; --red: #cc0000; --red-bright: #ff1a1a;
+      --gray: #666; --light-gray: #aaa; --white: #f0f0f0;
+      --card: #161616; --border: rgba(204,0,0,0.2); --border-dim: rgba(255,255,255,0.07);
     }
-    body {
-      background: var(--cream);
-      color: var(--brown);
-      font-family: 'DM Sans', sans-serif;
-      min-height: 100vh;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-    }
+    body { background: var(--black); color: var(--white); font-family: 'DM Sans', sans-serif; min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; }
+    body::before { content: ''; position: fixed; inset: 0; background-image: linear-gradient(rgba(204,0,0,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(204,0,0,0.03) 1px, transparent 1px); background-size: 40px 40px; pointer-events: none; z-index: 0; }
 
-    .panel-left {
-      background: var(--rust);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      padding: 4rem;
-      position: relative;
-      overflow: hidden;
-    }
-    .panel-left::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(ellipse at 40% 40%, rgba(196,125,46,0.3) 0%, transparent 60%);
-    }
-    .panel-text { position: relative; z-index: 1; color: var(--cream); text-align: center; }
-    .panel-emoji { font-size: 5rem; display: block; margin-bottom: 2rem; animation: float 4s ease-in-out infinite; }
-    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
-    .panel-title { font-family: 'Playfair Display', serif; font-size: 2.5rem; line-height: 1.1; margin-bottom: 1rem; }
-    .panel-title em { color: #f0c070; font-style: italic; }
-    .panel-sub { font-size: 0.9rem; opacity: 0.7; line-height: 1.6; max-width: 280px; }
-    .perks { margin-top: 2.5rem; text-align: left; }
-    .perk { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.9rem; font-size: 0.88rem; opacity: 0.85; }
-    .perk-icon { width: 28px; height: 28px; background: rgba(255,255,255,0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; flex-shrink: 0; }
+    .panel-left { background: #0d0000; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 4rem; position: relative; overflow: hidden; border-right: 1px solid var(--border); }
+    .panel-left::before { content: ''; position: absolute; width: 400px; height: 400px; background: radial-gradient(circle, rgba(204,0,0,0.2) 0%, transparent 70%); border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%,-50%); animation: pulse 4s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{transform:translate(-50%,-50%) scale(1)} 50%{transform:translate(-50%,-50%) scale(1.1)} }
+    .panel-text { position: relative; z-index: 1; text-align: center; }
+    .panel-logo { height: 80px; filter: drop-shadow(0 0 20px rgba(204,0,0,0.7)); margin-bottom: 2rem; animation: float 5s ease-in-out infinite; }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+    .panel-title { font-family: 'Bebas Neue', sans-serif; font-size: 3.5rem; line-height: 1; color: var(--white); margin-bottom: 0.5rem; letter-spacing: 0.05em; }
+    .panel-title span { color: var(--red-bright); text-shadow: 0 0 20px rgba(204,0,0,0.7); }
+    .panel-sub { font-size: 0.88rem; color: var(--gray); line-height: 1.6; max-width: 260px; margin: 0 auto 2rem; }
+    .perks { text-align: left; }
+    .perk { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.85rem; font-size: 0.85rem; color: var(--light-gray); }
+    .perk-dot { width: 6px; height: 6px; background: var(--red); border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 8px rgba(204,0,0,0.8); }
 
-    .panel-right {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      padding: 4rem 3.5rem;
-    }
-    .back-link { font-size: 0.82rem; color: var(--warm-gray); text-decoration: none; letter-spacing: 0.05em; display: inline-flex; align-items: center; gap: 0.4rem; margin-bottom: 2.5rem; transition: color 0.2s; }
-    .back-link:hover { color: var(--rust); }
-    .form-header { margin-bottom: 2.5rem; }
-    .form-eyebrow { font-size: 0.72rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--rust); margin-bottom: 0.5rem; }
-    .form-title { font-family: 'Playfair Display', serif; font-size: 2.2rem; }
-    .form-sub { color: var(--warm-gray); font-size: 0.88rem; margin-top: 0.4rem; }
+    .panel-right { display: flex; flex-direction: column; justify-content: center; padding: 4rem 3.5rem; position: relative; z-index: 1; }
+    .back-link { font-size: 0.78rem; color: var(--gray); text-decoration: none; letter-spacing: 0.08em; display: inline-flex; align-items: center; gap: 0.4rem; margin-bottom: 2.5rem; transition: color 0.2s; text-transform: uppercase; }
+    .back-link:hover { color: var(--red-bright); }
+    .form-eyebrow { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--red); margin-bottom: 0.5rem; }
+    .form-title { font-family: 'Bebas Neue', sans-serif; font-size: 3rem; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+    .form-sub { color: var(--gray); font-size: 0.85rem; margin-bottom: 2rem; }
 
-    .form-group { margin-bottom: 1.25rem; }
-    label { display: block; font-size: 0.78rem; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--warm-gray); margin-bottom: 0.45rem; }
-    input {
-      width: 100%; padding: 0.85rem 1rem; border: 1.5px solid rgba(44,26,14,0.15); border-radius: 10px;
-      background: var(--card-bg); font-family: 'DM Sans', sans-serif; font-size: 0.95rem; color: var(--brown);
-      transition: border-color 0.2s, box-shadow 0.2s; outline: none;
-    }
-    input:focus { border-color: var(--rust); box-shadow: 0 0 0 3px rgba(155,58,26,0.1); }
-    .btn-primary {
-      width: 100%; padding: 1rem; background: var(--rust); color: var(--cream);
-      border: none; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 0.95rem;
-      font-weight: 500; cursor: pointer; transition: background 0.2s, transform 0.15s; margin-top: 0.5rem;
-    }
-    .btn-primary:hover { background: var(--rust-light); transform: translateY(-1px); }
-    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
-    .msg { margin-top: 1rem; padding: 0.85rem 1rem; border-radius: 8px; font-size: 0.88rem; display: none; }
-    .msg.success { background: #d4edda; color: #155724; display: block; }
-    .msg.error { background: #f8d7da; color: #721c24; display: block; }
+    .info-box { background: rgba(204,0,0,0.07); border: 1px solid rgba(204,0,0,0.2); border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; font-size: 0.82rem; color: var(--gray); line-height: 1.5; }
+    .form-group { margin-bottom: 1.15rem; }
+    label { display: block; font-size: 0.7rem; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gray); margin-bottom: 0.4rem; }
+    input { width: 100%; padding: 0.85rem 1rem; border: 1px solid var(--border-dim); border-radius: 8px; background: var(--card); font-family: 'DM Sans', sans-serif; font-size: 0.93rem; color: var(--white); transition: border-color 0.2s, box-shadow 0.2s; outline: none; }
+    input:focus { border-color: var(--red); box-shadow: 0 0 0 3px rgba(204,0,0,0.15); }
+    input::placeholder { color: var(--gray); }
+    .btn-primary { width: 100%; padding: 1rem; background: var(--red); color: var(--white); border: none; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 0.93rem; font-weight: 500; cursor: pointer; transition: background 0.2s, box-shadow 0.2s, transform 0.15s; margin-top: 0.5rem; letter-spacing: 0.05em; text-transform: uppercase; }
+    .btn-primary:hover { background: var(--red-bright); box-shadow: 0 0 20px rgba(204,0,0,0.4); transform: translateY(-1px); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .msg { margin-top: 1rem; padding: 0.85rem 1rem; border-radius: 8px; font-size: 0.85rem; display: none; }
+    .msg.error { background: rgba(204,0,0,0.1); border: 1px solid rgba(204,0,0,0.3); color: #ff6b6b; display: block; }
 
-    .info-box { background: rgba(155,58,26,0.07); border: 1px solid rgba(155,58,26,0.2); border-radius: 10px; padding: 1rem; margin-bottom: 1.5rem; font-size: 0.85rem; color: var(--warm-gray); line-height: 1.5; }
-
-    @media (max-width: 768px) {
-      body { grid-template-columns: 1fr; }
-      .panel-left { display: none; }
-      .panel-right { padding: 2.5rem 1.5rem; }
-    }
+    @media (max-width: 768px) { body{grid-template-columns:1fr} .panel-left{display:none} .panel-right{padding:2.5rem 1.5rem} }
   </style>
 </head>
 <body>
-
   <div class="panel-left">
     <div class="panel-text">
-      <span class="panel-emoji">📋</span>
-      <h2 class="panel-title">Team<br><em>Hub</em></h2>
+      <img class="panel-logo" src="../logo.png" alt="The Birdhouse" />
+      <h2 class="panel-title">TEAM<br><span>HUB.</span></h2>
       <p class="panel-sub">Your workspace for managing The Birdhouse — schedules, inventory, reports, and more.</p>
       <div class="perks">
-        <div class="perk"><div class="perk-icon">🗓️</div> View your work schedule</div>
-        <div class="perk"><div class="perk-icon">📦</div> Track & update inventory</div>
-        <div class="perk"><div class="perk-icon">📊</div> See sales data & trends</div>
-        <div class="perk"><div class="perk-icon">📝</div> Submit weekly summaries</div>
+        <div class="perk"><div class="perk-dot"></div> View your work schedule</div>
+        <div class="perk"><div class="perk-dot"></div> Track & update inventory</div>
+        <div class="perk"><div class="perk-dot"></div> See sales data & trends</div>
+        <div class="perk"><div class="perk-dot"></div> Submit weekly summaries</div>
       </div>
     </div>
   </div>
 
   <div class="panel-right">
     <a class="back-link" href="../index.html">← Back to Home</a>
-
-    <div class="form-header">
-      <div class="form-eyebrow">Student Staff Portal</div>
-      <h1 class="form-title">Team Sign In</h1>
-      <p class="form-sub">For Birdhouse student employees only.</p>
-    </div>
-
-    <div class="info-box">
-      🔐 Your account is created by an admin. If you don't have login credentials, contact your instructor.
-    </div>
-
-    <div class="form-group">
-      <label>Email</label>
-      <input type="email" id="email" placeholder="you@example.com" />
-    </div>
-    <div class="form-group">
-      <label>Password</label>
-      <input type="password" id="password" placeholder="••••••••" />
-    </div>
+    <div class="form-eyebrow">Student Staff Portal</div>
+    <h1 class="form-title">Team Sign In.</h1>
+    <p class="form-sub">For Birdhouse student employees only.</p>
+    <div class="info-box">🔐 Your account is created by an admin. Contact your instructor if you need credentials.</div>
+    <div class="form-group"><label>Email</label><input type="email" id="email" placeholder="you@example.com" /></div>
+    <div class="form-group"><label>Password</label><input type="password" id="password" placeholder="••••••••" /></div>
     <button class="btn-primary" onclick="handleLogin()">Sign In to Team Hub →</button>
     <div class="msg" id="login-msg"></div>
   </div>
 
   <script>
-    const SUPABASE_URL = 'https://ljukrhneikqbabcmcpet.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn';
-    const { createClient } = supabase;
-    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    sb.auth.getSession().then(({ data }) => {
-      if (data.session) {
-        const role = data.session.user.user_metadata?.role;
-        if (role === 'student' || role === 'admin') window.location.href = 'dashboard.html';
-      }
+    const sb = supabase.createClient('https://ljukrhneikqbabcmcpet.supabase.co','sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn');
+    sb.auth.getSession().then(({data})=>{
+      if(data.session){const r=data.session.user.user_metadata?.role; if(r==='student'||r==='admin') window.location.href='dashboard.html';}
     });
-
     async function handleLogin() {
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-      const btn = event.target;
-      btn.disabled = true; btn.textContent = 'Signing in...';
-
-      const { data, error } = await sb.auth.signInWithPassword({ email, password });
-      if (error) {
-        document.getElementById('login-msg').textContent = error.message;
-        document.getElementById('login-msg').className = 'msg error';
-        btn.disabled = false; btn.textContent = 'Sign In to Team Hub →';
-        return;
-      }
-
-      const role = data.user.user_metadata?.role;
-      if (role !== 'student' && role !== 'admin') {
+      const btn=event.target; btn.disabled=true; btn.textContent='Signing in...';
+      const {data,error} = await sb.auth.signInWithPassword({email:document.getElementById('email').value,password:document.getElementById('password').value});
+      if(error){const m=document.getElementById('login-msg');m.textContent=error.message;m.className='msg error';btn.disabled=false;btn.textContent='Sign In to Team Hub →';return;}
+      const role=data.user.user_metadata?.role;
+      if(role!=='student'&&role!=='admin'){
         await sb.auth.signOut();
-        document.getElementById('login-msg').textContent = 'This account does not have student staff access.';
-        document.getElementById('login-msg').className = 'msg error';
-        btn.disabled = false; btn.textContent = 'Sign In to Team Hub →';
-        return;
+        const m=document.getElementById('login-msg');m.textContent='This account does not have student staff access.';m.className='msg error';
+        btn.disabled=false;btn.textContent='Sign In to Team Hub →';return;
       }
-
-      window.location.href = 'dashboard.html';
+      window.location.href='dashboard.html';
     }
   </script>
-
 </body>
 </html>
