@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Birdhouse — Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --black: #0a0a0a; --red: #cc0000; --red-bright: #ff1a1a;
+      --gray: #555; --light-gray: #999; --white: #f0f0f0;
+      --card: #141414; --border: rgba(204,0,0,0.18); --border-dim: rgba(255,255,255,0.07);
+    }
+    body { background: var(--black); color: var(--white); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+    body::before { content:''; position:fixed; inset:0; background-image:linear-gradient(rgba(204,0,0,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(204,0,0,0.03) 1px,transparent 1px); background-size:40px 40px; pointer-events:none; z-index:0; }
+
+    .layout { display:grid; grid-template-columns:220px 1fr; min-height:100vh; }
+    .sidebar { background:#0d0000; border-right:1px solid var(--border); padding:1.75rem 1.25rem; position:sticky; top:0; height:100vh; display:flex; flex-direction:column; }
+    .sidebar-logo img { height:38px; filter:drop-shadow(0 0 8px rgba(204,0,0,0.5)); margin-bottom:1rem; }
+    .admin-badge { background:rgba(204,0,0,0.15); border:1px solid var(--border); border-radius:6px; padding:0.3rem 0.75rem; font-size:0.65rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--red-bright); margin-bottom:2rem; display:inline-block; }
+    nav { flex:1; }
+    .nav-section { font-size:0.6rem; text-transform:uppercase; letter-spacing:0.15em; color:var(--gray); margin:1.25rem 0 0.5rem 0.9rem; }
+    .nav-item { display:flex; align-items:center; gap:0.7rem; padding:0.7rem 0.9rem; border-radius:7px; color:var(--gray); font-size:0.85rem; cursor:pointer; transition:all 0.2s; margin-bottom:0.2rem; border:1px solid transparent; }
+    .nav-item:hover { color:var(--white); background:rgba(255,255,255,0.04); }
+    .nav-item.active { background:rgba(204,0,0,0.12); color:var(--red-bright); border-color:rgba(204,0,0,0.25); }
+    .signout-btn { background:none; border:1px solid rgba(255,255,255,0.08); border-radius:7px; padding:0.65rem 1rem; color:var(--gray); font-size:0.8rem; cursor:pointer; width:100%; text-align:left; transition:all 0.2s; display:flex; align-items:center; gap:0.5rem; font-family:'DM Sans',sans-serif; }
+    .signout-btn:hover { color:var(--white); }
+
+    .main { padding:2.5rem 3rem; position:relative; z-index:1; }
+    .page-eyebrow { font-size:0.65rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--red); margin-bottom:0.3rem; }
+    .page-title { font-family:'Bebas Neue',sans-serif; font-size:2.5rem; letter-spacing:0.04em; margin-bottom:2rem; }
+    .section-title { font-family:'Bebas Neue',sans-serif; font-size:1.4rem; letter-spacing:0.05em; margin-bottom:1rem; }
+
+    .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:2rem; }
+    .stat-card { background:var(--card); border-radius:12px; padding:1.25rem; border:1px solid var(--border-dim); }
+    .stat-label { font-size:0.65rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--light-gray); margin-bottom:0.4rem; }
+    .stat-value { font-family:'Bebas Neue',sans-serif; font-size:2rem; color:var(--red-bright); text-shadow:0 0 15px rgba(204,0,0,0.3); }
+    .stat-sub { font-size:0.72rem; color:var(--gray); margin-top:0.2rem; }
+
+    /* Menu manager */
+    .menu-manager { background:var(--card); border:1px solid var(--border-dim); border-radius:14px; overflow:hidden; margin-bottom:1rem; }
+    .menu-manager-header { display:flex; justify-content:space-between; align-items:center; padding:1.25rem 1.5rem; border-bottom:1px solid var(--border-dim); }
+    .menu-table { width:100%; border-collapse:collapse; }
+    .menu-table th { text-align:left; font-size:0.62rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--light-gray); padding:0.75rem 1.25rem; border-bottom:1px solid var(--border-dim); font-weight:500; }
+    .menu-table td { padding:1rem 1.25rem; border-bottom:1px solid rgba(255,255,255,0.03); font-size:0.88rem; vertical-align:middle; }
+    .menu-table tr:last-child td { border-bottom:none; }
+    .menu-table tr:hover td { background:rgba(255,255,255,0.02); }
+    .avail-toggle { width:36px; height:20px; background:var(--gray); border-radius:10px; position:relative; cursor:pointer; transition:background 0.2s; border:none; }
+    .avail-toggle.on { background:var(--red); box-shadow:0 0 8px rgba(204,0,0,0.4); }
+    .avail-toggle::after { content:''; position:absolute; width:14px; height:14px; background:white; border-radius:50%; top:3px; left:3px; transition:left 0.2s; }
+    .avail-toggle.on::after { left:19px; }
+    .icon-btn { background:none; border:1px solid var(--border-dim); border-radius:6px; padding:0.35rem 0.65rem; color:var(--light-gray); cursor:pointer; font-size:0.82rem; transition:all 0.2s; }
+    .icon-btn:hover { border-color:var(--border); color:var(--white); }
+    .icon-btn.danger:hover { border-color:rgba(204,0,0,0.4); color:var(--red-bright); }
+
+    /* Modal */
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:100; display:none; align-items:center; justify-content:center; }
+    .modal-overlay.open { display:flex; }
+    .modal { background:#111; border:1px solid var(--border); border-radius:16px; padding:2rem; width:540px; max-width:95vw; max-height:90vh; overflow-y:auto; }
+    .modal-title { font-family:'Bebas Neue',sans-serif; font-size:1.8rem; letter-spacing:0.05em; margin-bottom:1.5rem; }
+    .form-group { margin-bottom:1.1rem; }
+    label { display:block; font-size:0.68rem; font-weight:500; letter-spacing:0.1em; text-transform:uppercase; color:var(--gray); margin-bottom:0.4rem; }
+    input[type=text], input[type=number], input[type=url], select, textarea { width:100%; padding:0.8rem 1rem; border:1px solid var(--border-dim); border-radius:8px; background:#0a0a0a; font-family:'DM Sans',sans-serif; font-size:0.9rem; color:var(--white); outline:none; transition:border-color 0.2s; }
+    input:focus, select:focus, textarea:focus { border-color:var(--red); }
+    input::placeholder, textarea::placeholder { color:var(--gray); }
+    select option { background:#1a1a1a; }
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+    .form-note { font-size:0.75rem; color:var(--gray); margin-top:0.35rem; }
+
+    .btn-primary { background:var(--red); color:white; border:none; border-radius:8px; padding:0.85rem 1.75rem; font-family:'DM Sans',sans-serif; font-size:0.88rem; font-weight:500; cursor:pointer; transition:all 0.2s; text-transform:uppercase; letter-spacing:0.06em; }
+    .btn-primary:hover { background:var(--red-bright); box-shadow:0 0 20px rgba(204,0,0,0.4); }
+    .btn-ghost { background:transparent; color:var(--light-gray); border:1px solid var(--border-dim); border-radius:8px; padding:0.85rem 1.75rem; font-family:'DM Sans',sans-serif; font-size:0.88rem; cursor:pointer; transition:all 0.2s; text-transform:uppercase; letter-spacing:0.06em; }
+    .btn-ghost:hover { border-color:var(--border); color:var(--white); }
+    .btn-row { display:flex; gap:1rem; margin-top:1.5rem; }
+
+    .msg { margin-top:0.75rem; padding:0.75rem 1rem; border-radius:8px; font-size:0.82rem; display:none; }
+    .msg.success { background:rgba(0,200,80,0.08); border:1px solid rgba(0,200,80,0.2); color:#4caf50; display:block; }
+    .msg.error { background:rgba(204,0,0,0.1); border:1px solid var(--border); color:#ff6b6b; display:block; }
+
+    /* Orders table */
+    .orders-table { width:100%; border-collapse:collapse; }
+    .orders-table th { text-align:left; font-size:0.62rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--light-gray); padding:0.75rem 1.25rem; border-bottom:1px solid var(--border-dim); font-weight:500; }
+    .orders-table td { padding:0.9rem 1.25rem; border-bottom:1px solid rgba(255,255,255,0.03); font-size:0.85rem; }
+    .orders-table tr:hover td { background:rgba(255,255,255,0.02); }
+    .status-badge { display:inline-block; padding:0.2rem 0.65rem; border-radius:20px; font-size:0.7rem; font-weight:500; }
+    .status-pending { background:rgba(204,120,0,0.12); color:#ff9800; border:1px solid rgba(204,120,0,0.2); }
+    .status-delivered { background:rgba(0,200,80,0.08); color:#4caf50; border:1px solid rgba(0,200,80,0.2); }
+    .status-cancelled { background:rgba(204,0,0,0.1); color:var(--red-bright); border:1px solid var(--border); }
+
+    .section-panel { display:none; }
+    .section-panel.active { display:block; }
+
+    @media (max-width:900px) { .layout{grid-template-columns:1fr} .sidebar{display:none} .main{padding:1.5rem} .stats-grid{grid-template-columns:1fr 1fr} }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo"><img src="../logo.png" alt="The Birdhouse" /></div>
+    <div class="admin-badge">⚙ Admin Dashboard</div>
+    <nav>
+      <div class="nav-section">Overview</div>
+      <div class="nav-item active" onclick="showSection('overview',this)">📊 Dashboard</div>
+      <div class="nav-item" onclick="showSection('orders',this)">📋 All Orders</div>
+      <div class="nav-section">Menu</div>
+      <div class="nav-item" onclick="showSection('menu',this)">☕ Menu Manager</div>
+      <div class="nav-section">Team</div>
+      <div class="nav-item" onclick="showSection('summaries',this)">📝 Weekly Summaries</div>
+      <div class="nav-item" onclick="showSection('schedule',this)">🗓️ Schedule Builder</div>
+      <div class="nav-section">Settings</div>
+      <div class="nav-item" onclick="showSection('config',this)">⚙️ Store Config</div>
+    </nav>
+    <button class="signout-btn" onclick="signOut()">← Sign Out</button>
+  </aside>
+
+  <main class="main">
+
+    <!-- Overview -->
+    <div class="section-panel active" id="section-overview">
+      <div class="page-eyebrow">Admin</div>
+      <h1 class="page-title">Dashboard</h1>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">Total Orders</div><div class="stat-value" id="ov-orders">—</div><div class="stat-sub">All time</div></div>
+        <div class="stat-card"><div class="stat-label">Pending Orders</div><div class="stat-value" id="ov-pending">—</div><div class="stat-sub">Need fulfillment</div></div>
+        <div class="stat-card"><div class="stat-label">Menu Items</div><div class="stat-value" id="ov-menu">—</div><div class="stat-sub">Active items</div></div>
+        <div class="stat-card"><div class="stat-label">Summaries</div><div class="stat-value" id="ov-summaries">—</div><div class="stat-sub">This week</div></div>
+      </div>
+      <div class="section-title">Recent Orders</div>
+      <div style="background:var(--card);border:1px solid var(--border-dim);border-radius:14px;overflow:hidden">
+        <table class="orders-table"><thead><tr><th>Customer</th><th>Drink</th><th>Size</th><th>Room</th><th>Time</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody id="overview-orders"><tr><td colspan="7" style="text-align:center;color:var(--gray);padding:2rem">Loading...</td></tr></tbody></table>
+      </div>
+    </div>
+
+    <!-- All Orders -->
+    <div class="section-panel" id="section-orders">
+      <div class="page-eyebrow">Orders</div>
+      <h1 class="page-title">All Orders</h1>
+      <div style="background:var(--card);border:1px solid var(--border-dim);border-radius:14px;overflow:hidden">
+        <table class="orders-table"><thead><tr><th>Customer</th><th>Drink</th><th>Size</th><th>Milk</th><th>Syrup</th><th>Room</th><th>Delivery</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody id="all-orders"><tr><td colspan="9" style="text-align:center;color:var(--gray);padding:2rem">Loading...</td></tr></tbody></table>
+      </div>
+    </div>
+
+    <!-- Menu Manager -->
+    <div class="section-panel" id="section-menu">
+      <div class="page-eyebrow">Menu</div>
+      <h1 class="page-title">Menu Manager</h1>
+      <div class="menu-manager">
+        <div class="menu-manager-header">
+          <div style="font-size:0.88rem;color:var(--light-gray)">Manage your drink menu. Toggle availability or edit items anytime.</div>
+          <button class="btn-primary" onclick="openAddModal()">+ Add Item</button>
+        </div>
+        <table class="menu-table">
+          <thead><tr><th>Name</th><th>Category</th><th>Description</th><th>Square Link</th><th>Available</th><th>Actions</th></tr></thead>
+          <tbody id="menu-table-body"><tr><td colspan="6" style="text-align:center;color:var(--gray);padding:2rem">Loading menu...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Weekly Summaries -->
+    <div class="section-panel" id="section-summaries">
+      <div class="page-eyebrow">Team</div>
+      <h1 class="page-title">Weekly Summaries</h1>
+      <div id="summaries-list"><div style="color:var(--gray);text-align:center;padding:3rem">Loading...</div></div>
+    </div>
+
+    <!-- Schedule Builder -->
+    <div class="section-panel" id="section-schedule">
+      <div class="page-eyebrow">Team</div>
+      <h1 class="page-title">Schedule Builder</h1>
+      <div style="background:var(--card);border:1px solid var(--border-dim);border-radius:14px;padding:2rem;max-width:500px">
+        <div class="section-title" style="font-size:1rem;margin-bottom:1.5rem">Add a Shift</div>
+        <div class="form-group"><label>Student Email</label><input type="text" id="sched-email" placeholder="student@example.com" /></div>
+        <div class="form-row">
+          <div class="form-group"><label>Date</label><input type="text" id="sched-date" placeholder="YYYY-MM-DD" /></div>
+          <div class="form-group"><label>Start Time</label><input type="text" id="sched-start" placeholder="7:30 AM" /></div>
+        </div>
+        <div class="form-group"><label>End Time</label><input type="text" id="sched-end" placeholder="9:00 AM" /></div>
+        <div class="form-group"><label>Notes (optional)</label><input type="text" id="sched-notes" placeholder="Any special instructions" /></div>
+        <button class="btn-primary" onclick="addShift()">Add Shift</button>
+        <div class="msg" id="sched-msg"></div>
+      </div>
+    </div>
+
+    <!-- Store Config -->
+    <div class="section-panel" id="section-config">
+      <div class="page-eyebrow">Settings</div>
+      <h1 class="page-title">Store Config</h1>
+      <div style="background:var(--card);border:1px solid var(--border-dim);border-radius:14px;padding:2rem;max-width:500px">
+        <div class="form-group">
+          <label>Delivery Times (one per line)</label>
+          <textarea id="config-times" style="min-height:160px" placeholder="7:30 AM&#10;8:00 AM&#10;9:00 AM"></textarea>
+          <div class="form-note">These appear as options when customers place orders.</div>
+        </div>
+        <button class="btn-primary" onclick="saveConfig()">Save Config</button>
+        <div class="msg" id="config-msg"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Add/Edit Menu Item Modal -->
+<div class="modal-overlay" id="menu-modal">
+  <div class="modal">
+    <div class="modal-title" id="modal-title">Add Menu Item</div>
+    <div class="form-row">
+      <div class="form-group"><label>Item Name</label><input type="text" id="item-name" placeholder="e.g. Vanilla Latte" /></div>
+      <div class="form-group"><label>Category</label>
+        <select id="item-category">
+          <option>Coffee</option><option>Non-Coffee</option><option>Iced</option><option>Seasonal</option><option>Food</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label>Description</label><input type="text" id="item-desc" placeholder="Short description for customers" /></div>
+    <div class="form-group">
+      <label>Square Checkout Link</label>
+      <input type="url" id="item-square" placeholder="https://square.link/..." />
+      <div class="form-note">Paste the Square checkout link for this item. Customers will be sent here to pay.</div>
+    </div>
+    <div class="form-group">
+      <label>Available Sizes (comma-separated)</label>
+      <input type="text" id="item-sizes" placeholder="Small, Medium, Large" value="Small, Medium, Large" />
+    </div>
+    <div class="form-group">
+      <label>Milk Options (comma-separated)</label>
+      <input type="text" id="item-milks" placeholder="Whole Milk, Oat Milk, Almond Milk" value="Whole Milk, Oat Milk, Almond Milk, 2% Milk" />
+    </div>
+    <div class="form-group">
+      <label>Syrup Options (comma-separated)</label>
+      <input type="text" id="item-syrups" placeholder="Vanilla, Caramel, Hazelnut" value="Vanilla, Caramel, Hazelnut, Sugar Free Vanilla" />
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Sort Order</label><input type="number" id="item-sort" placeholder="1" value="0" /></div>
+      <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:0.1rem">
+        <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer">
+          <input type="checkbox" id="item-available" checked style="width:auto;padding:0" /> Available now
+        </label>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveMenuItem()">Save Item</button>
+    </div>
+    <div class="msg" id="item-msg"></div>
+  </div>
+</div>
+
+<script>
+  const sb = supabase.createClient('https://ljukrhneikqbabcmcpet.supabase.co','sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn');
+  let editingItemId = null;
+
+  async function init() {
+    const {data:{session}} = await sb.auth.getSession();
+    if(!session){window.location.href='../customer/index.html';return;}
+    const role = session.user.user_metadata?.role;
+    if(role!=='admin'){alert('Admin access required.');window.location.href='../index.html';return;}
+    loadOverview(); loadMenu(); loadConfig();
+  }
+
+  async function loadOverview() {
+    const {data:orders} = await sb.from('orders').select('*').order('created_at',{ascending:false});
+    const {data:menu} = await sb.from('menu_items').select('id').eq('available',true);
+    const weekAgo=new Date(); weekAgo.setDate(weekAgo.getDate()-7);
+    const {data:summaries} = await sb.from('weekly_summaries').select('id').gte('created_at',weekAgo.toISOString());
+    document.getElementById('ov-orders').textContent = orders?.length||0;
+    document.getElementById('ov-pending').textContent = orders?.filter(o=>o.status==='pending').length||0;
+    document.getElementById('ov-menu').textContent = menu?.length||0;
+    document.getElementById('ov-summaries').textContent = summaries?.length||0;
+    if(orders) renderOrdersTable(orders.slice(0,10),'overview-orders',true);
+  }
+
+  function renderOrdersTable(orders, tbodyId, short=false) {
+    const tbody = document.getElementById(tbodyId);
+    if(!orders.length){tbody.innerHTML=`<tr><td colspan="9" style="text-align:center;color:var(--gray);padding:2rem">No orders yet.</td></tr>`;return;}
+    tbody.innerHTML = orders.map(o=>`
+      <tr>
+        <td>${o.customer_name||'—'}</td>
+        <td><strong>${o.drink_name}</strong></td>
+        <td>${o.size||'—'}</td>
+        ${!short?`<td>${o.milk||'—'}</td><td>${o.syrup||'—'}</td>`:''}
+        <td>${o.room||'—'}</td>
+        ${!short?`<td>${o.delivery_day||''} ${o.delivery_time||''}</td>`:''}
+        <td><span class="status-badge status-${o.status||'pending'}">${o.status||'pending'}</span></td>
+        <td>
+          ${o.status==='pending'?`<button class="icon-btn" onclick="markDelivered('${o.id}')">✓ Deliver</button>`:''}
+          <button class="icon-btn danger" onclick="cancelOrder('${o.id}')" style="margin-left:0.35rem">✕</button>
+        </td>
+      </tr>`).join('');
+  }
+
+  async function loadAllOrders() {
+    const {data} = await sb.from('orders').select('*').order('created_at',{ascending:false});
+    if(data) renderOrdersTable(data,'all-orders',false);
+  }
+
+  async function markDelivered(id) {
+    await sb.from('orders').update({status:'delivered'}).eq('id',id);
+    loadOverview(); loadAllOrders();
+  }
+
+  async function cancelOrder(id) {
+    if(!confirm('Cancel this order?')) return;
+    await sb.from('orders').update({status:'cancelled'}).eq('id',id);
+    loadOverview(); loadAllOrders();
+  }
+
+  async function loadMenu() {
+    const {data} = await sb.from('menu_items').select('*').order('sort_order');
+    const tbody = document.getElementById('menu-table-body');
+    if(!data||!data.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--gray);padding:2rem">No menu items yet. Add your first!</td></tr>';return;}
+    tbody.innerHTML = data.map(item=>`
+      <tr>
+        <td><strong>${item.name}</strong></td>
+        <td style="color:var(--light-gray)">${item.category}</td>
+        <td style="color:var(--gray);font-size:0.82rem">${item.description||'—'}</td>
+        <td style="font-size:0.78rem">${item.square_link?`<a href="${item.square_link}" target="_blank" style="color:var(--red-bright);text-decoration:none">Link ↗</a>`:'<span style="color:var(--gray)">None</span>'}</td>
+        <td><button class="avail-toggle ${item.available?'on':''}" id="toggle-${item.id}" onclick="toggleAvailable('${item.id}',${item.available})"></button></td>
+        <td style="display:flex;gap:0.5rem">
+          <button class="icon-btn" onclick="openEditModal(${JSON.stringify(item).replace(/"/g,'&quot;')})">Edit</button>
+          <button class="icon-btn danger" onclick="deleteItem('${item.id}')">Delete</button>
+        </td>
+      </tr>`).join('');
+  }
+
+  async function toggleAvailable(id, current) {
+    await sb.from('menu_items').update({available:!current}).eq('id',id);
+    loadMenu();
+  }
+
+  function openAddModal() {
+    editingItemId = null;
+    document.getElementById('modal-title').textContent='Add Menu Item';
+    ['item-name','item-desc','item-square'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('item-sizes').value='Small, Medium, Large';
+    document.getElementById('item-milks').value='Whole Milk, Oat Milk, Almond Milk, 2% Milk';
+    document.getElementById('item-syrups').value='Vanilla, Caramel, Hazelnut, Sugar Free Vanilla';
+    document.getElementById('item-sort').value='0';
+    document.getElementById('item-available').checked=true;
+    document.getElementById('item-category').value='Coffee';
+    document.getElementById('item-msg').style.display='none';
+    document.getElementById('menu-modal').classList.add('open');
+  }
+
+  function openEditModal(item) {
+    editingItemId = item.id;
+    document.getElementById('modal-title').textContent='Edit Menu Item';
+    document.getElementById('item-name').value=item.name||'';
+    document.getElementById('item-category').value=item.category||'Coffee';
+    document.getElementById('item-desc').value=item.description||'';
+    document.getElementById('item-square').value=item.square_link||'';
+    document.getElementById('item-sizes').value=(item.sizes||['Small','Medium','Large']).join(', ');
+    document.getElementById('item-milks').value=(item.available_milks||[]).join(', ');
+    document.getElementById('item-syrups').value=(item.available_syrups||[]).join(', ');
+    document.getElementById('item-sort').value=item.sort_order||0;
+    document.getElementById('item-available').checked=item.available!==false;
+    document.getElementById('item-msg').style.display='none';
+    document.getElementById('menu-modal').classList.add('open');
+  }
+
+  function closeModal() { document.getElementById('menu-modal').classList.remove('open'); }
+
+  async function saveMenuItem() {
+    const name = document.getElementById('item-name').value.trim();
+    if(!name){const m=document.getElementById('item-msg');m.textContent='Item name is required.';m.className='msg error';return;}
+    const payload = {
+      name,
+      category: document.getElementById('item-category').value,
+      description: document.getElementById('item-desc').value,
+      square_link: document.getElementById('item-square').value||null,
+      sizes: document.getElementById('item-sizes').value.split(',').map(s=>s.trim()).filter(Boolean),
+      available_milks: document.getElementById('item-milks').value.split(',').map(s=>s.trim()).filter(Boolean),
+      available_syrups: document.getElementById('item-syrups').value.split(',').map(s=>s.trim()).filter(Boolean),
+      sort_order: parseInt(document.getElementById('item-sort').value)||0,
+      available: document.getElementById('item-available').checked
+    };
+    const {error} = editingItemId
+      ? await sb.from('menu_items').update(payload).eq('id',editingItemId)
+      : await sb.from('menu_items').insert(payload);
+    const m=document.getElementById('item-msg');
+    if(error){m.textContent='Error: '+error.message;m.className='msg error';}
+    else{m.textContent='✓ Saved!';m.className='msg success';setTimeout(()=>{closeModal();loadMenu();loadOverview();},800);}
+  }
+
+  async function deleteItem(id) {
+    if(!confirm('Delete this menu item?')) return;
+    await sb.from('menu_items').delete().eq('id',id);
+    loadMenu(); loadOverview();
+  }
+
+  async function loadSummaries() {
+    const {data} = await sb.from('weekly_summaries').select('*').order('created_at',{ascending:false});
+    const container = document.getElementById('summaries-list');
+    if(!data||!data.length){container.innerHTML='<div style="color:var(--gray);text-align:center;padding:3rem">No summaries submitted yet.</div>';return;}
+    container.innerHTML = data.map(s=>`
+      <div style="background:var(--card);border:1px solid var(--border-dim);border-radius:12px;padding:1.5rem;margin-bottom:0.75rem">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem">
+          <div>
+            <div style="font-weight:500">${s.student_name}</div>
+            <div style="font-size:0.78rem;color:var(--gray);margin-top:0.2rem">Week of ${s.week_of} · ${s.hours_worked}h · ${s.orders_fulfilled} orders · ${'⭐'.repeat(s.rating)}</div>
+          </div>
+          <div style="font-size:0.75rem;color:var(--gray)">${new Date(s.created_at).toLocaleDateString()}</div>
+        </div>
+        ${s.went_well?`<div style="margin-bottom:0.75rem"><div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--light-gray);margin-bottom:0.3rem">What Went Well</div><div style="font-size:0.85rem;color:var(--white);line-height:1.5">${s.went_well}</div></div>`:''}
+        ${s.improvements?`<div style="margin-bottom:0.75rem"><div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--light-gray);margin-bottom:0.3rem">Improvements</div><div style="font-size:0.85rem;color:var(--white);line-height:1.5">${s.improvements}</div></div>`:''}
+        ${s.inventory_notes?`<div><div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--light-gray);margin-bottom:0.3rem">Inventory Notes</div><div style="font-size:0.85rem;color:var(--white);line-height:1.5">${s.inventory_notes}</div></div>`:''}
+      </div>`).join('');
+  }
+
+  async function addShift() {
+    const email = document.getElementById('sched-email').value.trim();
+    const date = document.getElementById('sched-date').value.trim();
+    const start = document.getElementById('sched-start').value.trim();
+    const end = document.getElementById('sched-end').value.trim();
+    const notes = document.getElementById('sched-notes').value.trim();
+    const m = document.getElementById('sched-msg');
+    if(!email||!date||!start||!end){m.textContent='Please fill in all required fields.';m.className='msg error';return;}
+    // Look up user by email
+    const {data:users} = await sb.from('schedules').select('student_id').eq('student_name',email).limit(1);
+    const {error} = await sb.from('schedules').insert({
+      student_id: '00000000-0000-0000-0000-000000000000', // placeholder — update when student logs in
+      student_name: email,
+      shift_date: date, start_time: start, end_time: end, notes
+    });
+    if(error){m.textContent='Error: '+error.message;m.className='msg error';}
+    else{m.textContent='✓ Shift added!';m.className='msg success';}
+  }
+
+  async function loadConfig() {
+    const {data} = await sb.from('store_config').select('value').eq('key','delivery_times').single();
+    if(data?.value) document.getElementById('config-times').value=(data.value||[]).join('\n');
+  }
+
+  async function saveConfig() {
+    const times = document.getElementById('config-times').value.split('\n').map(t=>t.trim()).filter(Boolean);
+    const {error} = await sb.from('store_config').upsert({key:'delivery_times',value:times,updated_at:new Date().toISOString()},{onConflict:'key'});
+    const m=document.getElementById('config-msg');
+    if(error){m.textContent='Error: '+error.message;m.className='msg error';}
+    else{m.textContent='✓ Config saved!';m.className='msg success';}
+  }
+
+  function showSection(name, el) {
+    document.querySelectorAll('.section-panel').forEach(p=>p.classList.remove('active'));
+    document.getElementById('section-'+name).classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+    el.classList.add('active');
+    if(name==='orders') loadAllOrders();
+    if(name==='summaries') loadSummaries();
+  }
+
+  document.getElementById('menu-modal').addEventListener('click',function(e){if(e.target===this)closeModal();});
+  async function signOut(){ await sb.auth.signOut(); window.location.href='../index.html'; }
+  init();
+</script>
+</body>
+</html>
