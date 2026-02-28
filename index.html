@@ -1,1255 +1,380 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>The Birdhouse — Subscribe</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --bg-deep: #0d0d0d;
-    --bg-rich: #1a1a1a;
-    --bg-card: #222222;
-    --red: #c0202a;
-    --red-bright: #e0303c;
-    --red-muted: #8b1820;
-    --gray: #9a9a9a;
-    --gray-light: #c8c8c8;
-    --cream: #f0eeeb;
-    --cream-dim: #b0aeab;
-    --white: #ffffff;
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  body {
-    background: var(--bg-deep);
-    font-family: 'DM Sans', sans-serif;
-    color: var(--cream);
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-
-  /* Background texture */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image: 
-      radial-gradient(ellipse at 20% 20%, rgba(192,32,42,0.07) 0%, transparent 50%),
-      radial-gradient(ellipse at 80% 80%, rgba(192,32,42,0.04) 0%, transparent 50%);
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  .container {
-    max-width: 860px;
-    margin: 0 auto;
-    padding: 0 24px;
-    position: relative;
-    z-index: 1;
-  }
-
-  /* HEADER */
-  header {
-    text-align: center;
-    padding: 50px 24px 36px;
-    position: relative;
-  }
-
-  .logo-img {
-    max-width: 420px;
-    width: 85%;
-    margin-bottom: 12px;
-    display: block;
-    margin-left: auto;
-    margin-right: auto;
-    animation: float 5s ease-in-out infinite;
-    filter: drop-shadow(0 4px 24px rgba(192,32,42,0.25));
-  }
-
-  @keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-8px); }
-  }
-
-  .brand-sub {
-    font-size: 0.8rem;
-    letter-spacing: 0.25em;
-    text-transform: uppercase;
-    color: var(--gray);
-    margin-top: 4px;
-  }
-
-  .tagline {
-    margin-top: 14px;
-    font-size: 1.05rem;
-    color: var(--cream-dim);
-    font-weight: 300;
-  }
-
-  .divider {
-    width: 60px;
-    height: 2px;
-    background: var(--red);
-    margin: 22px auto;
-    opacity: 0.6;
-  }
-
-  /* TIER CARDS */
-  .tiers-section {
-    padding: 0 0 40px;
-  }
-
-  .section-title {
-    font-family: 'Playfair Display', serif;
-    font-size: 1.6rem;
-    color: var(--gray-light);
-    text-align: center;
-    margin-bottom: 24px;
-  }
-
-  .tiers-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-    gap: 16px;
-  }
-
-  .tier-card {
-    background: var(--bg-card);
-    border: 2px solid transparent;
-    border-radius: 16px;
-    padding: 28px 22px;
-    cursor: pointer;
-    transition: all 0.25s ease;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .tier-card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 3px;
-    background: var(--tier-color, var(--red));
-    opacity: 0.5;
-    transition: opacity 0.25s;
-  }
-
-  .tier-card:hover, .tier-card.selected {
-    border-color: var(--tier-color, var(--red));
-    transform: translateY(-4px);
-    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
-  }
-
-  .tier-card:hover::before, .tier-card.selected::before {
-    opacity: 1;
-  }
-
-  .tier-card.selected {
-    background: rgba(192,32,42,0.08);
-  }
-
-  .tier-badge {
-    font-size: 0.7rem;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--tier-color, var(--red));
-    font-weight: 500;
-    margin-bottom: 8px;
-  }
-
-  .tier-name {
-    font-family: 'Playfair Display', serif;
-    font-size: 1.8rem;
-    font-weight: 700;
-    color: var(--cream);
-    margin-bottom: 4px;
-  }
-
-  .tier-price {
-    font-size: 1.4rem;
-    font-weight: 500;
-    color: var(--tier-color, var(--red-bright));
-    margin-bottom: 12px;
-  }
-
-  .tier-price span {
-    font-size: 0.8rem;
-    opacity: 0.7;
-    color: var(--cream);
-    font-weight: 300;
-  }
-
-  .tier-perks {
-    list-style: none;
-    font-size: 0.88rem;
-    color: var(--cream);
-    opacity: 0.8;
-    line-height: 1.8;
-  }
-
-  .tier-perks li::before {
-    content: '✦ ';
-    color: var(--tier-color, var(--red));
-    font-size: 0.65rem;
-    opacity: 0.8;
-  }
-
-  .select-indicator {
-    position: absolute;
-    top: 14px;
-    right: 14px;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    border: 2px solid var(--tier-color, var(--red));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.75rem;
-    transition: all 0.2s;
-  }
-
-  .tier-card.selected .select-indicator {
-    background: var(--tier-color, var(--red));
-    color: white;
-  }
-
-  /* FORM */
-  .form-section {
-    background: var(--bg-rich);
-    border-radius: 20px;
-    padding: 36px 32px;
-    margin-bottom: 40px;
-    border: 1px solid rgba(192,32,42,0.2);
-    display: none;
-  }
-
-  .form-section.visible {
-    display: block;
-    animation: slideIn 0.35s ease;
-  }
-
-  @keyframes slideIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .form-title {
-    font-family: 'Playfair Display', serif;
-    font-size: 1.4rem;
-    color: var(--gray-light);
-    margin-bottom: 6px;
-  }
-
-  .form-subtitle {
-    font-size: 0.85rem;
-    color: var(--cream-dim);
-    opacity: 0.7;
-    margin-bottom: 28px;
-  }
-
-  .form-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 18px;
-  }
-
-  .form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .form-group.full {
-    grid-column: 1 / -1;
-  }
-
-  label {
-    font-size: 0.78rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--gray);
-    font-weight: 500;
-  }
-
-  input, select, textarea {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(192,32,42,0.25);
-    border-radius: 8px;
-    padding: 11px 14px;
-    color: var(--cream);
-    font-family: 'DM Sans', sans-serif;
-    font-size: 0.95rem;
-    transition: border-color 0.2s;
-    width: 100%;
-  }
-
-  input:focus, select:focus, textarea:focus {
-    outline: none;
-    border-color: var(--red);
-    background: rgba(192,32,42,0.06);
-  }
-
-  select option {
-    background: var(--bg-rich);
-    color: var(--cream);
-  }
-
-  textarea {
-    resize: vertical;
-    min-height: 90px;
-  }
-
-  .checkbox-group {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-top: 4px;
-  }
-
-  .checkbox-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    padding: 8px 14px;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(192,32,42,0.2);
-    border-radius: 8px;
-    transition: all 0.2s;
-    user-select: none;
-  }
-
-  .checkbox-item:hover {
-    border-color: var(--red);
-    background: rgba(192,32,42,0.08);
-  }
-
-  .checkbox-item input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
-    padding: 0;
-    accent-color: var(--red);
-    cursor: pointer;
-  }
-
-  .checkbox-item.checked {
-    border-color: var(--red);
-    background: rgba(192,32,42,0.12);
-    color: var(--gray-light);
-  }
-
-  .section-divider {
-    grid-column: 1 / -1;
-    border: none;
-    border-top: 1px solid rgba(192,32,42,0.15);
-    margin: 8px 0;
-  }
-
-  .section-label {
-    grid-column: 1 / -1;
-    font-size: 0.78rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--red-bright);
-    opacity: 0.7;
-    font-weight: 500;
-    margin-top: 4px;
-  }
-
-  /* DRINK ORDERS */
-  .drink-builder {
-    grid-column: 1 / -1;
-  }
-
-  .drink-entry {
-    background: rgba(255,255,255,0.02);
-    border: 1px solid rgba(192,32,42,0.15);
-    border-radius: 10px;
-    padding: 16px;
-    margin-bottom: 12px;
-    display: grid;
-    grid-template-columns: 1fr 1fr auto;
-    gap: 12px;
-    align-items: end;
-  }
-
-  .drink-entry .form-group {
-    margin: 0;
-  }
-
-  .remove-drink {
-    background: rgba(255,80,80,0.1);
-    border: 1px solid rgba(255,80,80,0.25);
-    color: #ff6b6b;
-    border-radius: 8px;
-    padding: 11px 14px;
-    cursor: pointer;
-    font-size: 0.85rem;
-    transition: all 0.2s;
-    white-space: nowrap;
-  }
-
-  .remove-drink:hover {
-    background: rgba(255,80,80,0.2);
-  }
-
-  .add-drink-btn {
-    background: transparent;
-    border: 1px dashed rgba(192,32,42,0.4);
-    color: var(--gray-light);
-    border-radius: 8px;
-    padding: 10px 18px;
-    cursor: pointer;
-    font-size: 0.85rem;
-    font-family: 'DM Sans', sans-serif;
-    transition: all 0.2s;
-    margin-top: 4px;
-  }
-
-  .add-drink-btn:hover {
-    border-color: var(--red);
-    background: rgba(192,32,42,0.06);
-  }
-
-  .submit-btn {
-    width: 100%;
-    padding: 16px;
-    background: var(--red);
-    color: white;
-    border: none;
-    border-radius: 10px;
-    font-family: 'Playfair Display', serif;
-    font-size: 1.15rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s;
-    margin-top: 28px;
-    letter-spacing: 0.02em;
-  }
-
-  .submit-btn:hover {
-    background: var(--red-bright);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(192,32,42,0.4);
-  }
-
-  .submit-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-  }
-
-  .form-note {
-    text-align: center;
-    font-size: 0.8rem;
-    color: var(--cream-dim);
-    opacity: 0.5;
-    margin-top: 12px;
-  }
-
-  /* SUCCESS */
-  .success-panel {
-    display: none;
-    text-align: center;
-    padding: 60px 32px;
-    background: var(--bg-rich);
-    border-radius: 20px;
-    border: 1px solid rgba(192,32,42,0.3);
-    margin-bottom: 40px;
-  }
-
-  .success-panel.visible {
-    display: block;
-    animation: slideIn 0.35s ease;
-  }
-
-  .success-icon { font-size: 3rem; margin-bottom: 16px; }
-
-  .success-panel h2 {
-    font-family: 'Playfair Display', serif;
-    font-size: 2rem;
-    color: var(--red-bright);
-    margin-bottom: 10px;
-  }
-
-  .success-panel p {
-    color: var(--cream-dim);
-    margin-bottom: 24px;
-    line-height: 1.7;
-  }
-
-  .pay-btn {
-    display: inline-block;
-    padding: 14px 36px;
-    background: var(--red);
-    color: white;
-    border-radius: 10px;
-    font-family: 'Playfair Display', serif;
-    font-size: 1.1rem;
-    font-weight: 700;
-    text-decoration: none;
-    transition: all 0.2s;
-  }
-
-  .pay-btn:hover {
-    background: var(--red-bright);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(192,32,42,0.4);
-  }
-
-  /* ADMIN TOGGLE */
-  .admin-bar {
-    text-align: center;
-    padding: 16px;
-    border-top: 1px solid rgba(192,32,42,0.1);
-    margin-top: 20px;
-  }
-
-  .admin-link {
-    font-size: 0.75rem;
-    color: rgba(192,32,42,0.4);
-    text-decoration: none;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    transition: color 0.2s;
-    cursor: pointer;
-    background: none;
-    border: none;
-    font-family: inherit;
-  }
-
-  .admin-link:hover { color: var(--red); }
-
-  /* ADMIN PANEL */
-  .admin-panel {
-    display: none;
-    background: var(--bg-rich);
-    border-radius: 16px;
-    padding: 28px;
-    margin: 20px 0 40px;
-    border: 1px solid rgba(192,32,42,0.2);
-  }
-
-  .admin-panel.visible { display: block; animation: slideIn 0.3s ease; }
-
-  .admin-panel h3 {
-    font-family: 'Playfair Display', serif;
-    color: var(--red-bright);
-    margin-bottom: 6px;
-  }
-
-  .admin-note {
-    font-size: 0.82rem;
-    color: var(--cream-dim);
-    opacity: 0.6;
-    margin-bottom: 20px;
-  }
-
-  .config-group {
-    margin-bottom: 20px;
-  }
-
-  .config-group h4 {
-    font-size: 0.78rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--gray);
-    margin-bottom: 10px;
-  }
-
-  .config-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 12px;
-  }
-
-  .config-row.two { grid-template-columns: 1fr 1fr; }
-
-  .save-config-btn {
-    background: var(--red);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 10px 22px;
-    font-family: 'DM Sans', sans-serif;
-    font-weight: 500;
-    cursor: pointer;
-    font-size: 0.9rem;
-    transition: all 0.2s;
-  }
-
-  .save-config-btn:hover { background: var(--red-bright); }
-
-  .save-status {
-    font-size: 0.8rem;
-    color: #6fcf97;
-    margin-left: 12px;
-    opacity: 0;
-    transition: opacity 0.3s;
-  }
-
-  .save-status.show { opacity: 1; }
-
-  /* PASSWORD MODAL */
-  .modal-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.75);
-    z-index: 100;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .modal-overlay.visible {
-    display: flex;
-    animation: fadeIn 0.2s ease;
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-
-  .modal-box {
-    background: var(--bg-rich);
-    border: 1px solid rgba(192,32,42,0.3);
-    border-radius: 16px;
-    padding: 36px 32px;
-    width: 100%;
-    max-width: 360px;
-    text-align: center;
-    position: relative;
-  }
-
-  .modal-box h3 {
-    font-family: 'Playfair Display', serif;
-    font-size: 1.4rem;
-    color: var(--red-bright);
-    margin-bottom: 6px;
-  }
-
-  .modal-box p {
-    font-size: 0.85rem;
-    color: var(--cream-dim);
-    margin-bottom: 20px;
-  }
-
-  .modal-box input {
-    text-align: center;
-    font-size: 1.1rem;
-    letter-spacing: 0.15em;
-    margin-bottom: 14px;
-  }
-
-  .modal-error {
-    font-size: 0.8rem;
-    color: #ff6b6b;
-    margin-bottom: 10px;
-    min-height: 18px;
-  }
-
-  .modal-btn {
-    width: 100%;
-    padding: 12px;
-    background: var(--red);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-family: 'Playfair Display', serif;
-    font-size: 1rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s;
-    margin-bottom: 10px;
-  }
-
-  .modal-btn:hover { background: var(--red-bright); }
-
-  .modal-cancel {
-    font-size: 0.8rem;
-    color: var(--cream-dim);
-    opacity: 0.5;
-    cursor: pointer;
-    background: none;
-    border: none;
-    font-family: inherit;
-    transition: opacity 0.2s;
-  }
-
-  .modal-cancel:hover { opacity: 1; }
-
-  /* RESPONSIVE */
-  @media (max-width: 560px) {
-    .form-grid { grid-template-columns: 1fr; }
-    .form-group.full { grid-column: 1; }
-    .config-row, .config-row.two { grid-template-columns: 1fr; }
-    .drink-entry { grid-template-columns: 1fr; }
-    header { padding: 40px 24px 28px; }
-  }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Birdhouse</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --cream: #f5f0e8;
+      --brown: #2c1a0e;
+      --amber: #c47d2e;
+      --amber-light: #e8a94a;
+      --warm-gray: #8a7968;
+      --rust: #9b3a1a;
+    }
+
+    body {
+      background: var(--cream);
+      color: var(--brown);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Grain overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 1000;
+      opacity: 0.4;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 2rem 3rem;
+      border-bottom: 1px solid rgba(44,26,14,0.12);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+    }
+
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+    }
+
+    .logo-text {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.4rem;
+      color: var(--brown);
+      letter-spacing: -0.02em;
+    }
+
+    .logo-sub {
+      font-size: 0.7rem;
+      color: var(--warm-gray);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      display: block;
+      margin-top: -4px;
+    }
+
+    nav a {
+      font-size: 0.85rem;
+      color: var(--warm-gray);
+      text-decoration: none;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-left: 2rem;
+      transition: color 0.2s;
+    }
+    nav a:hover { color: var(--amber); }
+
+    /* Hero */
+    .hero {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      min-height: calc(100vh - 85px);
+    }
+
+    .hero-left {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 5rem 4rem 5rem 5rem;
+      position: relative;
+    }
+
+    .hero-eyebrow {
+      font-size: 0.75rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--amber);
+      margin-bottom: 1.5rem;
+      font-weight: 500;
+    }
+
+    .hero-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(3rem, 5vw, 5rem);
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+      margin-bottom: 1.5rem;
+    }
+
+    .hero-title em {
+      font-style: italic;
+      color: var(--amber);
+    }
+
+    .hero-desc {
+      font-size: 1.05rem;
+      color: var(--warm-gray);
+      line-height: 1.7;
+      max-width: 400px;
+      margin-bottom: 3.5rem;
+      font-weight: 300;
+    }
+
+    .portal-cards {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .portal-card {
+      flex: 1;
+      background: var(--brown);
+      color: var(--cream);
+      border-radius: 16px;
+      padding: 2rem 1.5rem;
+      text-decoration: none;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.25s, box-shadow 0.25s;
+      cursor: pointer;
+    }
+
+    .portal-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(196,125,46,0.3) 0%, transparent 60%);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .portal-card:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(44,26,14,0.25); }
+    .portal-card:hover::before { opacity: 1; }
+
+    .portal-card.customer { background: var(--brown); }
+    .portal-card.student { background: var(--rust); }
+
+    .portal-icon {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+      display: block;
+    }
+
+    .portal-label {
+      font-size: 0.7rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      opacity: 0.6;
+      margin-bottom: 0.4rem;
+    }
+
+    .portal-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.4rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .portal-desc {
+      font-size: 0.82rem;
+      opacity: 0.7;
+      line-height: 1.5;
+      font-weight: 300;
+    }
+
+    .portal-arrow {
+      position: absolute;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      font-size: 1.2rem;
+      opacity: 0.5;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    .portal-card:hover .portal-arrow { opacity: 1; transform: translate(3px, -3px); }
+
+    /* Right side visual */
+    .hero-right {
+      position: relative;
+      background: var(--brown);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .hero-right::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 30% 50%, rgba(196,125,46,0.35) 0%, transparent 60%),
+                  radial-gradient(ellipse at 80% 80%, rgba(155,58,26,0.3) 0%, transparent 50%);
+    }
+
+    .hero-visual {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      color: var(--cream);
+    }
+
+    .big-eagle {
+      font-size: 9rem;
+      line-height: 1;
+      animation: float 4s ease-in-out infinite;
+      display: block;
+      filter: drop-shadow(0 20px 40px rgba(0,0,0,0.4));
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-15px); }
+    }
+
+    .tagline {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.1rem;
+      font-style: italic;
+      margin-top: 1.5rem;
+      opacity: 0.6;
+      letter-spacing: 0.05em;
+    }
+
+    /* Decorative circles */
+    .deco-circle {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid rgba(245,240,232,0.08);
+    }
+    .deco-circle-1 { width: 350px; height: 350px; top: 50%; left: 50%; transform: translate(-50%,-50%); }
+    .deco-circle-2 { width: 500px; height: 500px; top: 50%; left: 50%; transform: translate(-50%,-50%); }
+    .deco-circle-3 { width: 650px; height: 650px; top: 50%; left: 50%; transform: translate(-50%,-50%); }
+
+    /* Animate in */
+    .fade-up {
+      opacity: 0;
+      transform: translateY(24px);
+      animation: fadeUp 0.7s forwards;
+    }
+    .fade-up:nth-child(1) { animation-delay: 0.1s; }
+    .fade-up:nth-child(2) { animation-delay: 0.25s; }
+    .fade-up:nth-child(3) { animation-delay: 0.4s; }
+    .fade-up:nth-child(4) { animation-delay: 0.55s; }
+
+    @keyframes fadeUp {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Stats bar */
+    .stats-bar {
+      position: absolute;
+      bottom: 2.5rem;
+      left: 5rem;
+      display: flex;
+      gap: 3rem;
+    }
+
+    .stat { }
+    .stat-num {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.8rem;
+      color: var(--amber);
+    }
+    .stat-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--warm-gray);
+    }
+
+    @media (max-width: 768px) {
+      .hero { grid-template-columns: 1fr; }
+      .hero-right { display: none; }
+      .hero-left { padding: 3rem 2rem; }
+      .portal-cards { flex-direction: column; }
+      header { padding: 1.5rem 2rem; }
+    }
+  </style>
 </head>
 <body>
 
-<div class="container">
-
-  <!-- HEADER -->
   <header>
-    <img src="logo.png" alt="The Birdhouse" class="logo-img">
-    <div class="brand-sub">Nixa Eagles · Coffee Subscriptions</div>
-    <div class="divider"></div>
-    <div class="tagline">Your daily brew, delivered straight to you.</div>
+    <a class="logo" href="#">
+      <svg class="logo-icon" viewBox="0 0 40 40" fill="none">
+        <circle cx="20" cy="20" r="19" stroke="#c47d2e" stroke-width="1.5"/>
+        <text x="20" y="26" text-anchor="middle" font-size="18" fill="#2c1a0e">🦅</text>
+      </svg>
+      <div>
+        <span class="logo-text">The Birdhouse</span>
+        <span class="logo-sub">Nixa Eagles · Est. 2024</span>
+      </div>
+    </a>
+    <nav>
+      <a href="menu.html">Menu</a>
+      <a href="#about">About</a>
+    </nav>
   </header>
 
-  <!-- TIER SELECTION -->
-  <section class="tiers-section">
-    <div class="section-title">Choose Your Nest</div>
-    <div class="tiers-grid" id="tiersGrid">
-
-      <div class="tier-card" data-tier="perch" data-price="$X/mo" data-square="YOUR_SQUARE_LINK_PERCH" style="--tier-color: #8b1820;">
-        <div class="select-indicator">✓</div>
-        <div class="tier-badge">Tier 1</div>
-        <div class="tier-name">Perch</div>
-        <div class="tier-price">$XX <span>/ month</span></div>
-        <ul class="tier-perks">
-          <li>X drinks per week</li>
-          <li>1 delivery day</li>
-          <li>Standard menu</li>
-        </ul>
+  <main class="hero">
+    <div class="hero-left">
+      <p class="hero-eyebrow fade-up">Your daily brew, delivered</p>
+      <h1 class="hero-title fade-up">
+        Coffee.<br>
+        <em>Crafted</em> for<br>
+        Eagles.
+      </h1>
+      <p class="hero-desc fade-up">
+        Order your favorite drinks, earn loyalty rewards, and get delivery straight to your room — or manage the business that makes it all happen.
+      </p>
+      <div class="portal-cards fade-up">
+        <a class="portal-card customer" href="customer/index.html">
+          <span class="portal-icon">☕</span>
+          <div class="portal-label">Portal</div>
+          <div class="portal-name">Order & Earn</div>
+          <div class="portal-desc">Browse the menu, track orders, and collect loyalty points.</div>
+          <span class="portal-arrow">↗</span>
+        </a>
+        <a class="portal-card student" href="student/index.html">
+          <span class="portal-icon">📋</span>
+          <div class="portal-label">Student Staff</div>
+          <div class="portal-name">Team Hub</div>
+          <div class="portal-desc">Check your schedule, manage inventory, and submit reports.</div>
+          <span class="portal-arrow">↗</span>
+        </a>
       </div>
 
-      <div class="tier-card" data-tier="nest" data-price="$X/mo" data-square="YOUR_SQUARE_LINK_NEST" style="--tier-color: #c0202a;">
-        <div class="select-indicator">✓</div>
-        <div class="tier-badge">Tier 2</div>
-        <div class="tier-name">Nest</div>
-        <div class="tier-price">$XX <span>/ month</span></div>
-        <ul class="tier-perks">
-          <li>X drinks per week</li>
-          <li>2 delivery days</li>
-          <li>Full menu access</li>
-        </ul>
-      </div>
-
-      <div class="tier-card" data-tier="eagles-nest" data-price="$X/mo" data-square="YOUR_SQUARE_LINK_EAGLES_NEST" style="--tier-color: #e0303c;">
-        <div class="select-indicator">✓</div>
-        <div class="tier-badge">Tier 3 · Premium</div>
-        <div class="tier-name">Eagle's Nest</div>
-        <div class="tier-price">$XX <span>/ month</span></div>
-        <ul class="tier-perks">
-          <li>Unlimited drinks</li>
-          <li>Any delivery day</li>
-          <li>Priority delivery</li>
-          <li>Exclusive specials</li>
-        </ul>
-      </div>
-
-    </div>
-  </section>
-
-  <!-- SIGNUP FORM -->
-  <section class="form-section" id="formSection">
-    <div class="form-title">Set Up Your Delivery</div>
-    <div class="form-subtitle">Tell us the details and we'll handle the rest.</div>
-
-    <form id="signupForm">
-      <div class="form-grid">
-
-        <!-- Personal Info -->
-        <div class="form-group">
-          <label for="firstName">First Name</label>
-          <input type="text" id="firstName" name="firstName" placeholder="Your first name" required>
+      <div class="stats-bar">
+        <div class="stat">
+          <div class="stat-num">3</div>
+          <div class="stat-label">Subscription Tiers</div>
         </div>
-        <div class="form-group">
-          <label for="lastName">Last Name</label>
-          <input type="text" id="lastName" name="lastName" placeholder="Your last name" required>
+        <div class="stat">
+          <div class="stat-num">5×</div>
+          <div class="stat-label">Weekly Deliveries</div>
         </div>
-        <div class="form-group">
-          <label for="email">Email</label>
-          <input type="email" id="email" name="email" placeholder="your@email.com" required>
+        <div class="stat">
+          <div class="stat-num">🏫</div>
+          <div class="stat-label">Nixa High School</div>
         </div>
-        <div class="form-group">
-          <label for="phone">Phone (optional)</label>
-          <input type="tel" id="phone" name="phone" placeholder="(xxx) xxx-xxxx">
-        </div>
-        <div class="form-group">
-          <label for="roomNumber">Room / Location</label>
-          <input type="text" id="roomNumber" name="roomNumber" placeholder="e.g. Room 214" required>
-        </div>
-        <div class="form-group">
-          <label for="gradeYear">Grade / Year</label>
-          <select id="gradeYear" name="gradeYear">
-            <option value="">Select...</option>
-            <option>9th Grade</option>
-            <option>10th Grade</option>
-            <option>11th Grade</option>
-            <option>12th Grade</option>
-            <option>Staff / Faculty</option>
-          </select>
-        </div>
-
-        <hr class="section-divider">
-        <div class="section-label">Delivery Preferences</div>
-
-        <!-- Delivery Days -->
-        <div class="form-group full">
-          <label>Delivery Day(s)</label>
-          <div class="checkbox-group" id="deliveryDays">
-            <!-- Populated by JS from config -->
-          </div>
-        </div>
-
-        <!-- Delivery Time -->
-        <div class="form-group full">
-          <label>Preferred Delivery Time</label>
-          <div class="checkbox-group" id="deliveryTimes">
-            <!-- Populated by JS from config -->
-          </div>
-        </div>
-
-        <hr class="section-divider">
-        <div class="section-label">Your Drink Order</div>
-
-        <!-- Drink Builder -->
-        <div class="form-group drink-builder full">
-          <div id="drinkEntries"></div>
-          <button type="button" class="add-drink-btn" onclick="addDrink()">+ Add a drink</button>
-        </div>
-
-        <div class="form-group full">
-          <label for="notes">Special Instructions / Notes</label>
-          <textarea id="notes" name="notes" placeholder="Allergies, special requests, or anything else we should know..."></textarea>
-        </div>
-
-      </div>
-
-      <button type="submit" class="submit-btn" id="submitBtn">
-        Continue to Payment →
-      </button>
-      <div class="form-note">You'll be redirected to our secure Square checkout to complete your subscription.</div>
-    </form>
-  </section>
-
-  <!-- SUCCESS PANEL -->
-  <div class="success-panel" id="successPanel">
-    <div class="success-icon">🦅</div>
-    <h2>You're Almost In!</h2>
-    <p>Your order details have been saved. Click below to complete your subscription payment through Square.<br>Once confirmed, your deliveries will begin on your selected days.</p>
-    <a href="#" id="paymentLink" class="pay-btn" target="_blank">Complete Payment →</a>
-    <p style="margin-top: 16px; font-size: 0.8rem; opacity: 0.5;">Opens Square checkout in a new tab.</p>
-  </div>
-
-  <!-- ADMIN BAR -->
-  <div class="admin-bar">
-    <button class="admin-link" onclick="toggleAdmin()">⚙ Store Admin</button>
-  </div>
-
-  <!-- ADMIN PANEL -->
-  <div class="admin-panel" id="adminPanel">
-    <h3>Store Configuration</h3>
-    <p class="admin-note">Changes here update the live site immediately and are saved to your browser. Update this when your menu, pricing, or schedule changes.</p>
-
-    <div class="config-group">
-      <h4>Tier Pricing, Square Links & Perks</h4>
-      <div class="config-row">
-        <div class="form-group"><label>Perch Price</label><input type="text" id="cfg-perch-price" placeholder="e.g. $15"></div>
-        <div class="form-group"><label>Perch Square Link</label><input type="text" id="cfg-perch-link" placeholder="https://square.link/..."></div>
-        <div class="form-group"><label>Perch Perks (one per line)</label><textarea id="cfg-perch-desc" placeholder="2 drinks per week&#10;1 delivery day&#10;Standard menu" style="height:80px;"></textarea></div>
-      </div>
-      <div class="config-row">
-        <div class="form-group"><label>Nest Price</label><input type="text" id="cfg-nest-price" placeholder="e.g. $25"></div>
-        <div class="form-group"><label>Nest Square Link</label><input type="text" id="cfg-nest-link" placeholder="https://square.link/..."></div>
-        <div class="form-group"><label>Nest Perks (one per line)</label><textarea id="cfg-nest-desc" placeholder="4 drinks per week&#10;2 delivery days&#10;Full menu access" style="height:80px;"></textarea></div>
-      </div>
-      <div class="config-row">
-        <div class="form-group"><label>Eagle's Nest Price</label><input type="text" id="cfg-eagles-price" placeholder="e.g. $40"></div>
-        <div class="form-group"><label>Eagle's Nest Square Link</label><input type="text" id="cfg-eagles-link" placeholder="https://square.link/..."></div>
-        <div class="form-group"><label>Eagle's Nest Perks (one per line)</label><textarea id="cfg-eagles-desc" placeholder="Unlimited drinks&#10;Any delivery day&#10;Priority delivery&#10;Exclusive specials" style="height:80px;"></textarea></div>
       </div>
     </div>
 
-    <div class="config-group">
-      <h4>Delivery Days (comma-separated)</h4>
-      <div class="config-row two">
-        <div class="form-group"><label>Available Days</label><input type="text" id="cfg-days" placeholder="Monday, Tuesday, Wednesday, Thursday, Friday"></div>
-        <div class="form-group"><label>Available Times</label><input type="text" id="cfg-times" placeholder="Before School, 1st Hour, Lunch, After School"></div>
+    <div class="hero-right">
+      <div class="deco-circle deco-circle-1"></div>
+      <div class="deco-circle deco-circle-2"></div>
+      <div class="deco-circle deco-circle-3"></div>
+      <div class="hero-visual">
+        <span class="big-eagle">🦅</span>
+        <div class="tagline">Your nest. Your brew.</div>
       </div>
     </div>
+  </main>
 
-    <div class="config-group">
-      <h4>Drink Menu (one per line)</h4>
-      <textarea id="cfg-menu" placeholder="Iced Coffee&#10;Hot Coffee&#10;Latte&#10;Mocha&#10;Vanilla Latte&#10;Caramel Latte&#10;Hot Chocolate&#10;Chai Latte" style="height: 120px;"></textarea>
-    </div>
-
-    <div class="config-group">
-      <h4>Google Sheets Script URL</h4>
-      <div class="form-group">
-        <label>Apps Script Web App URL</label>
-        <input type="text" id="cfg-script-url" placeholder="https://script.google.com/macros/s/.../exec">
-      </div>
-    </div>
-
-    <div class="config-group">
-      <h4>Change Admin Password</h4>
-      <div class="config-row two">
-        <div class="form-group"><label>New Password</label><input type="password" id="cfg-new-password" placeholder="Enter new password"></div>
-        <div class="form-group"><label>Confirm Password</label><input type="password" id="cfg-confirm-password" placeholder="Confirm new password"></div>
-      </div>
-      <div style="font-size:0.8rem; color:#ff6b6b; min-height:18px;" id="passwordChangeError"></div>
-      <button class="save-config-btn" onclick="changePassword()" style="margin-top:8px;">Update Password</button>
-    </div>
-
-    <button class="save-config-btn" onclick="saveConfig()">Save Changes</button>
-    <span class="save-status" id="saveStatus">✓ Saved!</span>
-  </div>
-
-</div><!-- /container -->
-
-<!-- PASSWORD MODAL -->
-<div class="modal-overlay" id="adminModal">
-  <div class="modal-box">
-    <h3>Store Admin</h3>
-    <p id="modalPrompt">Enter your admin password to continue.</p>
-    <input type="password" id="adminPasswordInput" placeholder="Password" autocomplete="off">
-    <div class="modal-error" id="modalError"></div>
-    <button class="modal-btn" onclick="submitAdminPassword()">Enter</button>
-    <button class="modal-cancel" onclick="closeAdminModal()">Cancel</button>
-  </div>
-</div>
-
-<script>
-// ============================================================
-// CONFIG — stored in localStorage, editable via admin panel
-// ============================================================
-const DEFAULT_CONFIG = {
-  tiers: {
-    perch:      { price: '$XX', link: '', perks: ['X drinks per week', '1 delivery day', 'Standard menu'] },
-    nest:       { price: '$XX', link: '', perks: ['X drinks per week', '2 delivery days', 'Full menu access'] },
-    'eagles-nest': { price: '$XX', link: '', perks: ['Unlimited drinks', 'Any delivery day', 'Priority delivery', 'Exclusive specials'] }
-  },
-  days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-  times: ['Before School', '1st Hour', 'Lunch', 'After School'],
-  menu: ['Iced Coffee', 'Hot Coffee', 'Latte', 'Mocha', 'Vanilla Latte', 'Caramel Latte', 'Hot Chocolate', 'Chai Latte'],
-  scriptUrl: ''
-};
-
-function loadConfig() {
-  const saved = localStorage.getItem('birdhouseConfig');
-  return saved ? { ...DEFAULT_CONFIG, ...JSON.parse(saved) } : DEFAULT_CONFIG;
-}
-
-function saveConfig() {
-  const config = loadConfig();
-
-  config.tiers.perch.price      = document.getElementById('cfg-perch-price').value || config.tiers.perch.price;
-  config.tiers.perch.link       = document.getElementById('cfg-perch-link').value;
-  config.tiers.perch.perks      = document.getElementById('cfg-perch-desc').value.split('\n').map(p => p.trim()).filter(Boolean);
-  config.tiers.nest.price       = document.getElementById('cfg-nest-price').value || config.tiers.nest.price;
-  config.tiers.nest.link        = document.getElementById('cfg-nest-link').value;
-  config.tiers.nest.perks       = document.getElementById('cfg-nest-desc').value.split('\n').map(p => p.trim()).filter(Boolean);
-  config.tiers['eagles-nest'].price = document.getElementById('cfg-eagles-price').value || config.tiers['eagles-nest'].price;
-  config.tiers['eagles-nest'].link  = document.getElementById('cfg-eagles-link').value;
-  config.tiers['eagles-nest'].perks = document.getElementById('cfg-eagles-desc').value.split('\n').map(p => p.trim()).filter(Boolean);
-
-  const daysVal = document.getElementById('cfg-days').value;
-  if (daysVal) config.days = daysVal.split(',').map(d => d.trim()).filter(Boolean);
-
-  const timesVal = document.getElementById('cfg-times').value;
-  if (timesVal) config.times = timesVal.split(',').map(t => t.trim()).filter(Boolean);
-
-  const menuVal = document.getElementById('cfg-menu').value;
-  if (menuVal) config.menu = menuVal.split('\n').map(m => m.trim()).filter(Boolean);
-
-  config.scriptUrl = document.getElementById('cfg-script-url').value;
-
-  localStorage.setItem('birdhouseConfig', JSON.stringify(config));
-
-  const status = document.getElementById('saveStatus');
-  status.classList.add('show');
-  setTimeout(() => status.classList.remove('show'), 2500);
-
-  applyConfig(config);
-}
-
-function applyConfig(config) {
-  // Update tier cards
-  const tierKeys = ['perch', 'nest', 'eagles-nest'];
-  tierKeys.forEach(key => {
-    const card = document.querySelector(`.tier-card[data-tier="${key}"]`);
-    if (!card) return;
-    const tier = config.tiers[key];
-    if (tier.price) card.querySelector('.tier-price').innerHTML = `${tier.price} <span>/ month</span>`;
-    if (tier.perks && tier.perks.length) {
-      card.querySelector('.tier-perks').innerHTML = tier.perks
-        .filter(p => p.trim())
-        .map(p => `<li>${p.trim()}</li>`)
-        .join('');
-    }
-  });
-
-  // Update delivery days checkboxes
-  const daysContainer = document.getElementById('deliveryDays');
-  daysContainer.innerHTML = '';
-  config.days.forEach(day => {
-    const label = document.createElement('label');
-    label.className = 'checkbox-item';
-    label.innerHTML = `<input type="checkbox" name="deliveryDays" value="${day}"> ${day}`;
-    label.querySelector('input').addEventListener('change', e => {
-      label.classList.toggle('checked', e.target.checked);
-    });
-    daysContainer.appendChild(label);
-  });
-
-  // Update delivery times checkboxes
-  const timesContainer = document.getElementById('deliveryTimes');
-  timesContainer.innerHTML = '';
-  config.times.forEach(time => {
-    const label = document.createElement('label');
-    label.className = 'checkbox-item';
-    label.innerHTML = `<input type="checkbox" name="deliveryTimes" value="${time}"> ${time}`;
-    label.querySelector('input').addEventListener('change', e => {
-      label.classList.toggle('checked', e.target.checked);
-    });
-    timesContainer.appendChild(label);
-  });
-
-  // Populate admin fields
-  document.getElementById('cfg-perch-price').value      = config.tiers.perch.price || '';
-  document.getElementById('cfg-perch-link').value       = config.tiers.perch.link || '';
-  document.getElementById('cfg-perch-desc').value       = (config.tiers.perch.perks || []).join('\n');
-  document.getElementById('cfg-nest-price').value       = config.tiers.nest.price || '';
-  document.getElementById('cfg-nest-link').value        = config.tiers.nest.link || '';
-  document.getElementById('cfg-nest-desc').value        = (config.tiers.nest.perks || []).join('\n');
-  document.getElementById('cfg-eagles-price').value     = config.tiers['eagles-nest'].price || '';
-  document.getElementById('cfg-eagles-link').value      = config.tiers['eagles-nest'].link || '';
-  document.getElementById('cfg-eagles-desc').value      = (config.tiers['eagles-nest'].perks || []).join('\n');
-  document.getElementById('cfg-days').value             = config.days.join(', ');
-  document.getElementById('cfg-times').value            = config.times.join(', ');
-  document.getElementById('cfg-menu').value             = config.menu.join('\n');
-  document.getElementById('cfg-script-url').value      = config.scriptUrl || '';
-
-  // Rebuild drink entries with updated menu
-  const entries = document.querySelectorAll('.drink-entry select');
-  entries.forEach(sel => {
-    const current = sel.value;
-    sel.innerHTML = config.menu.map(item => `<option value="${item}"${item===current?' selected':''}>${item}</option>`).join('');
-  });
-}
-
-// ============================================================
-// TIER SELECTION
-// ============================================================
-let selectedTier = null;
-
-document.getElementById('tiersGrid').addEventListener('click', function(e) {
-  const card = e.target.closest('.tier-card');
-  if (!card) return;
-
-  document.querySelectorAll('.tier-card').forEach(c => c.classList.remove('selected'));
-  card.classList.add('selected');
-  selectedTier = card.dataset.tier;
-
-  const formSection = document.getElementById('formSection');
-  formSection.classList.add('visible');
-  formSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-});
-
-// ============================================================
-// DRINK BUILDER
-// ============================================================
-let drinkCount = 0;
-
-function addDrink() {
-  const config = loadConfig();
-  drinkCount++;
-  const id = `drink_${drinkCount}`;
-  const container = document.getElementById('drinkEntries');
-
-  const div = document.createElement('div');
-  div.className = 'drink-entry';
-  div.id = id;
-  div.innerHTML = `
-    <div class="form-group">
-      <label>Drink</label>
-      <select name="drink_name_${drinkCount}">
-        ${config.menu.map(item => `<option value="${item}">${item}</option>`).join('')}
-      </select>
-    </div>
-    <div class="form-group">
-      <label>Customization</label>
-      <input type="text" name="drink_custom_${drinkCount}" placeholder="e.g. oat milk, extra shot">
-    </div>
-    <button type="button" class="remove-drink" onclick="removeDrink('${id}')">Remove</button>
-  `;
-  container.appendChild(div);
-}
-
-function removeDrink(id) {
-  const el = document.getElementById(id);
-  if (el) el.remove();
-}
-
-// ============================================================
-// FORM SUBMISSION → Google Sheets
-// ============================================================
-document.getElementById('signupForm').addEventListener('submit', async function(e) {
-  e.preventDefault();
-  const config = loadConfig();
-  const btn = document.getElementById('submitBtn');
-  btn.disabled = true;
-  btn.textContent = 'Saving your order...';
-
-  // Collect drink orders
-  const drinks = [];
-  document.querySelectorAll('.drink-entry').forEach((entry, i) => {
-    const selects = entry.querySelectorAll('select');
-    const inputs = entry.querySelectorAll('input[type=text]');
-    if (selects.length) drinks.push(`${selects[0].value}${inputs[0]?.value ? ' ('+inputs[0].value+')' : ''}`);
-  });
-
-  // Collect checked days/times
-  const days = [...document.querySelectorAll('input[name="deliveryDays"]:checked')].map(c => c.value);
-  const times = [...document.querySelectorAll('input[name="deliveryTimes"]:checked')].map(c => c.value);
-
-  const payload = {
-    timestamp: new Date().toISOString(),
-    tier: selectedTier,
-    firstName: document.getElementById('firstName').value,
-    lastName: document.getElementById('lastName').value,
-    email: document.getElementById('email').value,
-    phone: document.getElementById('phone').value,
-    roomNumber: document.getElementById('roomNumber').value,
-    gradeYear: document.getElementById('gradeYear').value,
-    deliveryDays: days.join(', '),
-    deliveryTimes: times.join(', '),
-    drinks: drinks.join(' | '),
-    notes: document.getElementById('notes').value,
-  };
-
-  if (config.scriptUrl) {
-    try {
-      await fetch(config.scriptUrl, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-    } catch (err) {
-      console.warn('Sheet submission error:', err);
-    }
-  }
-
-  // Determine Square link
-  const tierMap = { 'perch': config.tiers.perch.link, 'nest': config.tiers.nest.link, 'eagles-nest': config.tiers['eagles-nest'].link };
-  const squareLink = tierMap[selectedTier] || '#';
-
-  document.getElementById('paymentLink').href = squareLink;
-  document.getElementById('formSection').classList.remove('visible');
-  document.getElementById('successPanel').classList.add('visible');
-  document.getElementById('successPanel').scrollIntoView({ behavior: 'smooth' });
-});
-
-// ============================================================
-// ADMIN PASSWORD PROTECTION
-// ============================================================
-const ADMIN_SESSION_KEY = 'birdhouseAdminAuth';
-
-function toggleAdmin() {
-  // If already authenticated this session, just toggle the panel
-  if (sessionStorage.getItem(ADMIN_SESSION_KEY) === 'true') {
-    document.getElementById('adminPanel').classList.toggle('visible');
-    return;
-  }
-  // Otherwise show the password modal
-  openAdminModal();
-}
-
-function openAdminModal() {
-  const config = loadConfig();
-  const hasPassword = !!config.adminPassword;
-  document.getElementById('modalPrompt').textContent = hasPassword
-    ? 'Enter your admin password to continue.'
-    : 'No password set yet. Create one now to protect your admin panel.';
-  document.getElementById('adminPasswordInput').value = '';
-  document.getElementById('modalError').textContent = '';
-  document.getElementById('adminModal').classList.add('visible');
-  setTimeout(() => document.getElementById('adminPasswordInput').focus(), 100);
-}
-
-function closeAdminModal() {
-  document.getElementById('adminModal').classList.remove('visible');
-}
-
-function submitAdminPassword() {
-  const config = loadConfig();
-  const input = document.getElementById('adminPasswordInput').value;
-  const errorEl = document.getElementById('modalError');
-
-  if (!input) {
-    errorEl.textContent = 'Please enter a password.';
-    return;
-  }
-
-  // No password set yet — treat this as first-time setup
-  if (!config.adminPassword) {
-    config.adminPassword = input;
-    localStorage.setItem('birdhouseConfig', JSON.stringify(config));
-    sessionStorage.setItem(ADMIN_SESSION_KEY, 'true');
-    closeAdminModal();
-    document.getElementById('adminPanel').classList.add('visible');
-    applyConfig(config);
-    return;
-  }
-
-  // Check password
-  if (input === config.adminPassword) {
-    sessionStorage.setItem(ADMIN_SESSION_KEY, 'true');
-    closeAdminModal();
-    document.getElementById('adminPanel').classList.add('visible');
-  } else {
-    errorEl.textContent = 'Incorrect password. Try again.';
-    document.getElementById('adminPasswordInput').value = '';
-    document.getElementById('adminPasswordInput').focus();
-  }
-}
-
-// Allow pressing Enter in the password field
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('adminPasswordInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter') submitAdminPassword();
-    if (e.key === 'Escape') closeAdminModal();
-  });
-});
-
-function changePassword() {
-  const newPw  = document.getElementById('cfg-new-password').value;
-  const confPw = document.getElementById('cfg-confirm-password').value;
-  const errEl  = document.getElementById('passwordChangeError');
-
-  if (!newPw) { errEl.textContent = 'Please enter a new password.'; return; }
-  if (newPw !== confPw) { errEl.textContent = 'Passwords do not match.'; return; }
-  if (newPw.length < 4) { errEl.textContent = 'Password must be at least 4 characters.'; return; }
-
-  const config = loadConfig();
-  config.adminPassword = newPw;
-  localStorage.setItem('birdhouseConfig', JSON.stringify(config));
-  errEl.style.color = '#6fcf97';
-  errEl.textContent = '✓ Password updated!';
-  document.getElementById('cfg-new-password').value = '';
-  document.getElementById('cfg-confirm-password').value = '';
-  setTimeout(() => { errEl.textContent = ''; errEl.style.color = '#ff6b6b'; }, 3000);
-}
-
-
-document.addEventListener('DOMContentLoaded', () => {
-  const config = loadConfig();
-  applyConfig(config);
-  addDrink(); // Start with one drink slot
-});
-</script>
 </body>
 </html>
