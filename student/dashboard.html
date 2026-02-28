@@ -113,6 +113,7 @@
       <a class="nav-item" onclick="showSection('schedule',this)">🗓️ My Schedule</a>
       <a class="nav-item" onclick="showSection('inventory',this)">📦 Inventory</a>
       <a class="nav-item" onclick="showSection('sales',this)">📈 Sales Data</a>
+      <a class="nav-item" onclick="showSection('menu',this)">☕ Menu Availability</a>
       <a class="nav-item" onclick="showSection('summary',this)">📝 Weekly Summary</a>
     </nav>
     <button class="signout-btn" onclick="signOut()">← Sign Out</button>
@@ -184,6 +185,41 @@
     </div>
 
     <!-- Summary -->
+    <!-- Menu Availability -->
+    <div id="section-menu" style="display:none">
+      <div class="page-eyebrow">Menu</div>
+      <h1 class="page-title">Menu Availability</h1>
+      <p style="color:var(--gray);font-size:0.88rem;margin-bottom:1.5rem">Toggle items on or off for today's service. Changes are live immediately.</p>
+
+      <div id="menu-hot-section" style="margin-bottom:2rem">
+        <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.85rem">
+          <span style="font-size:1.2rem">☕</span>
+          <span style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:0.05em">Hot Drinks</span>
+          <span style="font-size:0.65rem;padding:0.2rem 0.6rem;border-radius:20px;background:rgba(255,100,0,0.1);color:#ff9944;border:1px solid rgba(255,100,0,0.25)">12 oz</span>
+        </div>
+        <div id="menu-hot-list" class="table-wrap">
+          <table><thead><tr><th>Item</th><th>Description</th><th>Available</th></tr></thead>
+          <tbody id="menu-hot-body"><tr><td colspan="3" style="text-align:center;color:var(--gray);padding:1.5rem">Loading...</td></tr></tbody></table>
+        </div>
+      </div>
+
+      <div id="menu-iced-section">
+        <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.85rem">
+          <span style="font-size:1.2rem">🧊</span>
+          <span style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:0.05em">Iced Drinks</span>
+          <span style="font-size:0.65rem;padding:0.2rem 0.6rem;border-radius:20px;background:rgba(80,160,255,0.1);color:#66aaff;border:1px solid rgba(80,160,255,0.25)">16 oz</span>
+        </div>
+        <div class="table-wrap">
+          <table><thead><tr><th>Item</th><th>Description</th><th>Available</th></tr></thead>
+          <tbody id="menu-iced-body"><tr><td colspan="3" style="text-align:center;color:var(--gray);padding:1.5rem">Loading...</td></tr></tbody></table>
+        </div>
+      </div>
+
+      <div style="margin-top:1.25rem;font-size:0.8rem;color:var(--gray);background:var(--card);border-radius:8px;padding:0.85rem 1rem;border:1px solid var(--border-dim)">
+        💡 To add, remove, or edit menu items (name, description, Square links), contact an admin.
+      </div>
+    </div>
+
     <div id="section-summary" style="display:none">
       <div class="page-eyebrow">Weekly Summary</div>
       <h1 class="page-title">Submit Your Report</h1>
@@ -332,7 +368,46 @@
     btn.disabled=false; btn.textContent='Submit Weekly Summary →';
   }
 
-  async function loadPastSummaries() {
+  async function loadMenuAvailability() {
+    const {data} = await sb.from('menu_items').select('*').order('sort_order');
+    if(!data) return;
+
+    const hotItems  = data.filter(i => i.is_hot !== false && i.is_iced !== true);
+    const icedItems = data.filter(i => i.is_iced === true);
+
+    const renderRows = (items, tbodyId) => {
+      const tbody = document.getElementById(tbodyId);
+      if(!items.length){tbody.innerHTML=`<tr><td colspan="3" style="text-align:center;color:var(--gray);padding:1.5rem">No items in this category.</td></tr>`;return;}
+      tbody.innerHTML = items.map(item=>`
+        <tr>
+          <td><strong>${item.name}</strong></td>
+          <td style="color:var(--gray);font-size:0.82rem">${item.description||'—'}</td>
+          <td>
+            <button class="avail-toggle ${item.available?'on':''}" id="menu-toggle-${item.id}"
+              onclick="toggleMenuAvail('${item.id}', ${item.available})">
+            </button>
+            <span style="font-size:0.75rem;color:var(--gray);margin-left:0.6rem">${item.available?'Available':'Unavailable'}</span>
+          </td>
+        </tr>`).join('');
+    };
+
+    renderRows(hotItems, 'menu-hot-body');
+    renderRows(icedItems, 'menu-iced-body');
+  }
+
+  async function toggleMenuAvail(id, current) {
+    const newVal = !current;
+    await sb.from('menu_items').update({available: newVal}).eq('id', id);
+    // Update toggle visually without full reload
+    const btn = document.getElementById('menu-toggle-'+id);
+    if(btn) {
+      btn.classList.toggle('on', newVal);
+      const label = btn.nextElementSibling;
+      if(label) label.textContent = newVal ? 'Available' : 'Unavailable';
+      // Update onclick for next click
+      btn.setAttribute('onclick', `toggleMenuAvail('${id}', ${newVal})`);
+    }
+  }
     const {data} = await sb.from('weekly_summaries').select('*').eq('student_id',currentUser.id).order('week_of',{ascending:false}).limit(5);
     const container=document.getElementById('past-summaries');
     if(!data||!data.length){container.innerHTML='<div style="color:var(--gray);font-size:0.88rem;padding:1.5rem;background:var(--card);border-radius:10px;border:1px solid var(--border-dim)">No past summaries yet.</div>';return;}
@@ -345,6 +420,7 @@
     document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
     if(el)el.classList.add('active');
     if(name==='summary')loadPastSummaries();
+    if(name==='menu')loadMenuAvailability();
   }
 
   async function signOut() { await sb.auth.signOut(); window.location.href='index.html'; }
