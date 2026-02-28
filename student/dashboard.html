@@ -4,274 +4,197 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>The Birdhouse — Team Hub</title>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --cream: #f5f0e8;
-      --brown: #2c1a0e;
-      --rust: #9b3a1a;
-      --rust-light: #c4602e;
-      --amber: #c47d2e;
-      --warm-gray: #8a7968;
-      --card: #fff8f0;
-      --border: rgba(44,26,14,0.1);
-      --green: #2d6a4f;
+      --black: #0a0a0a; --dark: #111; --red: #cc0000; --red-bright: #ff1a1a;
+      --gray: #555; --light-gray: #999; --white: #f0f0f0;
+      --card: #141414; --border: rgba(204,0,0,0.18); --border-dim: rgba(255,255,255,0.07);
     }
-    body { background: var(--cream); color: var(--brown); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
-    .layout { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+    body { background: var(--black); color: var(--white); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+    .layout { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
 
-    /* Sidebar */
-    .sidebar { background: var(--rust); padding: 2rem 1.5rem; position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; }
-    .sidebar-logo { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 2.5rem; color: var(--cream); }
-    .sidebar-logo-text { font-family: 'Playfair Display', serif; font-size: 1.1rem; }
-    .user-card { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 1rem; margin-bottom: 2rem; }
-    .user-avatar { width: 40px; height: 40px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1rem; margin-bottom: 0.6rem; }
-    .user-name { font-size: 0.9rem; color: var(--cream); font-weight: 500; }
-    .user-role { font-size: 0.72rem; color: rgba(245,240,232,0.6); margin-top: 0.2rem; letter-spacing: 0.05em; text-transform: uppercase; }
+    .sidebar { background: #0d0000; border-right: 1px solid var(--border); padding: 1.75rem 1.25rem; position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; }
+    .sidebar-logo img { height: 38px; filter: drop-shadow(0 0 8px rgba(204,0,0,0.5)); margin-bottom: 2rem; }
+    .user-card { background: rgba(204,0,0,0.08); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; margin-bottom: 1.75rem; }
+    .user-name { font-size: 0.9rem; color: var(--white); font-weight: 500; }
+    .user-role { font-size: 0.68rem; color: var(--red-bright); margin-top: 0.25rem; letter-spacing: 0.08em; text-transform: uppercase; }
     nav { flex: 1; }
-    .nav-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; border-radius: 8px; color: rgba(245,240,232,0.65); font-size: 0.88rem; text-decoration: none; cursor: pointer; transition: all 0.2s; margin-bottom: 0.25rem; }
-    .nav-item:hover, .nav-item.active { background: rgba(255,255,255,0.12); color: var(--cream); }
-    .nav-item.active { color: #f0c070; }
-    .signout-btn { background: none; border: 1px solid rgba(245,240,232,0.2); border-radius: 8px; padding: 0.65rem 1rem; color: rgba(245,240,232,0.5); font-size: 0.82rem; cursor: pointer; width: 100%; text-align: left; transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem; }
-    .signout-btn:hover { color: var(--cream); }
+    .nav-item { display: flex; align-items: center; gap: 0.7rem; padding: 0.7rem 0.9rem; border-radius: 7px; color: var(--gray); font-size: 0.85rem; text-decoration: none; cursor: pointer; transition: all 0.2s; margin-bottom: 0.2rem; border: 1px solid transparent; }
+    .nav-item:hover { color: var(--white); background: rgba(255,255,255,0.04); }
+    .nav-item.active { background: rgba(204,0,0,0.12); color: var(--red-bright); border-color: rgba(204,0,0,0.25); }
+    .signout-btn { background: none; border: 1px solid rgba(255,255,255,0.08); border-radius: 7px; padding: 0.65rem 1rem; color: var(--gray); font-size: 0.8rem; cursor: pointer; width: 100%; text-align: left; transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem; font-family: 'DM Sans', sans-serif; }
+    .signout-btn:hover { color: var(--white); }
 
-    /* Main */
     .main { padding: 2.5rem 3rem; }
-    .page-header { margin-bottom: 2rem; }
-    .page-eyebrow { font-size: 0.72rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--rust); margin-bottom: 0.3rem; }
-    .page-title { font-family: 'Playfair Display', serif; font-size: 2rem; }
+    .page-eyebrow { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--red); margin-bottom: 0.3rem; }
+    .page-title { font-family: 'Bebas Neue', sans-serif; font-size: 2.5rem; letter-spacing: 0.04em; margin-bottom: 2rem; }
 
-    /* Cards */
     .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem; }
-    .stat-card { background: var(--card); border-radius: 14px; padding: 1.5rem; border: 1px solid var(--border); }
-    .stat-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--warm-gray); margin-bottom: 0.5rem; }
-    .stat-value { font-family: 'Playfair Display', serif; font-size: 2.2rem; color: var(--rust); }
-    .stat-sub { font-size: 0.78rem; color: var(--warm-gray); margin-top: 0.25rem; }
+    .stat-card { background: var(--card); border-radius: 12px; padding: 1.5rem; border: 1px solid var(--border-dim); transition: border-color 0.2s; }
+    .stat-card:hover { border-color: var(--border); }
+    .stat-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--light-gray); margin-bottom: 0.5rem; }
+    .stat-value { font-family: 'Bebas Neue', sans-serif; font-size: 2.5rem; color: var(--red-bright); text-shadow: 0 0 15px rgba(204,0,0,0.4); letter-spacing: 0.05em; }
+    .stat-sub { font-size: 0.75rem; color: var(--gray); margin-top: 0.25rem; }
 
     .section { margin-bottom: 2rem; }
-    .section-title { font-family: 'Playfair Display', serif; font-size: 1.2rem; margin-bottom: 1rem; }
+    .section-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; letter-spacing: 0.05em; margin-bottom: 1rem; }
+
+    .btn-primary { background: var(--red); color: white; border: none; border-radius: 8px; padding: 0.85rem 1.5rem; font-family: 'DM Sans', sans-serif; font-size: 0.88rem; font-weight: 500; cursor: pointer; transition: background 0.2s, box-shadow 0.2s, transform 0.15s; text-transform: uppercase; letter-spacing: 0.05em; }
+    .btn-primary:hover { background: var(--red-bright); box-shadow: 0 0 20px rgba(204,0,0,0.4); transform: translateY(-1px); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-secondary { background: transparent; color: var(--red-bright); border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem 1.5rem; font-family: 'DM Sans', sans-serif; font-size: 0.88rem; cursor: pointer; transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.05em; }
+    .btn-secondary:hover { background: rgba(204,0,0,0.1); }
 
     /* Schedule */
     .schedule-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.75rem; }
-    .schedule-day { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; text-align: center; }
-    .schedule-day.today { border-color: var(--rust); background: rgba(155,58,26,0.05); }
-    .day-name { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--warm-gray); margin-bottom: 0.4rem; }
-    .day-shift { font-size: 0.85rem; font-weight: 500; }
-    .day-time { font-size: 0.75rem; color: var(--warm-gray); margin-top: 0.2rem; }
-    .day-off { color: rgba(44,26,14,0.25); font-size: 0.82rem; }
+    .schedule-day { background: var(--card); border: 1px solid var(--border-dim); border-radius: 10px; padding: 1rem; text-align: center; transition: border-color 0.2s; }
+    .schedule-day.today { border-color: var(--red); background: rgba(204,0,0,0.05); }
+    .day-name { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--light-gray); margin-bottom: 0.3rem; }
+    .day-date { font-size: 0.68rem; color: var(--gray); margin-bottom: 0.5rem; }
+    .day-shift { font-size: 0.85rem; font-weight: 500; color: var(--red-bright); }
+    .day-time { font-size: 0.72rem; color: var(--gray); margin-top: 0.2rem; }
+    .day-off { color: rgba(255,255,255,0.15); font-size: 0.8rem; }
 
     /* Inventory */
-    .inventory-table { width: 100%; border-collapse: collapse; }
-    .inventory-table th { text-align: left; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--warm-gray); padding: 0.6rem 1rem; border-bottom: 1px solid var(--border); }
-    .inventory-table td { padding: 0.9rem 1rem; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
-    .inventory-table tr:last-child td { border-bottom: none; }
-    .inventory-table tr:hover td { background: rgba(196,125,46,0.04); }
-    .stock-badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 500; }
-    .stock-ok { background: rgba(45,106,79,0.1); color: var(--green); }
-    .stock-low { background: rgba(196,125,46,0.1); color: var(--amber); }
-    .stock-out { background: rgba(155,58,26,0.1); color: var(--rust); }
+    .table-wrap { background: var(--card); border: 1px solid var(--border-dim); border-radius: 12px; overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--light-gray); padding: 0.75rem 1.25rem; border-bottom: 1px solid var(--border-dim); font-weight: 500; }
+    td { padding: 1rem 1.25rem; border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 0.88rem; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    .stock-badge { display: inline-block; padding: 0.2rem 0.7rem; border-radius: 20px; font-size: 0.72rem; font-weight: 500; }
+    .stock-ok { background: rgba(0,200,80,0.1); color: #4caf50; border: 1px solid rgba(0,200,80,0.2); }
+    .stock-low { background: rgba(204,120,0,0.1); color: #ff9800; border: 1px solid rgba(204,120,0,0.2); }
+    .stock-out { background: rgba(204,0,0,0.1); color: var(--red-bright); border: 1px solid var(--border); }
+    .qty-input { width: 70px; padding: 0.35rem 0.5rem; border: 1px solid var(--border-dim); border-radius: 6px; font-size: 0.85rem; text-align: center; outline: none; background: var(--black); color: var(--white); }
+    .qty-input:focus { border-color: var(--red); }
+    .update-btn { background: var(--red); color: white; border: none; border-radius: 6px; padding: 0.35rem 0.75rem; font-size: 0.75rem; cursor: pointer; transition: background 0.2s; text-transform: uppercase; letter-spacing: 0.05em; }
+    .update-btn:hover { background: var(--red-bright); }
 
-    .qty-input { width: 70px; padding: 0.35rem 0.5rem; border: 1.5px solid var(--border); border-radius: 6px; font-size: 0.88rem; text-align: center; outline: none; }
-    .qty-input:focus { border-color: var(--rust); }
-    .update-btn { background: var(--rust); color: white; border: none; border-radius: 6px; padding: 0.35rem 0.75rem; font-size: 0.78rem; cursor: pointer; transition: background 0.2s; }
-    .update-btn:hover { background: var(--rust-light); }
+    /* Sales chart */
+    .sales-chart { display: flex; align-items: flex-end; gap: 0.5rem; height: 160px; padding: 1rem 1rem 0; background: var(--card); border: 1px solid var(--border-dim); border-radius: 12px; }
+    .bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.4rem; height: 100%; justify-content: flex-end; }
+    .bar { width: 100%; background: var(--red); border-radius: 3px 3px 0 0; opacity: 0.7; transition: opacity 0.2s; min-height: 3px; box-shadow: 0 0 10px rgba(204,0,0,0.3); }
+    .bar:hover { opacity: 1; }
+    .bar-label { font-size: 0.65rem; color: var(--gray); text-align: center; padding-bottom: 0.5rem; }
 
     /* Summary form */
-    .summary-form { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; }
-    .form-group { margin-bottom: 1.25rem; }
-    label { display: block; font-size: 0.78rem; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--warm-gray); margin-bottom: 0.45rem; }
-    input, select, textarea { width: 100%; padding: 0.85rem 1rem; border: 1.5px solid var(--border); border-radius: 10px; background: white; font-family: 'DM Sans', sans-serif; font-size: 0.93rem; color: var(--brown); outline: none; transition: border-color 0.2s; }
-    input:focus, select:focus, textarea:focus { border-color: var(--rust); }
-    textarea { resize: vertical; min-height: 120px; }
+    .summary-form { background: var(--card); border: 1px solid var(--border-dim); border-radius: 14px; padding: 2rem; }
+    .form-group { margin-bottom: 1.15rem; }
+    label { display: block; font-size: 0.7rem; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gray); margin-bottom: 0.4rem; }
+    input[type=text], input[type=date], input[type=number], select, textarea { width: 100%; padding: 0.85rem 1rem; border: 1px solid var(--border-dim); border-radius: 8px; background: #0f0f0f; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; color: var(--white); outline: none; transition: border-color 0.2s; }
+    input:focus, select:focus, textarea:focus { border-color: var(--red); }
+    select option { background: #1a1a1a; }
+    textarea { resize: vertical; min-height: 110px; }
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-    .btn-primary { background: var(--rust); color: white; border: none; border-radius: 10px; padding: 0.9rem 2rem; font-family: 'DM Sans', sans-serif; font-size: 0.93rem; font-weight: 500; cursor: pointer; transition: background 0.2s, transform 0.15s; }
-    .btn-primary:hover { background: var(--rust-light); transform: translateY(-1px); }
-    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    .msg { margin-top: 1rem; padding: 0.85rem 1rem; border-radius: 8px; font-size: 0.85rem; display: none; }
+    .msg.success { background: rgba(0,200,80,0.08); border: 1px solid rgba(0,200,80,0.2); color: #4caf50; display: block; }
+    .msg.error { background: rgba(204,0,0,0.1); border: 1px solid var(--border); color: #ff6b6b; display: block; }
 
-    .msg { margin-top: 1rem; padding: 0.85rem 1rem; border-radius: 8px; font-size: 0.88rem; display: none; }
-    .msg.success { background: #d4edda; color: #155724; display: block; }
-    .msg.error { background: #f8d7da; color: #721c24; display: block; }
+    .past-summary-item { background: var(--card); border: 1px solid var(--border-dim); border-radius: 10px; padding: 1.1rem 1.25rem; margin-bottom: 0.6rem; display: flex; justify-content: space-between; align-items: center; }
+    .past-summary-item:hover { border-color: var(--border); }
 
-    /* Sales chart placeholder */
-    .sales-placeholder { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 3rem; text-align: center; color: var(--warm-gray); }
-    .sales-chart { display: flex; align-items: flex-end; gap: 0.5rem; height: 150px; padding: 1rem; background: var(--card); border: 1px solid var(--border); border-radius: 14px; }
-    .bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.4rem; height: 100%; justify-content: flex-end; }
-    .bar { width: 100%; background: var(--rust); border-radius: 4px 4px 0 0; opacity: 0.8; transition: opacity 0.2s; min-height: 4px; }
-    .bar:hover { opacity: 1; }
-    .bar-label { font-size: 0.68rem; color: var(--warm-gray); text-align: center; }
-
-    @media (max-width: 900px) {
-      .layout { grid-template-columns: 1fr; }
-      .sidebar { display: none; }
-      .main { padding: 1.5rem; }
-      .stats-grid, .schedule-grid { grid-template-columns: 1fr 1fr; }
-    }
+    @media (max-width: 900px) { .layout{grid-template-columns:1fr} .sidebar{display:none} .main{padding:1.5rem} .stats-grid{grid-template-columns:1fr 1fr} .schedule-grid{grid-template-columns:1fr 1fr} }
   </style>
 </head>
 <body>
-
 <div class="layout">
   <aside class="sidebar">
-    <div class="sidebar-logo">
-      <span style="font-size:1.4rem">🦅</span>
-      <span class="sidebar-logo-text">Team Hub</span>
-    </div>
+    <div class="sidebar-logo"><img src="../logo.png" alt="The Birdhouse" /></div>
     <div class="user-card">
-      <div class="user-avatar">📋</div>
       <div class="user-name" id="user-display-name">Loading...</div>
       <div class="user-role" id="user-role-badge">Student Staff</div>
     </div>
     <nav>
-      <a class="nav-item active" onclick="showSection('overview', this)">📊 Overview</a>
-      <a class="nav-item" onclick="showSection('schedule', this)">🗓️ My Schedule</a>
-      <a class="nav-item" onclick="showSection('inventory', this)">📦 Inventory</a>
-      <a class="nav-item" onclick="showSection('sales', this)">📈 Sales Data</a>
-      <a class="nav-item" onclick="showSection('summary', this)">📝 Weekly Summary</a>
+      <a class="nav-item active" onclick="showSection('overview',this)">📊 Overview</a>
+      <a class="nav-item" onclick="showSection('schedule',this)">🗓️ My Schedule</a>
+      <a class="nav-item" onclick="showSection('inventory',this)">📦 Inventory</a>
+      <a class="nav-item" onclick="showSection('sales',this)">📈 Sales Data</a>
+      <a class="nav-item" onclick="showSection('summary',this)">📝 Weekly Summary</a>
     </nav>
     <button class="signout-btn" onclick="signOut()">← Sign Out</button>
   </aside>
 
   <main class="main">
-
     <!-- Overview -->
     <div id="section-overview">
-      <div class="page-header">
-        <div class="page-eyebrow">Team Hub</div>
-        <h1 class="page-title">Hey, <span id="greeting-name">Eagle</span>! 👋</h1>
-      </div>
+      <div class="page-eyebrow">Team Hub</div>
+      <h1 class="page-title">Hey, <span id="greeting-name">Eagle</span>! 👋</h1>
       <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-label">Next Shift</div>
-          <div class="stat-value" id="stat-next-shift">—</div>
-          <div class="stat-sub" id="stat-next-time">No upcoming shifts</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">This Week's Orders</div>
-          <div class="stat-value" id="stat-week-orders">—</div>
-          <div class="stat-sub">Total delivered</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Low Stock Items</div>
-          <div class="stat-value" id="stat-low-stock">—</div>
-          <div class="stat-sub">Need restocking</div>
-        </div>
+        <div class="stat-card"><div class="stat-label">Next Shift</div><div class="stat-value" id="stat-next-shift">—</div><div class="stat-sub" id="stat-next-time">No upcoming shifts</div></div>
+        <div class="stat-card"><div class="stat-label">This Week's Orders</div><div class="stat-value" id="stat-week-orders">—</div><div class="stat-sub">Total delivered</div></div>
+        <div class="stat-card"><div class="stat-label">Low Stock Items</div><div class="stat-value" id="stat-low-stock">—</div><div class="stat-sub">Need restocking</div></div>
       </div>
       <div class="section">
         <div class="section-title">Quick Actions</div>
-        <div style="display:flex; gap:1rem; flex-wrap:wrap;">
-          <button class="btn-primary" onclick="showSection('summary', document.querySelector('[onclick*=summary]'))">📝 Submit Weekly Summary</button>
-          <button class="btn-primary" style="background:var(--amber)" onclick="showSection('inventory', document.querySelector('[onclick*=inventory]'))">📦 Update Inventory</button>
+        <div style="display:flex;gap:1rem;flex-wrap:wrap">
+          <button class="btn-primary" onclick="showSection('summary',document.querySelector('[onclick*=summary]'))">📝 Submit Summary</button>
+          <button class="btn-secondary" onclick="showSection('inventory',document.querySelector('[onclick*=inventory]'))">📦 Update Inventory</button>
         </div>
       </div>
     </div>
 
     <!-- Schedule -->
     <div id="section-schedule" style="display:none">
-      <div class="page-header">
-        <div class="page-eyebrow">My Schedule</div>
-        <h1 class="page-title">This Week</h1>
-      </div>
-      <div class="schedule-grid" id="schedule-grid">
-        <!-- Populated by JS -->
-      </div>
-      <div style="margin-top:1.5rem; background:var(--card); border:1px solid var(--border); border-radius:14px; padding:1.5rem">
-        <div class="section-title" style="margin-bottom:0.75rem; font-size:1rem">Schedule Notes</div>
-        <p style="color:var(--warm-gray); font-size:0.88rem; line-height:1.6" id="schedule-notes">Contact your instructor if you need to swap a shift.</p>
+      <div class="page-eyebrow">My Schedule</div>
+      <h1 class="page-title">This Week</h1>
+      <div class="schedule-grid" id="schedule-grid"></div>
+      <div style="margin-top:1.5rem;background:var(--card);border:1px solid var(--border-dim);border-radius:12px;padding:1.5rem">
+        <div class="section-title" style="font-size:1rem;margin-bottom:0.5rem">Schedule Notes</div>
+        <p style="color:var(--gray);font-size:0.85rem;line-height:1.6">Contact your instructor if you need to swap a shift.</p>
       </div>
     </div>
 
     <!-- Inventory -->
     <div id="section-inventory" style="display:none">
-      <div class="page-header">
-        <div class="page-eyebrow">Stock Management</div>
-        <h1 class="page-title">Inventory</h1>
-      </div>
-      <div style="background:var(--card); border:1px solid var(--border); border-radius:14px; overflow:hidden">
-        <table class="inventory-table">
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th>Category</th>
-              <th>Current Stock</th>
-              <th>Status</th>
-              <th>Update Qty</th>
-            </tr>
-          </thead>
-          <tbody id="inventory-body">
-            <tr><td colspan="5" style="text-align:center; color:var(--warm-gray); padding:2rem">Loading inventory...</td></tr>
-          </tbody>
+      <div class="page-eyebrow">Stock Management</div>
+      <h1 class="page-title">Inventory</h1>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Item</th><th>Category</th><th>Stock</th><th>Status</th><th>Update</th></tr></thead>
+          <tbody id="inventory-body"><tr><td colspan="5" style="text-align:center;color:var(--gray);padding:2rem">Loading...</td></tr></tbody>
         </table>
       </div>
-      <div style="margin-top:1rem">
-        <button class="btn-primary" onclick="addInventoryItem()">+ Add New Item</button>
-      </div>
+      <div style="margin-top:1rem"><button class="btn-primary" onclick="addInventoryItem()">+ Add Item</button></div>
     </div>
 
     <!-- Sales -->
     <div id="section-sales" style="display:none">
-      <div class="page-header">
-        <div class="page-eyebrow">Analytics</div>
-        <h1 class="page-title">Sales Data</h1>
-      </div>
+      <div class="page-eyebrow">Analytics</div>
+      <h1 class="page-title">Sales Data</h1>
       <div class="stats-grid" style="margin-bottom:1.5rem">
-        <div class="stat-card">
-          <div class="stat-label">Total Orders (All Time)</div>
-          <div class="stat-value" id="sales-total">—</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">This Week</div>
-          <div class="stat-value" id="sales-week">—</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Top Item</div>
-          <div class="stat-value" style="font-size:1.3rem" id="sales-top">—</div>
-        </div>
+        <div class="stat-card"><div class="stat-label">All Time Orders</div><div class="stat-value" id="sales-total">—</div></div>
+        <div class="stat-card"><div class="stat-label">This Week</div><div class="stat-value" id="sales-week">—</div></div>
+        <div class="stat-card"><div class="stat-label">Top Item</div><div class="stat-value" style="font-size:1.3rem" id="sales-top">—</div></div>
       </div>
       <div class="section">
-        <div class="section-title">Orders by Day (This Week)</div>
-        <div class="sales-chart" id="sales-chart">
-          <!-- Populated by JS -->
-        </div>
+        <div class="section-title">Orders This Week</div>
+        <div class="sales-chart" id="sales-chart"></div>
       </div>
       <div class="section">
         <div class="section-title">Recent Orders</div>
-        <div style="background:var(--card); border:1px solid var(--border); border-radius:14px; overflow:hidden">
-          <table class="inventory-table">
-            <thead><tr><th>Customer</th><th>Drink</th><th>Room</th><th>Date</th></tr></thead>
-            <tbody id="sales-orders-body">
-              <tr><td colspan="4" style="text-align:center; color:var(--warm-gray); padding:2rem">No orders yet.</td></tr>
-            </tbody>
-          </table>
+        <div class="table-wrap">
+          <table><thead><tr><th>Customer</th><th>Drink</th><th>Room</th><th>Date</th></tr></thead>
+          <tbody id="sales-orders-body"><tr><td colspan="4" style="text-align:center;color:var(--gray);padding:2rem">No orders yet.</td></tr></tbody></table>
         </div>
       </div>
     </div>
 
-    <!-- Weekly Summary -->
+    <!-- Summary -->
     <div id="section-summary" style="display:none">
-      <div class="page-header">
-        <div class="page-eyebrow">Weekly Summary</div>
-        <h1 class="page-title">Submit Your Report</h1>
-      </div>
+      <div class="page-eyebrow">Weekly Summary</div>
+      <h1 class="page-title">Submit Your Report</h1>
       <div class="summary-form">
         <div class="form-row">
-          <div class="form-group">
-            <label>Week Of</label>
-            <input type="date" id="summary-week" />
-          </div>
-          <div class="form-group">
-            <label>Hours Worked</label>
-            <input type="number" id="summary-hours" placeholder="e.g. 8" min="0" max="40" />
-          </div>
+          <div class="form-group"><label>Week Of</label><input type="date" id="summary-week" /></div>
+          <div class="form-group"><label>Hours Worked</label><input type="number" id="summary-hours" placeholder="e.g. 8" min="0" max="40" /></div>
         </div>
         <div class="form-row">
-          <div class="form-group">
-            <label>Orders Fulfilled</label>
-            <input type="number" id="summary-orders" placeholder="# of orders" min="0" />
-          </div>
-          <div class="form-group">
-            <label>Overall Rating</label>
+          <div class="form-group"><label>Orders Fulfilled</label><input type="number" id="summary-orders" placeholder="# of orders" min="0" /></div>
+          <div class="form-group"><label>Overall Rating</label>
             <select id="summary-rating">
               <option value="">Select...</option>
               <option value="5">⭐⭐⭐⭐⭐ Excellent</option>
@@ -282,286 +205,150 @@
             </select>
           </div>
         </div>
-        <div class="form-group">
-          <label>What went well this week?</label>
-          <textarea id="summary-good" placeholder="Describe what went smoothly..."></textarea>
-        </div>
-        <div class="form-group">
-          <label>What could be improved?</label>
-          <textarea id="summary-improve" placeholder="Any challenges or suggestions..."></textarea>
-        </div>
-        <div class="form-group">
-          <label>Inventory Notes</label>
-          <textarea id="summary-inventory" placeholder="Any items running low? Supply issues?" style="min-height:80px"></textarea>
-        </div>
-        <div class="form-group">
-          <label>Additional Notes</label>
-          <textarea id="summary-notes" placeholder="Anything else to report..." style="min-height:80px"></textarea>
-        </div>
+        <div class="form-group"><label>What Went Well?</label><textarea id="summary-good" placeholder="Describe what went smoothly..."></textarea></div>
+        <div class="form-group"><label>What Could Be Improved?</label><textarea id="summary-improve" placeholder="Any challenges or suggestions..."></textarea></div>
+        <div class="form-group"><label>Inventory Notes</label><textarea id="summary-inventory" placeholder="Items running low? Supply issues?" style="min-height:80px"></textarea></div>
+        <div class="form-group"><label>Additional Notes</label><textarea id="summary-notes" placeholder="Anything else to report..." style="min-height:80px"></textarea></div>
         <button class="btn-primary" onclick="submitSummary()">Submit Weekly Summary →</button>
         <div class="msg" id="summary-msg"></div>
       </div>
-
       <div style="margin-top:2rem">
-        <div class="section-title">Past Summaries</div>
-        <div id="past-summaries">
-          <div style="color:var(--warm-gray); font-size:0.9rem; padding:1.5rem; background:var(--card); border-radius:12px; border:1px solid var(--border)">Loading past submissions...</div>
-        </div>
+        <div class="section-title">Past Submissions</div>
+        <div id="past-summaries"><div style="color:var(--gray);font-size:0.88rem;padding:1.5rem;background:var(--card);border-radius:10px;border:1px solid var(--border-dim)">Loading...</div></div>
       </div>
     </div>
-
   </main>
 </div>
 
 <script>
-  const SUPABASE_URL = 'https://ljukrhneikqbabcmcpet.supabase.co';
-  const SUPABASE_ANON_KEY = 'sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn';
-  const { createClient } = supabase;
-  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
+  const sb = supabase.createClient('https://ljukrhneikqbabcmcpet.supabase.co','sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn');
+  const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
   let currentUser = null;
 
-  const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-  const TODAY = new Date().getDay(); // 0=Sun, 1=Mon...
-
   async function init() {
-    const { data: { session } } = await sb.auth.getSession();
-    if (!session) { window.location.href = 'index.html'; return; }
+    const {data:{session}} = await sb.auth.getSession();
+    if(!session){window.location.href='index.html';return;}
     currentUser = session.user;
     const meta = currentUser.user_metadata;
-
-    if (meta.role !== 'student' && meta.role !== 'admin') {
-      await sb.auth.signOut();
-      window.location.href = 'index.html';
-      return;
-    }
-
-    const firstName = meta.first_name || 'Eagle';
-    document.getElementById('user-display-name').textContent = firstName + ' ' + (meta.last_name || '');
+    if(meta.role!=='student'&&meta.role!=='admin'){await sb.auth.signOut();window.location.href='index.html';return;}
+    const firstName = meta.first_name||'Eagle';
+    document.getElementById('user-display-name').textContent = firstName+' '+(meta.last_name||'');
     document.getElementById('greeting-name').textContent = firstName;
-    document.getElementById('user-role-badge').textContent = meta.role === 'admin' ? 'Admin' : 'Student Staff';
-
-    loadSchedule();
-    loadInventory();
-    loadSales();
-
-    // Set default date for summary
-    const today = new Date();
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - (today.getDay() === 0 ? 6 : today.getDay() - 1));
-    document.getElementById('summary-week').value = monday.toISOString().split('T')[0];
+    document.getElementById('user-role-badge').textContent = meta.role==='admin'?'Admin':'Student Staff';
+    loadSchedule(); loadInventory(); loadSales();
+    const today=new Date(); const monday=new Date(today);
+    monday.setDate(today.getDate()-(today.getDay()===0?6:today.getDay()-1));
+    document.getElementById('summary-week').value=monday.toISOString().split('T')[0];
   }
 
   async function loadSchedule() {
-    const { data } = await sb.from('schedules')
-      .select('*')
-      .eq('student_id', currentUser.id)
-      .gte('shift_date', new Date().toISOString().split('T')[0])
-      .order('shift_date', { ascending: true })
-      .limit(10);
-
-    const grid = document.getElementById('schedule-grid');
-    const today = new Date();
-    const weekStart = new Date(today);
-    weekStart.setDate(today.getDate() - (today.getDay() === 0 ? 6 : today.getDay() - 1));
-
-    let nextShift = null;
-
-    grid.innerHTML = DAYS.map((day, i) => {
-      const date = new Date(weekStart);
-      date.setDate(weekStart.getDate() + i);
-      const dateStr = date.toISOString().split('T')[0];
-      const isToday = date.toDateString() === today.toDateString();
-      const shift = data?.find(s => s.shift_date === dateStr);
-      if (shift && !nextShift) nextShift = { day, time: shift.start_time + ' – ' + shift.end_time };
-      return `
-        <div class="schedule-day ${isToday ? 'today' : ''}">
-          <div class="day-name">${day.slice(0,3)}</div>
-          <div style="font-size:0.72rem; color:var(--warm-gray); margin-bottom:0.5rem">${date.getMonth()+1}/${date.getDate()}</div>
-          ${shift
-            ? `<div class="day-shift">Working</div><div class="day-time">${shift.start_time} – ${shift.end_time}</div>`
-            : `<div class="day-off">Off</div>`}
-        </div>
-      `;
+    const {data} = await sb.from('schedules').select('*').eq('student_id',currentUser.id).gte('shift_date',new Date().toISOString().split('T')[0]).order('shift_date',{ascending:true}).limit(10);
+    const grid=document.getElementById('schedule-grid'); const today=new Date();
+    const weekStart=new Date(today); weekStart.setDate(today.getDate()-(today.getDay()===0?6:today.getDay()-1));
+    let nextShift=null;
+    grid.innerHTML=DAYS.map((day,i)=>{
+      const date=new Date(weekStart); date.setDate(weekStart.getDate()+i);
+      const dateStr=date.toISOString().split('T')[0]; const isToday=date.toDateString()===today.toDateString();
+      const shift=data?.find(s=>s.shift_date===dateStr);
+      if(shift&&!nextShift) nextShift={day,time:shift.start_time+' – '+shift.end_time};
+      return `<div class="schedule-day ${isToday?'today':''}">
+        <div class="day-name">${day.slice(0,3)}</div>
+        <div class="day-date">${date.getMonth()+1}/${date.getDate()}</div>
+        ${shift?`<div class="day-shift">Working</div><div class="day-time">${shift.start_time} – ${shift.end_time}</div>`:`<div class="day-off">Off</div>`}
+      </div>`;
     }).join('');
-
-    if (nextShift) {
-      document.getElementById('stat-next-shift').textContent = nextShift.day;
-      document.getElementById('stat-next-time').textContent = nextShift.time;
-    }
+    if(nextShift){document.getElementById('stat-next-shift').textContent=nextShift.day;document.getElementById('stat-next-time').textContent=nextShift.time;}
   }
 
   async function loadInventory() {
-    const { data } = await sb.from('inventory').select('*').order('name');
-    const body = document.getElementById('inventory-body');
-    if (!data || data.length === 0) {
-      body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--warm-gray);padding:2rem">No inventory items yet. Add your first item!</td></tr>';
-      document.getElementById('stat-low-stock').textContent = '0';
-      return;
-    }
-    const low = data.filter(i => i.quantity <= i.low_threshold).length;
-    document.getElementById('stat-low-stock').textContent = low;
-    body.innerHTML = data.map(item => {
-      const status = item.quantity === 0 ? 'out' : item.quantity <= item.low_threshold ? 'low' : 'ok';
-      const labels = { ok: 'In Stock', low: 'Low', out: 'Out of Stock' };
-      return `
-        <tr>
-          <td><strong>${item.name}</strong></td>
-          <td style="color:var(--warm-gray)">${item.category || '—'}</td>
-          <td>${item.quantity} ${item.unit || ''}</td>
-          <td><span class="stock-badge stock-${status}">${labels[status]}</span></td>
-          <td style="display:flex;gap:0.5rem;align-items:center">
-            <input class="qty-input" type="number" id="qty-${item.id}" value="${item.quantity}" min="0" />
-            <button class="update-btn" onclick="updateInventory('${item.id}')">Save</button>
-          </td>
-        </tr>
-      `;
+    const {data} = await sb.from('inventory').select('*').order('name');
+    const body=document.getElementById('inventory-body');
+    if(!data||!data.length){body.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--gray);padding:2rem">No items yet. Add your first!</td></tr>';document.getElementById('stat-low-stock').textContent='0';return;}
+    const low=data.filter(i=>i.quantity<=i.low_threshold).length;
+    document.getElementById('stat-low-stock').textContent=low;
+    body.innerHTML=data.map(item=>{
+      const s=item.quantity===0?'out':item.quantity<=item.low_threshold?'low':'ok';
+      const labels={ok:'In Stock',low:'Low',out:'Out of Stock'};
+      return `<tr><td><strong>${item.name}</strong></td><td style="color:var(--gray)">${item.category||'—'}</td><td>${item.quantity} ${item.unit||''}</td>
+        <td><span class="stock-badge stock-${s}">${labels[s]}</span></td>
+        <td style="display:flex;gap:0.5rem;align-items:center"><input class="qty-input" type="number" id="qty-${item.id}" value="${item.quantity}" min="0"/><button class="update-btn" onclick="updateInventory('${item.id}')">Save</button></td></tr>`;
     }).join('');
   }
 
   async function updateInventory(id) {
-    const qty = parseInt(document.getElementById('qty-' + id).value);
-    await sb.from('inventory').update({ quantity: qty, updated_at: new Date().toISOString() }).eq('id', id);
+    const qty=parseInt(document.getElementById('qty-'+id).value);
+    await sb.from('inventory').update({quantity:qty,updated_at:new Date().toISOString()}).eq('id',id);
     loadInventory();
   }
 
   async function addInventoryItem() {
-    const name = prompt('Item name:');
-    if (!name) return;
-    const category = prompt('Category (e.g. Syrups, Milk, Cups):') || 'General';
-    const qty = parseInt(prompt('Starting quantity:') || '0');
-    const unit = prompt('Unit (e.g. bottles, oz, pcs):') || 'units';
-    const threshold = parseInt(prompt('Low stock alert at what quantity?:') || '5');
-    await sb.from('inventory').insert({ name, category, quantity: qty, unit, low_threshold: threshold });
+    const name=prompt('Item name:'); if(!name)return;
+    const category=prompt('Category:')||'General';
+    const qty=parseInt(prompt('Starting quantity:')||'0');
+    const unit=prompt('Unit (e.g. bottles, oz):')||'units';
+    const threshold=parseInt(prompt('Alert when quantity falls below:')||'5');
+    await sb.from('inventory').insert({name,category,quantity:qty,unit,low_threshold:threshold});
     loadInventory();
   }
 
   async function loadSales() {
-    const { data: orders } = await sb.from('orders').select('*').order('created_at', { ascending: false });
-    if (!orders || orders.length === 0) {
-      document.getElementById('sales-total').textContent = '0';
-      document.getElementById('sales-week').textContent = '0';
-      document.getElementById('stat-week-orders').textContent = '0';
-      return;
-    }
-
-    const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
-    const thisWeek = orders.filter(o => new Date(o.created_at) > weekAgo);
-
-    document.getElementById('sales-total').textContent = orders.length;
-    document.getElementById('sales-week').textContent = thisWeek.length;
-    document.getElementById('stat-week-orders').textContent = thisWeek.length;
-
-    // Top item
-    const counts = {};
-    orders.forEach(o => { counts[o.drink_name] = (counts[o.drink_name] || 0) + 1; });
-    const top = Object.entries(counts).sort((a,b) => b[1]-a[1])[0];
-    document.getElementById('sales-top').textContent = top ? top[0] : '—';
-
-    // Chart
-    const chart = document.getElementById('sales-chart');
-    const maxVal = Math.max(...DAYS.map((_, i) => {
-      const d = new Date(); d.setDate(d.getDate() - (d.getDay() === 0 ? 6 : d.getDay() - 1) + i);
-      return orders.filter(o => new Date(o.created_at).toDateString() === d.toDateString()).length;
-    }), 1);
-    chart.innerHTML = DAYS.map((day, i) => {
-      const d = new Date(); d.setDate(d.getDate() - (d.getDay() === 0 ? 6 : d.getDay() - 1) + i);
-      const count = orders.filter(o => new Date(o.created_at).toDateString() === d.toDateString()).length;
-      const h = Math.round((count / maxVal) * 100);
-      return `<div class="bar-wrap"><div class="bar" style="height:${h}%" title="${count} orders"></div><div class="bar-label">${day.slice(0,3)}<br>${count}</div></div>`;
-    }).join('');
-
-    // Recent orders table
-    const body = document.getElementById('sales-orders-body');
-    body.innerHTML = orders.slice(0, 20).map(o => `
-      <tr>
-        <td>${o.customer_name || 'Customer'}</td>
-        <td>${o.drink_name}</td>
-        <td>${o.room || '—'}</td>
-        <td style="color:var(--warm-gray)">${new Date(o.created_at).toLocaleDateString()}</td>
-      </tr>
-    `).join('');
+    const {data:orders} = await sb.from('orders').select('*').order('created_at',{ascending:false});
+    if(!orders||!orders.length){['sales-total','sales-week','stat-week-orders'].forEach(id=>document.getElementById(id).textContent='0');return;}
+    const weekAgo=new Date(); weekAgo.setDate(weekAgo.getDate()-7);
+    const thisWeek=orders.filter(o=>new Date(o.created_at)>weekAgo);
+    document.getElementById('sales-total').textContent=orders.length;
+    document.getElementById('sales-week').textContent=thisWeek.length;
+    document.getElementById('stat-week-orders').textContent=thisWeek.length;
+    const counts={}; orders.forEach(o=>{counts[o.drink_name]=(counts[o.drink_name]||0)+1;});
+    const top=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
+    document.getElementById('sales-top').textContent=top?top[0]:'—';
+    const chart=document.getElementById('sales-chart');
+    const today=new Date(); const ws=new Date(today); ws.setDate(today.getDate()-(today.getDay()===0?6:today.getDay()-1));
+    const dayCounts=DAYS.map((_,i)=>{const d=new Date(ws);d.setDate(ws.getDate()+i);return orders.filter(o=>new Date(o.created_at).toDateString()===d.toDateString()).length;});
+    const maxVal=Math.max(...dayCounts,1);
+    chart.innerHTML=DAYS.map((day,i)=>`<div class="bar-wrap"><div class="bar" style="height:${Math.round(dayCounts[i]/maxVal*100)}%" title="${dayCounts[i]} orders"></div><div class="bar-label">${day.slice(0,3)}<br>${dayCounts[i]}</div></div>`).join('');
+    document.getElementById('sales-orders-body').innerHTML=orders.slice(0,20).map(o=>`<tr><td>${o.customer_name||'Customer'}</td><td>${o.drink_name}</td><td>${o.room||'—'}</td><td style="color:var(--gray)">${new Date(o.created_at).toLocaleDateString()}</td></tr>`).join('');
   }
 
   async function submitSummary() {
-    const week = document.getElementById('summary-week').value;
-    const hours = document.getElementById('summary-hours').value;
-    const orders = document.getElementById('summary-orders').value;
-    const rating = document.getElementById('summary-rating').value;
-    const went_well = document.getElementById('summary-good').value;
-    const improvements = document.getElementById('summary-improve').value;
-    const inventory_notes = document.getElementById('summary-inventory').value;
-    const notes = document.getElementById('summary-notes').value;
-    const btn = event.target;
-
-    if (!week || !hours || !rating) {
-      document.getElementById('summary-msg').textContent = 'Please fill in the required fields (Week, Hours, Rating).';
-      document.getElementById('summary-msg').className = 'msg error';
-      return;
-    }
-
-    btn.disabled = true; btn.textContent = 'Submitting...';
-
-    const meta = currentUser.user_metadata;
-    const { error } = await sb.from('weekly_summaries').insert({
-      student_id: currentUser.id,
-      student_name: (meta.first_name || '') + ' ' + (meta.last_name || ''),
-      week_of: week,
-      hours_worked: parseFloat(hours),
-      orders_fulfilled: parseInt(orders) || 0,
-      rating: parseInt(rating),
-      went_well,
-      improvements,
-      inventory_notes,
-      notes
+    const week=document.getElementById('summary-week').value;
+    const hours=document.getElementById('summary-hours').value;
+    const rating=document.getElementById('summary-rating').value;
+    const btn=event.target;
+    if(!week||!hours||!rating){const m=document.getElementById('summary-msg');m.textContent='Please fill in Week, Hours, and Rating.';m.className='msg error';return;}
+    btn.disabled=true; btn.textContent='Submitting...';
+    const meta=currentUser.user_metadata;
+    const {error} = await sb.from('weekly_summaries').insert({
+      student_id:currentUser.id, student_name:(meta.first_name||'')+' '+(meta.last_name||''),
+      week_of:week, hours_worked:parseFloat(hours), orders_fulfilled:parseInt(document.getElementById('summary-orders').value)||0,
+      rating:parseInt(rating), went_well:document.getElementById('summary-good').value,
+      improvements:document.getElementById('summary-improve').value,
+      inventory_notes:document.getElementById('summary-inventory').value,
+      notes:document.getElementById('summary-notes').value
     });
-
-    if (error) {
-      document.getElementById('summary-msg').textContent = 'Error submitting: ' + error.message;
-      document.getElementById('summary-msg').className = 'msg error';
-    } else {
-      document.getElementById('summary-msg').textContent = '✓ Summary submitted successfully!';
-      document.getElementById('summary-msg').className = 'msg success';
-      loadPastSummaries();
-    }
-    btn.disabled = false; btn.textContent = 'Submit Weekly Summary →';
+    const m=document.getElementById('summary-msg');
+    if(error){m.textContent='Error: '+error.message;m.className='msg error';}
+    else{m.textContent='✓ Summary submitted successfully!';m.className='msg success';loadPastSummaries();}
+    btn.disabled=false; btn.textContent='Submit Weekly Summary →';
   }
 
   async function loadPastSummaries() {
-    const { data } = await sb.from('weekly_summaries')
-      .select('*').eq('student_id', currentUser.id)
-      .order('week_of', { ascending: false }).limit(5);
-    const container = document.getElementById('past-summaries');
-    if (!data || data.length === 0) {
-      container.innerHTML = '<div style="color:var(--warm-gray);font-size:0.9rem;padding:1.5rem;background:var(--card);border-radius:12px;border:1px solid var(--border)">No past summaries yet.</div>';
-      return;
-    }
-    container.innerHTML = data.map(s => `
-      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.25rem;margin-bottom:0.75rem;display:flex;justify-content:space-between;align-items:center">
-        <div>
-          <div style="font-weight:500">Week of ${s.week_of}</div>
-          <div style="font-size:0.8rem;color:var(--warm-gray);margin-top:0.2rem">${s.hours_worked}h worked · ${s.orders_fulfilled} orders · ${'⭐'.repeat(s.rating)}</div>
-        </div>
-        <div style="font-size:0.78rem;color:var(--warm-gray)">${new Date(s.created_at).toLocaleDateString()}</div>
-      </div>
-    `).join('');
+    const {data} = await sb.from('weekly_summaries').select('*').eq('student_id',currentUser.id).order('week_of',{ascending:false}).limit(5);
+    const container=document.getElementById('past-summaries');
+    if(!data||!data.length){container.innerHTML='<div style="color:var(--gray);font-size:0.88rem;padding:1.5rem;background:var(--card);border-radius:10px;border:1px solid var(--border-dim)">No past summaries yet.</div>';return;}
+    container.innerHTML=data.map(s=>`<div class="past-summary-item"><div><div style="font-weight:500;font-size:0.92rem">Week of ${s.week_of}</div><div style="font-size:0.76rem;color:var(--gray);margin-top:0.2rem">${s.hours_worked}h worked · ${s.orders_fulfilled} orders · ${'⭐'.repeat(s.rating)}</div></div><div style="font-size:0.75rem;color:var(--gray)">${new Date(s.created_at).toLocaleDateString()}</div></div>`).join('');
   }
 
-  function showSection(name, el) {
-    document.querySelectorAll('[id^="section-"]').forEach(s => s.style.display = 'none');
-    document.getElementById('section-' + name).style.display = 'block';
-    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    if (el) el.classList.add('active');
-    if (name === 'summary') loadPastSummaries();
+  function showSection(name,el) {
+    document.querySelectorAll('[id^="section-"]').forEach(s=>s.style.display='none');
+    document.getElementById('section-'+name).style.display='block';
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+    if(el)el.classList.add('active');
+    if(name==='summary')loadPastSummaries();
   }
 
-  async function signOut() {
-    await sb.auth.signOut();
-    window.location.href = 'index.html';
-  }
-
+  async function signOut() { await sb.auth.signOut(); window.location.href='index.html'; }
   init();
 </script>
-
 </body>
 </html>
