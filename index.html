@@ -1,109 +1,75 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>The Birdhouse</title>
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root {
-      --black: #0a0a0a; --dark: #111111; --dark2: #1a1a1a;
-      --red: #cc0000; --red-bright: #ff1a1a; --red-glow: rgba(204,0,0,0.4);
-      --gray: #666666; --light-gray: #aaaaaa; --white: #f0f0f0;
-      --card: #161616; --border: rgba(204,0,0,0.2);
-    }
-    body { background: var(--black); color: var(--white); font-family: 'DM Sans', sans-serif; min-height: 100vh; overflow-x: hidden; }
-    body::before {
-      content: ''; position: fixed; inset: 0;
-      background-image: linear-gradient(rgba(204,0,0,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(204,0,0,0.03) 1px, transparent 1px);
-      background-size: 40px 40px; pointer-events: none; z-index: 0;
-    }
-    header { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 3rem; border-bottom: 1px solid var(--border); position: relative; z-index: 10; background: rgba(10,10,10,0.95); }
-    .logo { display: flex; align-items: center; text-decoration: none; }
-    .logo img { height: 52px; width: auto; filter: drop-shadow(0 0 12px rgba(204,0,0,0.6)); }
-    nav a { font-size: 0.82rem; color: var(--gray); text-decoration: none; letter-spacing: 0.1em; text-transform: uppercase; margin-left: 2rem; transition: color 0.2s; }
-    nav a:hover { color: var(--red-bright); }
-    .hero { display: grid; grid-template-columns: 1fr 1fr; min-height: calc(100vh - 85px); position: relative; z-index: 1; }
-    .hero-left { display: flex; flex-direction: column; justify-content: center; padding: 5rem 4rem 5rem 5rem; }
-    .hero-eyebrow { font-size: 0.72rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--red); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; }
-    .hero-eyebrow::before { content: ''; display: block; width: 30px; height: 1px; background: var(--red); }
-    .hero-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(5rem, 8vw, 8rem); line-height: 0.95; letter-spacing: 0.02em; margin-bottom: 1.5rem; color: var(--white); }
-    .hero-title .glow { color: var(--red-bright); text-shadow: 0 0 30px rgba(204,0,0,0.8), 0 0 60px rgba(204,0,0,0.4); }
-    .hero-desc { font-size: 1rem; color: var(--light-gray); line-height: 1.7; max-width: 380px; margin-bottom: 3.5rem; font-weight: 300; }
-    .portal-cards { display: flex; gap: 1rem; }
-    .portal-card { flex: 1; border-radius: 14px; padding: 2rem 1.5rem; text-decoration: none; position: relative; overflow: hidden; transition: transform 0.25s, box-shadow 0.25s; border: 1px solid var(--border); background: var(--card); }
-    .portal-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(204,0,0,0.15) 0%, transparent 60%); opacity: 0; transition: opacity 0.3s; }
-    .portal-card:hover { transform: translateY(-5px); box-shadow: 0 20px 50px rgba(204,0,0,0.25), 0 0 0 1px rgba(204,0,0,0.4); }
-    .portal-card:hover::before { opacity: 1; }
-    .portal-card.student { background: linear-gradient(135deg, #1a0000 0%, var(--card) 60%); border-color: rgba(204,0,0,0.35); }
-    .portal-icon { font-size: 1.8rem; margin-bottom: 1rem; display: block; }
-    .portal-label { font-size: 0.65rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--red); margin-bottom: 0.4rem; }
-    .portal-name { font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem; letter-spacing: 0.05em; color: var(--white); margin-bottom: 0.75rem; }
-    .portal-desc { font-size: 0.82rem; color: var(--gray); line-height: 1.5; font-weight: 300; }
-    .portal-arrow { position: absolute; bottom: 1.5rem; right: 1.5rem; font-size: 1rem; color: var(--red); opacity: 0.5; transition: opacity 0.2s, transform 0.2s; }
-    .portal-card:hover .portal-arrow { opacity: 1; transform: translate(3px, -3px); }
-    .hero-right { position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-    .hero-right::before { content: ''; position: absolute; width: 500px; height: 500px; background: radial-gradient(circle, rgba(204,0,0,0.25) 0%, transparent 70%); border-radius: 50%; animation: pulse 4s ease-in-out infinite; }
-    @keyframes pulse { 0%,100%{transform:scale(1);opacity:0.8} 50%{transform:scale(1.1);opacity:1} }
-    .hero-logo-big { position: relative; z-index: 1; text-align: center; }
-    .hero-logo-big img { width: 420px; max-width: 90%; filter: drop-shadow(0 0 40px rgba(204,0,0,0.7)) drop-shadow(0 0 80px rgba(204,0,0,0.3)); animation: float 5s ease-in-out infinite; }
-    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-15px)} }
-    .ring { position: absolute; border-radius: 50%; border: 1px solid rgba(204,0,0,0.1); animation: spin linear infinite; }
-    .ring-1 { width: 350px; height: 350px; animation-duration: 30s; }
-    .ring-2 { width: 500px; height: 500px; animation-duration: 45s; animation-direction: reverse; }
-    .ring-3 { width: 650px; height: 650px; border-color: rgba(204,0,0,0.05); animation-duration: 60s; }
-    @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-    .stats-bar { position: absolute; bottom: 3rem; left: 5rem; display: flex; gap: 3rem; z-index: 2; }
-    .stat-num { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; color: var(--red-bright); text-shadow: 0 0 20px rgba(204,0,0,0.6); line-height: 1; }
-    .stat-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gray); margin-top: 0.2rem; }
-    .fade-up { opacity: 0; transform: translateY(20px); animation: fadeUp 0.7s forwards; }
-    .fade-up:nth-child(1){animation-delay:0.1s} .fade-up:nth-child(2){animation-delay:0.25s} .fade-up:nth-child(3){animation-delay:0.4s} .fade-up:nth-child(4){animation-delay:0.55s}
-    @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
-    @media (max-width: 768px) { .hero{grid-template-columns:1fr} .hero-right{display:none} .hero-left{padding:3rem 2rem} .portal-cards{flex-direction:column} header{padding:1.25rem 1.5rem} .stats-bar{left:2rem;bottom:2rem} }
-  </style>
-</head>
-<body>
-  <header>
-    <a class="logo" href="#"><img src="logo.png" alt="The Birdhouse" /></a>
-    <nav>
-      <a href="#">Menu</a>
-      <a href="#">About</a>
-    </nav>
-  </header>
-  <main class="hero">
-    <div class="hero-left">
-      <p class="hero-eyebrow fade-up">Nixa Eagles · Est. 2024</p>
-      <h1 class="hero-title fade-up">YOUR<br>DAILY<br><span class="glow">BREW.</span></h1>
-      <p class="hero-desc fade-up">Order your favorite drinks, earn loyalty rewards, and get delivery straight to your room — or manage the business that makes it all happen.</p>
-      <div class="portal-cards fade-up">
-        <a class="portal-card customer" href="customer/index.html">
-          <span class="portal-icon">☕</span>
-          <div class="portal-label">Customer Portal</div>
-          <div class="portal-name">Order & Earn</div>
-          <div class="portal-desc">Browse the menu, track orders, and collect loyalty points.</div>
-          <span class="portal-arrow">↗</span>
-        </a>
-        <a class="portal-card student" href="student/index.html">
-          <span class="portal-icon">📋</span>
-          <div class="portal-label">Student Staff</div>
-          <div class="portal-name">Team Hub</div>
-          <div class="portal-desc">Check your schedule, manage inventory, and submit reports.</div>
-          <span class="portal-arrow">↗</span>
-        </a>
-      </div>
-      <div class="stats-bar">
-        <div class="stat"><div class="stat-num">3</div><div class="stat-label">Subscription Tiers</div></div>
-        <div class="stat"><div class="stat-num">5×</div><div class="stat-label">Weekly Deliveries</div></div>
-        <div class="stat"><div class="stat-num">NHS</div><div class="stat-label">Nixa High School</div></div>
-      </div>
-    </div>
-    <div class="hero-right">
-      <div class="ring ring-1"></div>
-      <div class="ring ring-2"></div>
-      <div class="ring ring-3"></div>
-      <div class="hero-logo-big"><img src="logo.png" alt="The Birdhouse" /></div>
-    </div>
-  </main>
-</body>
-</html>
+-- ============================================================
+-- Run this in Supabase SQL Editor
+-- Only the NEW tables needed for ordering & menu management
+-- ============================================================
+
+-- MENU ITEMS TABLE
+CREATE TABLE IF NOT EXISTS menu_items (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL,
+  category TEXT DEFAULT 'Drinks',
+  description TEXT,
+  base_price NUMERIC(6,2) DEFAULT 0,
+  sizes JSONB DEFAULT '["Small", "Medium", "Large"]',
+  available_syrups TEXT[] DEFAULT ARRAY['Vanilla', 'Caramel', 'Hazelnut', 'Sugar Free Vanilla'],
+  available_milks TEXT[] DEFAULT ARRAY['Whole Milk', 'Oat Milk', 'Almond Milk', '2% Milk'],
+  square_link TEXT,
+  available BOOLEAN DEFAULT true,
+  sort_order INT DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- STORE CONFIG TABLE
+CREATE TABLE IF NOT EXISTS store_config (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  key TEXT UNIQUE NOT NULL,
+  value JSONB NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS
+ALTER TABLE menu_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE store_config ENABLE ROW LEVEL SECURITY;
+
+-- Menu policies
+CREATE POLICY "Authenticated users can read menu" ON menu_items
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Admins can manage menu" ON menu_items
+  FOR ALL USING (
+    (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'
+  );
+
+-- Config policies
+CREATE POLICY "Authenticated users can read config" ON store_config
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Admins can manage config" ON store_config
+  FOR ALL USING (
+    (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'
+  );
+
+-- Add new columns to orders table if not already there
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS size TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS milk TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS syrup TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_time TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_day TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS special_instructions TEXT;
+
+-- Default delivery times
+INSERT INTO store_config (key, value) VALUES
+  ('delivery_times', '["7:30 AM", "8:00 AM", "8:30 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM"]')
+ON CONFLICT (key) DO NOTHING;
+
+-- Sample menu items
+INSERT INTO menu_items (name, category, description, sort_order) VALUES
+  ('Latte', 'Coffee', 'Espresso with steamed milk', 1),
+  ('Cappuccino', 'Coffee', 'Espresso with foam', 2),
+  ('Mocha', 'Coffee', 'Espresso with chocolate and steamed milk', 3),
+  ('Americano', 'Coffee', 'Espresso with hot water', 4),
+  ('Hot Chocolate', 'Non-Coffee', 'Rich steamed chocolate drink', 5),
+  ('Chai Latte', 'Non-Coffee', 'Spiced chai with steamed milk', 6),
+  ('Iced Coffee', 'Iced', 'Cold brew over ice', 7),
+  ('Iced Latte', 'Iced', 'Espresso with cold milk over ice', 8)
+ON CONFLICT DO NOTHING;
