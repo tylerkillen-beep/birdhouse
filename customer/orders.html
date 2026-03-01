@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Birdhouse — My Orders</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --black:#0a0a0a; --red:#cc0000; --red-bright:#ff1a1a; --gray:#555; --light-gray:#999; --white:#f0f0f0; --card:#141414; --border:rgba(204,0,0,0.18); --border-dim:rgba(255,255,255,0.07); }
+    body { background:var(--black); color:var(--white); font-family:'DM Sans',sans-serif; min-height:100vh; }
+    body::before { content:''; position:fixed; inset:0; background-image:linear-gradient(rgba(204,0,0,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(204,0,0,0.03) 1px,transparent 1px); background-size:40px 40px; pointer-events:none; }
+    .layout { display:grid; grid-template-columns:220px 1fr; min-height:100vh; }
+    .sidebar { background:#0d0000; border-right:1px solid var(--border); padding:1.75rem 1.25rem; position:sticky; top:0; height:100vh; display:flex; flex-direction:column; }
+    .sidebar-logo img { height:38px; filter:drop-shadow(0 0 8px rgba(204,0,0,0.5)); margin-bottom:2rem; }
+    .user-card { background:rgba(204,0,0,0.08); border:1px solid var(--border); border-radius:10px; padding:1rem; margin-bottom:1.75rem; }
+    .user-name { font-size:0.9rem; color:var(--white); font-weight:500; }
+    .user-points { font-size:0.72rem; color:var(--red-bright); margin-top:0.25rem; }
+    nav { flex:1; }
+    .nav-item { display:flex; align-items:center; gap:0.7rem; padding:0.7rem 0.9rem; border-radius:7px; color:var(--gray); font-size:0.85rem; text-decoration:none; cursor:pointer; transition:all 0.2s; margin-bottom:0.2rem; border:1px solid transparent; }
+    .nav-item:hover { color:var(--white); background:rgba(255,255,255,0.04); }
+    .nav-item.active { background:rgba(204,0,0,0.12); color:var(--red-bright); border-color:rgba(204,0,0,0.25); }
+    .signout-btn { background:none; border:1px solid rgba(255,255,255,0.08); border-radius:7px; padding:0.65rem 1rem; color:var(--gray); font-size:0.8rem; cursor:pointer; width:100%; text-align:left; transition:all 0.2s; display:flex; align-items:center; gap:0.5rem; font-family:'DM Sans',sans-serif; }
+    .signout-btn:hover { color:var(--white); }
+    .main { padding:2.5rem 3rem; position:relative; z-index:1; }
+    .page-eyebrow { font-size:0.65rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--red); margin-bottom:0.3rem; }
+    .page-title { font-family:'Bebas Neue',sans-serif; font-size:2.5rem; letter-spacing:0.04em; margin-bottom:0.5rem; }
+
+    /* Filter tabs */
+    .filter-row { display:flex; gap:0.6rem; margin-bottom:1.75rem; flex-wrap:wrap; }
+    .filter-btn { background:transparent; border:1px solid var(--border-dim); border-radius:20px; padding:0.35rem 0.9rem; font-size:0.78rem; color:var(--gray); cursor:pointer; transition:all 0.2s; font-family:'DM Sans',sans-serif; }
+    .filter-btn.active { background:rgba(204,0,0,0.12); border-color:var(--border); color:var(--red-bright); }
+    .filter-btn:hover { border-color:var(--border); color:var(--white); }
+
+    /* Order cards */
+    .order-card { background:var(--card); border:1px solid var(--border-dim); border-radius:14px; padding:1.5rem; margin-bottom:0.85rem; display:grid; grid-template-columns:1fr auto; gap:1.5rem; align-items:start; transition:border-color 0.2s; position:relative; overflow:hidden; }
+    .order-card::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; }
+    .order-card.status-pending::before  { background:#ff9800; }
+    .order-card.status-paid::before     { background:var(--red); }
+    .order-card.status-delivered::before{ background:#4caf50; }
+    .order-card.status-cancelled::before{ background:#444; }
+    .order-card:hover { border-color:var(--border); }
+    .order-card.status-delivered { opacity:0.75; }
+    .order-card.status-cancelled { opacity:0.45; }
+
+    .order-drink { font-family:'Bebas Neue',sans-serif; font-size:1.5rem; letter-spacing:0.04em; margin-bottom:0.3rem; }
+    .order-customization { font-size:0.82rem; color:var(--light-gray); margin-bottom:0.75rem; line-height:1.6; }
+    .order-delivery { font-size:0.82rem; color:var(--gray); display:flex; gap:1.5rem; flex-wrap:wrap; }
+    .order-delivery span strong { color:var(--light-gray); }
+
+    .order-right { text-align:right; }
+    .status-badge { display:inline-block; padding:0.28rem 0.75rem; border-radius:20px; font-size:0.72rem; font-weight:500; margin-bottom:0.6rem; }
+    .badge-pending   { background:rgba(255,152,0,0.1);  color:#ff9800;      border:1px solid rgba(255,152,0,0.25); }
+    .badge-paid      { background:rgba(204,0,0,0.1);    color:var(--red-bright); border:1px solid var(--border); }
+    .badge-delivered { background:rgba(0,200,80,0.1);   color:#4caf50;      border:1px solid rgba(0,200,80,0.25); }
+    .badge-cancelled { background:rgba(255,255,255,0.05);color:var(--gray);  border:1px solid var(--border-dim); }
+    .order-date { font-size:0.75rem; color:var(--gray); margin-top:0.3rem; }
+    .order-points { font-size:0.75rem; color:var(--red-bright); margin-top:0.25rem; }
+
+    /* Reorder button */
+    .btn-reorder { background:rgba(204,0,0,0.08); color:var(--red-bright); border:1px solid var(--border); border-radius:7px; padding:0.45rem 0.9rem; font-size:0.78rem; cursor:pointer; transition:all 0.2s; font-family:'DM Sans',sans-serif; margin-top:0.5rem; display:inline-block; text-decoration:none; }
+    .btn-reorder:hover { background:rgba(204,0,0,0.15); }
+
+    .empty-state { text-align:center; padding:4rem 2rem; color:var(--gray); }
+    .empty-icon { font-size:3rem; margin-bottom:1rem; opacity:0.4; }
+    .empty-text { font-size:0.9rem; margin-bottom:1.5rem; }
+    .btn-primary { background:var(--red); color:white; border:none; border-radius:8px; padding:0.85rem 1.75rem; font-family:'DM Sans',sans-serif; font-size:0.9rem; font-weight:500; cursor:pointer; transition:all 0.2s; text-decoration:none; display:inline-block; text-transform:uppercase; letter-spacing:0.06em; }
+    .btn-primary:hover { background:var(--red-bright); box-shadow:0 0 20px rgba(204,0,0,0.4); }
+
+    /* Summary stats */
+    .summary-row { display:flex; gap:1rem; margin-bottom:2rem; flex-wrap:wrap; }
+    .summary-chip { background:var(--card); border:1px solid var(--border-dim); border-radius:10px; padding:0.85rem 1.25rem; font-size:0.82rem; color:var(--light-gray); }
+    .summary-chip strong { color:var(--red-bright); font-family:'Bebas Neue',sans-serif; font-size:1.4rem; display:block; letter-spacing:0.05em; }
+
+    @media(max-width:900px){.layout{grid-template-columns:1fr}.sidebar{display:none}.main{padding:1.5rem}.order-card{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo"><img src="../logo.png" alt="The Birdhouse" /></div>
+    <div class="user-card">
+      <div class="user-name" id="user-display-name">Loading...</div>
+      <div class="user-points" id="user-points-badge">0 points</div>
+    </div>
+    <nav>
+      <a class="nav-item" href="dashboard.html">📊 Overview</a>
+      <a class="nav-item" href="order.html">☕ Place an Order</a>
+      <a class="nav-item active" href="orders.html">📋 My Orders</a>
+      <a class="nav-item" href="dashboard.html">📦 My Subscription</a>
+      <a class="nav-item" href="dashboard.html">⭐ Loyalty Rewards</a>
+    </nav>
+    <button class="signout-btn" onclick="signOut()">← Sign Out</button>
+  </aside>
+
+  <main class="main">
+    <div class="page-eyebrow">Customer Portal</div>
+    <h1 class="page-title">My Orders</h1>
+
+    <div class="summary-row" id="summary-row"></div>
+
+    <div class="filter-row">
+      <button class="filter-btn active" onclick="filterOrders('all',this)">All Orders</button>
+      <button class="filter-btn" onclick="filterOrders('active',this)">Active</button>
+      <button class="filter-btn" onclick="filterOrders('delivered',this)">Delivered</button>
+      <button class="filter-btn" onclick="filterOrders('cancelled',this)">Cancelled</button>
+    </div>
+
+    <div id="orders-container"><div style="color:var(--gray);text-align:center;padding:3rem">Loading your orders...</div></div>
+  </main>
+</div>
+
+<script>
+  const sb = supabase.createClient('https://ljukrhneikqbabcmcpet.supabase.co','sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn');
+  let allOrders = [], currentUser = null;
+
+  async function init() {
+    const {data:{session}} = await sb.auth.getSession();
+    if(!session){window.location.href='index.html';return;}
+    currentUser = session.user;
+    const meta = currentUser.user_metadata;
+    document.getElementById('user-display-name').textContent=(meta.first_name||'Eagle')+' '+(meta.last_name||'');
+    document.getElementById('user-points-badge').textContent=(meta.loyalty_points||0)+' points';
+    await loadOrders();
+  }
+
+  async function loadOrders() {
+    const {data} = await sb.from('orders').select('*').eq('user_id', currentUser.id).order('created_at',{ascending:false});
+    allOrders = data||[];
+    renderSummary();
+    renderOrders('all');
+  }
+
+  function renderSummary() {
+    const total     = allOrders.length;
+    const delivered = allOrders.filter(o=>o.status==='delivered').length;
+    const points    = allOrders.reduce((s,o)=>s+(o.points_earned||0),0);
+    const active    = allOrders.filter(o=>o.status==='pending'||o.status==='paid').length;
+    document.getElementById('summary-row').innerHTML = `
+      <div class="summary-chip"><strong>${total}</strong>Total Orders</div>
+      <div class="summary-chip"><strong>${delivered}</strong>Delivered</div>
+      ${active?`<div class="summary-chip"><strong style="color:#ff9800">${active}</strong>In Progress</div>`:''}
+      <div class="summary-chip"><strong>${points}</strong>Points Earned</div>`;
+  }
+
+  function filterOrders(filter, btn) {
+    document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    renderOrders(filter);
+  }
+
+  function renderOrders(filter) {
+    let list = allOrders;
+    if(filter==='active')    list = allOrders.filter(o=>o.status==='pending'||o.status==='paid');
+    if(filter==='delivered') list = allOrders.filter(o=>o.status==='delivered');
+    if(filter==='cancelled') list = allOrders.filter(o=>o.status==='cancelled');
+
+    const container = document.getElementById('orders-container');
+    if(!list.length) {
+      container.innerHTML = `<div class="empty-state">
+        <div class="empty-icon">☕</div>
+        <div class="empty-text">${filter==='all'?'No orders yet — place your first one!':'No '+filter+' orders.'}</div>
+        ${filter==='all'?`<a class="btn-primary" href="order.html">Order Now</a>`:''}
+      </div>`;
+      return;
+    }
+
+    const statusLabel = {pending:'⏳ Pending Payment', paid:'💳 Being Prepared', delivered:'✅ Delivered', cancelled:'Cancelled'};
+    container.innerHTML = list.map(order=>{
+      const date = new Date(order.created_at).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+      const time = new Date(order.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+      return `<div class="order-card status-${order.status}">
+        <div>
+          <div class="order-drink">${order.drink_name}</div>
+          <div class="order-customization">
+            ${order.size||''} ${order.milk?'· '+order.milk:''} ${order.syrup&&order.syrup!=='None'?'· '+order.syrup+' syrup':''}
+            ${order.special_instructions?`<br><span style="color:var(--gray)">Note: ${order.special_instructions}</span>`:''}
+          </div>
+          <div class="order-delivery">
+            <span><strong>Room:</strong> ${order.room||'—'}</span>
+            <span><strong>Time:</strong> ${order.delivery_time||'—'}</span>
+            <span><strong>Day:</strong> ${order.delivery_day||'—'}</span>
+          </div>
+        </div>
+        <div class="order-right">
+          <div class="status-badge badge-${order.status}">${statusLabel[order.status]||order.status}</div>
+          <div class="order-date">${date} at ${time}</div>
+          ${order.points_earned?`<div class="order-points">+${order.points_earned} pt${order.points_earned!==1?'s':''}</div>`:''}
+          ${order.status==='delivered'?`<a class="btn-reorder" href="order.html">Order Again →</a>`:''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  async function signOut(){await sb.auth.signOut();window.location.href='index.html';}
+  init();
+</script>
+</body>
+</html>
