@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>The Birdhouse — Schedule Builder</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--black:#0a0a0a;--red:#cc0000;--red-bright:#ff1a1a;--gray:#555;--light-gray:#999;--white:#f0f0f0;--card:#141414;--border:rgba(204,0,0,0.18);--border-dim:rgba(255,255,255,0.07)}
+    body{background:var(--black);color:var(--white);font-family:'DM Sans',sans-serif;min-height:100vh}
+    body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(204,0,0,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(204,0,0,0.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none}
+    .layout{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+    .sidebar{background:#0d0000;border-right:1px solid var(--border);padding:1.75rem 1.25rem;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;overflow-y:auto}
+    .sidebar img{height:40px;filter:drop-shadow(0 0 10px rgba(204,0,0,0.6));margin-bottom:0.75rem}
+    .admin-badge{background:rgba(204,0,0,0.15);border:1px solid var(--border);border-radius:6px;padding:0.3rem 0.75rem;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--red-bright);margin-bottom:2rem;display:inline-block}
+    .nav-section{font-size:0.58rem;text-transform:uppercase;letter-spacing:0.16em;color:var(--gray);margin:1.1rem 0 0.4rem 0.9rem}
+    .nav-item{display:flex;align-items:center;gap:0.7rem;padding:0.7rem 0.9rem;border-radius:7px;color:var(--gray);font-size:0.85rem;cursor:pointer;transition:all 0.2s;margin-bottom:0.2rem;border:1px solid transparent;text-decoration:none}
+    .nav-item:hover{color:var(--white);background:rgba(255,255,255,0.04)}
+    .nav-item.active{background:rgba(204,0,0,0.12);color:var(--red-bright);border-color:rgba(204,0,0,0.25)}
+    .signout-btn{background:none;border:1px solid rgba(255,255,255,0.08);border-radius:7px;padding:0.65rem 1rem;color:var(--gray);font-size:0.8rem;cursor:pointer;width:100%;text-align:left;transition:all 0.2s;display:flex;align-items:center;gap:0.5rem;font-family:'DM Sans',sans-serif;margin-top:auto}
+    .signout-btn:hover{color:var(--white)}
+    .main{padding:2rem 2.5rem;position:relative;z-index:1}
+    .page-eyebrow{font-size:0.62rem;letter-spacing:0.22em;text-transform:uppercase;color:var(--red);margin-bottom:0.3rem}
+    .page-title{font-family:'Bebas Neue',sans-serif;font-size:2.5rem;letter-spacing:0.04em;margin-bottom:1.5rem}
+
+    /* Tabs */
+    .tabs{display:flex;gap:0.5rem;border-bottom:1px solid var(--border-dim);margin-bottom:1.75rem}
+    .tab{background:none;border:none;border-bottom:2px solid transparent;padding:0.7rem 1.1rem;font-family:'DM Sans',sans-serif;font-size:0.88rem;color:var(--gray);cursor:pointer;transition:all 0.2s;margin-bottom:-1px}
+    .tab:hover{color:var(--white)}
+    .tab.active{color:var(--red-bright);border-bottom-color:var(--red)}
+    .tab-panel{display:none}
+    .tab-panel.active{display:block}
+
+    /* Week schedule */
+    .week-nav{display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap}
+    .week-nav button{background:none;border:1px solid var(--border-dim);border-radius:6px;padding:0.4rem 0.85rem;color:var(--light-gray);cursor:pointer;font-size:0.82rem;transition:all 0.2s;font-family:'DM Sans',sans-serif}
+    .week-nav button:hover{border-color:var(--border);color:var(--white)}
+    .week-label{font-size:0.95rem;color:var(--white);font-weight:500}
+
+    /* 5-day grid */
+    .sched-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:0.85rem;margin-bottom:2rem}
+    .day-col{background:var(--card);border:1px solid var(--border-dim);border-radius:12px;overflow:hidden;min-height:200px}
+    .day-col.today{border-color:rgba(204,0,0,0.35)}
+    .day-header{padding:0.65rem 1rem;border-bottom:1px solid var(--border-dim);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em}
+    .day-header.today{color:var(--red-bright)}
+    .day-date{font-size:0.62rem;color:var(--gray);margin-top:0.1rem}
+    .period-section{padding:0.6rem 0.85rem;border-bottom:1px solid rgba(255,255,255,0.03)}
+    .period-section:last-child{border-bottom:none}
+    .period-label-sm{font-size:0.58rem;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:0.4rem;font-weight:500}
+    .p1st{color:#ff9944}
+    .p6th{color:#66aaff}
+    .shift-pill{border-radius:6px;padding:0.35rem 0.6rem;margin-bottom:0.3rem;font-size:0.75rem;display:flex;justify-content:space-between;align-items:center;gap:0.5rem}
+    .shift-pill-info{}
+    .shift-pill-team{font-weight:600;display:block}
+    .shift-pill-time{font-size:0.65rem;opacity:0.8;display:block}
+    .shift-pill-del{background:none;border:none;cursor:pointer;opacity:0.4;font-size:0.8rem;padding:0;transition:opacity 0.2s;flex-shrink:0}
+    .shift-pill-del:hover{opacity:1;color:var(--red-bright)}
+    .no-shifts{font-size:0.72rem;color:rgba(255,255,255,0.15);padding:0.25rem 0}
+    .recurring-tag{font-size:0.6rem;opacity:0.6;margin-left:0.3rem}
+
+    /* Add shift form */
+    .add-form{background:var(--card);border:1px solid var(--border-dim);border-radius:14px;padding:1.5rem}
+    .form-title{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:0.05em;margin-bottom:1.1rem}
+    .form-group{margin-bottom:1rem}
+    label{display:block;font-size:0.65rem;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:var(--gray);margin-bottom:0.35rem}
+    input[type=text],input[type=time],select{width:100%;padding:0.78rem 0.9rem;border:1px solid var(--border-dim);border-radius:8px;background:#0d0d0d;font-family:'DM Sans',sans-serif;font-size:0.88rem;color:var(--white);outline:none;transition:border-color 0.2s}
+    input:focus,select:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(204,0,0,0.1)}
+    select option{background:#1a1a1a}
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:0.75rem}
+    .btn-primary{background:var(--red);color:white;border:none;border-radius:8px;padding:0.82rem 1.5rem;font-family:'DM Sans',sans-serif;font-size:0.88rem;font-weight:500;cursor:pointer;transition:all 0.2s;text-transform:uppercase;letter-spacing:0.06em;width:100%}
+    .btn-primary:hover{background:var(--red-bright);box-shadow:0 0 20px rgba(204,0,0,0.4)}
+    .btn-primary:disabled{opacity:0.45;cursor:not-allowed;box-shadow:none}
+    .btn-ghost{background:transparent;color:var(--light-gray);border:1px solid var(--border-dim);border-radius:8px;padding:0.82rem 1.5rem;font-family:'DM Sans',sans-serif;font-size:0.88rem;cursor:pointer;transition:all 0.2s;text-transform:uppercase;letter-spacing:0.06em}
+    .btn-ghost:hover{border-color:var(--border);color:var(--white)}
+    .btn-danger{background:rgba(204,0,0,0.1);color:var(--red-bright);border:1px solid rgba(204,0,0,0.2);border-radius:6px;padding:0.3rem 0.65rem;font-size:0.72rem;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s}
+    .btn-danger:hover{background:rgba(204,0,0,0.2)}
+    .msg{padding:0.8rem 1rem;border-radius:8px;font-size:0.82rem;margin-top:0.75rem;display:none}
+    .msg.success{background:rgba(0,200,80,0.08);border:1px solid rgba(0,200,80,0.2);color:#4caf50;display:block}
+    .msg.error{background:rgba(204,0,0,0.1);border:1px solid var(--border);color:#ff6b6b;display:block}
+
+    /* Recurring */
+    .recurring-item{background:var(--card);border:1px solid var(--border-dim);border-radius:10px;padding:1rem 1.25rem;margin-bottom:0.6rem;display:flex;justify-content:space-between;align-items:center;transition:border-color 0.2s}
+    .recurring-item:hover{border-color:var(--border)}
+    .recurring-name{font-weight:500;font-size:0.92rem}
+    .recurring-meta{font-size:0.78rem;color:var(--gray);margin-top:0.2rem}
+    .active-dot{width:8px;height:8px;border-radius:50%;background:#4caf50;display:inline-block;margin-right:0.4rem}
+    .inactive-dot{width:8px;height:8px;border-radius:50%;background:var(--gray);display:inline-block;margin-right:0.4rem}
+    .empty-state{color:var(--gray);text-align:center;padding:2.5rem;font-size:0.88rem}
+
+    @media(max-width:1100px){.layout{grid-template-columns:1fr}.sidebar{display:none}.main{padding:1.5rem}.sched-grid{grid-template-columns:1fr 1fr}}
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <img src="../logo.png" alt="The Birdhouse"/>
+    <div class="admin-badge">⚙ Super Admin</div>
+    <div class="nav-section">Overview</div>
+    <a class="nav-item" href="index.html">📊 Dashboard</a>
+    <div class="nav-section">Team</div>
+    <a class="nav-item" href="roster.html">👥 Roster & Teams</a>
+    <a class="nav-item active" href="schedule.html">🗓️ Schedule Builder</a>
+    <a class="nav-item" href="index.html">📝 Weekly Summaries</a>
+    <div class="nav-section">Menu</div>
+    <a class="nav-item" href="index.html">☕ Menu Manager</a>
+    <button class="signout-btn" onclick="signOut()">← Sign Out</button>
+  </aside>
+
+  <main class="main">
+    <div class="page-eyebrow">Super Admin</div>
+    <h1 class="page-title">Schedule Builder</h1>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('week',this)">📅 Week View</button>
+      <button class="tab" onclick="switchTab('recurring',this)">🔁 Recurring Shifts</button>
+    </div>
+
+    <!-- ── Week View ── -->
+    <div class="tab-panel active" id="tab-week">
+      <div style="display:grid;grid-template-columns:1fr 300px;gap:2rem;align-items:start">
+        <div>
+          <div class="week-nav">
+            <button onclick="changeWeek(-1)">← Prev Week</button>
+            <span class="week-label" id="week-label">This Week</span>
+            <button onclick="changeWeek(1)">Next Week →</button>
+            <button onclick="weekOffset=0;loadWeekSchedule()" style="margin-left:auto">Today</button>
+          </div>
+          <div class="sched-grid" id="sched-grid">
+            <!-- populated by JS -->
+          </div>
+        </div>
+
+        <!-- Add one-off shift form -->
+        <div class="add-form">
+          <div class="form-title">Add Shift</div>
+          <div class="form-group">
+            <label>Team</label>
+            <select id="shift-team">
+              <option value="">Select team...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Date</label>
+            <input type="text" id="shift-date" placeholder="YYYY-MM-DD" />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Start</label>
+              <input type="time" id="shift-start" value="07:30"/>
+            </div>
+            <div class="form-group">
+              <label>End</label>
+              <input type="time" id="shift-end" value="08:30"/>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Notes <span style="color:var(--gray);font-weight:300">(optional)</span></label>
+            <input type="text" id="shift-notes" placeholder="Any notes..."/>
+          </div>
+          <button class="btn-primary" onclick="addShift()">Add Shift</button>
+          <div class="msg" id="shift-msg"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Recurring Shifts ── -->
+    <div class="tab-panel" id="tab-recurring">
+      <div style="display:grid;grid-template-columns:1fr 320px;gap:2rem;align-items:start">
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.1rem">
+            <p style="font-size:0.85rem;color:var(--gray)">Recurring shifts appear automatically every week. You can still override individual weeks.</p>
+          </div>
+          <div id="recurring-list"><div class="empty-state">Loading...</div></div>
+        </div>
+
+        <!-- Add recurring form -->
+        <div class="add-form">
+          <div class="form-title">New Recurring Shift</div>
+          <div class="form-group">
+            <label>Team</label>
+            <select id="rec-team"><option value="">Select team...</option></select>
+          </div>
+          <div class="form-group">
+            <label>Day of Week</label>
+            <select id="rec-day">
+              <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
+              <option>Thursday</option><option>Friday</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Start</label><input type="time" id="rec-start" value="07:30"/></div>
+            <div class="form-group"><label>End</label><input type="time" id="rec-end" value="08:30"/></div>
+          </div>
+          <div class="form-group"><label>Notes <span style="color:var(--gray);font-weight:300">(optional)</span></label><input type="text" id="rec-notes" placeholder="Optional notes..."/></div>
+          <button class="btn-primary" onclick="addRecurring()">Save Recurring Shift</button>
+          <div class="msg" id="rec-msg"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  const sb = supabase.createClient('https://ljukrhneikqbabcmcpet.supabase.co','sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn');
+  let weekOffset=0, allTeams=[], recurringShifts=[];
+  const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+
+  async function init() {
+    const {data:{session}} = await sb.auth.getSession();
+    if(!session||session.user.user_metadata?.role!=='admin'){window.location.href='login.html';return;}
+    await loadTeams();
+    await loadWeekSchedule();
+    await loadRecurring();
+  }
+
+  async function loadTeams() {
+    const {data} = await sb.from('teams').select('*').order('name');
+    allTeams = data||[];
+    // Populate dropdowns
+    ['shift-team','rec-team'].forEach(id=>{
+      const sel=document.getElementById(id);
+      while(sel.options.length>1) sel.remove(1);
+      allTeams.forEach(t=>{
+        const o=document.createElement('option');
+        o.value=t.id; o.textContent=t.name+' ('+t.period+')';
+        o.dataset.period=t.period; o.dataset.color=t.color||'#cc0000';
+        sel.appendChild(o);
+      });
+    });
+  }
+
+  function getWeekDates(offset=0) {
+    const today=new Date();
+    const day=today.getDay(); // 0=Sun
+    const mondayDiff = day===0?-6:1-day;
+    const monday=new Date(today);
+    monday.setDate(today.getDate()+mondayDiff+(offset*7));
+    return DAYS.map((_,i)=>{
+      const d=new Date(monday);
+      d.setDate(monday.getDate()+i);
+      return d;
+    });
+  }
+
+  function fmtDate(d){return d.toISOString().split('T')[0];}
+  function fmtTime(t){if(!t)return'—';const[h,m]=t.split(':');const hr=parseInt(h);return`${hr>12?hr-12:hr||12}:${m} ${hr>=12?'PM':'AM'}`;}
+
+  async function loadWeekSchedule() {
+    const dates=getWeekDates(weekOffset);
+    const ws=fmtDate(dates[0]);
+    const we=fmtDate(new Date(dates[4].getTime()+86400000));
+    document.getElementById('week-label').textContent=`Week of ${dates[0].toLocaleDateString('en-US',{month:'short',day:'numeric'})} – ${dates[4].toLocaleDateString('en-US',{month:'short',day:'numeric'})}`;
+
+    // Load one-off shifts + generate recurring ones for this week
+    const [{data:shifts},{data:recurring}] = await Promise.all([
+      sb.from('schedules').select('*,teams(name,period,color)').gte('shift_date',ws).lt('shift_date',we).order('start_time'),
+      sb.from('recurring_shifts').select('*').eq('active',true)
+    ]);
+
+    // Generate virtual shifts from recurring
+    const virtualShifts = [];
+    (recurring||[]).forEach(r=>{
+      const dayIdx=DAYS.indexOf(r.day_of_week);
+      if(dayIdx<0) return;
+      const shiftDate=fmtDate(dates[dayIdx]);
+      const team=allTeams.find(t=>t.id===r.team_id);
+      // Check if overridden by a one-off for this date+team
+      const overridden=(shifts||[]).some(s=>s.shift_date===shiftDate&&s.team_id===r.team_id);
+      if(!overridden) virtualShifts.push({...r, shift_date:shiftDate, isRecurring:true, teams:team?{name:team.name,period:team.period,color:team.color}:null});
+    });
+
+    const allShifts=[...(shifts||[]),...virtualShifts];
+    renderWeekGrid(dates, allShifts);
+  }
+
+  function renderWeekGrid(dates, shifts) {
+    const todayStr=fmtDate(new Date());
+    const grid=document.getElementById('sched-grid');
+    grid.innerHTML=dates.map((date,i)=>{
+      const dateStr=fmtDate(date);
+      const isToday=dateStr===todayStr;
+      const dayShifts=shifts.filter(s=>s.shift_date===dateStr);
+      const first=dayShifts.filter(s=>s.teams?.period==='1st Hour');
+      const sixth=dayShifts.filter(s=>s.teams?.period==='6th Hour');
+
+      const renderPills = (list, period) => {
+        if(!list.length) return `<div class="no-shifts">No shifts</div>`;
+        return list.map(s=>`
+          <div class="shift-pill" style="background:${(s.teams?.color||'#cc0000')}18;border-left:2px solid ${s.teams?.color||'#cc0000'}">
+            <div class="shift-pill-info">
+              <span class="shift-pill-team">${s.teams?.name||s.team_name||'—'}${s.isRecurring?'<span class="recurring-tag">↺</span>':''}</span>
+              <span class="shift-pill-time">${fmtTime(s.start_time)} – ${fmtTime(s.end_time)}</span>
+            </div>
+            ${!s.isRecurring?`<button class="shift-pill-del" onclick="deleteShift('${s.id}')">✕</button>`:''}
+          </div>`).join('');
+      };
+
+      // Set date input when day is clicked
+      return `<div class="day-col ${isToday?'today':''}" onclick="document.getElementById('shift-date').value='${dateStr}'">
+        <div class="day-header ${isToday?'today':''}">
+          <div>${DAYS[i]}</div>
+          <div class="day-date">${date.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>
+        </div>
+        <div class="period-section">
+          <div class="period-label-sm p1st">1st Hour</div>
+          ${renderPills(first,'1st Hour')}
+        </div>
+        <div class="period-section">
+          <div class="period-label-sm p6th">6th Hour</div>
+          ${renderPills(sixth,'6th Hour')}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  async function addShift() {
+    const btn=event.target; btn.disabled=true; btn.textContent='Adding...';
+    const teamId=document.getElementById('shift-team').value;
+    const date=document.getElementById('shift-date').value;
+    const start=document.getElementById('shift-start').value;
+    const end=document.getElementById('shift-end').value;
+    const notes=document.getElementById('shift-notes').value;
+    const m=document.getElementById('shift-msg');
+    const team=allTeams.find(t=>t.id===teamId);
+    if(!teamId||!date||!start||!end){m.textContent='Please fill in all fields.';m.className='msg error';btn.disabled=false;btn.textContent='Add Shift';return;}
+    const {error}=await sb.from('schedules').insert({
+      student_id:'00000000-0000-0000-0000-000000000000',
+      student_name:team?.name||'',
+      team_id:teamId, team_name:team?.name||'',
+      period:team?.period||'',
+      shift_date:date, start_time:start, end_time:end, notes,
+      is_recurring:false
+    });
+    if(error){m.textContent='Error: '+error.message;m.className='msg error';}
+    else{m.textContent='✓ Shift added!';m.className='msg success';document.getElementById('shift-notes').value='';loadWeekSchedule();}
+    btn.disabled=false;btn.textContent='Add Shift';
+  }
+
+  async function deleteShift(id) {
+    if(!confirm('Remove this shift?')) return;
+    await sb.from('schedules').delete().eq('id',id);
+    loadWeekSchedule();
+  }
+
+  function changeWeek(dir){weekOffset+=dir;loadWeekSchedule();}
+
+  // ── Recurring ──
+  async function loadRecurring() {
+    const {data}=await sb.from('recurring_shifts').select('*,teams(name,period,color)').order('day_of_week').order('start_time');
+    recurringShifts=data||[];
+    renderRecurring();
+  }
+
+  function renderRecurring() {
+    const container=document.getElementById('recurring-list');
+    if(!recurringShifts.length){container.innerHTML='<div class="empty-state">No recurring shifts yet. Add one using the form →</div>';return;}
+    // Group by day
+    const byDay={};
+    DAYS.forEach(d=>byDay[d]=[]);
+    recurringShifts.forEach(r=>{ if(byDay[r.day_of_week]) byDay[r.day_of_week].push(r); });
+    container.innerHTML=DAYS.map(day=>{
+      const shifts=byDay[day];
+      if(!shifts.length) return '';
+      return `<div style="margin-bottom:1.25rem">
+        <div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--light-gray);margin-bottom:0.6rem">${day}</div>
+        ${shifts.map(r=>`
+          <div class="recurring-item">
+            <div>
+              <div class="recurring-name">
+                <span class="active-dot"></span>${r.teams?.name||r.team_name}
+                <span style="font-size:0.72rem;color:${r.teams?.period==='1st Hour'?'#ff9944':'#66aaff'};margin-left:0.4rem">${r.teams?.period||r.period}</span>
+              </div>
+              <div class="recurring-meta">${fmtTime(r.start_time)} – ${fmtTime(r.end_time)}${r.notes?' · '+r.notes:''}</div>
+            </div>
+            <button class="btn-danger" onclick="deleteRecurring('${r.id}')">Remove</button>
+          </div>`).join('')}
+      </div>`;
+    }).join('');
+  }
+
+  async function addRecurring() {
+    const btn=event.target; btn.disabled=true; btn.textContent='Saving...';
+    const teamId=document.getElementById('rec-team').value;
+    const day=document.getElementById('rec-day').value;
+    const start=document.getElementById('rec-start').value;
+    const end=document.getElementById('rec-end').value;
+    const notes=document.getElementById('rec-notes').value;
+    const m=document.getElementById('rec-msg');
+    const team=allTeams.find(t=>t.id===teamId);
+    if(!teamId||!day||!start||!end){m.textContent='Please fill in all fields.';m.className='msg error';btn.disabled=false;btn.textContent='Save Recurring Shift';return;}
+    const {error}=await sb.from('recurring_shifts').insert({
+      team_id:teamId, team_name:team?.name||'', period:team?.period||'',
+      day_of_week:day, start_time:start, end_time:end, notes, active:true
+    });
+    if(error){m.textContent='Error: '+error.message;m.className='msg error';}
+    else{m.textContent='✓ Recurring shift saved!';m.className='msg success';document.getElementById('rec-notes').value='';loadRecurring();loadWeekSchedule();}
+    btn.disabled=false;btn.textContent='Save Recurring Shift';
+  }
+
+  async function deleteRecurring(id) {
+    if(!confirm('Remove this recurring shift? It will no longer appear on future weeks.')) return;
+    await sb.from('recurring_shifts').delete().eq('id',id);
+    loadRecurring(); loadWeekSchedule();
+  }
+
+  function switchTab(name,btn) {
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-'+name).classList.add('active');
+  }
+
+  async function signOut(){await sb.auth.signOut();window.location.href='login.html';}
+  init();
+</script>
+</body>
+</html>
