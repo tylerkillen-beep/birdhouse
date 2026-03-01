@@ -175,6 +175,11 @@
 
           <div id="csv-preview"></div>
           <div class="msg" id="import-msg"></div>
+          <div style="margin-bottom:1rem;margin-top:1rem">
+            <label style="display:block;font-size:0.68rem;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:var(--gray);margin-bottom:0.4rem">Temporary Password for All Students</label>
+            <input type="text" id="temp-password" value="Birdhouse2025!" style="width:100%;padding:0.78rem 1rem;border:1px solid var(--border-dim);border-radius:8px;background:#0d0d0d;font-family:'DM Sans',sans-serif;font-size:0.9rem;color:var(--white);outline:none" />
+            <div style="font-size:0.72rem;color:var(--gray);margin-top:0.35rem">All students will log in with this password. Tell them to change it after first login.</div>
+          </div>
           <div style="margin-top:1.25rem;display:flex;gap:0.75rem">
             <button class="btn-primary" id="import-btn" onclick="importStudents()" disabled>Import Students</button>
             <button class="btn-ghost btn-sm" onclick="loadSampleData()">Load Sample</button>
@@ -185,7 +190,7 @@
           <div class="import-title">How Import Works</div>
           <div style="font-size:0.85rem;color:var(--light-gray);line-height:1.9">
             <div>📧 <strong style="color:var(--white)">Account creation</strong> — Each student gets a Supabase account created automatically.</div>
-            <div style="margin-top:0.75rem">🔑 <strong style="color:var(--white)">Password setup</strong> — Supabase sends each student a "set your password" email so they can log in.</div>
+            <div style="margin-top:0.75rem">🔑 <strong style="color:var(--white)">Shared temp password</strong> — All students are created with the temp password you set. Share it with them and they can log in immediately.</div>
             <div style="margin-top:0.75rem">👥 <strong style="color:var(--white)">Team assignment</strong> — Students are automatically placed into the team from the CSV.</div>
             <div style="margin-top:0.75rem">✅ <strong style="color:var(--white)">Duplicate safe</strong> — If a student is already in the system, they'll be skipped.</div>
           </div>
@@ -340,11 +345,15 @@
     for(const student of parsedCSV) {
       // Find team
       const team = allTeams.find(t=>t.name===`Team ${student.team}`||t.name===student.team);
-      // Create auth user via signUp
+      // Create auth user with temp password (no email confirmation)
+      const tempPw = document.getElementById('temp-password').value||'Birdhouse2025!';
       const {data, error} = await sb.auth.signUp({
         email: student.email,
-        password: Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2), // temp pw - they'll set their own
-        options:{data:{first_name:student.first_name, last_name:student.last_name, role:'student', team:student.team}}
+        password: tempPw,
+        options:{
+          data:{first_name:student.first_name, last_name:student.last_name, role:'student', team:student.team},
+          emailRedirectTo: null
+        }
       });
       if(error) {
         if(error.message.includes('already')) skipped++;
