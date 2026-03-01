@@ -543,7 +543,7 @@
     menu:     {icon:'📋', label:'Menu Planning',  desc:'Prepping next week\'s menu · In class all week', days:[], color:'#cc8800'},
     inclass:  {icon:'📚', label:'In Class',       desc:'Classroom activities all week', days:[], color:'#6600cc'},
   };
-  const POS_LABELS = {cashier:'Cashier',barista:'Barista',stocker:'Stocker',custodian:'Custodian'};
+  const POS_LABELS = {cashier:'Cashier',barista:'Barista',stocker:'Stocker',custodian:'Custodian',deliverer:'Deliverer'};
 
   async function loadSchedule() {
     const today = new Date();
@@ -871,6 +871,10 @@
   async function signOut() { await sb.auth.signOut(); window.location.href='index.html'; }
 
   // ── Job Description Checklists ──
+  // Mathews uses Deliverer instead of Cashier
+  const MATHEWS_POSITIONS = ['deliverer','barista','stocker','custodian'];
+  const BIRDHOUSE_POSITIONS = ['cashier','barista','stocker','custodian'];
+
   const JOB_DESC = {
     cashier: {
       label: 'Cashier', focus: 'Customer Service',
@@ -882,6 +886,20 @@
           { text: 'Ensure menu is displayed correctly on TV behind Birdhouse', subs: [] },
           { text: 'Welcome customers — be friendly but focus on service', subs: [] },
           { text: 'Get customer name, put it on receipt and tape to proper cup', subs: [] },
+        ]
+      }
+    },
+    deliverer: {
+      label: 'Deliverer', focus: 'Order Accuracy',
+      desc: 'Ensure completed orders reach the correct customer or location accurately and promptly. You are the final step between the Birdhouse and the customer.',
+      tasks: {
+        default: [
+          { text: 'Review all pending delivery orders at the start of shift', subs: [] },
+          { text: 'Confirm each order is complete and correct before leaving', subs: [] },
+          { text: 'Deliver orders to the correct room, name, and location', subs: [] },
+          { text: 'Mark each order as delivered in the Birdhouse app', subs: [] },
+          { text: 'Return any unclaimed orders promptly and notify staff', subs: [] },
+          { text: 'Keep delivery area tidy and organized', subs: [] },
         ]
       }
     },
