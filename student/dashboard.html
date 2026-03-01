@@ -215,6 +215,9 @@
       <div class="page-eyebrow">My Schedule</div>
       <h1 class="page-title" id="schedule-heading">My Schedule</h1>
 
+      <!-- Week nav -->
+      <div id="sched-week-nav"></div>
+
       <!-- Role card -->
       <div id="role-card" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.5rem;margin-bottom:1.75rem">
         <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap">
@@ -545,11 +548,16 @@
   };
   const POS_LABELS = {cashier:'Cashier',barista:'Barista',stocker:'Stocker',custodian:'Custodian',deliverer:'Deliverer'};
 
-  async function loadSchedule() {
+  let scheduleWeekOffset = 0;
+
+  async function loadSchedule(offset) {
+    if(offset !== undefined) scheduleWeekOffset = offset;
     const today = new Date();
     const day = today.getDay();
     const diff = day===0?-6:1-day;
-    const monday = new Date(today); monday.setDate(today.getDate()+diff); monday.setHours(0,0,0,0);
+    const monday = new Date(today);
+    monday.setDate(today.getDate()+diff+(scheduleWeekOffset*7));
+    monday.setHours(0,0,0,0);
     const ws = monday.toISOString().split('T')[0];
 
     // Get student's team
@@ -567,6 +575,17 @@
 
     // Get weekly assignment
     const {data:assignment} = await sb.from('weekly_assignments').select('*').eq('team_id',teamId).eq('week_start',ws).single();
+
+    // Render week nav
+    const friday = new Date(monday); friday.setDate(monday.getDate()+4);
+    const weekLabel = monday.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' – '+friday.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    document.getElementById('sched-week-nav').innerHTML = `
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap">
+        <button onclick="loadSchedule(${scheduleWeekOffset-1})" style="background:none;border:1px solid var(--border-dim);border-radius:7px;padding:0.45rem 1rem;color:var(--light-gray);cursor:pointer;font-size:0.82rem;font-family:'DM Sans',sans-serif;transition:all 0.2s" onmouseover="this.style.borderColor='var(--border)';this.style.color='var(--white)'" onmouseout="this.style.borderColor='var(--border-dim)';this.style.color='var(--light-gray)'">← Prev Week</button>
+        <span style="font-size:0.95rem;font-weight:500">${weekLabel}</span>
+        <button onclick="loadSchedule(${scheduleWeekOffset+1})" style="background:none;border:1px solid var(--border-dim);border-radius:7px;padding:0.45rem 1rem;color:var(--light-gray);cursor:pointer;font-size:0.82rem;font-family:'DM Sans',sans-serif;transition:all 0.2s" onmouseover="this.style.borderColor='var(--border)';this.style.color='var(--white)'" onmouseout="this.style.borderColor='var(--border-dim)';this.style.color='var(--light-gray)'">Next Week →</button>
+        ${scheduleWeekOffset!==0?`<button onclick="loadSchedule(0)" style="background:none;border:1px solid var(--border-dim);border-radius:7px;padding:0.45rem 1rem;color:var(--light-gray);cursor:pointer;font-size:0.82rem;font-family:'DM Sans',sans-serif;margin-left:auto">This Week</button>`:''}
+      </div>`;
 
     if(!assignment){
       document.getElementById('no-assignment').style.display='block';
