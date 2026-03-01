@@ -852,6 +852,8 @@
         </div>
       </div>`).join('');
   }
+
+  async function loadPastSummaries() {
     const {data} = await sb.from('weekly_summaries').select('*').eq('student_id',currentUser.id).order('week_of',{ascending:false}).limit(5);
     const container=document.getElementById('past-summaries');
     if(!data||!data.length){container.innerHTML='<div style="color:var(--gray);font-size:0.88rem;padding:1.5rem;background:var(--card);border-radius:10px;border:1px solid var(--border-dim)">No past summaries yet.</div>';return;}
