@@ -121,6 +121,14 @@
     .order-filter { background: transparent; border: 1px solid var(--border-dim); border-radius: 20px; padding: 0.32rem 0.85rem; font-size: 0.78rem; color: var(--gray); cursor: pointer; transition: all 0.2s; font-family: 'DM Sans', sans-serif; }
     .order-filter.active { background: rgba(204,0,0,0.12); border-color: var(--border); color: var(--red-bright); }
     .order-filter:hover { border-color: var(--border); color: var(--white); }
+    .menu-tab { background:transparent; border:none; border-bottom:2px solid transparent; padding:0.65rem 1rem; font-family:'DM Sans',sans-serif; font-size:0.85rem; color:var(--gray); cursor:pointer; transition:all 0.2s; margin-bottom:-1px; }
+    .menu-tab:hover { color:var(--white); }
+    .menu-tab.active { color:var(--red-bright); border-bottom-color:var(--red); }
+    .submission-card { background:var(--card); border:1px solid var(--border-dim); border-radius:12px; padding:1.25rem 1.5rem; margin-bottom:0.75rem; display:grid; grid-template-columns:1fr auto; gap:1rem; align-items:start; transition:border-color 0.2s; }
+    .submission-card:hover { border-color:var(--border); }
+    .submission-card.status-pending  { border-left:3px solid #ff9800; }
+    .submission-card.status-approved { border-left:3px solid #4caf50; }
+    .submission-card.status-rejected { border-left:3px solid #555; opacity:0.7; }
     .avail-toggle { width:42px; height:24px; border-radius:12px; border:none; background:#333; position:relative; cursor:pointer; transition:background 0.2s; flex-shrink:0; }
     .avail-toggle::after { content:''; position:absolute; width:18px; height:18px; border-radius:50%; background:white; top:3px; left:3px; transition:left 0.2s; }
     .avail-toggle.on { background:var(--red); }
@@ -231,36 +239,102 @@
     <!-- Summary -->
     <!-- Menu Availability -->
     <div id="section-menu" style="display:none">
-      <div class="page-eyebrow">Menu</div>
+      <div class="page-eyebrow">Team Hub</div>
       <h1 class="page-title">Menu Availability</h1>
       <p style="color:var(--gray);font-size:0.88rem;margin-bottom:1.5rem">Toggle items on or off for today's service. Changes are live immediately.</p>
 
-      <div id="menu-hot-section" style="margin-bottom:2rem">
-        <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.85rem">
-          <span style="font-size:1.2rem">☕</span>
-          <span style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:0.05em">Hot Drinks</span>
-          <span style="font-size:0.65rem;padding:0.2rem 0.6rem;border-radius:20px;background:rgba(255,100,0,0.1);color:#ff9944;border:1px solid rgba(255,100,0,0.25)">12 oz</span>
+      <!-- Tabs -->
+      <div style="display:flex;gap:0.5rem;margin-bottom:1.75rem;border-bottom:1px solid var(--border-dim);padding-bottom:0">
+        <button class="menu-tab active" id="tab-availability" onclick="switchMenuTab('availability')">☕ Availability</button>
+        <button class="menu-tab" id="tab-suggest" onclick="switchMenuTab('suggest')">✏️ Suggest Changes</button>
+        <button class="menu-tab" id="tab-my-submissions" onclick="switchMenuTab('my-submissions')">📋 My Submissions <span id="submission-count" style="display:none;background:var(--red);color:white;font-size:0.6rem;padding:0.1rem 0.4rem;border-radius:10px;margin-left:0.3rem"></span></button>
+      </div>
+
+      <!-- Tab: Availability -->
+      <div id="menu-tab-availability">
+        <div id="menu-hot-section" style="margin-bottom:2rem">
+          <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.85rem">
+            <span style="font-size:1.2rem">☕</span>
+            <span style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:0.05em">Hot Drinks</span>
+            <span style="font-size:0.65rem;padding:0.2rem 0.6rem;border-radius:20px;background:rgba(255,100,0,0.1);color:#ff9944;border:1px solid rgba(255,100,0,0.25)">12 oz</span>
+          </div>
+          <div class="table-wrap">
+            <table><thead><tr><th>Item</th><th>Description</th><th>Available</th><th>Suggest Edit</th></tr></thead>
+            <tbody id="menu-hot-body"><tr><td colspan="4" style="text-align:center;color:var(--gray);padding:1.5rem">Loading...</td></tr></tbody></table>
+          </div>
         </div>
-        <div id="menu-hot-list" class="table-wrap">
-          <table><thead><tr><th>Item</th><th>Description</th><th>Available</th></tr></thead>
-          <tbody id="menu-hot-body"><tr><td colspan="3" style="text-align:center;color:var(--gray);padding:1.5rem">Loading...</td></tr></tbody></table>
+        <div id="menu-iced-section">
+          <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.85rem">
+            <span style="font-size:1.2rem">🧊</span>
+            <span style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:0.05em">Iced Drinks</span>
+            <span style="font-size:0.65rem;padding:0.2rem 0.6rem;border-radius:20px;background:rgba(80,160,255,0.1);color:#66aaff;border:1px solid rgba(80,160,255,0.25)">16 oz</span>
+          </div>
+          <div class="table-wrap">
+            <table><thead><tr><th>Item</th><th>Description</th><th>Available</th><th>Suggest Edit</th></tr></thead>
+            <tbody id="menu-iced-body"><tr><td colspan="4" style="text-align:center;color:var(--gray);padding:1.5rem">Loading...</td></tr></tbody></table>
+          </div>
         </div>
       </div>
 
-      <div id="menu-iced-section">
-        <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.85rem">
-          <span style="font-size:1.2rem">🧊</span>
-          <span style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:0.05em">Iced Drinks</span>
-          <span style="font-size:0.65rem;padding:0.2rem 0.6rem;border-radius:20px;background:rgba(80,160,255,0.1);color:#66aaff;border:1px solid rgba(80,160,255,0.25)">16 oz</span>
-        </div>
-        <div class="table-wrap">
-          <table><thead><tr><th>Item</th><th>Description</th><th>Available</th></tr></thead>
-          <tbody id="menu-iced-body"><tr><td colspan="3" style="text-align:center;color:var(--gray);padding:1.5rem">Loading...</td></tr></tbody></table>
+      <!-- Tab: Suggest Changes -->
+      <div id="menu-tab-suggest" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;align-items:start">
+          <div style="background:var(--card);border:1px solid var(--border-dim);border-radius:14px;padding:1.75rem">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:0.05em;margin-bottom:1.25rem" id="suggest-form-title">Suggest a New Item</div>
+            <input type="hidden" id="suggest-type" value="new" />
+            <input type="hidden" id="suggest-target-id" value="" />
+            <div class="form-group">
+              <label>Drink Name</label>
+              <input type="text" id="suggest-name" placeholder="e.g. Brown Sugar Oat Latte" />
+            </div>
+            <div class="form-group">
+              <label>Description</label>
+              <input type="text" id="suggest-desc" placeholder="Short description for the menu" />
+            </div>
+            <div class="form-group">
+              <label>Category</label>
+              <select id="suggest-category">
+                <option>Coffee</option>
+                <option>Non-Coffee</option>
+                <option>Iced</option>
+                <option>Seasonal</option>
+              </select>
+            </div>
+            <div style="display:flex;gap:1.5rem;margin-bottom:1.1rem">
+              <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;text-transform:none;letter-spacing:0;font-size:0.88rem;color:var(--white)">
+                <input type="checkbox" id="suggest-is-hot" checked style="width:auto;padding:0;accent-color:var(--red)" /> ☕ Available Hot
+              </label>
+              <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;text-transform:none;letter-spacing:0;font-size:0.88rem;color:var(--white)">
+                <input type="checkbox" id="suggest-is-iced" style="width:auto;padding:0;accent-color:#4488ff" /> 🧊 Available Iced
+              </label>
+            </div>
+            <div class="form-group">
+              <label>Notes for Admin <span style="color:var(--gray);font-weight:300">(optional)</span></label>
+              <input type="text" id="suggest-notes" placeholder="Why you're suggesting this, ingredients needed, etc." />
+            </div>
+            <button class="btn-primary" onclick="submitSuggestion()">Submit for Approval</button>
+            <button class="btn-secondary" id="suggest-cancel-btn" style="display:none;margin-top:0.75rem" onclick="resetSuggestForm()">Cancel Edit</button>
+            <div class="msg" id="suggest-msg"></div>
+          </div>
+          <div style="background:var(--card);border:1px solid var(--border-dim);border-radius:14px;padding:1.75rem">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:0.05em;margin-bottom:0.75rem">How it works</div>
+            <div style="font-size:0.85rem;color:var(--light-gray);line-height:1.8">
+              <div style="margin-bottom:0.75rem">✏️ <strong style="color:var(--white)">Suggest new items</strong> or edits to existing ones using this form.</div>
+              <div style="margin-bottom:0.75rem">👀 <strong style="color:var(--white)">Admin reviews</strong> your submission before anything goes live.</div>
+              <div style="margin-bottom:0.75rem">✅ <strong style="color:var(--white)">Approved items</strong> appear on the menu immediately.</div>
+              <div>💬 <strong style="color:var(--white)">If rejected</strong>, you'll see a note from the admin explaining why.</div>
+            </div>
+            <div style="margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--border-dim)">
+              <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);margin-bottom:0.75rem">To suggest an edit to an existing item</div>
+              <div style="font-size:0.83rem;color:var(--light-gray);line-height:1.6">Go to the <strong style="color:var(--white)">Availability tab</strong> and click <strong style="color:var(--white)">"Suggest Edit"</strong> next to any item. It will pre-fill this form with the current details.</div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div style="margin-top:1.25rem;font-size:0.8rem;color:var(--gray);background:var(--card);border-radius:8px;padding:0.85rem 1rem;border:1px solid var(--border-dim)">
-        💡 To add, remove, or edit menu items (name, description, Square links), contact an admin.
+      <!-- Tab: My Submissions -->
+      <div id="menu-tab-my-submissions" style="display:none">
+        <div id="my-submissions-container"><div style="color:var(--gray);text-align:center;padding:3rem">Loading...</div></div>
       </div>
     </div>
 
@@ -502,16 +576,23 @@
     btn.disabled=false; btn.textContent='Submit Weekly Summary →';
   }
 
+  // ── Menu tabs ──
+  function switchMenuTab(tab) {
+    ['availability','suggest','my-submissions'].forEach(t=>{
+      document.getElementById('menu-tab-'+t).style.display = t===tab?'block':'none';
+      document.getElementById('tab-'+t)?.classList.toggle('active', t===tab);
+    });
+    if(tab==='my-submissions') loadMySubmissions();
+  }
+
   async function loadMenuAvailability() {
     const {data} = await sb.from('menu_items').select('*').order('sort_order');
     if(!data) return;
-
     const hotItems  = data.filter(i => i.is_hot !== false && i.is_iced !== true);
     const icedItems = data.filter(i => i.is_iced === true);
-
     const renderRows = (items, tbodyId) => {
       const tbody = document.getElementById(tbodyId);
-      if(!items.length){tbody.innerHTML=`<tr><td colspan="3" style="text-align:center;color:var(--gray);padding:1.5rem">No items in this category.</td></tr>`;return;}
+      if(!items.length){tbody.innerHTML=`<tr><td colspan="4" style="text-align:center;color:var(--gray);padding:1.5rem">No items in this category.</td></tr>`;return;}
       tbody.innerHTML = items.map(item=>`
         <tr>
           <td><strong>${item.name}</strong></td>
@@ -522,25 +603,114 @@
             </button>
             <span style="font-size:0.75rem;color:var(--gray);margin-left:0.6rem">${item.available?'Available':'Unavailable'}</span>
           </td>
+          <td>
+            <button class="icon-btn" onclick='prefillEditForm(${JSON.stringify(item).replace(/'/g,"&#39;")})'>✏️ Suggest Edit</button>
+          </td>
         </tr>`).join('');
     };
-
     renderRows(hotItems, 'menu-hot-body');
     renderRows(icedItems, 'menu-iced-body');
+    // Load pending submission count
+    loadSubmissionBadge();
+  }
+
+  async function loadSubmissionBadge() {
+    const {data:{user}} = await sb.auth.getUser();
+    const {count} = await sb.from('menu_submissions').select('*',{count:'exact',head:true}).eq('student_id',user.id).eq('status','pending');
+    const badge = document.getElementById('submission-count');
+    if(count>0){badge.textContent=count;badge.style.display='inline';}
+    else{badge.style.display='none';}
   }
 
   async function toggleMenuAvail(id, current) {
     const newVal = !current;
     await sb.from('menu_items').update({available: newVal}).eq('id', id);
-    // Update toggle visually without full reload
     const btn = document.getElementById('menu-toggle-'+id);
-    if(btn) {
+    if(btn){
       btn.classList.toggle('on', newVal);
       const label = btn.nextElementSibling;
-      if(label) label.textContent = newVal ? 'Available' : 'Unavailable';
-      // Update onclick for next click
-      btn.setAttribute('onclick', `toggleMenuAvail('${id}', ${newVal})`);
+      if(label) label.textContent = newVal?'Available':'Unavailable';
+      btn.setAttribute('onclick',`toggleMenuAvail('${id}', ${newVal})`);
     }
+  }
+
+  function prefillEditForm(item) {
+    document.getElementById('suggest-type').value = 'edit';
+    document.getElementById('suggest-target-id').value = item.id;
+    document.getElementById('suggest-form-title').textContent = `Suggest Edit: ${item.name}`;
+    document.getElementById('suggest-name').value = item.name||'';
+    document.getElementById('suggest-desc').value = item.description||'';
+    document.getElementById('suggest-category').value = item.category||'Coffee';
+    document.getElementById('suggest-is-hot').checked = item.is_hot !== false;
+    document.getElementById('suggest-is-iced').checked = item.is_iced === true;
+    document.getElementById('suggest-notes').value = '';
+    document.getElementById('suggest-cancel-btn').style.display = 'block';
+    document.getElementById('suggest-msg').style.display = 'none';
+    switchMenuTab('suggest');
+  }
+
+  function resetSuggestForm() {
+    document.getElementById('suggest-type').value = 'new';
+    document.getElementById('suggest-target-id').value = '';
+    document.getElementById('suggest-form-title').textContent = 'Suggest a New Item';
+    document.getElementById('suggest-name').value = '';
+    document.getElementById('suggest-desc').value = '';
+    document.getElementById('suggest-category').value = 'Coffee';
+    document.getElementById('suggest-is-hot').checked = true;
+    document.getElementById('suggest-is-iced').checked = false;
+    document.getElementById('suggest-notes').value = '';
+    document.getElementById('suggest-cancel-btn').style.display = 'none';
+    document.getElementById('suggest-msg').style.display = 'none';
+  }
+
+  async function submitSuggestion() {
+    const {data:{user}} = await sb.auth.getUser();
+    const meta = user.user_metadata;
+    const name = document.getElementById('suggest-name').value.trim();
+    const m = document.getElementById('suggest-msg');
+    if(!name){m.textContent='Please enter a drink name.';m.className='msg error';return;}
+    const payload = {
+      student_id: user.id,
+      student_name: (meta.first_name||'')+ ' '+(meta.last_name||''),
+      type: document.getElementById('suggest-type').value,
+      target_item_id: document.getElementById('suggest-target-id').value||null,
+      proposed_name: name,
+      proposed_description: document.getElementById('suggest-desc').value,
+      proposed_category: document.getElementById('suggest-category').value,
+      proposed_is_hot: document.getElementById('suggest-is-hot').checked,
+      proposed_is_iced: document.getElementById('suggest-is-iced').checked,
+      notes: document.getElementById('suggest-notes').value,
+      status: 'pending'
+    };
+    const {error} = await sb.from('menu_submissions').insert(payload);
+    if(error){m.textContent='Error: '+error.message;m.className='msg error';}
+    else{
+      m.textContent='✓ Submitted! Admin will review it shortly.';m.className='msg success';
+      resetSuggestForm();
+      loadSubmissionBadge();
+    }
+  }
+
+  async function loadMySubmissions() {
+    const {data:{user}} = await sb.auth.getUser();
+    const {data} = await sb.from('menu_submissions').select('*').eq('student_id',user.id).order('created_at',{ascending:false});
+    const container = document.getElementById('my-submissions-container');
+    if(!data?.length){container.innerHTML='<div style="color:var(--gray);text-align:center;padding:3rem;background:var(--card);border-radius:12px;border:1px solid var(--border-dim)">No submissions yet. Use the Suggest Changes tab to propose a new item or edit.</div>';return;}
+    const statusLabel = {pending:'⏳ Pending Review', approved:'✅ Approved', rejected:'✕ Rejected'};
+    const statusColor = {pending:'#ff9800', approved:'#4caf50', rejected:'#666'};
+    container.innerHTML = data.map(s=>`
+      <div class="submission-card status-${s.status}">
+        <div>
+          <div style="font-weight:500;font-size:0.95rem;margin-bottom:0.2rem">${s.proposed_name} <span style="font-size:0.75rem;color:var(--gray);font-weight:400">${s.type==='edit'?'(edit suggestion)':'(new item)'}</span></div>
+          <div style="font-size:0.8rem;color:var(--gray);margin-bottom:0.6rem">${s.proposed_description||''} · ${s.proposed_category||''} ${s.proposed_is_hot?'☕':''}${s.proposed_is_iced?'🧊':''}</div>
+          ${s.notes?`<div style="font-size:0.8rem;color:var(--light-gray)">Your note: ${s.notes}</div>`:''}
+          ${s.admin_note?`<div style="font-size:0.8rem;color:${statusColor[s.status]};margin-top:0.5rem;background:rgba(255,255,255,0.03);border-radius:6px;padding:0.5rem 0.75rem">Admin: ${s.admin_note}</div>`:''}
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:0.78rem;font-weight:500;color:${statusColor[s.status]}">${statusLabel[s.status]}</div>
+          <div style="font-size:0.72rem;color:var(--gray);margin-top:0.3rem">${new Date(s.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>
+        </div>
+      </div>`).join('');
   }
     const {data} = await sb.from('weekly_summaries').select('*').eq('student_id',currentUser.id).order('week_of',{ascending:false}).limit(5);
     const container=document.getElementById('past-summaries');
