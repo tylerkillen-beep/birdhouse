@@ -97,6 +97,35 @@
     .past-summary-item { background: var(--card); border: 1px solid var(--border-dim); border-radius: 10px; padding: 1.1rem 1.25rem; margin-bottom: 0.6rem; display: flex; justify-content: space-between; align-items: center; }
     .past-summary-item:hover { border-color: var(--border); }
 
+    /* Order status */
+    .order-card { background: var(--card); border: 1px solid var(--border-dim); border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 0.75rem; display: grid; grid-template-columns: 1fr auto; gap: 1rem; align-items: center; transition: border-color 0.2s; }
+    .order-card:hover { border-color: var(--border); }
+    .order-card.status-pending { border-left: 3px solid #ff9800; }
+    .order-card.status-paid { border-left: 3px solid var(--red); }
+    .order-card.status-delivered { border-left: 3px solid #4caf50; opacity: 0.6; }
+    .order-card.status-cancelled { border-left: 3px solid #555; opacity: 0.4; }
+    .order-name { font-weight: 500; font-size: 0.95rem; margin-bottom: 0.2rem; }
+    .order-meta { font-size: 0.78rem; color: var(--gray); line-height: 1.7; }
+    .order-meta strong { color: var(--light-gray); }
+    .status-badge { display: inline-block; padding: 0.25rem 0.7rem; border-radius: 20px; font-size: 0.7rem; font-weight: 500; margin-bottom: 0.75rem; }
+    .badge-pending  { background: rgba(255,152,0,0.1);  color: #ff9800; border: 1px solid rgba(255,152,0,0.2); }
+    .badge-paid     { background: rgba(204,0,0,0.1);    color: var(--red-bright); border: 1px solid var(--border); }
+    .badge-delivered{ background: rgba(0,200,80,0.1);   color: #4caf50; border: 1px solid rgba(0,200,80,0.2); }
+    .badge-cancelled{ background: rgba(255,255,255,0.05); color: var(--gray); border: 1px solid var(--border-dim); }
+    .order-actions { display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-end; }
+    .btn-deliver { background: rgba(0,200,80,0.1); color: #4caf50; border: 1px solid rgba(0,200,80,0.25); border-radius: 7px; padding: 0.5rem 1rem; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; font-family: 'DM Sans', sans-serif; font-weight: 500; white-space: nowrap; }
+    .btn-deliver:hover { background: rgba(0,200,80,0.2); }
+    .btn-cancel-order { background: none; color: var(--gray); border: 1px solid var(--border-dim); border-radius: 7px; padding: 0.5rem 1rem; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; font-family: 'DM Sans', sans-serif; white-space: nowrap; }
+    .btn-cancel-order:hover { color: var(--red-bright); border-color: var(--border); }
+    .order-filter-row { display: flex; gap: 0.6rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+    .order-filter { background: transparent; border: 1px solid var(--border-dim); border-radius: 20px; padding: 0.32rem 0.85rem; font-size: 0.78rem; color: var(--gray); cursor: pointer; transition: all 0.2s; font-family: 'DM Sans', sans-serif; }
+    .order-filter.active { background: rgba(204,0,0,0.12); border-color: var(--border); color: var(--red-bright); }
+    .order-filter:hover { border-color: var(--border); color: var(--white); }
+    .avail-toggle { width:42px; height:24px; border-radius:12px; border:none; background:#333; position:relative; cursor:pointer; transition:background 0.2s; flex-shrink:0; }
+    .avail-toggle::after { content:''; position:absolute; width:18px; height:18px; border-radius:50%; background:white; top:3px; left:3px; transition:left 0.2s; }
+    .avail-toggle.on { background:var(--red); }
+    .avail-toggle.on::after { left:21px; }
+
     @media (max-width: 900px) { .layout{grid-template-columns:1fr} .sidebar{display:none} .main{padding:1.5rem} .stats-grid{grid-template-columns:1fr 1fr} .schedule-grid{grid-template-columns:1fr 1fr} }
   </style>
 </head>
@@ -110,6 +139,7 @@
     </div>
     <nav>
       <a class="nav-item active" onclick="showSection('overview',this)">📊 Overview</a>
+      <a class="nav-item" onclick="showSection('orders',this)">🧾 Active Orders <span id="pending-badge" style="display:none;background:var(--red);color:white;font-size:0.6rem;padding:0.1rem 0.45rem;border-radius:10px;margin-left:auto"></span></a>
       <a class="nav-item" onclick="showSection('schedule',this)">🗓️ My Schedule</a>
       <a class="nav-item" onclick="showSection('inventory',this)">📦 Inventory</a>
       <a class="nav-item" onclick="showSection('sales',this)">📈 Sales Data</a>
@@ -139,6 +169,20 @@
     </div>
 
     <!-- Schedule -->
+    <!-- Active Orders -->
+    <div id="section-orders" style="display:none">
+      <div class="page-eyebrow">Team Hub</div>
+      <h1 class="page-title">Active Orders</h1>
+      <div class="order-filter-row">
+        <button class="order-filter active" onclick="filterOrders('active',this)">🔴 Active</button>
+        <button class="order-filter" onclick="filterOrders('paid',this)">💳 Paid</button>
+        <button class="order-filter" onclick="filterOrders('pending',this)">⏳ Pending Payment</button>
+        <button class="order-filter" onclick="filterOrders('delivered',this)">✅ Delivered</button>
+        <button class="order-filter" onclick="filterOrders('all',this)">All</button>
+      </div>
+      <div id="orders-container"><div style="color:var(--gray);text-align:center;padding:3rem">Loading orders...</div></div>
+    </div>
+
     <div id="section-schedule" style="display:none">
       <div class="page-eyebrow">My Schedule</div>
       <h1 class="page-title">This Week</h1>
@@ -271,10 +315,100 @@
     document.getElementById('user-display-name').textContent = firstName+' '+(meta.last_name||'');
     document.getElementById('greeting-name').textContent = firstName;
     document.getElementById('user-role-badge').textContent = meta.role==='admin'?'Admin':'Student Staff';
-    loadSchedule(); loadInventory(); loadSales();
+    loadSchedule(); loadInventory(); loadSales(); loadOrders();
     const today=new Date(); const monday=new Date(today);
     monday.setDate(today.getDate()-(today.getDay()===0?6:today.getDay()-1));
     document.getElementById('summary-week').value=monday.toISOString().split('T')[0];
+  }
+
+  // ── Orders ──
+  let allOrders = [], currentOrderFilter = 'active';
+
+  async function loadOrders() {
+    const {data, error} = await sb.from('orders').select('*').order('created_at', {ascending: false}).limit(100);
+    allOrders = data || [];
+    updatePendingBadge();
+    renderOrders(currentOrderFilter);
+  }
+
+  function updatePendingBadge() {
+    const active = allOrders.filter(o => o.status === 'pending' || o.status === 'paid').length;
+    const badge = document.getElementById('pending-badge');
+    if(active > 0) { badge.textContent = active; badge.style.display = 'inline'; }
+    else { badge.style.display = 'none'; }
+  }
+
+  function filterOrders(filter, btn) {
+    currentOrderFilter = filter;
+    document.querySelectorAll('.order-filter').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderOrders(filter);
+  }
+
+  function renderOrders(filter) {
+    let filtered = allOrders;
+    if(filter === 'active')    filtered = allOrders.filter(o => o.status === 'pending' || o.status === 'paid');
+    else if(filter === 'paid')     filtered = allOrders.filter(o => o.status === 'paid');
+    else if(filter === 'pending')  filtered = allOrders.filter(o => o.status === 'pending');
+    else if(filter === 'delivered')filtered = allOrders.filter(o => o.status === 'delivered');
+
+    const container = document.getElementById('orders-container');
+    if(!filtered.length) {
+      container.innerHTML = `<div style="color:var(--gray);text-align:center;padding:3rem;background:var(--card);border-radius:12px;border:1px solid var(--border-dim)">No ${filter === 'all' ? '' : filter} orders right now.</div>`;
+      return;
+    }
+
+    container.innerHTML = filtered.map(order => {
+      const badgeClass = `badge-${order.status}`;
+      const statusLabel = {pending:'⏳ Pending Payment', paid:'💳 Paid — Ready to Make', delivered:'✅ Delivered', cancelled:'✕ Cancelled'}[order.status] || order.status;
+      const time = new Date(order.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+      const date = new Date(order.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+
+      const actions = order.status !== 'delivered' && order.status !== 'cancelled' ? `
+        <div class="order-actions">
+          ${order.status !== 'delivered' ? `<button class="btn-deliver" onclick="markDelivered('${order.id}')">✓ Mark Delivered</button>` : ''}
+          ${order.status !== 'cancelled' ? `<button class="btn-cancel-order" onclick="cancelOrder('${order.id}')">Cancel</button>` : ''}
+        </div>` : '';
+
+      return `<div class="order-card status-${order.status}" id="order-card-${order.id}">
+        <div>
+          <div class="order-name">${order.drink_name} <span style="color:var(--gray);font-weight:400;font-size:0.82rem">— ${order.customer_name}</span></div>
+          <div class="order-meta" style="margin:0.3rem 0 0.6rem">
+            <strong>Size:</strong> ${order.size||'—'} &nbsp;·&nbsp;
+            <strong>Milk:</strong> ${order.milk||'—'} &nbsp;·&nbsp;
+            <strong>Syrup:</strong> ${order.syrup||'None'}
+            ${order.special_instructions ? `<br><strong>Note:</strong> ${order.special_instructions}` : ''}
+          </div>
+          <div class="order-meta">
+            <strong>Deliver to:</strong> ${order.room||'—'} &nbsp;·&nbsp;
+            <strong>Time:</strong> ${order.delivery_time||'—'} &nbsp;·&nbsp;
+            <strong>Day:</strong> ${order.delivery_day||'—'}
+          </div>
+          <div style="margin-top:0.75rem">
+            <span class="status-badge ${badgeClass}">${statusLabel}</span>
+            <span style="font-size:0.72rem;color:var(--gray);margin-left:0.5rem">Ordered ${date} at ${time}</span>
+          </div>
+        </div>
+        ${actions}
+      </div>`;
+    }).join('');
+  }
+
+  async function markDelivered(id) {
+    await sb.from('orders').update({status:'delivered'}).eq('id',id);
+    const order = allOrders.find(o=>o.id===id);
+    if(order) order.status = 'delivered';
+    updatePendingBadge();
+    renderOrders(currentOrderFilter);
+  }
+
+  async function cancelOrder(id) {
+    if(!confirm('Cancel this order?')) return;
+    await sb.from('orders').update({status:'cancelled'}).eq('id',id);
+    const order = allOrders.find(o=>o.id===id);
+    if(order) order.status = 'cancelled';
+    updatePendingBadge();
+    renderOrders(currentOrderFilter);
   }
 
   async function loadSchedule() {
@@ -421,6 +555,7 @@
     if(el)el.classList.add('active');
     if(name==='summary')loadPastSummaries();
     if(name==='menu')loadMenuAvailability();
+    if(name==='orders')loadOrders();
   }
 
   async function signOut() { await sb.auth.signOut(); window.location.href='index.html'; }
