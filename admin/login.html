@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Birdhouse — Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --black: #0a0a0a; --red: #cc0000; --red-bright: #ff1a1a;
+      --gray: #555; --light-gray: #999; --white: #f0f0f0;
+      --card: #161616; --border: rgba(204,0,0,0.2); --border-dim: rgba(255,255,255,0.07);
+    }
+    body {
+      background: var(--black); color: var(--white); font-family: 'DM Sans', sans-serif;
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    }
+    body::before {
+      content: ''; position: fixed; inset: 0;
+      background-image: linear-gradient(rgba(204,0,0,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(204,0,0,0.03) 1px, transparent 1px);
+      background-size: 40px 40px; pointer-events: none;
+    }
+    /* Ambient glow */
+    body::after {
+      content: ''; position: fixed;
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(204,0,0,0.08) 0%, transparent 70%);
+      border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%,-50%);
+      pointer-events: none;
+    }
+
+    .login-wrap {
+      position: relative; z-index: 1;
+      width: 420px; max-width: 95vw;
+    }
+
+    .login-logo {
+      text-align: center; margin-bottom: 2.5rem;
+    }
+    .login-logo img {
+      height: 72px;
+      filter: drop-shadow(0 0 20px rgba(204,0,0,0.7));
+      animation: float 4s ease-in-out infinite;
+    }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+
+    .login-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2.5rem;
+      box-shadow: 0 0 60px rgba(204,0,0,0.08);
+    }
+
+    .login-eyebrow {
+      font-size: 0.62rem; letter-spacing: 0.22em; text-transform: uppercase;
+      color: var(--red); margin-bottom: 0.4rem;
+    }
+    .login-title {
+      font-family: 'Bebas Neue', sans-serif; font-size: 2.4rem;
+      letter-spacing: 0.05em; margin-bottom: 0.4rem;
+    }
+    .login-sub {
+      font-size: 0.82rem; color: var(--gray); margin-bottom: 2rem; line-height: 1.5;
+    }
+
+    .admin-warning {
+      background: rgba(204,0,0,0.07); border: 1px solid rgba(204,0,0,0.2);
+      border-radius: 8px; padding: 0.85rem 1rem; margin-bottom: 1.75rem;
+      font-size: 0.8rem; color: var(--light-gray); line-height: 1.5;
+      display: flex; gap: 0.6rem; align-items: flex-start;
+    }
+
+    .form-group { margin-bottom: 1.1rem; }
+    label {
+      display: block; font-size: 0.68rem; font-weight: 500; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--gray); margin-bottom: 0.4rem;
+    }
+    input {
+      width: 100%; padding: 0.875rem 1rem; border: 1px solid var(--border-dim);
+      border-radius: 8px; background: #0d0d0d; font-family: 'DM Sans', sans-serif;
+      font-size: 0.93rem; color: var(--white); outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    input:focus { border-color: var(--red); box-shadow: 0 0 0 3px rgba(204,0,0,0.12); }
+    input::placeholder { color: #444; }
+
+    .btn-primary {
+      width: 100%; padding: 1rem; background: var(--red); color: white; border: none;
+      border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 0.93rem;
+      font-weight: 500; cursor: pointer; transition: all 0.2s; margin-top: 0.5rem;
+      letter-spacing: 0.06em; text-transform: uppercase;
+    }
+    .btn-primary:hover { background: var(--red-bright); box-shadow: 0 0 20px rgba(204,0,0,0.4); transform: translateY(-1px); }
+    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+    .msg { margin-top: 1rem; padding: 0.85rem 1rem; border-radius: 8px; font-size: 0.83rem; display: none; }
+    .msg.error { background: rgba(204,0,0,0.1); border: 1px solid rgba(204,0,0,0.3); color: #ff6b6b; display: block; }
+
+    .back-link {
+      display: block; text-align: center; margin-top: 1.5rem;
+      font-size: 0.78rem; color: var(--gray); text-decoration: none;
+      letter-spacing: 0.06em; transition: color 0.2s;
+    }
+    .back-link:hover { color: var(--light-gray); }
+  </style>
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-logo">
+      <img src="../logo.png" alt="The Birdhouse" />
+    </div>
+    <div class="login-card">
+      <div class="login-eyebrow">Super Admin</div>
+      <h1 class="login-title">Admin Login.</h1>
+      <p class="login-sub">Restricted access. For authorized administrators only.</p>
+      <div class="admin-warning">
+        🔒 This area is for the business owner only. Student staff should use the Team Hub instead.
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="email" placeholder="admin@example.com" autocomplete="email" />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="password" placeholder="••••••••" autocomplete="current-password" />
+      </div>
+      <button class="btn-primary" id="login-btn" onclick="handleLogin()">Sign In →</button>
+      <div class="msg" id="login-msg"></div>
+    </div>
+    <a class="back-link" href="../index.html">← Back to home</a>
+  </div>
+
+  <script>
+    const sb = supabase.createClient('https://ljukrhneikqbabcmcpet.supabase.co','sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn');
+
+    // If already logged in as admin, go straight to dashboard
+    sb.auth.getSession().then(({data}) => {
+      if(data.session?.user?.user_metadata?.role === 'admin') {
+        window.location.href = 'index.html';
+      }
+    });
+
+    async function handleLogin() {
+      const btn = document.getElementById('login-btn');
+      const msg = document.getElementById('login-msg');
+      btn.disabled = true; btn.textContent = 'Signing in...';
+      msg.style.display = 'none';
+
+      const {data, error} = await sb.auth.signInWithPassword({
+        email: document.getElementById('email').value.trim(),
+        password: document.getElementById('password').value
+      });
+
+      if(error) {
+        msg.textContent = error.message; msg.className = 'msg error';
+        btn.disabled = false; btn.textContent = 'Sign In →'; return;
+      }
+
+      if(data.user?.user_metadata?.role !== 'admin') {
+        await sb.auth.signOut();
+        msg.textContent = 'This account does not have admin access.';
+        msg.className = 'msg error';
+        btn.disabled = false; btn.textContent = 'Sign In →'; return;
+      }
+
+      window.location.href = 'index.html';
+    }
+
+    // Allow Enter key to submit
+    document.addEventListener('keydown', e => { if(e.key === 'Enter') handleLogin(); });
+  </script>
+</body>
+</html>
