@@ -144,6 +144,7 @@
     <div class="nav-item" onclick="showSection('summaries',this)">📝 Weekly Summaries</div>
     <div class="nav-item" onclick="showSection('students',this)">👥 Student Accounts</div>
     <div class="nav-section">Menu</div>
+    <div class="nav-item" onclick="showSection('submissions',this)">📬 Pending Submissions <span id="admin-sub-badge" style="display:none;background:var(--red);color:white;font-size:0.6rem;padding:0.1rem 0.45rem;border-radius:10px;margin-left:auto"></span></div>
     <div class="nav-item" onclick="showSection('menu',this)">☕ Menu Manager</div>
     <button class="signout-btn" onclick="signOut()">← Sign Out</button>
   </aside>
@@ -301,6 +302,19 @@
       <p style="color:var(--gray);font-size:0.78rem;margin-top:0.75rem">* Student accounts are managed in Supabase Auth. Role changes take effect on next login.</p>
     </div>
 
+    <!-- ── MENU SUBMISSIONS ── -->
+    <div class="section-panel" id="section-submissions">
+      <div class="page-eyebrow">Menu</div>
+      <h1 class="page-title">Pending Submissions</h1>
+      <div class="filter-row">
+        <button class="filter-btn active" onclick="filterSubmissions('pending',this)">⏳ Pending</button>
+        <button class="filter-btn" onclick="filterSubmissions('approved',this)">✅ Approved</button>
+        <button class="filter-btn" onclick="filterSubmissions('rejected',this)">✕ Rejected</button>
+        <button class="filter-btn" onclick="filterSubmissions('all',this)">All</button>
+      </div>
+      <div id="submissions-container"><div class="empty-state">Loading...</div></div>
+    </div>
+
     <!-- ── MENU MANAGER ── -->
     <div class="section-panel" id="section-menu">
       <div class="page-eyebrow">Menu</div>
@@ -405,6 +419,96 @@
     loadOverview();
     loadStudentDropdown();
     loadSchedule();
+    // Load pending submissions badge
+    sb.from('menu_submissions').select('*',{count:'exact',head:true}).eq('status','pending').then(({count})=>{
+      const badge = document.getElementById('admin-sub-badge');
+      if(count>0){badge.textContent=count;badge.style.display='inline';}
+    });
+  }
+
+  // ── Menu Submissions ──
+  let allSubmissions = [];
+
+  async function loadSubmissions() {
+    const {data} = await sb.from('menu_submissions').select('*').order('created_at',{ascending:false});
+    allSubmissions = data||[];
+    updateAdminSubBadge();
+    renderSubmissions('pending');
+  }
+
+  function updateAdminSubBadge() {
+    const count = allSubmissions.filter(s=>s.status==='pending').length;
+    const badge = document.getElementById('admin-sub-badge');
+    if(count>0){badge.textContent=count;badge.style.display='inline';}
+    else{badge.style.display='none';}
+  }
+
+  function filterSubmissions(status, btn) {
+    document.querySelectorAll('#section-submissions .filter-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    renderSubmissions(status);
+  }
+
+  function renderSubmissions(filter) {
+    const list = filter==='all' ? allSubmissions : allSubmissions.filter(s=>s.status===filter);
+    const container = document.getElementById('submissions-container');
+    if(!list.length){container.innerHTML=`<div class="empty-state">No ${filter==='all'?'':filter} submissions.</div>`;return;}
+    const typeLabel = {new:'New Item', edit:'Edit Suggestion'};
+    const statusColor = {pending:'#ff9800',approved:'#4caf50',rejected:'#666'};
+    container.innerHTML = list.map(s=>`
+      <div class="summary-card" style="border-left:3px solid ${statusColor[s.status]}">
+        <div class="summary-top">
+          <div>
+            <div class="summary-name">${s.proposed_name} <span style="font-size:0.72rem;color:var(--gray);font-weight:400">${typeLabel[s.type]||s.type}</span></div>
+            <div class="summary-meta">By ${s.student_name} · ${new Date(s.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
+          </div>
+          <div style="font-size:0.78rem;font-weight:500;color:${statusColor[s.status]}">${s.status.charAt(0).toUpperCase()+s.status.slice(1)}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+          <div><div class="summary-field-label">Description</div><div class="summary-field-val">${s.proposed_description||'—'}</div></div>
+          <div><div class="summary-field-label">Category & Type</div><div class="summary-field-val">${s.proposed_category||'—'} ${s.proposed_is_hot?'☕':''}${s.proposed_is_iced?'🧊':''}</div></div>
+          ${s.notes?`<div style="grid-column:1/-1"><div class="summary-field-label">Student Notes</div><div class="summary-field-val">${s.notes}</div></div>`:''}
+        </div>
+        ${s.status==='pending'?`
+          <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap">
+            <button class="btn-primary" style="padding:0.55rem 1.25rem;font-size:0.82rem" onclick="approveSubmission('${s.id}')">✓ Approve & Add to Menu</button>
+            <button class="btn-ghost" style="padding:0.55rem 1.25rem;font-size:0.82rem" onclick="rejectSubmission('${s.id}')">✕ Reject</button>
+          </div>` : s.admin_note ? `<div style="font-size:0.82rem;color:var(--light-gray);padding:0.6rem 0.85rem;background:rgba(255,255,255,0.03);border-radius:6px">Admin note: ${s.admin_note}</div>` : ''}
+      </div>`).join('');
+  }
+
+  async function approveSubmission(id) {
+    const sub = allSubmissions.find(s=>s.id===id);
+    if(!sub) return;
+    // Add or update menu item
+    const payload = {
+      name: sub.proposed_name,
+      description: sub.proposed_description,
+      category: sub.proposed_category,
+      is_hot: sub.proposed_is_hot,
+      is_iced: sub.proposed_is_iced,
+      available: true
+    };
+    if(sub.type==='edit' && sub.target_item_id) {
+      await sb.from('menu_items').update(payload).eq('id', sub.target_item_id);
+    } else {
+      await sb.from('menu_items').insert({...payload, sort_order:0});
+    }
+    await sb.from('menu_submissions').update({status:'approved', reviewed_at: new Date().toISOString()}).eq('id',id);
+    sub.status='approved';
+    updateAdminSubBadge();
+    renderSubmissions(document.querySelector('#section-submissions .filter-btn.active')?.dataset.filter||'pending');
+    loadMenu();
+  }
+
+  async function rejectSubmission(id) {
+    const note = prompt('Optional: Leave a note for the student explaining why (or leave blank):');
+    if(note===null) return; // cancelled
+    await sb.from('menu_submissions').update({status:'rejected', admin_note: note||null, reviewed_at: new Date().toISOString()}).eq('id',id);
+    const sub = allSubmissions.find(s=>s.id===id);
+    if(sub){sub.status='rejected';sub.admin_note=note;}
+    updateAdminSubBadge();
+    renderSubmissions(document.querySelector('#section-submissions .filter-btn.active')?.dataset.filter||'pending');
   }
 
   // ── Admin Orders ──
@@ -808,6 +912,7 @@
     if(name==='menu')      loadMenu();
     if(name==='schedule')  loadSchedule();
     if(name==='orders')    loadAdminOrders();
+    if(name==='submissions') loadSubmissions();
   }
 
   async function signOut() { await sb.auth.signOut(); window.location.href='login.html'; }
