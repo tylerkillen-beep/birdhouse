@@ -50,13 +50,33 @@
 
     /* Schedule */
     .schedule-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.75rem; }
-    .schedule-day { background: var(--card); border: 1px solid var(--border-dim); border-radius: 10px; padding: 1rem; text-align: center; transition: border-color 0.2s; }
+    .schedule-day { background: var(--card); border: 1px solid var(--border-dim); border-radius: 10px; padding: 1rem; text-align: center; transition: border-color 0.2s, transform 0.15s; cursor:pointer; }
     .schedule-day.today { border-color: var(--red); background: rgba(204,0,0,0.05); }
+    .schedule-day:hover { border-color:rgba(204,0,0,0.3); transform:translateY(-2px); }
+    .schedule-day.selected-day { border-color:var(--red) !important; box-shadow:0 0 16px rgba(204,0,0,0.2); }
     .day-name { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--light-gray); margin-bottom: 0.3rem; }
     .day-date { font-size: 0.68rem; color: var(--gray); margin-bottom: 0.5rem; }
     .day-shift { font-size: 0.85rem; font-weight: 500; color: var(--red-bright); }
     .day-time { font-size: 0.72rem; color: var(--gray); margin-top: 0.2rem; }
     .day-off { color: rgba(255,255,255,0.15); font-size: 0.8rem; }
+    .checklist-panel { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:1.5rem; margin-top:1.25rem; animation:fadeIn 0.2s ease; }
+    .checklist-header { display:flex; align-items:center; gap:1rem; margin-bottom:1.25rem; flex-wrap:wrap; }
+    .checklist-pos-badge { font-family:'Bebas Neue',sans-serif; font-size:1.4rem; letter-spacing:0.05em; }
+    .checklist-focus { font-size:0.72rem; padding:0.2rem 0.65rem; border-radius:20px; background:rgba(204,0,0,0.1); color:var(--red-bright); border:1px solid var(--border); }
+    .checklist-items { list-style:none; }
+    .checklist-item { display:flex; gap:0.85rem; align-items:flex-start; padding:0.65rem 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+    .checklist-item:last-child { border-bottom:none; }
+    .checklist-cb { width:18px; height:18px; border-radius:4px; border:1.5px solid rgba(255,255,255,0.15); background:transparent; cursor:pointer; flex-shrink:0; margin-top:0.15rem; -webkit-appearance:none; appearance:none; transition:all 0.2s; }
+    .checklist-cb:checked { background:var(--red); border-color:var(--red); background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 10'%3E%3Cpath d='M1 5l3.5 3.5L11 1' stroke='white' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:center; background-size:10px; }
+    .checklist-label { font-size:0.86rem; color:var(--light-gray); line-height:1.5; cursor:pointer; flex:1; }
+    .checklist-label.checked { color:rgba(255,255,255,0.2); text-decoration:line-through; }
+    .sub-list { margin-top:0.5rem; padding-left:1rem; border-left:2px solid rgba(255,255,255,0.05); }
+    .sub-item { display:flex; gap:0.6rem; align-items:flex-start; padding:0.2rem 0; }
+    .sub-cb { width:14px; height:14px; border-radius:3px; border:1px solid rgba(255,255,255,0.1); background:transparent; cursor:pointer; flex-shrink:0; margin-top:0.2rem; -webkit-appearance:none; appearance:none; transition:all 0.2s; }
+    .sub-cb:checked { background:rgba(204,0,0,0.5); border-color:var(--red); }
+    .sub-label { font-size:0.78rem; color:rgba(255,255,255,0.35); line-height:1.5; cursor:pointer; }
+    .sub-label.checked { color:rgba(255,255,255,0.15); text-decoration:line-through; }
+    @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 
     /* Inventory */
     .table-wrap { background: var(--card); border: 1px solid var(--border-dim); border-radius: 12px; overflow: hidden; }
@@ -214,6 +234,22 @@
       <!-- No assignment state -->
       <div id="no-assignment" style="display:none;color:var(--gray);text-align:center;padding:3rem;background:var(--card);border-radius:14px;border:1px solid var(--border-dim)">
         No schedule published for this week yet — check back soon!
+      </div>
+
+      <!-- Daily checklist panel — shown when a day is clicked -->
+      <div class="checklist-panel" id="checklist-panel" style="display:none">
+        <div class="checklist-header">
+          <div>
+            <div style="font-size:0.62rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--red);margin-bottom:0.2rem" id="cl-date-label">—</div>
+            <div class="checklist-pos-badge" id="cl-position-label">—</div>
+            <div style="font-size:0.78rem;color:var(--gray);margin-top:0.2rem" id="cl-location-label">—</div>
+          </div>
+          <div style="margin-left:auto">
+            <span class="checklist-focus" id="cl-focus-label">—</span>
+          </div>
+        </div>
+        <ul class="checklist-items" id="cl-items"></ul>
+        <div style="margin-top:1rem;font-size:0.75rem;color:rgba(255,255,255,0.15);text-align:center">Checkboxes are for your session only and reset each day.</div>
       </div>
     </div>
 
@@ -580,10 +616,11 @@
       const working = hasPositions && isWorking(assignment.role, i);
       const inClassDay = assignment.role==='mathews' && !working;
       const position = posMap[dateStr];
+      const locationLabel = assignment.role==='birdhouse'?'The Birdhouse':assignment.role==='mathews'?'Mathews':'';
 
       if(!hasPositions || inClassDay) {
-        if(dateStr >= today.toISOString().split('T')[0] && !nextShift && (assignment.role==='birdhouse'||assignment.role==='mathews'&&working)) nextShift={day:dayName};
-        return `<div class="schedule-day ${isToday?'today':''}">
+        return `<div class="schedule-day ${isToday?'today':''}" id="sday-${dateStr}"
+          onclick="showChecklist('${dateStr}','${dayName}','${position||''}','${locationLabel}',false)">
           <div class="day-name">${dayName.slice(0,3)}</div>
           <div class="day-date">${date.getMonth()+1}/${date.getDate()}</div>
           <div class="day-off">${inClassDay?'In Class':'No Shift'}</div>
@@ -591,11 +628,13 @@
       }
 
       if(dateStr >= today.toISOString().split('T')[0] && !nextShift) nextShift={day:dayName,pos:position};
-      return `<div class="schedule-day ${isToday?'today':''}">
+      return `<div class="schedule-day ${isToday?'today':''}" id="sday-${dateStr}"
+        onclick="showChecklist('${dateStr}','${dayName}','${position||'tbd'}','${locationLabel}',true)">
         <div class="day-name">${dayName.slice(0,3)}</div>
         <div class="day-date">${date.getMonth()+1}/${date.getDate()}</div>
         <div class="day-shift" style="color:${role.color}">Working</div>
         ${position?`<div class="day-time">${POS_LABELS[position]||position}</div>`:'<div class="day-time" style="color:var(--gray)">TBD</div>'}
+        <div style="font-size:0.6rem;color:rgba(255,255,255,0.2);margin-top:0.3rem">tap for checklist</div>
       </div>`;
     }).join('');
 
@@ -830,6 +869,192 @@
   }
 
   async function signOut() { await sb.auth.signOut(); window.location.href='index.html'; }
+
+  // ── Job Description Checklists ──
+  const JOB_DESC = {
+    cashier: {
+      label: 'Cashier', focus: 'Customer Service',
+      desc: 'Provide friendly, efficient service, handle transactions accurately, and ensure every customer leaves with a positive experience.',
+      tasks: {
+        default: [
+          { text: 'Use Clorox wipe to clean iPad stand', subs: [] },
+          { text: 'Verify all items are correctly loaded into Square', subs: [] },
+          { text: 'Ensure menu is displayed correctly on TV behind Birdhouse', subs: [] },
+          { text: 'Welcome customers — be friendly but focus on service', subs: [] },
+          { text: 'Get customer name, put it on receipt and tape to proper cup', subs: [] },
+        ]
+      }
+    },
+    barista: {
+      label: 'Barista', focus: 'Efficiency',
+      desc: 'Quickly prepare and serve accurate orders, maintaining speed and quality to ensure every drink is at maximum quality.',
+      tasks: {
+        Monday: [
+          { text: 'Clean flavor station — follow directions on machine', subs: [] },
+          { text: 'Ensure flavor stand is fully stocked — read weekly specials', subs: [] },
+          { text: 'Verify cups, lids, straws, etc. are stocked — restock if needed', subs: [] },
+          { text: 'Ensure coffee machine is ready', subs: ['Machine is on — no errors','Milk is stocked and prepared','Flavors are stocked and prepared','Coffee beans are loaded','Hot chocolate mix is loaded','Chai mix is loaded'] },
+          { text: 'Prepare drinks efficiently and correctly — follow specials directions', subs: [] },
+          { text: 'Deliver to customer by name', subs: [] },
+          { text: 'Clean coffee machine at closing — follow directions on machine', subs: [] },
+        ],
+        default: [
+          { text: 'Ensure flavor stand is fully stocked — read weekly specials', subs: [] },
+          { text: 'Verify cups, lids, straws, etc. are stocked — restock if needed', subs: [] },
+          { text: 'Ensure coffee machine is ready', subs: ['Machine is on — no errors','Milk is stocked and prepared','Flavors are stocked and prepared','Coffee beans are loaded','Hot chocolate mix is loaded','Chai mix is loaded'] },
+          { text: 'Prepare drinks efficiently and correctly — follow specials directions', subs: [] },
+          { text: 'Deliver to customer by name', subs: [] },
+          { text: 'Clean coffee machine at closing — follow directions on machine', subs: [] },
+        ]
+      }
+    },
+    stocker: {
+      label: 'Stocker', focus: 'Inventory Management',
+      desc: 'Monitor and replenish inventory, rotate products, and organize supplies to ensure the Birdhouse is always fully stocked.',
+      tasks: {
+        Monday: [
+          { text: 'Bake cookies', subs: [] },
+          { text: 'Clean cookie display case', subs: [] },
+          { text: 'Load cookies in display case', subs: [] },
+          { text: 'Verify cookie plates are ready', subs: [] },
+          { text: 'Cold Drink Inventory — count products and review expiration dates', subs: ['Milk','Soda','Lemonade mix','Boba','Whipped cream','Iced tea mix'] },
+        ],
+        Tuesday: [
+          { text: 'Bake cookies', subs: [] },
+          { text: 'Clean cookie display case', subs: [] },
+          { text: 'Load cookies in display case', subs: [] },
+          { text: 'Verify cookie plates are ready', subs: [] },
+          { text: 'Other Drink Inventory — count products and review expiration dates', subs: ['Coffee beans','Hot chocolate mix','Chai tea mix','Flavor bottles'] },
+        ],
+        default: [
+          { text: 'Bake cookies', subs: [] },
+          { text: 'Clean cookie display case', subs: [] },
+          { text: 'Load cookies in display case', subs: [] },
+          { text: 'Verify cookie plates are ready', subs: [] },
+          { text: 'Cold Drink Inventory — count products and review expiration dates', subs: ['Milk','Sodas','Lemonade mix','Boba','Whipped cream','Flavors'] },
+        ]
+      }
+    },
+    custodian: {
+      label: 'Custodian', focus: 'Cleanliness',
+      desc: 'Maintain a spotless environment by cleaning, sanitizing, and organizing all areas to ensure a safe, welcoming space.',
+      tasks: {
+        Monday: [
+          { text: 'Wipe down surfaces — counters, machines, etc.', subs: [] },
+          { text: 'Check for crumbs, spills, sticky spots and clean immediately', subs: [] },
+          { text: 'Sweep floors', subs: [] },
+          { text: 'Wash dirty dishes', subs: [] },
+          { text: 'Clean Main Fridge', subs: ['Pull everything out','Clean spills','Wipe down interior','Use rag to dry everything','Restock — newest in back'] },
+        ],
+        Tuesday: [
+          { text: 'Wipe down surfaces — counters, machines, etc.', subs: [] },
+          { text: 'Check for crumbs, spills, sticky spots and clean immediately', subs: [] },
+          { text: 'Sweep floors', subs: [] },
+          { text: 'Wash dirty dishes', subs: [] },
+          { text: 'Clean Mini Fridge', subs: ['Pull everything out','Clean spills','Wipe down interior','Use rag to dry everything','Restock — newest in back'] },
+        ],
+        Wednesday: [
+          { text: 'Wipe down surfaces — counters, machines, etc.', subs: [] },
+          { text: 'Check for crumbs, spills, sticky spots and clean immediately', subs: [] },
+          { text: 'Sweep floors', subs: [] },
+          { text: 'Wash dirty dishes', subs: [] },
+          { text: 'Clean Appliances', subs: ['Empty cookie oven crumbs','Wipe down cookie oven','Deep clean trays/drying rack','Wipe down ice machine'] },
+        ],
+        Thursday: [
+          { text: 'Wipe down surfaces — counters, machines, etc.', subs: [] },
+          { text: 'Check for crumbs, spills, sticky spots and clean immediately', subs: [] },
+          { text: 'Sweep floors', subs: [] },
+          { text: 'Wash dirty dishes', subs: [] },
+          { text: 'Clean Drink Station', subs: ['Pull everything off counters','Wipe counters, windows, surrounding equipment — must sparkle','Remove squirt dispensers to wash','Wipe down each bottle — no sticky'] },
+        ],
+        Friday: [
+          { text: 'Wipe down surfaces — counters, machines, etc.', subs: [] },
+          { text: 'Check for crumbs, spills, sticky spots and clean immediately', subs: [] },
+          { text: 'Sweep floors', subs: [] },
+          { text: 'Wash dirty dishes', subs: [] },
+          { text: 'Clean Freezer', subs: ['Pull everything out','Clean spills','Wipe down interior','Use rag to dry everything','Restock — newest in bottom'] },
+        ]
+      }
+    }
+  };
+
+  let selectedDayData = null;
+
+  function showChecklist(dateStr, dayName, position, location, isWorking) {
+    // Deselect old
+    document.querySelectorAll('.schedule-day').forEach(d=>d.classList.remove('selected-day'));
+    document.getElementById(`sday-${dateStr}`)?.classList.add('selected-day');
+
+    const panel = document.getElementById('checklist-panel');
+
+    if(!isWorking) {
+      panel.style.display='block';
+      document.getElementById('cl-date-label').textContent=dayName;
+      document.getElementById('cl-position-label').textContent='In Class';
+      document.getElementById('cl-location-label').textContent='No on-site shift today';
+      document.getElementById('cl-focus-label').textContent='In Class';
+      document.getElementById('cl-items').innerHTML=`<li style="color:var(--gray);font-size:0.88rem;padding:1rem 0;text-align:center">No checklist for in-class days. Enjoy!</li>`;
+      return;
+    }
+
+    if(!position||position==='tbd'){
+      panel.style.display='block';
+      document.getElementById('cl-date-label').textContent=dayName;
+      document.getElementById('cl-position-label').textContent='Position TBD';
+      document.getElementById('cl-location-label').textContent=location;
+      document.getElementById('cl-focus-label').textContent='—';
+      document.getElementById('cl-items').innerHTML=`<li style="color:var(--gray);font-size:0.88rem;padding:1rem 0;text-align:center">Your position hasn't been assigned yet.</li>`;
+      return;
+    }
+
+    const job = JOB_DESC[position];
+    if(!job){ panel.style.display='none'; return; }
+    const tasks = job.tasks[dayName]||job.tasks.default||[];
+    const storageKey = `checklist_${dateStr}_${position}`;
+    let checked = {};
+    try { checked = JSON.parse(sessionStorage.getItem(storageKey)||'{}'); } catch(e){}
+
+    document.getElementById('cl-date-label').textContent=`${dayName} · ${new Date(dateStr+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric'})}`;
+    document.getElementById('cl-position-label').textContent=job.label;
+    document.getElementById('cl-position-label').style.color='var(--red-bright)';
+    document.getElementById('cl-location-label').textContent=location;
+    document.getElementById('cl-focus-label').textContent=`Focal Point: ${job.focus}`;
+
+    document.getElementById('cl-items').innerHTML = tasks.map((task,ti)=>{
+      const cbId=`cl-${ti}`;
+      const isChecked=!!checked[`main-${ti}`];
+      const subHtml = task.subs.length ? `<div class="sub-list">${task.subs.map((s,si)=>{
+        const scbId=`cl-${ti}-${si}`;
+        const sChecked=!!checked[`sub-${ti}-${si}`];
+        return `<div class="sub-item">
+          <input type="checkbox" class="sub-cb" id="${scbId}" ${sChecked?'checked':''} onchange="toggleCheck('${storageKey}','sub-${ti}-${si}','${scbId}-lbl')"/>
+          <label class="sub-label ${sChecked?'checked':''}" id="${scbId}-lbl" for="${scbId}">${s}</label>
+        </div>`;
+      }).join('')}</div>` : '';
+      return `<li class="checklist-item">
+        <input type="checkbox" class="checklist-cb" id="${cbId}" ${isChecked?'checked':''} onchange="toggleCheck('${storageKey}','main-${ti}','${cbId}-lbl')"/>
+        <div style="flex:1">
+          <label class="checklist-label ${isChecked?'checked':''}" id="${cbId}-lbl" for="${cbId}">${task.text}</label>
+          ${subHtml}
+        </div>
+      </li>`;
+    }).join('');
+
+    panel.style.display='block';
+    panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+    selectedDayData = {dateStr, position, storageKey};
+  }
+
+  function toggleCheck(storageKey, key, labelId) {
+    let checked = {};
+    try { checked = JSON.parse(sessionStorage.getItem(storageKey)||'{}'); } catch(e){}
+    const input = document.getElementById(labelId.replace('-lbl',''));
+    checked[key] = input?.checked||false;
+    sessionStorage.setItem(storageKey, JSON.stringify(checked));
+    const lbl = document.getElementById(labelId);
+    if(lbl) lbl.classList.toggle('checked', !!checked[key]);
+  }
+
   init();
 </script>
 </body>
