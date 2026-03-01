@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Birdhouse — Roster & Teams</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --black:#0a0a0a; --red:#cc0000; --red-bright:#ff1a1a;
+      --gray:#555; --light-gray:#999; --white:#f0f0f0;
+      --card:#141414; --border:rgba(204,0,0,0.18); --border-dim:rgba(255,255,255,0.07);
+    }
+    body { background:var(--black); color:var(--white); font-family:'DM Sans',sans-serif; min-height:100vh; }
+    body::before { content:''; position:fixed; inset:0; background-image:linear-gradient(rgba(204,0,0,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(204,0,0,0.03) 1px,transparent 1px); background-size:40px 40px; pointer-events:none; }
+
+    .layout { display:grid; grid-template-columns:240px 1fr; min-height:100vh; }
+    .sidebar { background:#0d0000; border-right:1px solid var(--border); padding:1.75rem 1.25rem; position:sticky; top:0; height:100vh; display:flex; flex-direction:column; overflow-y:auto; }
+    .sidebar-logo img { height:40px; filter:drop-shadow(0 0 10px rgba(204,0,0,0.6)); margin-bottom:0.75rem; }
+    .admin-badge { background:rgba(204,0,0,0.15); border:1px solid var(--border); border-radius:6px; padding:0.3rem 0.75rem; font-size:0.62rem; text-transform:uppercase; letter-spacing:0.14em; color:var(--red-bright); margin-bottom:2rem; display:inline-block; }
+    .nav-section { font-size:0.58rem; text-transform:uppercase; letter-spacing:0.16em; color:var(--gray); margin:1.1rem 0 0.4rem 0.9rem; }
+    .nav-item { display:flex; align-items:center; gap:0.7rem; padding:0.7rem 0.9rem; border-radius:7px; color:var(--gray); font-size:0.85rem; cursor:pointer; transition:all 0.2s; margin-bottom:0.2rem; border:1px solid transparent; text-decoration:none; }
+    .nav-item:hover { color:var(--white); background:rgba(255,255,255,0.04); }
+    .nav-item.active { background:rgba(204,0,0,0.12); color:var(--red-bright); border-color:rgba(204,0,0,0.25); }
+    .signout-btn { background:none; border:1px solid rgba(255,255,255,0.08); border-radius:7px; padding:0.65rem 1rem; color:var(--gray); font-size:0.8rem; cursor:pointer; width:100%; text-align:left; transition:all 0.2s; display:flex; align-items:center; gap:0.5rem; font-family:'DM Sans',sans-serif; margin-top:auto; }
+    .signout-btn:hover { color:var(--white); }
+
+    .main { padding:2.5rem 3rem; position:relative; z-index:1; }
+    .page-eyebrow { font-size:0.62rem; letter-spacing:0.22em; text-transform:uppercase; color:var(--red); margin-bottom:0.3rem; }
+    .page-title { font-family:'Bebas Neue',sans-serif; font-size:2.5rem; letter-spacing:0.04em; margin-bottom:2rem; }
+
+    /* Tabs */
+    .tabs { display:flex; gap:0.5rem; border-bottom:1px solid var(--border-dim); margin-bottom:2rem; }
+    .tab { background:none; border:none; border-bottom:2px solid transparent; padding:0.75rem 1.25rem; font-family:'DM Sans',sans-serif; font-size:0.88rem; color:var(--gray); cursor:pointer; transition:all 0.2s; margin-bottom:-1px; }
+    .tab:hover { color:var(--white); }
+    .tab.active { color:var(--red-bright); border-bottom-color:var(--red); }
+
+    .tab-panel { display:none; }
+    .tab-panel.active { display:block; }
+
+    /* Import */
+    .import-wrap { display:grid; grid-template-columns:1fr 1fr; gap:2rem; align-items:start; }
+    .import-card { background:var(--card); border:1px solid var(--border-dim); border-radius:14px; padding:1.75rem; }
+    .import-title { font-family:'Bebas Neue',sans-serif; font-size:1.2rem; letter-spacing:0.05em; margin-bottom:1rem; }
+    .dropzone { border:2px dashed rgba(255,255,255,0.1); border-radius:10px; padding:2rem; text-align:center; cursor:pointer; transition:all 0.2s; margin-bottom:1rem; }
+    .dropzone:hover, .dropzone.dragover { border-color:var(--red); background:rgba(204,0,0,0.05); }
+    .dropzone-icon { font-size:2rem; margin-bottom:0.5rem; opacity:0.5; }
+    .dropzone-text { font-size:0.85rem; color:var(--gray); }
+    .dropzone-sub { font-size:0.75rem; color:var(--gray); margin-top:0.3rem; }
+    textarea.csv-paste { width:100%; height:160px; padding:0.85rem; border:1px solid var(--border-dim); border-radius:8px; background:#0d0d0d; font-family:'DM Sans',sans-serif; font-size:0.82rem; color:var(--white); outline:none; resize:vertical; transition:border-color 0.2s; }
+    textarea.csv-paste:focus { border-color:var(--red); }
+    .preview-table { width:100%; border-collapse:collapse; font-size:0.82rem; margin-top:1rem; }
+    .preview-table th { text-align:left; padding:0.5rem 0.75rem; border-bottom:1px solid var(--border-dim); font-size:0.65rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--light-gray); }
+    .preview-table td { padding:0.6rem 0.75rem; border-bottom:1px solid rgba(255,255,255,0.03); }
+    .preview-table tr:last-child td { border-bottom:none; }
+    .preview-wrap { max-height:280px; overflow-y:auto; background:var(--card); border:1px solid var(--border-dim); border-radius:8px; margin-top:1rem; }
+
+    /* Teams grid */
+    .teams-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:1rem; margin-bottom:2rem; }
+    .team-card { background:var(--card); border:1px solid var(--border-dim); border-radius:12px; overflow:hidden; transition:border-color 0.2s; }
+    .team-card:hover { border-color:var(--border); }
+    .team-header { padding:0.85rem 1.1rem; display:flex; justify-content:space-between; align-items:center; }
+    .team-name { font-family:'Bebas Neue',sans-serif; font-size:1.3rem; letter-spacing:0.05em; }
+    .period-badge { font-size:0.65rem; padding:0.2rem 0.65rem; border-radius:20px; font-weight:500; letter-spacing:0.06em; }
+    .badge-1st { background:rgba(255,100,0,0.12); color:#ff9944; border:1px solid rgba(255,100,0,0.25); }
+    .badge-6th { background:rgba(80,160,255,0.12); color:#66aaff; border:1px solid rgba(80,160,255,0.25); }
+    .team-students { padding:0 1.1rem 1rem; }
+    .student-chip { display:flex; justify-content:space-between; align-items:center; padding:0.45rem 0; border-bottom:1px solid rgba(255,255,255,0.04); font-size:0.85rem; }
+    .student-chip:last-child { border-bottom:none; }
+    .chip-name { color:var(--white); }
+    .chip-actions { display:flex; gap:0.4rem; }
+    .team-footer { padding:0.75rem 1.1rem; border-top:1px solid var(--border-dim); display:flex; gap:0.5rem; }
+
+    /* Schedule builder */
+    .schedule-layout { display:grid; grid-template-columns:320px 1fr; gap:2rem; align-items:start; }
+    .sched-form { background:var(--card); border:1px solid var(--border-dim); border-radius:14px; padding:1.75rem; }
+    .week-nav { display:flex; align-items:center; gap:1rem; margin-bottom:1.25rem; }
+    .week-nav button { background:none; border:1px solid var(--border-dim); border-radius:6px; padding:0.4rem 0.75rem; color:var(--light-gray); cursor:pointer; font-size:0.82rem; transition:all 0.2s; font-family:'DM Sans',sans-serif; }
+    .week-nav button:hover { border-color:var(--border); color:var(--white); }
+    .week-label { font-size:0.88rem; color:var(--white); font-weight:500; }
+
+    /* Schedule grid - days as columns */
+    .sched-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:0.75rem; }
+    .sched-day { background:var(--card); border:1px solid var(--border-dim); border-radius:10px; overflow:hidden; }
+    .sched-day-header { padding:0.6rem 0.85rem; border-bottom:1px solid var(--border-dim); font-size:0.72rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--light-gray); }
+    .sched-day-header.today { color:var(--red-bright); }
+    .sched-period { padding:0.5rem 0.75rem; border-bottom:1px solid rgba(255,255,255,0.03); }
+    .period-label { font-size:0.6rem; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:0.4rem; }
+    .period-1st { color:#ff9944; }
+    .period-6th { color:#66aaff; }
+    .shift-chip { display:flex; justify-content:space-between; align-items:center; border-radius:5px; padding:0.3rem 0.5rem; margin-bottom:0.3rem; font-size:0.75rem; }
+    .shift-chip-name { font-weight:500; }
+    .shift-chip-time { font-size:0.68rem; opacity:0.75; }
+    .shift-chip-del { background:none; border:none; color:rgba(255,255,255,0.3); cursor:pointer; font-size:0.75rem; padding:0 0.2rem; transition:color 0.2s; }
+    .shift-chip-del:hover { color:var(--red-bright); }
+    .no-shifts { font-size:0.75rem; color:rgba(255,255,255,0.15); padding:0.3rem 0; }
+
+    /* Recurring section */
+    .recurring-card { background:var(--card); border:1px solid var(--border-dim); border-radius:12px; padding:1.25rem 1.5rem; margin-bottom:0.6rem; display:flex; justify-content:space-between; align-items:center; }
+    .recurring-info { font-size:0.85rem; }
+    .recurring-name { font-weight:500; margin-bottom:0.2rem; }
+    .recurring-meta { font-size:0.75rem; color:var(--gray); }
+
+    /* Shared form styles */
+    .form-group { margin-bottom:1.1rem; }
+    label { display:block; font-size:0.68rem; font-weight:500; letter-spacing:0.1em; text-transform:uppercase; color:var(--gray); margin-bottom:0.4rem; }
+    input[type=text], input[type=email], input[type=time], select { width:100%; padding:0.82rem 1rem; border:1px solid var(--border-dim); border-radius:8px; background:#0d0d0d; font-family:'DM Sans',sans-serif; font-size:0.9rem; color:var(--white); outline:none; transition:border-color 0.2s; }
+    input:focus, select:focus { border-color:var(--red); box-shadow:0 0 0 3px rgba(204,0,0,0.1); }
+    input::placeholder { color:#444; }
+    select option { background:#1a1a1a; }
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:0.85rem; }
+    .btn-primary { background:var(--red); color:white; border:none; border-radius:8px; padding:0.85rem 1.75rem; font-family:'DM Sans',sans-serif; font-size:0.88rem; font-weight:500; cursor:pointer; transition:all 0.2s; text-transform:uppercase; letter-spacing:0.06em; }
+    .btn-primary:hover { background:var(--red-bright); box-shadow:0 0 20px rgba(204,0,0,0.4); transform:translateY(-1px); }
+    .btn-primary:disabled { opacity:0.45; cursor:not-allowed; transform:none; box-shadow:none; }
+    .btn-ghost { background:transparent; color:var(--light-gray); border:1px solid var(--border-dim); border-radius:8px; padding:0.85rem 1.75rem; font-family:'DM Sans',sans-serif; font-size:0.88rem; cursor:pointer; transition:all 0.2s; text-transform:uppercase; letter-spacing:0.06em; }
+    .btn-ghost:hover { border-color:var(--border); color:var(--white); }
+    .btn-sm { padding:0.35rem 0.75rem; font-size:0.75rem; border-radius:6px; }
+    .btn-danger { background:rgba(204,0,0,0.1); color:var(--red-bright); border:1px solid rgba(204,0,0,0.2); border-radius:6px; padding:0.3rem 0.65rem; font-size:0.72rem; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; }
+    .btn-danger:hover { background:rgba(204,0,0,0.2); }
+    .icon-btn { background:none; border:1px solid var(--border-dim); border-radius:6px; padding:0.3rem 0.6rem; color:var(--light-gray); cursor:pointer; font-size:0.75rem; transition:all 0.2s; font-family:'DM Sans',sans-serif; }
+    .icon-btn:hover { border-color:var(--border); color:var(--white); }
+    .msg { padding:0.82rem 1rem; border-radius:8px; font-size:0.83rem; margin-top:0.75rem; display:none; }
+    .msg.success { background:rgba(0,200,80,0.08); border:1px solid rgba(0,200,80,0.2); color:#4caf50; display:block; }
+    .msg.error { background:rgba(204,0,0,0.1); border:1px solid var(--border); color:#ff6b6b; display:block; }
+    .empty-state { color:var(--gray); text-align:center; padding:2.5rem; font-size:0.88rem; }
+
+    @media(max-width:1100px){.layout{grid-template-columns:1fr}.sidebar{display:none}.main{padding:1.5rem}.import-wrap{grid-template-columns:1fr}.schedule-layout{grid-template-columns:1fr}.sched-grid{grid-template-columns:1fr 1fr}}
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div style="margin-bottom:0.5rem"><img src="../logo.png" alt="The Birdhouse" style="height:40px;filter:drop-shadow(0 0 10px rgba(204,0,0,0.6))" /></div>
+    <div class="admin-badge">⚙ Super Admin</div>
+    <div class="nav-section">Overview</div>
+    <a class="nav-item" href="index.html">📊 Dashboard</a>
+    <div class="nav-section">Team</div>
+    <a class="nav-item active" href="roster.html">👥 Roster & Teams</a>
+    <a class="nav-item" href="schedule.html">🗓️ Schedule Builder</a>
+    <a class="nav-item" href="index.html#summaries">📝 Weekly Summaries</a>
+    <div class="nav-section">Menu</div>
+    <a class="nav-item" href="index.html#menu">☕ Menu Manager</a>
+    <button class="signout-btn" onclick="signOut()">← Sign Out</button>
+  </aside>
+
+  <main class="main">
+    <div class="page-eyebrow">Super Admin</div>
+    <h1 class="page-title">Roster & Teams</h1>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('import',this)">⬆️ Import Students</button>
+      <button class="tab" onclick="switchTab('teams',this)">👥 Teams</button>
+      <button class="tab" onclick="switchTab('all-students',this)">📋 All Students</button>
+    </div>
+
+    <!-- ── Import Tab ── -->
+    <div class="tab-panel active" id="tab-import">
+      <div class="import-wrap">
+        <div class="import-card">
+          <div class="import-title">Upload CSV</div>
+          <p style="font-size:0.83rem;color:var(--gray);margin-bottom:1.25rem;line-height:1.6">Upload your student roster CSV. Required columns: <code style="background:rgba(255,255,255,0.06);padding:0.1rem 0.4rem;border-radius:4px">first_name, last_name, email, team</code></p>
+
+          <div class="dropzone" id="dropzone" onclick="document.getElementById('csv-file').click()">
+            <div class="dropzone-icon">📄</div>
+            <div class="dropzone-text">Click to upload or drag & drop</div>
+            <div class="dropzone-sub">CSV files only</div>
+          </div>
+          <input type="file" id="csv-file" accept=".csv" style="display:none" onchange="handleFile(this)" />
+
+          <div style="text-align:center;color:var(--gray);font-size:0.78rem;margin:0.75rem 0">— or paste CSV directly —</div>
+
+          <textarea class="csv-paste" id="csv-paste" placeholder="first_name,last_name,email,team&#10;Jaisa,Brockman,student@school.net,A&#10;..." oninput="previewCSV()"></textarea>
+
+          <div id="csv-preview"></div>
+          <div class="msg" id="import-msg"></div>
+          <div style="margin-top:1.25rem;display:flex;gap:0.75rem">
+            <button class="btn-primary" id="import-btn" onclick="importStudents()" disabled>Import Students</button>
+            <button class="btn-ghost btn-sm" onclick="loadSampleData()">Load Sample</button>
+          </div>
+        </div>
+
+        <div class="import-card">
+          <div class="import-title">How Import Works</div>
+          <div style="font-size:0.85rem;color:var(--light-gray);line-height:1.9">
+            <div>📧 <strong style="color:var(--white)">Account creation</strong> — Each student gets a Supabase account created automatically.</div>
+            <div style="margin-top:0.75rem">🔑 <strong style="color:var(--white)">Password setup</strong> — Supabase sends each student a "set your password" email so they can log in.</div>
+            <div style="margin-top:0.75rem">👥 <strong style="color:var(--white)">Team assignment</strong> — Students are automatically placed into the team from the CSV.</div>
+            <div style="margin-top:0.75rem">✅ <strong style="color:var(--white)">Duplicate safe</strong> — If a student is already in the system, they'll be skipped.</div>
+          </div>
+          <div style="margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--border-dim)">
+            <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);margin-bottom:0.75rem">After import</div>
+            <div style="font-size:0.83rem;color:var(--light-gray);line-height:1.6">Go to the <strong style="color:var(--white)">Teams tab</strong> to set each team's period (1st Hour or 6th Hour) and make any adjustments.</div>
+          </div>
+          <div style="margin-top:1rem;background:rgba(204,0,0,0.07);border:1px solid var(--border);border-radius:8px;padding:0.85rem 1rem;font-size:0.8rem;color:var(--light-gray);line-height:1.6">
+            ⚠️ <strong style="color:var(--white)">School email note:</strong> Supabase will send confirmation emails to nixastudents.net addresses. Make sure students check their school inbox.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Teams Tab ── -->
+    <div class="tab-panel" id="tab-teams">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+        <p style="color:var(--gray);font-size:0.88rem">Set each team's period and manage their members.</p>
+        <button class="btn-primary btn-sm" onclick="openNewTeamModal()">+ New Team</button>
+      </div>
+      <div class="teams-grid" id="teams-grid"><div class="empty-state">Loading teams...</div></div>
+    </div>
+
+    <!-- ── All Students Tab ── -->
+    <div class="tab-panel" id="tab-all-students">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
+        <p style="color:var(--gray);font-size:0.88rem">All <span id="student-count">—</span> students. Click a student to reassign their team.</p>
+        <div style="display:flex;gap:0.6rem">
+          <select id="filter-team" onchange="filterStudents()" style="padding:0.45rem 0.85rem;background:#0d0d0d;border:1px solid var(--border-dim);border-radius:7px;color:var(--white);font-size:0.82rem;font-family:'DM Sans',sans-serif">
+            <option value="">All Teams</option>
+          </select>
+          <select id="filter-period" onchange="filterStudents()" style="padding:0.45rem 0.85rem;background:#0d0d0d;border:1px solid var(--border-dim);border-radius:7px;color:var(--white);font-size:0.82rem;font-family:'DM Sans',sans-serif">
+            <option value="">All Periods</option>
+            <option value="1st Hour">1st Hour</option>
+            <option value="6th Hour">6th Hour</option>
+          </select>
+        </div>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--border-dim);border-radius:14px;overflow:hidden">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr>
+            <th style="text-align:left;padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--light-gray)">Name</th>
+            <th style="text-align:left;padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--light-gray)">Email</th>
+            <th style="text-align:left;padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--light-gray)">Team</th>
+            <th style="text-align:left;padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--light-gray)">Period</th>
+            <th style="padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim)"></th>
+          </tr></thead>
+          <tbody id="all-students-tbody"><tr><td colspan="5" class="empty-state">Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- New Team Modal -->
+<div id="team-modal" style="position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:100;display:none;align-items:center;justify-content:center">
+  <div style="background:#111;border:1px solid var(--border);border-radius:16px;padding:2rem;width:420px;max-width:95vw">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:0.05em;margin-bottom:1.5rem" id="team-modal-title">New Team</div>
+    <div class="form-group"><label>Team Name</label><input type="text" id="team-name" placeholder="e.g. Team A, Team H" /></div>
+    <div class="form-group">
+      <label>Class Period</label>
+      <select id="team-period">
+        <option value="1st Hour">1st Hour</option>
+        <option value="6th Hour">6th Hour</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Color</label>
+      <input type="text" id="team-color" placeholder="#cc0000" value="#cc0000" />
+    </div>
+    <div class="msg" id="team-msg"></div>
+    <div style="display:flex;gap:1rem;margin-top:1.5rem">
+      <button class="btn-ghost" onclick="closeTeamModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveTeam()">Save Team</button>
+    </div>
+  </div>
+</div>
+
+<!-- Reassign Student Modal -->
+<div id="reassign-modal" style="position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:100;display:none;align-items:center;justify-content:center">
+  <div style="background:#111;border:1px solid var(--border);border-radius:16px;padding:2rem;width:380px;max-width:95vw">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:0.05em;margin-bottom:0.4rem">Reassign Student</div>
+    <div style="font-size:0.88rem;color:var(--gray);margin-bottom:1.5rem" id="reassign-student-name"></div>
+    <div class="form-group"><label>Move to Team</label><select id="reassign-team-select"></select></div>
+    <div class="msg" id="reassign-msg"></div>
+    <div style="display:flex;gap:1rem;margin-top:1.5rem">
+      <button class="btn-ghost" onclick="closeReassignModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveReassign()">Move Student</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const sb = supabase.createClient('https://ljukrhneikqbabcmcpet.supabase.co','sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn');
+  let allStudents=[], allTeams=[], parsedCSV=[], editingTeamId=null, reassigningStudentId=null;
+
+  async function init() {
+    const {data:{session}} = await sb.auth.getSession();
+    if(!session||session.user.user_metadata?.role!=='admin'){window.location.href='login.html';return;}
+    await Promise.all([loadTeams(), loadAllStudents()]);
+  }
+
+  // ── CSV Import ──
+  function handleFile(input) {
+    const file = input.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.getElementById('csv-paste').value = e.target.result;
+      previewCSV();
+    };
+    reader.readAsText(file);
+  }
+
+  function loadSampleData() {
+    document.getElementById('csv-paste').value = `first_name,last_name,email,team\nJaisa,Brockman,26jaisabrockman@nixastudents.net,A\nKenzie,Gifford,26kenziegifford@nixastudents.net,A`;
+    previewCSV();
+  }
+
+  function previewCSV() {
+    const raw = document.getElementById('csv-paste').value.trim();
+    if(!raw){document.getElementById('csv-preview').innerHTML='';document.getElementById('import-btn').disabled=true;return;}
+    const lines = raw.split('\n').map(l=>l.trim()).filter(Boolean);
+    const headers = lines[0].split(',').map(h=>h.trim().toLowerCase());
+    parsedCSV = lines.slice(1).map(line=>{
+      const vals = line.split(',').map(v=>v.trim().replace(/\r/g,''));
+      const obj={};
+      headers.forEach((h,i)=>obj[h]=vals[i]||'');
+      return obj;
+    }).filter(r=>r.email&&r.first_name);
+
+    if(!parsedCSV.length){document.getElementById('csv-preview').innerHTML='<div style="color:#ff6b6b;font-size:0.82rem;margin-top:0.75rem">No valid rows found. Check your CSV format.</div>';document.getElementById('import-btn').disabled=true;return;}
+
+    const preview = `<div style="font-size:0.75rem;color:var(--gray);margin-top:0.75rem;margin-bottom:0.4rem">${parsedCSV.length} student${parsedCSV.length!==1?'s':''} ready to import</div>
+    <div class="preview-wrap">
+      <table class="preview-table">
+        <thead><tr><th>Name</th><th>Email</th><th>Team</th></tr></thead>
+        <tbody>${parsedCSV.slice(0,10).map(r=>`<tr><td>${r.first_name} ${r.last_name}</td><td style="color:var(--gray)">${r.email}</td><td><span style="background:rgba(204,0,0,0.1);color:var(--red-bright);padding:0.1rem 0.5rem;border-radius:4px;font-size:0.75rem">Team ${r.team||'?'}</span></td></tr>`).join('')}
+        ${parsedCSV.length>10?`<tr><td colspan="3" style="text-align:center;color:var(--gray);padding:0.5rem">...and ${parsedCSV.length-10} more</td></tr>`:''}</tbody>
+      </table>
+    </div>`;
+    document.getElementById('csv-preview').innerHTML=preview;
+    document.getElementById('import-btn').disabled=false;
+  }
+
+  async function importStudents() {
+    const btn=document.getElementById('import-btn');
+    const msg=document.getElementById('import-msg');
+    btn.disabled=true; btn.textContent='Importing...';
+    let created=0, skipped=0, errors=[];
+
+    for(const student of parsedCSV) {
+      // Find team
+      const team = allTeams.find(t=>t.name===`Team ${student.team}`||t.name===student.team);
+      // Create auth user via signUp
+      const {data, error} = await sb.auth.signUp({
+        email: student.email,
+        password: Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2), // temp pw - they'll set their own
+        options:{data:{first_name:student.first_name, last_name:student.last_name, role:'student', team:student.team}}
+      });
+      if(error) {
+        if(error.message.includes('already')) skipped++;
+        else errors.push(`${student.first_name} ${student.last_name}: ${error.message}`);
+        continue;
+      }
+      // Save to students table
+      await sb.from('students').upsert({
+        id: data.user?.id,
+        first_name: student.first_name,
+        last_name: student.last_name,
+        email: student.email,
+        role: 'student',
+        team_id: team?.id||null,
+        period: team?.period||null
+      }, {onConflict:'email'});
+      created++;
+    }
+
+    let resultMsg = `✓ Import complete! ${created} student${created!==1?'s':''} created.`;
+    if(skipped) resultMsg += ` ${skipped} already existed (skipped).`;
+    if(errors.length) resultMsg += ` ${errors.length} error(s): ${errors.join(', ')}`;
+    msg.textContent=resultMsg;
+    msg.className=errors.length?'msg error':'msg success';
+    btn.textContent='Import Students';
+    if(created>0) { loadAllStudents(); loadTeams(); }
+  }
+
+  // ── Teams ──
+  async function loadTeams() {
+    const {data} = await sb.from('teams').select('*').order('name');
+    allTeams = data||[];
+    renderTeams();
+    populateTeamFilters();
+  }
+
+  async function renderTeams() {
+    const {data:students} = await sb.from('students').select('*').order('last_name');
+    const grid = document.getElementById('teams-grid');
+    if(!allTeams.length){grid.innerHTML='<div class="empty-state">No teams yet. Import students or create a team manually.</div>';return;}
+    grid.innerHTML = allTeams.map(team=>{
+      const teamStudents = (students||[]).filter(s=>s.team_id===team.id);
+      const periodClass = team.period==='1st Hour'?'badge-1st':'badge-6th';
+      return `<div class="team-card">
+        <div class="team-header" style="border-bottom:3px solid ${team.color}">
+          <div class="team-name">${team.name}</div>
+          <div style="display:flex;align-items:center;gap:0.5rem">
+            <span class="period-badge ${periodClass}">${team.period}</span>
+            <button class="icon-btn" onclick="openEditTeamModal('${team.id}')">✏️</button>
+          </div>
+        </div>
+        <div class="team-students">
+          ${teamStudents.length?teamStudents.map(s=>`
+            <div class="student-chip">
+              <span class="chip-name">${s.first_name} ${s.last_name}</span>
+              <div class="chip-actions">
+                <button class="icon-btn" onclick="openReassignModal('${s.id}','${s.first_name} ${s.last_name}')">Move</button>
+              </div>
+            </div>`).join(''):`<div style="color:var(--gray);font-size:0.82rem;padding:0.75rem 0">No students assigned yet.</div>`}
+        </div>
+        <div class="team-footer">
+          <span style="font-size:0.75rem;color:var(--gray)">${teamStudents.length} student${teamStudents.length!==1?'s':''}</span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function openNewTeamModal() {
+    editingTeamId=null;
+    document.getElementById('team-modal-title').textContent='New Team';
+    document.getElementById('team-name').value='';
+    document.getElementById('team-period').value='1st Hour';
+    document.getElementById('team-color').value='#cc0000';
+    document.getElementById('team-msg').style.display='none';
+    document.getElementById('team-modal').style.display='flex';
+  }
+
+  function openEditTeamModal(id) {
+    const team=allTeams.find(t=>t.id===id);
+    if(!team) return;
+    editingTeamId=id;
+    document.getElementById('team-modal-title').textContent='Edit '+team.name;
+    document.getElementById('team-name').value=team.name;
+    document.getElementById('team-period').value=team.period;
+    document.getElementById('team-color').value=team.color||'#cc0000';
+    document.getElementById('team-msg').style.display='none';
+    document.getElementById('team-modal').style.display='flex';
+  }
+
+  function closeTeamModal(){document.getElementById('team-modal').style.display='none';}
+
+  async function saveTeam() {
+    const name=document.getElementById('team-name').value.trim();
+    const period=document.getElementById('team-period').value;
+    const color=document.getElementById('team-color').value;
+    const m=document.getElementById('team-msg');
+    if(!name){m.textContent='Team name is required.';m.className='msg error';return;}
+    const payload={name,period,color};
+    const {error}=editingTeamId
+      ?await sb.from('teams').update(payload).eq('id',editingTeamId)
+      :await sb.from('teams').insert(payload);
+    if(error){m.textContent='Error: '+error.message;m.className='msg error';}
+    else{
+      // Update student periods if team period changed
+      if(editingTeamId){
+        await sb.from('students').update({period}).eq('team_id',editingTeamId);
+      }
+      closeTeamModal();
+      loadTeams();
+    }
+  }
+
+  // ── All Students ──
+  async function loadAllStudents() {
+    const {data} = await sb.from('students').select('*, teams(name,period,color)').order('last_name');
+    allStudents=data||[];
+    document.getElementById('student-count').textContent=allStudents.length;
+    renderAllStudents(allStudents);
+  }
+
+  function filterStudents() {
+    const teamFilter=document.getElementById('filter-team').value;
+    const periodFilter=document.getElementById('filter-period').value;
+    let filtered=allStudents;
+    if(teamFilter) filtered=filtered.filter(s=>s.team_id===teamFilter);
+    if(periodFilter) filtered=filtered.filter(s=>s.teams?.period===periodFilter);
+    renderAllStudents(filtered);
+  }
+
+  function renderAllStudents(list) {
+    const tbody=document.getElementById('all-students-tbody');
+    if(!list.length){tbody.innerHTML='<tr><td colspan="5" class="empty-state">No students found.</td></tr>';return;}
+    tbody.innerHTML=list.map(s=>`<tr>
+      <td><strong>${s.first_name} ${s.last_name}</strong></td>
+      <td style="color:var(--gray);font-size:0.82rem">${s.email}</td>
+      <td>${s.teams?`<span style="background:rgba(204,0,0,0.08);color:var(--red-bright);padding:0.15rem 0.6rem;border-radius:4px;font-size:0.78rem">${s.teams.name}</span>`:'<span style="color:var(--gray)">—</span>'}</td>
+      <td style="font-size:0.82rem;color:${s.teams?.period==='1st Hour'?'#ff9944':'#66aaff'}">${s.teams?.period||'—'}</td>
+      <td><button class="icon-btn" onclick="openReassignModal('${s.id}','${s.first_name} ${s.last_name}')">Move Team</button></td>
+    </tr>`).join('');
+  }
+
+  function populateTeamFilters() {
+    const sel=document.getElementById('filter-team');
+    const current=sel.value;
+    while(sel.options.length>1) sel.remove(1);
+    allTeams.forEach(t=>{const o=document.createElement('option');o.value=t.id;o.textContent=t.name+' ('+t.period+')';sel.appendChild(o);});
+    sel.value=current;
+    // Also populate reassign modal
+    const rsel=document.getElementById('reassign-team-select');
+    while(rsel.options.length>0) rsel.remove(0);
+    allTeams.forEach(t=>{const o=document.createElement('option');o.value=t.id;o.textContent=t.name+' — '+t.period;rsel.appendChild(o);});
+  }
+
+  // ── Reassign ──
+  function openReassignModal(studentId, name) {
+    reassigningStudentId=studentId;
+    document.getElementById('reassign-student-name').textContent=name;
+    document.getElementById('reassign-msg').style.display='none';
+    // Pre-select current team
+    const student=allStudents.find(s=>s.id===studentId);
+    if(student?.team_id) document.getElementById('reassign-team-select').value=student.team_id;
+    document.getElementById('reassign-modal').style.display='flex';
+  }
+  function closeReassignModal(){document.getElementById('reassign-modal').style.display='none';}
+
+  async function saveReassign() {
+    const teamId=document.getElementById('reassign-team-select').value;
+    const team=allTeams.find(t=>t.id===teamId);
+    const {error}=await sb.from('students').update({team_id:teamId, period:team?.period||null}).eq('id',reassigningStudentId);
+    const m=document.getElementById('reassign-msg');
+    if(error){m.textContent='Error: '+error.message;m.className='msg error';}
+    else{closeReassignModal();loadAllStudents();renderTeams();}
+  }
+
+  // ── Tabs ──
+  function switchTab(name,btn) {
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-'+name).classList.add('active');
+    if(name==='teams') renderTeams();
+    if(name==='all-students') loadAllStudents();
+  }
+
+  // Dropzone drag & drop
+  const dz=document.getElementById('dropzone');
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('dragover');});
+  dz.addEventListener('dragleave',()=>dz.classList.remove('dragover'));
+  dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('dragover');const f=e.dataTransfer.files[0];if(f){const r=new FileReader();r.onload=ev=>{document.getElementById('csv-paste').value=ev.target.result;previewCSV();};r.readAsText(f);}});
+
+  async function signOut(){await sb.auth.signOut();window.location.href='login.html';}
+  init();
+</script>
+</body>
+</html>
