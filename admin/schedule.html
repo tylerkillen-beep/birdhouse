@@ -207,8 +207,10 @@ const ROLES = [
   {key:'menu',      label:'Menu Prep', icon:'📋', days:['In Class all week'], hasPositions:false},
   {key:'inclass',   label:'In Class',  icon:'📚', days:['All week'], hasPositions:false},
 ];
-const POSITIONS = ['cashier','barista','stocker','custodian'];
-const POSITION_LABELS = {cashier:'Cashier',barista:'Barista',stocker:'Stocker',custodian:'Custodian'};
+const BIRDHOUSE_POSITIONS = ['cashier','barista','stocker','custodian'];
+const MATHEWS_POSITIONS   = ['deliverer','barista','stocker','custodian'];
+const POSITIONS = BIRDHOUSE_POSITIONS; // default
+const POSITION_LABELS = {cashier:'Cashier',barista:'Barista',stocker:'Stocker',custodian:'Custodian',deliverer:'Deliverer'};
 const ROTATION_ORDER = ['birdhouse','mathews','menu','inclass'];
 
 let weekOffset=0, allTeams=[], assignments={}, selectedTeam=null, posModalData=null, weekStudents={};
@@ -401,11 +403,14 @@ async function openPosModal(teamId, roleKey, e) {
   const posMap={};
   (existing||[]).forEach(p=>{ posMap[`${p.student_id}_${p.shift_date}`]=p.position; });
 
+  // Use correct position set for this role
+  const posSet = roleKey==='mathews' ? MATHEWS_POSITIONS : BIRDHOUSE_POSITIONS;
+
   // Auto-assign if empty
   if(!existing?.length) {
     students.forEach((s,si)=>{
       workingDays.forEach((d,di)=>{
-        posMap[`${s.id}_${fmtDate(d.date)}`]=POSITIONS[(si+di)%POSITIONS.length];
+        posMap[`${s.id}_${fmtDate(d.date)}`]=posSet[(si+di)%posSet.length];
       });
     });
   }
@@ -432,7 +437,7 @@ function buildPosModalBody() {
           <div class="pos-row">
             <span class="pos-student-name">${s.first_name} ${s.last_name}</span>
             <select class="pos-select" id="pos_${s.id}_${dateStr}">
-              ${POSITIONS.map(p=>`<option value="${p}" ${posMap[`${s.id}_${dateStr}`]===p?'selected':''}>${POSITION_LABELS[p]}</option>`).join('')}
+              ${posSet.map(p=>`<option value="${p}" ${posMap[`${s.id}_${dateStr}`]===p?'selected':''}>${POSITION_LABELS[p]}</option>`).join('')}
             </select>
           </div>`).join('')}
       </div>
