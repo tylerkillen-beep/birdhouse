@@ -29,111 +29,109 @@
     .signout-btn { background:none; border:1px solid rgba(255,255,255,0.08); border-radius:7px; padding:0.65rem 1rem; color:var(--gray); font-size:0.8rem; cursor:pointer; width:100%; text-align:left; transition:all 0.2s; display:flex; align-items:center; gap:0.5rem; font-family:'DM Sans',sans-serif; }
     .signout-btn:hover { color:var(--white); }
 
-    .main { padding:2.5rem 3rem; position:relative; z-index:1; }
+    .main { padding:2.5rem 3rem; position:relative; z-index:1; max-width:860px; }
     .page-eyebrow { font-size:0.65rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--red); margin-bottom:0.3rem; }
-    .page-title { font-family:'Bebas Neue',sans-serif; font-size:2.5rem; letter-spacing:0.04em; margin-bottom:0.5rem; }
-    .page-sub { color:var(--light-gray); font-size:0.88rem; margin-bottom:2rem; }
+    .page-title { font-family:'Bebas Neue',sans-serif; font-size:2.5rem; letter-spacing:0.04em; margin-bottom:0.4rem; }
+    .page-sub { color:var(--light-gray); font-size:0.88rem; margin-bottom:2rem; line-height:1.6; }
 
     /* Steps */
-    .steps { display:flex; align-items:center; margin-bottom:2.5rem; flex-wrap:wrap; gap:0.5rem; }
-    .step { display:flex; align-items:center; gap:0.6rem; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--gray); }
+    .steps { display:flex; align-items:center; margin-bottom:2.5rem; }
+    .step { display:flex; align-items:center; gap:0.6rem; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--gray); white-space:nowrap; }
     .step.active { color:var(--red-bright); }
     .step.done { color:var(--light-gray); }
-    .step-num { width:26px; height:26px; border-radius:50%; border:1px solid currentColor; display:flex; align-items:center; justify-content:center; font-size:0.72rem; flex-shrink:0; }
-    .step.active .step-num { background:var(--red); border-color:var(--red); color:white; }
-    .step.done .step-num { background:rgba(255,255,255,0.1); }
-    .step-line { flex:1; height:1px; background:rgba(255,255,255,0.06); margin:0 0.75rem; max-width:50px; }
+    .step-num { width:28px; height:28px; border-radius:50%; border:1px solid currentColor; display:flex; align-items:center; justify-content:center; font-size:0.72rem; flex-shrink:0; transition:all 0.3s; }
+    .step.active .step-num { background:var(--red); border-color:var(--red); color:white; box-shadow:0 0 12px rgba(204,0,0,0.4); }
+    .step.done .step-num { background:rgba(255,255,255,0.08); border-color:transparent; }
+    .step-line { flex:1; height:1px; background:rgba(255,255,255,0.06); margin:0 1rem; }
 
-    .step-panel { display:none; }
+    .step-panel { display:none; animation:fadeIn 0.25s ease; }
     .step-panel.active { display:block; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
 
-    /* Menu sections */
-    .menu-section-header {
-      display:flex; align-items:center; gap:1rem;
-      margin:2rem 0 1rem;
-    }
+    /* ── Step 1: Menu ── */
+    .menu-section-header { display:flex; align-items:center; gap:0.75rem; margin:2rem 0 1rem; }
     .menu-section-header:first-child { margin-top:0; }
-    .menu-section-icon { font-size:1.4rem; }
-    .menu-section-title { font-family:'Bebas Neue',sans-serif; font-size:1.6rem; letter-spacing:0.05em; }
-    .menu-section-pill {
-      font-size:0.65rem; padding:0.25rem 0.7rem; border-radius:20px; font-weight:500; letter-spacing:0.06em;
-    }
-    .pill-hot { background:rgba(255,100,0,0.1); color:#ff9944; border:1px solid rgba(255,100,0,0.25); }
+    .menu-section-title { font-family:'Bebas Neue',sans-serif; font-size:1.5rem; letter-spacing:0.05em; }
+    .size-pill { font-size:0.62rem; padding:0.22rem 0.65rem; border-radius:20px; font-weight:500; letter-spacing:0.06em; }
+    .pill-hot  { background:rgba(255,100,0,0.1); color:#ff9944; border:1px solid rgba(255,100,0,0.25); }
     .pill-iced { background:rgba(80,160,255,0.1); color:#66aaff; border:1px solid rgba(80,160,255,0.25); }
 
-    .menu-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:0.85rem; }
-    .menu-card { background:var(--card); border:1px solid var(--border-dim); border-radius:12px; padding:1.25rem; cursor:pointer; transition:all 0.2s; position:relative; }
-    .menu-card:hover { border-color:var(--border); transform:translateY(-2px); }
-    .menu-card.selected { border-color:var(--red); background:rgba(204,0,0,0.08); box-shadow:0 0 20px rgba(204,0,0,0.15); }
-    .menu-card-name { font-weight:500; font-size:0.95rem; margin-bottom:0.25rem; }
-    .menu-card-desc { font-size:0.78rem; color:var(--gray); line-height:1.4; }
-    .menu-card-check { position:absolute; top:0.85rem; right:0.85rem; width:20px; height:20px; border-radius:50%; background:var(--red); display:none; align-items:center; justify-content:center; font-size:0.7rem; box-shadow:0 0 10px rgba(204,0,0,0.5); }
+    .menu-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(175px,1fr)); gap:0.75rem; margin-bottom:0.5rem; }
+    .menu-card { background:var(--card); border:1.5px solid var(--border-dim); border-radius:12px; padding:1.1rem 1.2rem; cursor:pointer; transition:all 0.2s; position:relative; }
+    .menu-card:hover { border-color:rgba(204,0,0,0.3); transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,0.3); }
+    .menu-card.selected { border-color:var(--red); background:rgba(204,0,0,0.07); box-shadow:0 0 20px rgba(204,0,0,0.15); }
+    .menu-card-check { position:absolute; top:0.75rem; right:0.75rem; width:20px; height:20px; border-radius:50%; background:var(--red); display:none; align-items:center; justify-content:center; font-size:0.65rem; box-shadow:0 0 8px rgba(204,0,0,0.5); }
     .menu-card.selected .menu-card-check { display:flex; }
-    .no-menu { color:var(--gray); text-align:center; padding:3rem; font-size:0.9rem; background:var(--card); border-radius:12px; border:1px solid var(--border-dim); }
+    .menu-card-name { font-weight:500; font-size:0.92rem; margin-bottom:0.25rem; line-height:1.3; }
+    .menu-card-desc { font-size:0.75rem; color:var(--gray); line-height:1.4; }
+    .no-menu { color:var(--gray); text-align:center; padding:3rem; background:var(--card); border-radius:12px; border:1px solid var(--border-dim); font-size:0.9rem; }
 
-    /* Customize */
-    .customize-grid { display:grid; grid-template-columns:1fr 1fr; gap:2rem; max-width:680px; }
-    .selected-drink-banner {
-      display:flex; align-items:center; gap:1rem;
-      background:var(--card); border:1px solid var(--border); border-radius:10px;
-      padding:1rem 1.25rem; margin-bottom:1.75rem; max-width:680px;
-    }
-    .sdb-icon { font-size:1.5rem; }
+    /* ── Step 2: Delivery ── */
+    .selected-drink-banner { display:flex; align-items:center; gap:1rem; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:1rem 1.25rem; margin-bottom:1.75rem; }
+    .sdb-icon { font-size:1.6rem; }
     .sdb-name { font-weight:500; font-size:1rem; }
-    .sdb-size { font-size:0.75rem; margin-top:0.2rem; }
-    .sdb-size.hot { color:#ff9944; }
-    .sdb-size.iced { color:#66aaff; }
+    .sdb-temp { font-size:0.75rem; margin-top:0.2rem; }
+    .sdb-temp.hot { color:#ff9944; }
+    .sdb-temp.iced { color:#66aaff; }
 
-    .form-group { margin-bottom:1.25rem; }
-    label { display:block; font-size:0.7rem; font-weight:500; letter-spacing:0.1em; text-transform:uppercase; color:var(--gray); margin-bottom:0.5rem; }
-    .option-row { display:flex; flex-wrap:wrap; gap:0.5rem; }
-    .option-chip { padding:0.45rem 0.9rem; border:1px solid var(--border-dim); border-radius:20px; font-size:0.82rem; cursor:pointer; transition:all 0.2s; color:var(--light-gray); background:transparent; font-family:'DM Sans',sans-serif; }
-    .option-chip:hover { border-color:var(--border); color:var(--white); }
-    .option-chip.selected { background:var(--red); border-color:var(--red); color:white; box-shadow:0 0 10px rgba(204,0,0,0.3); }
-    textarea { width:100%; padding:0.85rem 1rem; border:1px solid var(--border-dim); border-radius:8px; background:#0f0f0f; font-family:'DM Sans',sans-serif; font-size:0.9rem; color:var(--white); outline:none; transition:border-color 0.2s; resize:vertical; min-height:90px; }
-    textarea:focus { border-color:var(--red); }
-    textarea::placeholder { color:var(--gray); }
-
-    /* Delivery */
-    input[type=text], select { width:100%; padding:0.85rem 1rem; border:1px solid var(--border-dim); border-radius:8px; background:#0f0f0f; font-family:'DM Sans',sans-serif; font-size:0.9rem; color:var(--white); outline:none; transition:border-color 0.2s; }
-    input:focus, select:focus { border-color:var(--red); box-shadow:0 0 0 3px rgba(204,0,0,0.12); }
-    input::placeholder { color:var(--gray); }
+    .delivery-form { max-width:480px; }
+    .form-group { margin-bottom:1.2rem; }
+    label { display:block; font-size:0.68rem; font-weight:500; letter-spacing:0.1em; text-transform:uppercase; color:var(--gray); margin-bottom:0.45rem; }
+    input[type=text], select { width:100%; padding:0.875rem 1rem; border:1px solid var(--border-dim); border-radius:8px; background:#0d0d0d; font-family:'DM Sans',sans-serif; font-size:0.92rem; color:var(--white); outline:none; transition:border-color 0.2s, box-shadow 0.2s; }
+    input:focus, select:focus { border-color:var(--red); box-shadow:0 0 0 3px rgba(204,0,0,0.1); }
+    input::placeholder { color:#3a3a3a; }
     select option { background:#1a1a1a; }
     .form-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+    .form-note { font-size:0.75rem; color:var(--gray); margin-top:0.35rem; line-height:1.5; }
 
-    /* Review */
-    .review-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:2rem; max-width:520px; }
-    .review-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:1.5rem; padding-bottom:1.5rem; border-bottom:1px solid var(--border-dim); }
-    .review-drink-name { font-family:'Bebas Neue',sans-serif; font-size:1.8rem; letter-spacing:0.04em; }
-    .review-size-badge { font-size:0.72rem; padding:0.3rem 0.75rem; border-radius:20px; font-weight:500; margin-top:0.4rem; display:inline-block; }
-    .review-size-badge.hot { background:rgba(255,100,0,0.1); color:#ff9944; border:1px solid rgba(255,100,0,0.25); }
-    .review-size-badge.iced { background:rgba(80,160,255,0.1); color:#66aaff; border:1px solid rgba(80,160,255,0.25); }
-    .review-line { display:flex; justify-content:space-between; padding:0.65rem 0; border-bottom:1px solid var(--border-dim); font-size:0.88rem; }
-    .review-line:last-of-type { border-bottom:none; }
-    .review-key { color:var(--light-gray); }
-    .review-val { color:var(--white); font-weight:500; }
+    /* ── Step 3: Confirm & Pay ── */
+    .confirm-layout { display:grid; grid-template-columns:1fr 1fr; gap:2rem; align-items:start; }
+    .order-summary-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:1.75rem; }
+    .summary-label { font-size:0.62rem; text-transform:uppercase; letter-spacing:0.15em; color:var(--red); margin-bottom:1rem; }
+    .summary-drink { font-family:'Bebas Neue',sans-serif; font-size:2rem; letter-spacing:0.04em; margin-bottom:0.25rem; }
+    .summary-temp { font-size:0.78rem; margin-bottom:1.25rem; }
+    .summary-line { display:flex; justify-content:space-between; padding:0.6rem 0; border-bottom:1px solid var(--border-dim); font-size:0.86rem; }
+    .summary-line:last-child { border-bottom:none; }
+    .summary-key { color:var(--light-gray); }
+    .summary-val { color:var(--white); font-weight:500; text-align:right; max-width:55%; }
     .loyalty-note { background:rgba(204,0,0,0.07); border:1px solid var(--border); border-radius:8px; padding:0.85rem 1rem; margin-top:1.25rem; font-size:0.82rem; color:var(--light-gray); display:flex; align-items:center; gap:0.6rem; }
     .loyalty-note span { color:var(--red-bright); font-weight:500; }
 
-    /* Confirmation */
-    .confirm-screen { max-width:520px; }
-    .confirm-icon { font-size:3rem; margin-bottom:1rem; display:block; animation:pop 0.4s ease; }
-    @keyframes pop { 0%{transform:scale(0)} 80%{transform:scale(1.1)} 100%{transform:scale(1)} }
-    .confirm-title { font-family:'Bebas Neue',sans-serif; font-size:2.5rem; letter-spacing:0.04em; margin-bottom:0.5rem; }
-    .confirm-sub { color:var(--light-gray); font-size:0.92rem; line-height:1.6; margin-bottom:2rem; }
+    .pay-panel { }
+    .pay-title { font-family:'Bebas Neue',sans-serif; font-size:1.5rem; letter-spacing:0.04em; margin-bottom:0.5rem; }
+    .pay-sub { font-size:0.85rem; color:var(--light-gray); line-height:1.65; margin-bottom:1.75rem; }
+    .pay-steps { margin-bottom:1.75rem; }
+    .pay-step { display:flex; align-items:flex-start; gap:0.85rem; margin-bottom:1rem; }
+    .pay-step-num { width:26px; height:26px; border-radius:50%; background:rgba(204,0,0,0.12); border:1px solid var(--border); color:var(--red-bright); font-size:0.72rem; font-weight:600; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:0.1rem; }
+    .pay-step-text { font-size:0.85rem; color:var(--light-gray); line-height:1.5; }
+    .pay-step-text strong { color:var(--white); display:block; margin-bottom:0.1rem; }
+
+    /* Square button — the hero CTA */
     .square-btn {
-      display:inline-flex; align-items:center; gap:0.75rem;
-      background:var(--red); color:white; border:none; border-radius:10px;
-      padding:1.1rem 2.25rem; font-family:'DM Sans',sans-serif; font-size:1rem;
-      font-weight:500; cursor:pointer; text-decoration:none;
-      transition:all 0.2s; text-transform:uppercase; letter-spacing:0.07em;
-      animation:pulse-btn 2s ease-in-out infinite;
+      display:flex; align-items:center; justify-content:center; gap:0.85rem;
+      width:100%; padding:1.15rem 2rem;
+      background:var(--red); color:white; border:none; border-radius:11px;
+      font-family:'DM Sans',sans-serif; font-size:1rem; font-weight:600;
+      cursor:pointer; text-decoration:none; text-transform:uppercase; letter-spacing:0.08em;
+      transition:all 0.2s; animation:pulse-btn 2.2s ease-in-out infinite;
+      box-shadow:0 4px 30px rgba(204,0,0,0.35);
     }
-    .square-btn:hover { background:var(--red-bright); box-shadow:0 0 40px rgba(204,0,0,0.6); transform:translateY(-2px); }
-    @keyframes pulse-btn { 0%,100%{box-shadow:0 0 25px rgba(204,0,0,0.3)} 50%{box-shadow:0 0 45px rgba(204,0,0,0.6)} }
-    .no-link-note { background:rgba(255,255,255,0.04); border:1px solid var(--border-dim); border-radius:8px; padding:1rem 1.25rem; font-size:0.85rem; color:var(--gray); margin-top:0.5rem; line-height:1.6; }
-    .skip-link { display:block; margin-top:1.25rem; font-size:0.82rem; color:var(--gray); text-decoration:none; transition:color 0.2s; }
+    .square-btn:hover { background:var(--red-bright); transform:translateY(-2px); box-shadow:0 8px 40px rgba(204,0,0,0.55); animation:none; }
+    @keyframes pulse-btn { 0%,100%{box-shadow:0 4px 25px rgba(204,0,0,0.3)} 50%{box-shadow:0 4px 45px rgba(204,0,0,0.6)} }
+    .square-btn-icon { font-size:1.25rem; }
+
+    .no-link-note { background:rgba(255,152,0,0.07); border:1px solid rgba(255,152,0,0.2); border-radius:10px; padding:1.1rem 1.25rem; font-size:0.85rem; color:#ff9800; line-height:1.6; }
+    .skip-link { display:block; text-align:center; margin-top:1.1rem; font-size:0.8rem; color:var(--gray); text-decoration:none; transition:color 0.2s; }
     .skip-link:hover { color:var(--light-gray); }
+
+    /* Success screen */
+    .success-screen { max-width:480px; text-align:center; padding:2rem 0; }
+    .success-icon { font-size:4rem; margin-bottom:1rem; display:block; animation:pop 0.4s cubic-bezier(0.175,0.885,0.32,1.275); }
+    @keyframes pop { 0%{transform:scale(0)} 100%{transform:scale(1)} }
+    .success-title { font-family:'Bebas Neue',sans-serif; font-size:2.8rem; letter-spacing:0.04em; margin-bottom:0.5rem; }
+    .success-sub { color:var(--light-gray); font-size:0.92rem; line-height:1.65; margin-bottom:2rem; }
+    .btn-outline { display:inline-block; padding:0.85rem 1.75rem; border:1px solid var(--border); border-radius:8px; color:var(--light-gray); text-decoration:none; font-size:0.85rem; transition:all 0.2s; margin:0.35rem; }
+    .btn-outline:hover { border-color:var(--red); color:var(--white); }
 
     /* Buttons */
     .btn-primary { background:var(--red); color:white; border:none; border-radius:8px; padding:0.9rem 2rem; font-family:'DM Sans',sans-serif; font-size:0.9rem; font-weight:500; cursor:pointer; transition:all 0.2s; text-transform:uppercase; letter-spacing:0.06em; }
@@ -143,7 +141,7 @@
     .btn-ghost:hover { border-color:var(--border); color:var(--white); }
     .btn-row { display:flex; gap:1rem; margin-top:2rem; flex-wrap:wrap; }
 
-    @media (max-width:900px) { .layout{grid-template-columns:1fr} .sidebar{display:none} .main{padding:1.5rem} .customize-grid{grid-template-columns:1fr} }
+    @media(max-width:900px) { .layout{grid-template-columns:1fr} .sidebar{display:none} .main{padding:1.5rem} .confirm-layout{grid-template-columns:1fr} .form-row{grid-template-columns:1fr} }
   </style>
 </head>
 <body>
@@ -157,7 +155,7 @@
     <nav>
       <a class="nav-item" href="dashboard.html">📊 Overview</a>
       <a class="nav-item active" href="order.html">☕ Place an Order</a>
-      <a class="nav-item" href="dashboard.html">📋 Order History</a>
+      <a class="nav-item" href="orders.html">📋 My Orders</a>
       <a class="nav-item" href="dashboard.html">📦 My Subscription</a>
       <a class="nav-item" href="dashboard.html">⭐ Loyalty Rewards</a>
     </nav>
@@ -167,67 +165,39 @@
   <main class="main">
     <div class="page-eyebrow">Customer Portal</div>
     <h1 class="page-title">Place an Order</h1>
-    <p class="page-sub">Choose your drink, customize it, and we'll deliver it to your room.</p>
+    <p class="page-sub">Choose your drink and delivery details — then customize and pay in Square.</p>
 
+    <!-- Step indicators -->
     <div class="steps">
       <div class="step active" id="step-ind-1"><div class="step-num">1</div> Choose Drink</div>
       <div class="step-line"></div>
-      <div class="step" id="step-ind-2"><div class="step-num">2</div> Customize</div>
+      <div class="step" id="step-ind-2"><div class="step-num">2</div> Delivery Info</div>
       <div class="step-line"></div>
-      <div class="step" id="step-ind-3"><div class="step-num">3</div> Delivery</div>
-      <div class="step-line"></div>
-      <div class="step" id="step-ind-4"><div class="step-num">4</div> Review</div>
-      <div class="step-line"></div>
-      <div class="step" id="step-ind-5"><div class="step-num">5</div> Pay</div>
+      <div class="step" id="step-ind-3"><div class="step-num">3</div> Pay in Square</div>
     </div>
 
-    <!-- Step 1: Choose drink -->
+    <!-- ── Step 1: Choose drink ── -->
     <div class="step-panel active" id="panel-1">
       <div id="menu-container"><div class="no-menu">Loading menu...</div></div>
       <div class="btn-row">
-        <button class="btn-primary" id="btn-next-1" onclick="goToStep(2)" disabled>Next: Customize →</button>
+        <button class="btn-primary" id="btn-next-1" onclick="goToStep(2)" disabled>Next: Delivery Info →</button>
       </div>
     </div>
 
-    <!-- Step 2: Customize -->
+    <!-- ── Step 2: Delivery info ── -->
     <div class="step-panel" id="panel-2">
       <div class="selected-drink-banner">
         <div class="sdb-icon" id="sdb-icon">☕</div>
         <div>
           <div class="sdb-name" id="sdb-name">—</div>
-          <div class="sdb-size" id="sdb-size">—</div>
+          <div class="sdb-temp" id="sdb-temp">—</div>
         </div>
       </div>
-      <div class="customize-grid">
-        <div>
-          <div class="form-group">
-            <label>Milk Type</label>
-            <div class="option-row" id="milk-options"></div>
-          </div>
-          <div class="form-group">
-            <label>Add a Syrup <span style="color:var(--gray);font-weight:300">(optional)</span></label>
-            <div class="option-row" id="syrup-options"></div>
-          </div>
-        </div>
-        <div>
-          <div class="form-group">
-            <label>Special Instructions <span style="color:var(--gray);font-weight:300">(optional)</span></label>
-            <textarea id="special-instructions" placeholder="Extra shot, less sweet, light ice..."></textarea>
-          </div>
-        </div>
-      </div>
-      <div class="btn-row">
-        <button class="btn-ghost" onclick="goToStep(1)">← Back</button>
-        <button class="btn-primary" onclick="goToStep(3)">Next: Delivery →</button>
-      </div>
-    </div>
-
-    <!-- Step 3: Delivery -->
-    <div class="step-panel" id="panel-3">
-      <div style="max-width:500px">
+      <div class="delivery-form">
         <div class="form-group">
           <label>Room / Location</label>
-          <input type="text" id="delivery-room" placeholder="e.g. Room 204, Library, Gym" />
+          <input type="text" id="delivery-room" placeholder="e.g. Room 204, Library, Front Office" />
+          <div class="form-note">We'll deliver straight to you.</div>
         </div>
         <div class="form-row">
           <div class="form-group">
@@ -246,48 +216,73 @@
             <select id="delivery-time"><option value="">Select a time...</option></select>
           </div>
         </div>
-      </div>
-      <div class="btn-row">
-        <button class="btn-ghost" onclick="goToStep(2)">← Back</button>
-        <button class="btn-primary" onclick="goToStep(4)">Review Order →</button>
-      </div>
-    </div>
-
-    <!-- Step 4: Review -->
-    <div class="step-panel" id="panel-4">
-      <div class="review-card">
-        <div class="review-header">
-          <div>
-            <div style="font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--red);margin-bottom:0.3rem">Your Order</div>
-            <div class="review-drink-name" id="review-drink-name">—</div>
-            <div class="review-size-badge" id="review-size-badge">—</div>
-          </div>
+        <div class="form-group">
+          <label>Any notes for your order? <span style="color:var(--gray);font-weight:300">(optional)</span></label>
+          <input type="text" id="order-notes" placeholder="e.g. extra shot, no whip, oat milk..." />
+          <div class="form-note">You'll also be able to customize fully when you pay in Square.</div>
         </div>
-        <div id="review-lines"></div>
-        <div class="loyalty-note">⭐ You'll earn <span>+1 loyalty point</span> for this order!</div>
       </div>
       <div class="btn-row">
-        <button class="btn-ghost" onclick="goToStep(3)">← Back</button>
-        <button class="btn-primary" id="submit-btn" onclick="submitOrder()">Save Order & Continue →</button>
+        <button class="btn-ghost" onclick="goToStep(1)">← Back</button>
+        <button class="btn-primary" onclick="goToStep(3)">Review & Pay →</button>
       </div>
     </div>
 
-    <!-- Step 5: Confirmation + Square button -->
-    <div class="step-panel" id="panel-5">
-      <div class="confirm-screen">
-        <span class="confirm-icon">✅</span>
-        <div class="confirm-title">Order Saved!</div>
-        <p class="confirm-sub">Your order details have been sent to our team. Complete your payment below to confirm your order — then we'll take care of the rest.</p>
-        <div id="square-btn-wrap"></div>
-        <a class="skip-link" href="dashboard.html">← Back to dashboard (pay cash / pay later)</a>
+    <!-- ── Step 3: Confirm & Pay ── -->
+    <div class="step-panel" id="panel-3">
+      <div class="confirm-layout">
+        <!-- Order summary -->
+        <div class="order-summary-card">
+          <div class="summary-label">Order Summary</div>
+          <div class="summary-drink" id="sum-drink">—</div>
+          <div class="summary-temp" id="sum-temp">—</div>
+          <div id="sum-lines"></div>
+          <div class="loyalty-note">⭐ You'll earn <span>+1 loyalty point</span> on this order!</div>
+        </div>
+
+        <!-- Pay panel -->
+        <div class="pay-panel">
+          <div class="pay-title">Complete Your Order</div>
+          <p class="pay-sub">Your delivery request is saved. Click below to customize your drink and pay securely through Square.</p>
+          <div class="pay-steps">
+            <div class="pay-step">
+              <div class="pay-step-num">1</div>
+              <div class="pay-step-text"><strong>Customize in Square</strong>Add syrups, milk options, cold foam, extra shots and more.</div>
+            </div>
+            <div class="pay-step">
+              <div class="pay-step-num">2</div>
+              <div class="pay-step-text"><strong>Pay securely</strong>Square handles all payment processing — card, Apple Pay, Google Pay.</div>
+            </div>
+            <div class="pay-step">
+              <div class="pay-step-num">3</div>
+              <div class="pay-step-text"><strong>We deliver</strong>Our team sees your delivery request and brings it to your room.</div>
+            </div>
+          </div>
+          <div id="square-btn-wrap"></div>
+          <a class="skip-link" href="orders.html">← Save for later / pay cash</a>
+        </div>
       </div>
     </div>
+
+    <!-- ── Success screen ── -->
+    <div class="step-panel" id="panel-success">
+      <div class="success-screen">
+        <span class="success-icon">✅</span>
+        <div class="success-title">You're all set!</div>
+        <p class="success-sub">Your delivery request is in. Once you've paid in Square, our team will get your order ready and deliver it to your room.</p>
+        <div>
+          <a class="btn-outline" href="order.html">Order Another</a>
+          <a class="btn-outline" href="orders.html">View My Orders</a>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 
 <script>
   const sb = supabase.createClient('https://ljukrhneikqbabcmcpet.supabase.co','sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn');
-  let currentUser = null, menuItems = [], selectedItem = null, selectedMilk = null, selectedSyrup = 'None';
+  let currentUser = null, menuItems = [], selectedItem = null, selectedTemp = null, savedOrderId = null;
 
   async function init() {
     const {data:{session}} = await sb.auth.getSession();
@@ -304,191 +299,161 @@
   async function loadMenu() {
     const {data,error} = await sb.from('menu_items').select('*').eq('available',true).order('sort_order');
     const container = document.getElementById('menu-container');
-    if(error||!data||!data.length){container.innerHTML='<div class="no-menu">No menu items yet — check back soon!</div>';return;}
+    if(error||!data?.length){container.innerHTML='<div class="no-menu">No menu items available right now — check back soon!</div>';return;}
     menuItems = data;
 
     const hotItems  = data.filter(i => i.is_hot !== false && i.is_iced !== true);
     const icedItems = data.filter(i => i.is_iced === true);
-    // Items that are both get shown in both sections
     const bothItems = data.filter(i => i.is_hot !== false && i.is_iced === true);
 
     let html = '';
-
     if(hotItems.length || bothItems.length) {
-      html += `
-        <div class="menu-section-header">
-          <span class="menu-section-icon">☕</span>
-          <span class="menu-section-title">Hot Drinks</span>
-          <span class="menu-section-pill pill-hot">12 oz</span>
-        </div>
-        <div class="menu-grid">
-          ${[...hotItems, ...bothItems].map(item => menuCard(item, 'hot')).join('')}
-        </div>`;
+      html += `<div class="menu-section-header">
+        <span style="font-size:1.3rem">☕</span>
+        <span class="menu-section-title">Hot Drinks</span>
+        <span class="size-pill pill-hot">12 oz</span>
+      </div>
+      <div class="menu-grid">
+        ${[...hotItems,...bothItems].map(i=>menuCard(i,'hot')).join('')}
+      </div>`;
     }
-
     if(icedItems.length || bothItems.length) {
-      html += `
-        <div class="menu-section-header">
-          <span class="menu-section-icon">🧊</span>
-          <span class="menu-section-title">Iced Drinks</span>
-          <span class="menu-section-pill pill-iced">16 oz</span>
-        </div>
-        <div class="menu-grid">
-          ${[...icedItems, ...bothItems].map(item => menuCard(item, 'iced')).join('')}
-        </div>`;
+      html += `<div class="menu-section-header">
+        <span style="font-size:1.3rem">🧊</span>
+        <span class="menu-section-title">Iced Drinks</span>
+        <span class="size-pill pill-iced">16 oz</span>
+      </div>
+      <div class="menu-grid">
+        ${[...icedItems,...bothItems].map(i=>menuCard(i,'iced')).join('')}
+      </div>`;
     }
-
-    container.innerHTML = html || '<div class="no-menu">No menu items yet.</div>';
+    container.innerHTML = html || '<div class="no-menu">No items available.</div>';
   }
 
   function menuCard(item, temp) {
-    // Use composite ID so same item can appear in both sections
-    const cardId = `card-${item.id}-${temp}`;
-    return `
-      <div class="menu-card" id="${cardId}" onclick="selectItem('${item.id}','${temp}')">
-        <div class="menu-card-check">✓</div>
-        <div class="menu-card-name">${item.name}</div>
-        <div class="menu-card-desc">${item.description||''}</div>
-      </div>`;
+    return `<div class="menu-card" id="card-${item.id}-${temp}" onclick="selectItem('${item.id}','${temp}')">
+      <div class="menu-card-check">✓</div>
+      <div class="menu-card-name">${item.name}</div>
+      <div class="menu-card-desc">${item.description||''}</div>
+    </div>`;
   }
 
   function selectItem(id, temp) {
     document.querySelectorAll('.menu-card').forEach(c=>c.classList.remove('selected'));
-    const card = document.getElementById(`card-${id}-${temp}`);
-    if(card) card.classList.add('selected');
+    document.getElementById(`card-${id}-${temp}`)?.classList.add('selected');
     selectedItem = menuItems.find(i=>i.id===id);
-    selectedItem._selectedTemp = temp; // store which temp was picked
+    selectedTemp = temp;
     document.getElementById('btn-next-1').disabled = false;
-  }
-
-  function loadCustomizationOptions() {
-    const item = selectedItem;
-    const temp = item._selectedTemp;
-    const isIced = temp === 'iced';
-
-    // Banner
-    document.getElementById('sdb-icon').textContent = isIced ? '🧊' : '☕';
-    document.getElementById('sdb-name').textContent = item.name;
-    const sizeEl = document.getElementById('sdb-size');
-    sizeEl.textContent = isIced ? 'Iced · 16 oz' : 'Hot · 12 oz';
-    sizeEl.className = 'sdb-size ' + temp;
-
-    const milks  = item.available_milks  || ['Whole Milk','Oat Milk','Almond Milk','2% Milk'];
-    const syrups = item.available_syrups || ['Vanilla','Caramel','Hazelnut','Sugar Free Vanilla'];
-
-    document.getElementById('milk-options').innerHTML = milks.map((m,i)=>
-      `<button class="option-chip ${i===0?'selected':''}" onclick="selectChip(this,'milk','${m}')">${m}</button>`
-    ).join('');
-    selectedMilk = milks[0];
-
-    document.getElementById('syrup-options').innerHTML =
-      `<button class="option-chip selected" onclick="selectChip(this,'syrup','None')">None</button>` +
-      syrups.map(s=>`<button class="option-chip" onclick="selectChip(this,'syrup','${s}')">${s}</button>`).join('');
-    selectedSyrup = 'None';
-  }
-
-  function selectChip(el, type, value) {
-    el.closest('.option-row').querySelectorAll('.option-chip').forEach(c=>c.classList.remove('selected'));
-    el.classList.add('selected');
-    if(type==='milk') selectedMilk=value;
-    if(type==='syrup') selectedSyrup=value;
   }
 
   async function loadDeliveryTimes() {
     const {data} = await sb.from('store_config').select('value').eq('key','delivery_times').single();
-    const times = data?.value||['7:30 AM','8:00 AM','9:00 AM','10:00 AM','11:00 AM','12:00 PM'];
+    const times = data?.value||['7:30 AM','8:00 AM','8:30 AM','9:00 AM','10:00 AM','11:00 AM','12:00 PM'];
     const sel = document.getElementById('delivery-time');
     times.forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;sel.appendChild(o);});
   }
 
-  function buildReview() {
+  function buildSummary() {
+    const isIced = selectedTemp==='iced';
+    // Drink banner
+    document.getElementById('sdb-icon').textContent = isIced?'🧊':'☕';
+    document.getElementById('sdb-name').textContent = selectedItem.name;
+    const tempEl = document.getElementById('sdb-temp');
+    tempEl.textContent = isIced?'Iced · 16 oz':'Hot · 12 oz';
+    tempEl.className = 'sdb-temp '+(isIced?'iced':'hot');
+
+    // Summary card
+    document.getElementById('sum-drink').textContent = selectedItem.name;
+    const sumTemp = document.getElementById('sum-temp');
+    sumTemp.textContent = isIced?'🧊 Iced · 16 oz':'☕ Hot · 12 oz';
+    sumTemp.style.color = isIced?'#66aaff':'#ff9944';
+
     const room  = document.getElementById('delivery-room').value;
     const time  = document.getElementById('delivery-time').value;
     const day   = document.getElementById('delivery-day').value;
-    const notes = document.getElementById('special-instructions').value;
-    const temp  = selectedItem._selectedTemp;
-    const isIced = temp === 'iced';
-
-    document.getElementById('review-drink-name').textContent = selectedItem.name;
-    const badge = document.getElementById('review-size-badge');
-    badge.textContent = isIced ? '🧊 Iced · 16 oz' : '☕ Hot · 12 oz';
-    badge.className   = 'review-size-badge ' + temp;
+    const notes = document.getElementById('order-notes').value;
 
     const lines = [
-      {k:'Milk',     v: selectedMilk},
-      {k:'Syrup',    v: selectedSyrup||'None'},
-      {k:'Delivery', v: `${day} at ${time||'—'}`},
-      {k:'Room',     v: room||'—'},
+      {k:'Deliver to', v:room||'—'},
+      {k:'Day', v:day},
+      {k:'Time', v:time||'—'},
     ];
-    if(notes) lines.push({k:'Instructions', v:notes});
-    document.getElementById('review-lines').innerHTML = lines.map(l=>
-      `<div class="review-line"><span class="review-key">${l.k}</span><span class="review-val">${l.v}</span></div>`
+    if(notes) lines.push({k:'Notes', v:notes});
+    document.getElementById('sum-lines').innerHTML = lines.map(l=>
+      `<div class="summary-line"><span class="summary-key">${l.k}</span><span class="summary-val">${l.v}</span></div>`
     ).join('');
   }
 
-  function goToStep(step) {
-    if(step===2) loadCustomizationOptions();
-    if(step===4) {
+  async function saveAndShowPayment() {
+    // Save order to Supabase
+    const meta  = currentUser.user_metadata;
+    const isIced = selectedTemp==='iced';
+    const room  = document.getElementById('delivery-room').value;
+    const time  = document.getElementById('delivery-time').value;
+    const day   = document.getElementById('delivery-day').value;
+    const notes = document.getElementById('order-notes').value;
+
+    const {data, error} = await sb.from('orders').insert({
+      user_id: currentUser.id,
+      customer_name: (meta.first_name||'')+' '+(meta.last_name||''),
+      drink_name: selectedItem.name,
+      room, size: isIced?'Iced 16oz':'Hot 12oz',
+      delivery_time: time, delivery_day: day,
+      special_instructions: notes,
+      points_earned: 1, status: 'pending'
+    }).select().single();
+
+    if(!error) {
+      savedOrderId = data?.id;
+      await sb.auth.updateUser({data:{loyalty_points:(meta.loyalty_points||0)+1}});
+    }
+
+    // Show Square button
+    const squareLink = isIced ? selectedItem.square_link_iced : selectedItem.square_link_hot;
+    const wrap = document.getElementById('square-btn-wrap');
+    if(squareLink) {
+      wrap.innerHTML = `<a class="square-btn" href="${squareLink}" target="_blank" onclick="showSuccess()">
+        <span class="square-btn-icon">💳</span> Customize & Pay in Square
+      </a>`;
+    } else {
+      wrap.innerHTML = `<div class="no-link-note">⚠️ Online payment isn't set up for this item yet. Please pay in person or contact staff.<br><br>Your delivery request has been saved!</div>`;
+    }
+  }
+
+  function showSuccess() {
+    // Show success screen after a short delay (they've clicked out to Square)
+    setTimeout(()=>{
+      document.querySelectorAll('.step-panel').forEach(p=>p.classList.remove('active'));
+      document.getElementById('panel-success').classList.add('active');
+      setStepIndicators('success');
+    }, 800);
+  }
+
+  async function goToStep(step) {
+    if(step===2) {
+      buildSummary();
+    }
+    if(step===3) {
       const room = document.getElementById('delivery-room').value.trim();
       const time = document.getElementById('delivery-time').value;
       if(!room){alert('Please enter your room or delivery location.');return;}
       if(!time){alert('Please select a delivery time.');return;}
-      buildReview();
+      buildSummary();
+      await saveAndShowPayment();
     }
     document.querySelectorAll('.step-panel').forEach(p=>p.classList.remove('active'));
     document.getElementById('panel-'+step).classList.add('active');
-    for(let i=1;i<=5;i++){
-      const ind=document.getElementById('step-ind-'+i);
-      if(ind) ind.className='step'+(i===step?' active':i<step?' done':'');
-    }
+    setStepIndicators(step);
     window.scrollTo(0,0);
   }
 
-  async function submitOrder() {
-    const btn=document.getElementById('submit-btn');
-    btn.disabled=true; btn.textContent='Saving...';
-    const room  = document.getElementById('delivery-room').value;
-    const time  = document.getElementById('delivery-time').value;
-    const day   = document.getElementById('delivery-day').value;
-    const notes = document.getElementById('special-instructions').value;
-    const meta  = currentUser.user_metadata;
-    const temp  = selectedItem._selectedTemp;
-    const isIced = temp === 'iced';
-
-    const {error} = await sb.from('orders').insert({
-      user_id: currentUser.id,
-      customer_name: (meta.first_name||'')+' '+(meta.last_name||''),
-      drink_name: selectedItem.name,
-      room,
-      size: isIced ? 'Iced 16oz' : 'Hot 12oz',
-      milk: selectedMilk,
-      syrup: selectedSyrup,
-      delivery_time: time,
-      delivery_day: day,
-      special_instructions: notes,
-      points_earned: 1,
-      status: 'pending'
-    });
-
-    if(error){alert('Error saving order: '+error.message);btn.disabled=false;btn.textContent='Save Order & Continue →';return;}
-
-    // Award loyalty point
-    await sb.auth.updateUser({data:{loyalty_points:(meta.loyalty_points||0)+1}});
-
-    // Pick correct Square link
-    const squareLink = isIced ? selectedItem.square_link_iced : selectedItem.square_link_hot;
-
-    // Show confirmation
-    document.querySelectorAll('.step-panel').forEach(p=>p.classList.remove('active'));
-    document.getElementById('panel-5').classList.add('active');
-    for(let i=1;i<=5;i++){const ind=document.getElementById('step-ind-'+i);if(ind)ind.className='step done';}
-
-    const wrap = document.getElementById('square-btn-wrap');
-    wrap.innerHTML = squareLink
-      ? `<a class="square-btn" href="${squareLink}" target="_blank">💳 Complete Payment in Square</a>`
-      : `<div class="no-link-note">⚠️ No payment link set up for this item yet.<br>Please pay cash or contact staff to complete your order.</div>`;
-
-    window.scrollTo(0,0);
+  function setStepIndicators(active) {
+    for(let i=1;i<=3;i++){
+      const el=document.getElementById('step-ind-'+i);
+      if(!el) continue;
+      if(active==='success') { el.className='step done'; continue; }
+      el.className='step'+(i===active?' active':i<active?' done':'');
+    }
   }
 
   async function signOut(){await sb.auth.signOut();window.location.href='index.html';}
