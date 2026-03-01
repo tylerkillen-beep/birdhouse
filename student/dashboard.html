@@ -193,11 +193,27 @@
 
     <div id="section-schedule" style="display:none">
       <div class="page-eyebrow">My Schedule</div>
-      <h1 class="page-title">This Week</h1>
+      <h1 class="page-title" id="schedule-heading">My Schedule</h1>
+
+      <!-- Role card -->
+      <div id="role-card" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.5rem;margin-bottom:1.75rem">
+        <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap">
+          <div style="font-size:3rem" id="role-icon">🏠</div>
+          <div style="flex:1">
+            <div style="font-size:0.62rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--red);margin-bottom:0.2rem">This Week's Assignment</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:0.04em" id="role-title">—</div>
+            <div style="font-size:0.85rem;color:var(--light-gray);margin-top:0.2rem" id="role-desc">—</div>
+          </div>
+          <div id="role-days-badge" style="text-align:right"></div>
+        </div>
+      </div>
+
+      <!-- Week schedule grid -->
       <div class="schedule-grid" id="schedule-grid"></div>
-      <div style="margin-top:1.5rem;background:var(--card);border:1px solid var(--border-dim);border-radius:12px;padding:1.5rem">
-        <div class="section-title" style="font-size:1rem;margin-bottom:0.5rem">Schedule Notes</div>
-        <p style="color:var(--gray);font-size:0.85rem;line-height:1.6">Contact your instructor if you need to swap a shift.</p>
+
+      <!-- No assignment state -->
+      <div id="no-assignment" style="display:none;color:var(--gray);text-align:center;padding:3rem;background:var(--card);border-radius:14px;border:1px solid var(--border-dim)">
+        No schedule published for this week yet — check back soon!
       </div>
     </div>
 
@@ -485,54 +501,107 @@
     renderOrders(currentOrderFilter);
   }
 
+  const ROLE_META = {
+    birdhouse:{icon:'🏠', label:'The Birdhouse', desc:'In-store service · All week', days:['Monday','Tuesday','Wednesday','Thursday','Friday'], color:'#cc0000'},
+    mathews:  {icon:'🏫', label:'Mathews',        desc:'Second location · Mon / Wed / Fri', days:['Monday','Wednesday','Friday'], color:'#0066cc'},
+    menu:     {icon:'📋', label:'Menu Planning',  desc:'Prepping next week\'s menu · In class all week', days:[], color:'#cc8800'},
+    inclass:  {icon:'📚', label:'In Class',       desc:'Classroom activities all week', days:[], color:'#6600cc'},
+  };
+  const POS_LABELS = {cashier:'Cashier',barista:'Barista',stocker:'Stocker',custodian:'Custodian'};
+
   async function loadSchedule() {
-    const grid = document.getElementById('schedule-grid');
     const today = new Date();
-    const weekStart = new Date(today);
-    weekStart.setDate(today.getDate()-(today.getDay()===0?6:today.getDay()-1));
-    const ws = weekStart.toISOString().split('T')[0];
-    const we = new Date(weekStart); we.setDate(weekStart.getDate()+7);
+    const day = today.getDay();
+    const diff = day===0?-6:1-day;
+    const monday = new Date(today); monday.setDate(today.getDate()+diff); monday.setHours(0,0,0,0);
+    const ws = monday.toISOString().split('T')[0];
 
     // Get student's team
     const {data:studentData} = await sb.from('students').select('team_id,period,teams(name,period,color)').eq('id',currentUser.id).single();
     const teamId = studentData?.team_id;
     const teamName = studentData?.teams?.name;
-    const teamPeriod = studentData?.teams?.period;
     const teamColor = studentData?.teams?.color||'#cc0000';
+    const teamPeriod = studentData?.teams?.period;
 
-    // Load one-off shifts for this team this week
-    const {data:shifts} = await sb.from('schedules').select('*').eq('team_id', teamId).gte('shift_date',ws).lt('shift_date',we.toISOString().split('T')[0]).order('shift_date');
-    // Load recurring shifts for this team
-    const {data:recurring} = await sb.from('recurring_shifts').select('*').eq('team_id',teamId).eq('active',true);
+    // Update heading
+    const heading = document.getElementById('schedule-heading');
+    if(heading && teamName) heading.innerHTML = `My Schedule <span style="font-family:'DM Sans',sans-serif;font-size:1.1rem;font-weight:400;color:${teamColor};margin-left:0.5rem">${teamName}</span> <span style="font-size:0.85rem;color:${teamPeriod==='1st Hour'?'#ff9944':'#66aaff'};font-family:'DM Sans',sans-serif">${teamPeriod||''}</span>`;
+
+    if(!teamId){document.getElementById('no-assignment').style.display='block';return;}
+
+    // Get weekly assignment
+    const {data:assignment} = await sb.from('weekly_assignments').select('*').eq('team_id',teamId).eq('week_start',ws).single();
+
+    if(!assignment){
+      document.getElementById('no-assignment').style.display='block';
+      document.getElementById('role-card').style.display='none';
+      document.getElementById('schedule-grid').innerHTML='';
+      return;
+    }
+
+    // Show role card
+    const role = ROLE_META[assignment.role]||ROLE_META.inclass;
+    document.getElementById('role-card').style.display='block';
+    document.getElementById('no-assignment').style.display='none';
+    document.getElementById('role-icon').textContent=role.icon;
+    document.getElementById('role-title').textContent=role.label;
+    document.getElementById('role-title').style.color=role.color;
+    document.getElementById('role-desc').textContent=role.desc;
+
+    const daysHtml = role.days.length
+      ? role.days.map(d=>`<div style="font-size:0.72rem;padding:0.2rem 0.6rem;background:rgba(255,255,255,0.05);border-radius:4px;margin-bottom:0.25rem;color:var(--light-gray)">${d}</div>`).join('')
+      : `<div style="font-size:0.72rem;color:var(--gray)">In Class all week</div>`;
+    document.getElementById('role-days-badge').innerHTML=daysHtml;
+
+    // Get daily positions for this student this week
+    const weekDates = [0,1,2,3,4].map(i=>{const d=new Date(monday);d.setDate(monday.getDate()+i);return d;});
+    const {data:positions} = await sb.from('daily_positions').select('*')
+      .eq('student_id',currentUser.id)
+      .in('shift_date',weekDates.map(d=>d.toISOString().split('T')[0]));
+    const posMap = {};
+    (positions||[]).forEach(p=>posMap[p.shift_date]=p.position);
 
     const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
-    let nextShift = null;
+    const grid = document.getElementById('schedule-grid');
 
-    grid.innerHTML = DAYS.map((day,i)=>{
-      const date = new Date(weekStart); date.setDate(weekStart.getDate()+i);
+    // For Mathews: Tue/Thu are In Class
+    const isWorking = (roleKey, dayIndex) => {
+      if(roleKey==='birdhouse') return true;
+      if(roleKey==='mathews') return [0,2,4].includes(dayIndex); // Mon/Wed/Fri
+      return false;
+    };
+    const hasPositions = assignment.role==='birdhouse'||assignment.role==='mathews';
+    let nextShift=null;
+
+    grid.innerHTML = DAYS.map((dayName,i)=>{
+      const date = weekDates[i];
       const dateStr = date.toISOString().split('T')[0];
       const isToday = date.toDateString()===today.toDateString();
-      // Check one-off shift first, then recurring
-      const shift = (shifts||[]).find(s=>s.shift_date===dateStr)
-        || ((recurring||[]).find(r=>r.day_of_week===day) ? {start_time:(recurring||[]).find(r=>r.day_of_week===day).start_time, end_time:(recurring||[]).find(r=>r.day_of_week===day).end_time, isRecurring:true} : null);
-      if(shift && !nextShift && (dateStr >= today.toISOString().split('T')[0])) nextShift={day,time:shift.start_time+' – '+shift.end_time};
+      const working = hasPositions && isWorking(assignment.role, i);
+      const inClassDay = assignment.role==='mathews' && !working;
+      const position = posMap[dateStr];
+
+      if(!hasPositions || inClassDay) {
+        if(dateStr >= today.toISOString().split('T')[0] && !nextShift && (assignment.role==='birdhouse'||assignment.role==='mathews'&&working)) nextShift={day:dayName};
+        return `<div class="schedule-day ${isToday?'today':''}">
+          <div class="day-name">${dayName.slice(0,3)}</div>
+          <div class="day-date">${date.getMonth()+1}/${date.getDate()}</div>
+          <div class="day-off">${inClassDay?'In Class':'No Shift'}</div>
+        </div>`;
+      }
+
+      if(dateStr >= today.toISOString().split('T')[0] && !nextShift) nextShift={day:dayName,pos:position};
       return `<div class="schedule-day ${isToday?'today':''}">
-        <div class="day-name">${day.slice(0,3)}</div>
+        <div class="day-name">${dayName.slice(0,3)}</div>
         <div class="day-date">${date.getMonth()+1}/${date.getDate()}</div>
-        ${shift?`
-          <div class="day-shift" style="color:${teamColor}">Working</div>
-          <div class="day-time">${shift.start_time} – ${shift.end_time}</div>
-          ${teamPeriod?`<div style="font-size:0.65rem;color:var(--gray);margin-top:0.2rem">${teamPeriod}</div>`:''}
-          ${shift.isRecurring?`<div style="font-size:0.6rem;color:rgba(255,255,255,0.25);margin-top:0.15rem">↺ recurring</div>`:''}
-        `:`<div class="day-off">Off</div>`}
+        <div class="day-shift" style="color:${role.color}">Working</div>
+        ${position?`<div class="day-time">${POS_LABELS[position]||position}</div>`:'<div class="day-time" style="color:var(--gray)">TBD</div>'}
       </div>`;
     }).join('');
 
-    if(nextShift){document.getElementById('stat-next-shift').textContent=nextShift.day;document.getElementById('stat-next-time').textContent=nextShift.time;}
-    // Show team info
-    if(teamName){
-      const titleEl = document.querySelector('#section-schedule h1');
-      if(titleEl) titleEl.innerHTML = `My Schedule <span style="font-size:1.2rem;color:${teamColor};margin-left:0.5rem">${teamName}</span> <span style="font-size:0.85rem;color:${teamPeriod==='1st Hour'?'#ff9944':'#66aaff'};font-family:'DM Sans',sans-serif;letter-spacing:0">${teamPeriod||''}</span>`;
+    if(nextShift){
+      document.getElementById('stat-next-shift').textContent=nextShift.day;
+      document.getElementById('stat-next-time').textContent=nextShift.pos?POS_LABELS[nextShift.pos]:'Working';
     }
   }
 
