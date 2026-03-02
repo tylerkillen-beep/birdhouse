@@ -135,6 +135,7 @@
     <div class="nav-item" onclick="showSection('rubric',this)">⭐ Score Rubric</div>
     <div class="nav-item" onclick="showSection('manager-scores',this)">📊 Student Scores</div>
     <div class="nav-item" onclick="showSection('students',this)">👥 Student Accounts</div>
+    <div class="nav-item" onclick="showSection('approvals',this)">🔔 Staff Approvals <span id="approvals-badge" style="display:none;background:var(--red);color:white;font-size:0.6rem;padding:0.1rem 0.45rem;border-radius:10px;margin-left:auto"></span></div>
     <div class="nav-section">Menu</div>
     <div class="nav-item" onclick="showSection('submissions',this)">📬 Pending Submissions <span id="admin-sub-badge" style="display:none;background:var(--red);color:white;font-size:0.6rem;padding:0.1rem 0.45rem;border-radius:10px;margin-left:auto"></span></div>
     <div class="nav-item" onclick="showSection('menu',this)">☕ Menu Manager</div>
@@ -277,6 +278,21 @@
         </table>
       </div>
       <p style="color:var(--gray);font-size:0.78rem;margin-top:0.75rem">* Student accounts are managed in Supabase Auth. Role changes take effect on next login.</p>
+    </div>
+
+    <!-- ── STAFF APPROVALS ── -->
+    <div class="section-panel" id="section-approvals">
+      <div class="page-eyebrow">Team</div>
+      <h1 class="page-title">Staff Approvals</h1>
+      <p style="color:var(--gray);font-size:0.88rem;margin-bottom:1.5rem">These users signed in with their school Google account but have not been approved yet. Approve to grant student staff access, or deny to remove them.</p>
+      <div class="card" id="approvals-card">
+        <table>
+          <thead><tr><th>Email</th><th>Signed Up</th><th>Actions</th></tr></thead>
+          <tbody id="approvals-tbody">
+            <tr><td colspan="3" class="empty-state">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- ── MENU SUBMISSIONS ── -->
@@ -861,6 +877,67 @@
     if(name==='submissions')    loadSubmissions();
     if(name==='rubric')         loadRubric();
     if(name==='manager-scores') loadAdminScores();
+    if(name==='approvals')      loadApprovals();
+  }
+
+  // ── Staff Approvals ──
+  async function loadApprovals() {
+    const tbody = document.getElementById('approvals-tbody');
+    const badge = document.getElementById('approvals-badge');
+    tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Loading...</td></tr>';
+
+    // Fetch all auth users via the students table — find those with no role or role=null
+    // We use a special RPC or just query profiles. Since we store students in the students table,
+    // pending users are those in auth but NOT in the students table yet.
+    // We'll query a pending_approvals view or just use the profiles table if available.
+    // For now we check the students table for role=null or no entry.
+
+    // Get users from profiles/students who have no role set (came in via Google OAuth)
+    const { data, error } = await sb
+      .from('students')
+      .select('*')
+      .is('role', null)
+      .order('created_at', { ascending: false });
+
+    const pending = data || [];
+
+    // Also check for users that are in auth but have no students row yet using a fallback
+    // We will show pending from students table with null role
+    if (!pending.length) {
+      tbody.innerHTML = '<tr><td colspan="3" class="empty-state" style="padding:2rem;text-align:center;color:var(--gray)">No pending approvals. 🎉</td></tr>';
+      badge.style.display = 'none';
+      return;
+    }
+
+    badge.textContent = pending.length;
+    badge.style.display = 'inline-block';
+
+    tbody.innerHTML = pending.map(u => `
+      <tr>
+        <td style="font-size:0.9rem">${u.email || '—'}<br><span style="font-size:0.75rem;color:var(--gray)">${(u.first_name||'')+' '+(u.last_name||'')}</span></td>
+        <td style="color:var(--gray);font-size:0.82rem">${u.created_at ? new Date(u.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'}</td>
+        <td style="display:flex;gap:0.5rem">
+          <button class="btn-primary" style="padding:0.35rem 0.9rem;font-size:0.78rem" onclick="approveStaff('${u.id}','${u.email}')">✓ Approve</button>
+          <button class="btn-danger" onclick="denyStaff('${u.id}','${u.email}')">✕ Deny</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  async function approveStaff(id, email) {
+    if (!confirm(`Approve ${email} as student staff?`)) return;
+    const { error } = await sb.from('students').update({ role: 'student' }).eq('id', id);
+    if (error) { alert('Error: ' + error.message); return; }
+    // Also update their auth metadata
+    await sb.auth.admin?.updateUserById(id, { user_metadata: { role: 'student' } });
+    loadApprovals();
+    loadStudents();
+  }
+
+  async function denyStaff(id, email) {
+    if (!confirm(`Deny and remove ${email}?`)) return;
+    await sb.from('students').delete().eq('id', id);
+    loadApprovals();
   }
 
   // ── Score Rubric ──
