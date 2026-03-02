@@ -142,6 +142,9 @@
     <div class="nav-section">Team</div>
     <div class="nav-item" onclick="showSection('schedule',this)">🗓️ Schedule Builder</div>
     <div class="nav-item" onclick="showSection('summaries',this)">📝 Weekly Summaries</div>
+    <div class="nav-section">Manager</div>
+    <div class="nav-item" onclick="showSection('rubric',this)">⭐ Score Rubric</div>
+    <div class="nav-item" onclick="showSection('manager-scores',this)">📊 Student Scores</div>
     <div class="nav-item" onclick="showSection('students',this)">👥 Student Accounts</div>
     <div class="nav-section">Menu</div>
     <div class="nav-item" onclick="showSection('submissions',this)">📬 Pending Submissions <span id="admin-sub-badge" style="display:none;background:var(--red);color:white;font-size:0.6rem;padding:0.1rem 0.45rem;border-radius:10px;margin-left:auto"></span></div>
@@ -904,7 +907,13 @@
   // ── Helpers ──
   function showSection(name, el) {
     document.querySelectorAll('.section-panel').forEach(p=>p.classList.remove('active'));
-    document.getElementById('section-'+name).classList.add('active');
+    // Also handle display:none sections
+    document.querySelectorAll('[id^="section-"]').forEach(p=>{
+      if(!p.classList.contains('section-panel')) p.style.display='none';
+    });
+    const target = document.getElementById('section-'+name);
+    if(target.classList.contains('section-panel')) target.classList.add('active');
+    else target.style.display='block';
     document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
     el.classList.add('active');
     if(name==='summaries') loadSummaries();
@@ -913,6 +922,131 @@
     if(name==='schedule')  loadSchedule();
     if(name==='orders')    loadAdminOrders();
     if(name==='submissions') loadSubmissions();
+    if(name==='rubric')    loadRubric();
+    if(name==='manager-scores') loadAdminScores();
+  }
+
+  // ── Score Rubric ──
+  let allRubric = [];
+  async function loadRubric() {
+    const {data} = await sb.from('score_rubric').select('*').order('sort_order');
+    allRubric = data||[];
+    const list = document.getElementById('rubric-list');
+    if(!allRubric.length){list.innerHTML='<div style="color:var(--gray);font-size:0.85rem;padding:2rem;background:var(--card);border-radius:12px;border:1px solid var(--border-dim);text-align:center">No rubric categories yet. Add your first one!</div>';return;}
+    list.innerHTML = `<div style="border:1px solid var(--border-dim);border-radius:12px;overflow:hidden">
+      ${allRubric.map((r,i)=>`<div style="display:flex;align-items:center;gap:1rem;padding:1rem 1.25rem;border-bottom:${i<allRubric.length-1?'1px solid var(--border-dim)':'none'};background:var(--card)">
+        <div style="flex:1">
+          <div style="font-weight:500;font-size:0.92rem">${r.name} <span style="font-size:0.72rem;color:var(--gray);font-weight:400">/ ${r.max_points} pts</span></div>
+          ${r.description?`<div style="font-size:0.78rem;color:var(--gray);margin-top:0.2rem">${r.description}</div>`:''}
+        </div>
+        <span style="font-size:0.68rem;padding:0.2rem 0.55rem;border-radius:20px;background:${r.active?'rgba(76,175,80,0.1)':'rgba(255,255,255,0.04)'};color:${r.active?'#4caf50':'var(--gray)'};border:1px solid ${r.active?'rgba(76,175,80,0.2)':'var(--border-dim)'}">${r.active?'Active':'Inactive'}</span>
+        <button onclick="editRubricItem('${r.id}')" style="background:none;border:1px solid var(--border-dim);border-radius:6px;padding:0.35rem 0.75rem;color:var(--gray);font-size:0.75rem;cursor:pointer;font-family:'DM Sans',sans-serif">Edit</button>
+        <button onclick="toggleRubricItem('${r.id}',${!r.active})" style="background:none;border:1px solid var(--border-dim);border-radius:6px;padding:0.35rem 0.75rem;color:var(--gray);font-size:0.75rem;cursor:pointer;font-family:'DM Sans',sans-serif">${r.active?'Disable':'Enable'}</button>
+      </div>`).join('')}
+    </div>`;
+  }
+
+  let editingRubricId = null;
+  function openRubricModal(id) {
+    editingRubricId = id||null;
+    const r = id ? allRubric.find(x=>x.id===id) : null;
+    const html = `<div style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;display:flex;align-items:center;justify-content:center" id="rubric-modal">
+      <div style="background:#111;border:1px solid rgba(204,0,0,0.15);border-radius:16px;padding:2rem;width:420px;max-width:95vw">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:0.05em;margin-bottom:1.5rem">${r?'Edit Category':'Add Category'}</div>
+        <div style="margin-bottom:1rem"><label style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.4rem">Category Name</label>
+          <input type="text" id="rub-name" value="${r?.name||''}" placeholder="e.g. Effort, Teamwork..." style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/></div>
+        <div style="margin-bottom:1rem"><label style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.4rem">Description <span style="color:#333">(shown to manager)</span></label>
+          <input type="text" id="rub-desc" value="${r?.description||''}" placeholder="What to look for when scoring..." style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/></div>
+        <div style="margin-bottom:1.5rem"><label style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.4rem">Max Points</label>
+          <input type="number" id="rub-max" value="${r?.max_points||10}" min="1" max="100" style="width:120px;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/></div>
+        <div style="display:flex;gap:0.75rem">
+          <button style="background:transparent;color:#999;border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:0.82rem 1.5rem;font-family:'DM Sans',sans-serif;font-size:0.88rem;cursor:pointer" onclick="document.getElementById('rubric-modal').remove()">Cancel</button>
+          <button style="flex:1;background:#cc0000;color:white;border:none;border-radius:8px;padding:0.82rem;font-family:'DM Sans',sans-serif;font-size:0.88rem;font-weight:600;cursor:pointer;text-transform:uppercase;letter-spacing:0.08em" onclick="saveRubricItem()">Save</button>
+        </div>
+      </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend',html);
+  }
+
+  function editRubricItem(id){ openRubricModal(id); }
+
+  async function saveRubricItem(){
+    const name = document.getElementById('rub-name').value.trim();
+    const desc = document.getElementById('rub-desc').value.trim();
+    const max = parseInt(document.getElementById('rub-max').value)||10;
+    if(!name) return;
+    if(editingRubricId){
+      await sb.from('score_rubric').update({name,description:desc,max_points:max}).eq('id',editingRubricId);
+    } else {
+      const sortOrder = allRubric.length+1;
+      await sb.from('score_rubric').insert({name,description:desc,max_points:max,sort_order:sortOrder});
+    }
+    document.getElementById('rubric-modal')?.remove();
+    loadRubric();
+  }
+
+  async function toggleRubricItem(id, active){
+    await sb.from('score_rubric').update({active}).eq('id',id);
+    loadRubric();
+  }
+
+  // ── Admin Score View ──
+  let adminScoreWeekOffset = 0;
+  async function loadAdminScores(offset){
+    if(offset!==undefined) adminScoreWeekOffset=offset;
+    const mon = getMondayOfWeek ? getMondayOfWeek(adminScoreWeekOffset) : (() => {
+      const today=new Date(); const day=today.getDay(); const diff=day===0?-6:1-day;
+      const m=new Date(today); m.setDate(today.getDate()+diff+(adminScoreWeekOffset*7)); m.setHours(0,0,0,0); return m;
+    })();
+    const ws = mon.toISOString().split('T')[0];
+    const fri = new Date(mon); fri.setDate(mon.getDate()+4);
+    const wLabel = mon.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' – '+fri.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+
+    document.getElementById('score-week-nav-admin').innerHTML=`
+      <button onclick="loadAdminScores(${adminScoreWeekOffset-1})" style="background:none;border:1px solid var(--border-dim);border-radius:7px;padding:0.45rem 1rem;color:var(--gray);cursor:pointer;font-size:0.82rem;font-family:'DM Sans',sans-serif">← Prev</button>
+      <span style="font-size:0.95rem;font-weight:500">${wLabel}</span>
+      <button onclick="loadAdminScores(${adminScoreWeekOffset+1})" style="background:none;border:1px solid var(--border-dim);border-radius:7px;padding:0.45rem 1rem;color:var(--gray);cursor:pointer;font-size:0.82rem;font-family:'DM Sans',sans-serif">Next →</button>`;
+
+    const {data:rubric}=await sb.from('score_rubric').select('*').eq('active',true).order('sort_order');
+    const {data:scores}=await sb.from('student_scores').select('*').eq('week_start',ws);
+    const {data:students}=await sb.from('students').select('id,first_name,last_name,teams(name,period)');
+    const c=document.getElementById('admin-scores-content');
+
+    if(!scores?.length){c.innerHTML='<div style="color:var(--gray);text-align:center;padding:3rem;background:var(--card);border-radius:12px;border:1px solid var(--border-dim)">No scores submitted for this week yet.</div>';return;}
+
+    // Group by student
+    const byStudent={};
+    (scores||[]).forEach(s=>{
+      if(!byStudent[s.student_id])byStudent[s.student_id]={scores:{},comment:s.comment,scoredBy:s.scored_by_name};
+      byStudent[s.student_id].scores[s.rubric_id]=s.score;
+    });
+
+    c.innerHTML=`<div style="border:1px solid var(--border-dim);border-radius:12px;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:#0d0d0d">
+          <th style="padding:0.85rem 1.1rem;text-align:left;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--gray);border-bottom:1px solid var(--border-dim)">Student</th>
+          ${(rubric||[]).map(r=>`<th style="padding:0.85rem 1.1rem;text-align:center;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--gray);border-bottom:1px solid var(--border-dim)">${r.name}<br/><span style="font-size:0.6rem;color:#333">/${r.max_points}</span></th>`).join('')}
+          <th style="padding:0.85rem 1.1rem;text-align:left;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--gray);border-bottom:1px solid var(--border-dim)">Total</th>
+          <th style="padding:0.85rem 1.1rem;text-align:left;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--gray);border-bottom:1px solid var(--border-dim)">Comment</th>
+        </tr></thead>
+        <tbody>${(students||[]).filter(s=>byStudent[s.id]).map(s=>{
+          const data=byStudent[s.id]||{};
+          const total=Object.values(data.scores||{}).reduce((a,b)=>a+b,0);
+          const maxTotal=(rubric||[]).reduce((a,r)=>a+r.max_points,0);
+          const pct=maxTotal?Math.round(total/maxTotal*100):0;
+          const color=pct>=80?'#4caf50':pct>=60?'#ff9800':'#cc0000';
+          return `<tr style="border-bottom:1px solid var(--border-dim)">
+            <td style="padding:0.85rem 1.1rem">
+              <div style="font-weight:500">${s.first_name} ${s.last_name}</div>
+              <div style="font-size:0.7rem;color:var(--gray)">${s.teams?.name||'—'} · ${s.teams?.period||''}</div>
+            </td>
+            ${(rubric||[]).map(r=>`<td style="padding:0.85rem 1.1rem;text-align:center;font-size:0.88rem">${data.scores[r.id]??'—'}</td>`).join('')}
+            <td style="padding:0.85rem 1.1rem"><span style="font-weight:600;color:${color}">${total}</span><span style="color:var(--gray);font-size:0.78rem"> /${maxTotal}</span> <span style="font-size:0.68rem;color:${color}">(${pct}%)</span></td>
+            <td style="padding:0.85rem 1.1rem;font-size:0.82rem;color:var(--gray);max-width:220px">${data.comment||'—'}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>`;
   }
 
   async function signOut() { await sb.auth.signOut(); window.location.href='login.html'; }
