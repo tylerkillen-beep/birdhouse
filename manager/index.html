@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Birdhouse — Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{--red:#cc0000;--red-bright:#ff1a1a;--black:#0a0a0a;--card:#111;--border:rgba(204,0,0,0.18);--border-dim:rgba(255,255,255,0.06);--gray:#555;--light-gray:#999;--white:#f0f0f0}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--black);color:var(--white);font-family:'DM Sans',sans-serif;min-height:100vh;display:flex}
+  .sidebar{width:220px;min-height:100vh;background:#0d0d0d;border-right:1px solid var(--border-dim);padding:1.5rem 0;flex-shrink:0;display:flex;flex-direction:column}
+  .logo{padding:0 1.25rem 1.5rem;border-bottom:1px solid var(--border-dim);margin-bottom:1rem}
+  .role-badge{margin:0 1rem 1.25rem;padding:0.35rem 0.75rem;background:rgba(0,100,200,0.12);border:1px solid rgba(0,100,200,0.2);border-radius:6px;font-size:0.62rem;font-weight:600;text-transform:uppercase;letter-spacing:0.12em;color:#4488ff}
+  .nav-section{font-size:0.58rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--gray);padding:0 1.25rem;margin:1rem 0 0.4rem}
+  .nav-item{display:block;padding:0.6rem 1.25rem;font-size:0.84rem;color:var(--light-gray);cursor:pointer;transition:all 0.15s;border-left:2px solid transparent;text-decoration:none}
+  .nav-item:hover{color:var(--white);background:rgba(255,255,255,0.03)}
+  .nav-item.active{color:var(--white);border-left-color:var(--red);background:rgba(204,0,0,0.06)}
+  .nav-bottom{margin-top:auto;padding:1rem 1.25rem;border-top:1px solid var(--border-dim)}
+  .nav-user{font-size:0.78rem;color:var(--light-gray);margin-bottom:0.5rem}
+  .nav-user strong{display:block;color:var(--white);font-size:0.85rem}
+  .sign-out{font-size:0.72rem;color:var(--gray);cursor:pointer;background:none;border:none;font-family:'DM Sans',sans-serif;text-decoration:underline}
+  .main{flex:1;padding:2.5rem;overflow-y:auto}
+  .page-eyebrow{font-size:0.62rem;text-transform:uppercase;letter-spacing:0.18em;color:var(--red);margin-bottom:0.4rem}
+  .page-title{font-family:'Bebas Neue',sans-serif;font-size:2.8rem;letter-spacing:0.04em;line-height:1;margin-bottom:1.75rem}
+  .stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:2rem}
+  .stat-card{background:var(--card);border:1px solid var(--border-dim);border-radius:12px;padding:1.25rem}
+  .stat-label{font-size:0.62rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--gray);margin-bottom:0.4rem}
+  .stat-value{font-family:'Bebas Neue',sans-serif;font-size:2.2rem;letter-spacing:0.04em}
+  .section{display:none}.section.active{display:block}
+  .team-row{display:flex;align-items:center;gap:1rem;padding:0.9rem 1.25rem;background:var(--card);border:1px solid var(--border-dim);border-radius:10px;margin-bottom:0.5rem;flex-wrap:wrap}
+  .team-name{font-weight:600;font-size:0.92rem;min-width:70px}
+  .role-pill{font-size:0.7rem;padding:0.25rem 0.7rem;border-radius:20px;font-weight:500}
+  .role-birdhouse{background:rgba(204,0,0,0.1);color:var(--red-bright);border:1px solid var(--border)}
+  .role-mathews{background:rgba(0,100,200,0.1);color:#4488ff;border:1px solid rgba(0,100,200,0.2)}
+  .role-menu{background:rgba(200,130,0,0.1);color:#ffaa00;border:1px solid rgba(200,130,0,0.2)}
+  .role-inclass{background:rgba(100,0,200,0.1);color:#aa66ff;border:1px solid rgba(100,0,200,0.2)}
+  .student-chip{font-size:0.72rem;padding:0.2rem 0.6rem;background:rgba(255,255,255,0.05);border:1px solid var(--border-dim);border-radius:20px;color:var(--light-gray)}
+  .inv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:0.85rem}
+  .inv-card{background:var(--card);border:1px solid var(--border-dim);border-radius:12px;padding:1.1rem 1.25rem}
+  .inv-card.low{border-color:rgba(255,152,0,0.35)}.inv-card.out{border-color:rgba(204,0,0,0.35)}
+  .inv-status{font-size:0.7rem;padding:0.2rem 0.6rem;border-radius:20px;font-weight:500;display:inline-block}
+  .inv-status.ok{background:rgba(76,175,80,0.1);color:#4caf50;border:1px solid rgba(76,175,80,0.2)}
+  .inv-status.low{background:rgba(255,152,0,0.1);color:#ff9800;border:1px solid rgba(255,152,0,0.2)}
+  .inv-status.out{background:rgba(204,0,0,0.1);color:var(--red-bright);border:1px solid var(--border)}
+  .inv-bar{background:rgba(255,255,255,0.06);border-radius:4px;height:4px;margin:0.6rem 0;overflow:hidden}
+  .inv-bar-fill{height:100%;border-radius:4px;transition:width 0.4s}
+  .inv-qty-input{width:72px;padding:0.4rem 0.5rem;border:1px solid var(--border-dim);border-radius:6px;background:#0d0d0d;color:var(--white);font-family:'DM Sans',sans-serif;font-size:0.85rem;outline:none}
+  .inv-save-btn{background:var(--red);color:white;border:none;border-radius:6px;padding:0.45rem 0.9rem;font-family:'DM Sans',sans-serif;font-size:0.75rem;font-weight:500;cursor:pointer;text-transform:uppercase;letter-spacing:0.05em}
+  .order-row{display:flex;justify-content:space-between;align-items:center;padding:0.9rem 1.25rem;background:var(--card);border:1px solid var(--border-dim);border-radius:10px;margin-bottom:0.5rem;flex-wrap:wrap;gap:0.75rem}
+  .order-status{font-size:0.7rem;padding:0.2rem 0.65rem;border-radius:20px;font-weight:500}
+  .status-pending{background:rgba(255,152,0,0.1);color:#ff9800;border:1px solid rgba(255,152,0,0.25)}
+  .status-preparing{background:rgba(33,150,243,0.1);color:#2196f3;border:1px solid rgba(33,150,243,0.25)}
+  .status-ready{background:rgba(76,175,80,0.1);color:#4caf50;border:1px solid rgba(76,175,80,0.25)}
+  .status-delivered{background:rgba(100,100,100,0.1);color:#888;border:1px solid rgba(100,100,100,0.2)}
+  .week-nav-btn{background:none;border:1px solid var(--border-dim);border-radius:7px;padding:0.45rem 1rem;color:var(--light-gray);cursor:pointer;font-size:0.82rem;font-family:'DM Sans',sans-serif;transition:all 0.2s}
+  .week-nav-btn:hover{color:var(--white);border-color:var(--border)}
+  .score-student-card{background:var(--card);border:1px solid var(--border-dim);border-radius:14px;padding:1.25rem 1.5rem;margin-bottom:0.75rem}
+  .score-student-header{display:flex;align-items:center;gap:1rem;margin-bottom:1rem;flex-wrap:wrap}
+  .rubric-row{display:flex;align-items:center;gap:1rem;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.04);flex-wrap:wrap}
+  .rubric-row:last-of-type{border-bottom:none}
+  .rubric-label{font-size:0.82rem;min-width:110px;color:var(--light-gray)}
+  .rubric-desc{font-size:0.72rem;color:var(--gray);flex:1}
+  .score-input{width:60px;padding:0.4rem 0.5rem;border:1px solid var(--border-dim);border-radius:6px;background:#0d0d0d;color:var(--white);font-family:'DM Sans',sans-serif;font-size:0.88rem;outline:none;text-align:center}
+  .score-comment{width:100%;margin-top:0.75rem;padding:0.65rem 0.85rem;border:1px solid var(--border-dim);border-radius:8px;background:#0d0d0d;color:var(--white);font-family:'DM Sans',sans-serif;font-size:0.82rem;outline:none;resize:vertical;min-height:60px}
+  .score-save-btn{margin-top:0.75rem;background:var(--red);color:white;border:none;border-radius:8px;padding:0.6rem 1.25rem;font-family:'DM Sans',sans-serif;font-size:0.8rem;font-weight:500;cursor:pointer;text-transform:uppercase;letter-spacing:0.05em}
+  .cat-btn{background:rgba(255,255,255,0.04);border:1px solid var(--border-dim);border-radius:7px;padding:0.4rem 0.9rem;font-size:0.78rem;color:var(--gray);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s}
+  .cat-btn:hover{color:var(--white)}.cat-btn.active{background:rgba(204,0,0,0.1);color:var(--red-bright);border-color:var(--border)}
+  .msg{padding:0.75rem 1rem;border-radius:8px;font-size:0.85rem;margin-top:0.75rem}
+  .msg.success{background:rgba(76,175,80,0.1);color:#4caf50;border:1px solid rgba(76,175,80,0.2)}
+  .msg.error{background:rgba(204,0,0,0.1);color:var(--red-bright);border:1px solid var(--border)}
+  @media(max-width:800px){.sidebar{display:none}.main{padding:1.5rem}.stats-grid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<div id="login-screen" style="min-height:100vh;width:100%;display:flex;align-items:center;justify-content:center">
+  <div style="width:400px;max-width:95vw">
+    <div style="text-align:center;margin-bottom:2rem">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:3rem;letter-spacing:0.08em;color:var(--red)">BIRDHOUSE</div>
+      <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.2em;color:var(--gray)">Manager Portal</div>
+    </div>
+    <div style="margin-bottom:1rem">
+      <label style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);margin-bottom:0.35rem">Email</label>
+      <input type="email" id="login-email" placeholder="your@email.com" style="width:100%;padding:0.85rem 1rem;border:1px solid var(--border-dim);border-radius:8px;background:#0d0d0d;color:var(--white);font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/>
+    </div>
+    <div style="margin-bottom:1.5rem">
+      <label style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);margin-bottom:0.35rem">Password</label>
+      <input type="password" id="login-password" placeholder="••••••••" style="width:100%;padding:0.85rem 1rem;border:1px solid var(--border-dim);border-radius:8px;background:#0d0d0d;color:var(--white);font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none" onkeydown="if(event.key==='Enter')doLogin()"/>
+    </div>
+    <button onclick="doLogin()" style="width:100%;padding:0.95rem;background:var(--red);color:white;border:none;border-radius:8px;font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:0.1em;cursor:pointer">SIGN IN TO MANAGER HUB →</button>
+    <div id="login-msg" style="margin-top:1rem"></div>
+  </div>
+</div>
+
+<div id="app" style="display:none;width:100%;flex-direction:row">
+  <div class="sidebar">
+    <div class="logo"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:0.08em;color:var(--red)">🏠 BIRDHOUSE</div></div>
+    <div class="role-badge">Manager</div>
+    <div class="nav-section">Overview</div>
+    <a class="nav-item active" onclick="showSection('overview',this)">📊 Dashboard</a>
+    <div class="nav-section">Operations</div>
+    <a class="nav-item" onclick="showSection('schedule',this)">📅 Schedule</a>
+    <a class="nav-item" onclick="showSection('orders',this)">🧾 Active Orders</a>
+    <a class="nav-item" onclick="showSection('inventory',this)">📦 Inventory</a>
+    <div class="nav-section">Students</div>
+    <a class="nav-item" onclick="showSection('scores',this)">⭐ Weekly Scores</a>
+    <div class="nav-bottom">
+      <div class="nav-user"><strong id="nav-name">—</strong>Manager</div>
+      <button class="sign-out" onclick="doSignOut()">Sign out</button>
+    </div>
+  </div>
+  <div class="main">
+
+    <div class="section active" id="section-overview">
+      <div class="page-eyebrow">Manager Hub</div>
+      <h1 class="page-title" id="overview-greeting">GOOD MORNING</h1>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">Active Orders</div><div class="stat-value" id="stat-orders">—</div></div>
+        <div class="stat-card"><div class="stat-label">Low Stock Items</div><div class="stat-value" id="stat-low">—</div></div>
+        <div class="stat-card"><div class="stat-label">Students On Shift</div><div class="stat-value" id="stat-on-shift">—</div></div>
+      </div>
+      <div id="overview-preview"></div>
+    </div>
+
+    <div class="section" id="section-schedule">
+      <div class="page-eyebrow">This Week</div>
+      <h1 class="page-title">SCHEDULE</h1>
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap" id="sched-nav"></div>
+      <div id="schedule-content"></div>
+    </div>
+
+    <div class="section" id="section-orders">
+      <div class="page-eyebrow">Operations</div>
+      <h1 class="page-title">ACTIVE ORDERS</h1>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.25rem" id="order-filter-btns">
+        <button class="cat-btn active" onclick="filterOrders('all',this)">All</button>
+        <button class="cat-btn" onclick="filterOrders('pending',this)">Pending</button>
+        <button class="cat-btn" onclick="filterOrders('preparing',this)">Preparing</button>
+        <button class="cat-btn" onclick="filterOrders('ready',this)">Ready</button>
+        <button class="cat-btn" onclick="filterOrders('delivered',this)">Delivered</button>
+      </div>
+      <div id="orders-content"></div>
+    </div>
+
+    <div class="section" id="section-inventory">
+      <div class="page-eyebrow">Stock Management</div>
+      <h1 class="page-title">INVENTORY</h1>
+      <div id="low-banner" style="display:none;background:rgba(255,152,0,0.08);border:1px solid rgba(255,152,0,0.25);border-radius:10px;padding:0.85rem 1.25rem;margin-bottom:1.25rem;font-size:0.85rem;color:#ff9800"></div>
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:1.25rem">
+        <button class="cat-btn active" onclick="filterInv('all',this)">All</button>
+        <button class="cat-btn" onclick="filterInv('cold_drinks',this)">🧊 Cold Drinks</button>
+        <button class="cat-btn" onclick="filterInv('hot_drinks',this)">☕ Hot Drinks</button>
+        <button class="cat-btn" onclick="filterInv('flavors',this)">🍬 Flavors</button>
+        <button class="cat-btn" onclick="filterInv('supplies',this)">📦 Supplies</button>
+        <button class="cat-btn" onclick="filterInv('baked_goods',this)">🍪 Baked Goods</button>
+        <button class="cat-btn" onclick="filterInv('low',this)" id="inv-low-tab">🔴 Low Stock</button>
+      </div>
+      <div id="inventory-content"></div>
+      <div id="inv-msg" style="display:none" class="msg"></div>
+    </div>
+
+    <div class="section" id="section-scores">
+      <div class="page-eyebrow">Student Evaluation</div>
+      <h1 class="page-title">WEEKLY SCORES</h1>
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap" id="score-week-nav"></div>
+      <div id="scores-content"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const sb=supabase.createClient('https://ljukrhneikqbabcmcpet.supabase.co','sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn');
+let currentUser=null,allInventory=[],allOrders=[],allStudents=[],rubric=[];
+let invFilter='all',orderFilter='all',scoreWeekOffset=0,schedWeekOffset=0;
+
+async function init(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session){showLogin();return;}
+  const role=session.user.user_metadata?.role;
+  if(role!=='manager'&&role!=='admin'){showLogin('Access denied — manager accounts only.');await sb.auth.signOut();return;}
+  currentUser=session.user;showApp();
+}
+
+function showLogin(err){
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('app').style.display='none';
+  if(err){const m=document.getElementById('login-msg');m.textContent=err;m.className='msg error';m.style.display='block';}
+}
+
+function showApp(){
+  document.getElementById('login-screen').style.display='none';
+  const app=document.getElementById('app');app.style.display='flex';
+  const name=currentUser.user_metadata?.first_name||currentUser.email;
+  document.getElementById('nav-name').textContent=name+' ';
+  const hr=new Date().getHours();
+  document.getElementById('overview-greeting').textContent=`GOOD ${hr<12?'MORNING':hr<17?'AFTERNOON':'EVENING'}, ${(currentUser.user_metadata?.first_name||'').toUpperCase()}!`;
+  loadOverview();
+}
+
+async function doLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const pw=document.getElementById('login-password').value;
+  const m=document.getElementById('login-msg');
+  const {data,error}=await sb.auth.signInWithPassword({email,password:pw});
+  if(error){m.textContent=error.message;m.className='msg error';m.style.display='block';return;}
+  const role=data.user.user_metadata?.role;
+  if(role!=='manager'&&role!=='admin'){m.textContent='Access denied.';m.className='msg error';m.style.display='block';await sb.auth.signOut();return;}
+  currentUser=data.user;showApp();
+}
+
+async function doSignOut(){await sb.auth.signOut();window.location.reload();}
+
+function showSection(name,el){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('section-'+name).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  if(el)el.classList.add('active');
+  if(name==='schedule')loadSchedule();
+  if(name==='orders')loadOrders();
+  if(name==='inventory')loadInventory();
+  if(name==='scores')loadScores();
+}
+
+// OVERVIEW
+async function loadOverview(){
+  const [ord,inv,asgn]=await Promise.all([
+    sb.from('orders').select('id,status').in('status',['pending','preparing','ready']),
+    sb.from('inventory').select('quantity,par_level'),
+    sb.from('weekly_assignments').select('role,teams(name,students(id))').eq('week_start',getMondayStr(0))
+  ]);
+  document.getElementById('stat-orders').textContent=(ord.data||[]).length;
+  document.getElementById('stat-low').textContent=(inv.data||[]).filter(i=>i.quantity<=i.par_level).length;
+  const onShift=(asgn.data||[]).filter(a=>a.role==='birdhouse'||a.role==='mathews').reduce((n,a)=>n+(a.teams?.students?.length||0),0);
+  document.getElementById('stat-on-shift').textContent=onShift;
+  const roleLabel={birdhouse:'🏠 Birdhouse',mathews:'🏫 Mathews',menu:'📋 Menu',inclass:'📚 In Class'};
+  const roleClass={birdhouse:'role-birdhouse',mathews:'role-mathews',menu:'role-menu',inclass:'role-inclass'};
+  document.getElementById('overview-preview').innerHTML=(asgn.data||[]).length
+    ?'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:1.1rem;letter-spacing:0.05em;color:var(--light-gray);margin-bottom:0.75rem">THIS WEEK</div>'+
+      (asgn.data||[]).map(a=>`<div class="team-row"><span class="team-name">${a.teams?.name||'—'}</span><span class="role-pill ${roleClass[a.role]}">${roleLabel[a.role]||a.role}</span><div style="margin-left:auto;display:flex;gap:0.35rem;flex-wrap:wrap">${(a.teams?.students||[]).map(s=>`<span class="student-chip">•</span>`).join('')}${(a.teams?.students||[]).length} students</div></div>`).join('')
+    :'<div style="color:var(--gray);font-size:0.88rem">No schedule published yet this week.</div>';
+}
+
+function getMondayStr(offset){
+  const today=new Date(),day=today.getDay(),diff=day===0?-6:1-day;
+  const monday=new Date(today);monday.setDate(today.getDate()+diff+(offset*7));monday.setHours(0,0,0,0);
+  return monday.toISOString().split('T')[0];
+}
+
+// SCHEDULE
+async function loadSchedule(offset){
+  if(offset!==undefined)schedWeekOffset=offset;
+  const ws=getMondayStr(schedWeekOffset);
+  const monday=new Date(ws+'T12:00:00');
+  const friday=new Date(monday);friday.setDate(monday.getDate()+4);
+  const lbl=monday.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' – '+friday.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  document.getElementById('sched-nav').innerHTML=`<button class="week-nav-btn" onclick="loadSchedule(${schedWeekOffset-1})">← Prev</button><span style="font-size:0.95rem;font-weight:500">${lbl}</span><button class="week-nav-btn" onclick="loadSchedule(${schedWeekOffset+1})">Next →</button>${schedWeekOffset!==0?`<button class="week-nav-btn" onclick="loadSchedule(0)" style="margin-left:auto">This Week</button>`:''}`;
+  const {data}=await sb.from('weekly_assignments').select('role,teams(id,name,period,color,students(id,first_name,last_name))').eq('week_start',ws);
+  const content=document.getElementById('schedule-content');
+  if(!(data?.length)){content.innerHTML='<div style="color:var(--gray);text-align:center;padding:3rem;background:var(--card);border-radius:14px;border:1px solid var(--border-dim)">No schedule published for this week.</div>';return;}
+  const rl={birdhouse:'🏠 Birdhouse',mathews:'🏫 Mathews',menu:'📋 Menu Planning',inclass:'📚 In Class'};
+  const rc={birdhouse:'role-birdhouse',mathews:'role-mathews',menu:'role-menu',inclass:'role-inclass'};
+  const byPeriod={};
+  data.forEach(a=>{const p=a.teams?.period||'1st Hour';(byPeriod[p]=byPeriod[p]||[]).push(a);});
+  content.innerHTML=Object.entries(byPeriod).map(([period,rows])=>`
+    <div style="margin-bottom:2rem">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:0.05em;color:var(--light-gray);margin-bottom:0.75rem">${period}</div>
+      ${rows.map(a=>`<div class="team-row">
+        <span class="team-name" style="color:${a.teams?.color||'#cc0000'}">${a.teams?.name||'—'}</span>
+        <span class="role-pill ${rc[a.role]||''}">${rl[a.role]||a.role}</span>
+        <div style="margin-left:auto;display:flex;gap:0.35rem;flex-wrap:wrap">${(a.teams?.students||[]).map(s=>`<span class="student-chip">${s.first_name} ${s.last_name[0]}.</span>`).join('')}</div>
+      </div>`).join('')}
+    </div>`).join('');
+}
+
+// ORDERS
+async function loadOrders(){
+  const {data}=await sb.from('orders').select('*').order('created_at',{ascending:false}).limit(100);
+  allOrders=data||[];renderOrders();
+}
+function filterOrders(f,btn){orderFilter=f;document.querySelectorAll('#order-filter-btns .cat-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderOrders();}
+function renderOrders(){
+  const el=document.getElementById('orders-content');
+  let orders=allOrders;
+  if(orderFilter!=='all')orders=orders.filter(o=>o.status===orderFilter);
+  if(!orders.length){el.innerHTML='<div style="color:var(--gray);text-align:center;padding:3rem;background:var(--card);border-radius:14px;border:1px solid var(--border-dim)">No orders found.</div>';return;}
+  el.innerHTML=orders.map(o=>`<div class="order-row">
+    <div><div style="font-weight:500">${o.customer_name||'Customer'}</div><div style="font-size:0.75rem;color:var(--gray);margin-top:0.2rem">${o.drink_name||'—'} · ${o.delivery_location||'—'}</div></div>
+    <div style="display:flex;align-items:center;gap:0.75rem"><span class="order-status status-${o.status||'pending'}">${o.status||'pending'}</span><span style="font-size:0.72rem;color:var(--gray)">${new Date(o.created_at).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}</span></div>
+  </div>`).join('');
+}
+
+// INVENTORY
+async function loadInventory(){
+  const {data}=await sb.from('inventory').select('*').order('category').order('name');
+  allInventory=data||[];
+  const low=allInventory.filter(i=>i.quantity<=i.par_level);
+  const banner=document.getElementById('low-banner');
+  if(low.length){banner.style.display='block';banner.innerHTML=`⚠️ ${low.length} item${low.length!==1?'s':''} need restocking: ${low.map(i=>i.name).join(', ')}`;}else{banner.style.display='none';}
+  const lt=document.getElementById('inv-low-tab');
+  if(low.length)lt.innerHTML=`🔴 Low Stock <span style="background:var(--red);color:white;font-size:0.62rem;padding:0.1rem 0.4rem;border-radius:10px;margin-left:0.3rem">${low.length}</span>`;
+  renderInventory();
+}
+function filterInv(f,btn){invFilter=f;document.querySelectorAll('#section-inventory .cat-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderInventory();}
+function renderInventory(){
+  const el=document.getElementById('inventory-content');
+  let items=allInventory;
+  if(invFilter==='low')items=items.filter(i=>i.quantity<=i.par_level);
+  else if(invFilter!=='all')items=items.filter(i=>i.category===invFilter);
+  if(!items.length){el.innerHTML='<div style="color:var(--gray);text-align:center;padding:2rem;background:var(--card);border-radius:12px;border:1px solid var(--border-dim)">No items.</div>';return;}
+  const CAT={cold_drinks:'🧊 Cold Drinks',hot_drinks:'☕ Hot Drinks',flavors:'🍬 Flavors',supplies:'📦 Supplies',baked_goods:'🍪 Baked Goods'};
+  el.innerHTML='<div class="inv-grid">'+items.map(item=>{
+    const st=item.quantity===0?'out':item.quantity<=item.par_level?'low':'ok';
+    const pct=item.par_level>0?Math.min(item.quantity/item.par_level,1):1;
+    const bc=st==='ok'?'#4caf50':st==='low'?'#ff9800':'#cc0000';
+    return `<div class="inv-card ${st}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.4rem">
+        <div><div style="font-weight:500;font-size:0.92rem">${item.name}</div><div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray)">${CAT[item.category]||item.category}</div></div>
+        <span class="inv-status ${st}">${{ok:'In Stock',low:'Low',out:'Out'}[st]}</span>
+      </div>
+      <div class="inv-bar"><div class="inv-bar-fill" style="width:${Math.round(pct*100)}%;background:${bc}"></div></div>
+      <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.4rem">
+        <input class="inv-qty-input" type="number" id="inv-${item.id}" value="${item.quantity}" min="0" step="0.5"/>
+        <span style="font-size:0.78rem;color:var(--gray)">${item.unit}</span>
+        <button class="inv-save-btn" onclick="saveInv('${item.id}','${item.name}',${item.quantity})">Save</button>
+      </div>
+      <div style="font-size:0.7rem;color:var(--gray);margin-top:0.35rem">Par: ${item.par_level} ${item.unit}</div>
+    </div>`;
+  }).join('')+'</div>';
+}
+async function saveInv(id,name,prev){
+  const newQty=parseFloat(document.getElementById('inv-'+id).value);
+  const change=newQty-prev;
+  const managerName=(currentUser.user_metadata?.first_name||'')+' '+(currentUser.user_metadata?.last_name||'');
+  await sb.from('inventory').update({quantity:newQty,updated_at:new Date().toISOString()}).eq('id',id);
+  await sb.from('inventory_log').insert({inventory_id:id,item_name:name,previous_quantity:prev,new_quantity:newQty,change_amount:change,change_type:change>0?'restock':change<0?'usage':'count',changed_by_id:currentUser.id,changed_by_name:managerName});
+  const m=document.getElementById('inv-msg');m.textContent=`✓ ${name} updated to ${newQty}`;m.className='msg success';m.style.display='block';
+  setTimeout(()=>{m.style.display='none';},2500);
+  loadInventory();
+}
+
+// SCORES
+async function loadScores(offset){
+  if(offset!==undefined)scoreWeekOffset=offset;
+  const ws=getMondayStr(scoreWeekOffset);
+  const monday=new Date(ws+'T12:00:00'),friday=new Date(monday);friday.setDate(monday.getDate()+4);
+  const lbl=monday.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' – '+friday.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  document.getElementById('score-week-nav').innerHTML=`<button class="week-nav-btn" onclick="loadScores(${scoreWeekOffset-1})">← Prev Week</button><span style="font-size:0.95rem;font-weight:500">${lbl}</span><button class="week-nav-btn" onclick="loadScores(${scoreWeekOffset+1})">Next Week →</button>${scoreWeekOffset!==0?`<button class="week-nav-btn" onclick="loadScores(0)" style="margin-left:auto">This Week</button>`:''}`;
+  const [rRes,sRes,scRes,aRes]=await Promise.all([
+    sb.from('score_rubric').select('*').eq('active',true).order('sort_order'),
+    sb.from('students').select('id,first_name,last_name,team_id,teams(name,period)').order('last_name'),
+    sb.from('student_scores').select('*').eq('week_start',ws),
+    sb.from('weekly_assignments').select('team_id,role').eq('week_start',ws)
+  ]);
+  rubric=rRes.data||[];allStudents=sRes.data||[];
+  const scores=scRes.data||[];
+  const activeTeamIds=new Set((aRes.data||[]).filter(a=>a.role==='birdhouse'||a.role==='mathews').map(a=>a.team_id));
+  const activeStudents=allStudents.filter(s=>activeTeamIds.has(s.team_id));
+  const scoreMap={};scores.forEach(s=>{scoreMap[`${s.student_id}_${s.rubric_id}`]={score:s.score,comment:s.comment};});
+  const content=document.getElementById('scores-content');
+  if(!rubric.length){content.innerHTML='<div style="color:var(--gray);padding:2rem;background:var(--card);border-radius:14px;border:1px solid var(--border-dim)">No rubric categories defined yet. Ask the admin to set them up.</div>';return;}
+  if(!activeStudents.length){content.innerHTML='<div style="color:var(--gray);text-align:center;padding:3rem;background:var(--card);border-radius:14px;border:1px solid var(--border-dim)">No students scheduled for Birdhouse or Mathews this week.</div>';return;}
+  const totalPossible=rubric.reduce((n,r)=>n+r.max_points,0);
+  content.innerHTML=activeStudents.map(student=>{
+    const totalScored=rubric.reduce((n,r)=>n+(scoreMap[`${student.id}_${r.id}`]?.score||0),0);
+    const comment=scores.find(s=>s.student_id===student.id)?.comment||'';
+    return `<div class="score-student-card">
+      <div class="score-student-header">
+        <div><div style="font-weight:600;font-size:1rem">${student.first_name} ${student.last_name}</div><div style="font-size:0.72rem;color:var(--gray)">${student.teams?.name||'—'} · ${student.teams?.period||'—'}</div></div>
+        <div style="margin-left:auto;font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:var(--red-bright)" id="total-${student.id}">${totalScored}/${totalPossible}</div>
+      </div>
+      ${rubric.map(r=>`<div class="rubric-row">
+        <span class="rubric-label">${r.label}</span>
+        <span class="rubric-desc">${r.description||''}</span>
+        <input class="score-input" type="number" min="0" max="${r.max_points}" id="score-${student.id}-${r.id}" value="${scoreMap[`${student.id}_${r.id}`]?.score||''}" placeholder="—" oninput="updateTotal('${student.id}',${totalPossible})"/>
+        <span style="font-size:0.72rem;color:var(--gray)">/ ${r.max_points}</span>
+      </div>`).join('')}
+      <textarea class="score-comment" id="comment-${student.id}" placeholder="Optional feedback...">${comment}</textarea>
+      <div style="display:flex;align-items:center;gap:0.75rem">
+        <button class="score-save-btn" onclick="saveScores('${student.id}','${ws}')">Save Score</button>
+        <span id="saved-${student.id}" style="display:none;font-size:0.72rem;color:#4caf50">✓ Saved</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+function updateTotal(studentId,totalPossible){
+  const total=rubric.reduce((n,r)=>n+(Math.min(parseFloat(document.getElementById(`score-${studentId}-${r.id}`)?.value||0),r.max_points)),0);
+  const el=document.getElementById('total-'+studentId);if(el)el.textContent=`${total}/${totalPossible}`;
+}
+async function saveScores(studentId,weekStart){
+  const managerName=(currentUser.user_metadata?.first_name||'')+' '+(currentUser.user_metadata?.last_name||'');
+  const comment=document.getElementById('comment-'+studentId)?.value||'';
+  const rows=rubric.map(r=>({student_id:studentId,week_start:weekStart,rubric_id:r.id,score:Math.min(parseInt(document.getElementById(`score-${studentId}-${r.id}`)?.value||0),r.max_points),comment,scored_by:currentUser.id,scored_by_name:managerName,updated_at:new Date().toISOString()}));
+  const {error}=await sb.from('student_scores').upsert(rows,{onConflict:'student_id,week_start,rubric_id'});
+  const el=document.getElementById('saved-'+studentId);
+  if(!error&&el){el.style.display='inline';setTimeout(()=>el.style.display='none',2500);}
+}
+init();
+</script>
+</body>
+</html>
