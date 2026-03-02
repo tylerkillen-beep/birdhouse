@@ -77,6 +77,37 @@
     .sub-label { font-size:0.78rem; color:rgba(255,255,255,0.35); line-height:1.5; cursor:pointer; }
     .sub-label.checked { color:rgba(255,255,255,0.15); text-decoration:line-through; }
     @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+    /* Inventory */
+    .inv-cat-btn{background:rgba(255,255,255,0.04);border:1px solid var(--border-dim);border-radius:7px;padding:0.4rem 0.9rem;font-size:0.78rem;color:var(--gray);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s}
+    .inv-cat-btn:hover{color:var(--white);border-color:var(--border)}
+    .inv-cat-btn.active{background:rgba(204,0,0,0.1);color:var(--red-bright);border-color:var(--border)}
+    .inv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:0.85rem}
+    .inv-card{background:var(--card);border:1px solid var(--border-dim);border-radius:12px;padding:1.1rem 1.25rem;transition:border-color 0.2s}
+    .inv-card:hover{border-color:var(--border)}
+    .inv-card.low{border-color:rgba(255,152,0,0.35);background:rgba(255,152,0,0.04)}
+    .inv-card.out{border-color:rgba(204,0,0,0.35);background:rgba(204,0,0,0.04)}
+    .inv-item-name{font-weight:500;font-size:0.92rem;margin-bottom:0.2rem}
+    .inv-item-cat{font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);margin-bottom:0.75rem}
+    .inv-qty-row{display:flex;align-items:center;gap:0.6rem;margin-bottom:0.6rem}
+    .inv-qty-input{width:80px;padding:0.45rem 0.6rem;border:1px solid var(--border-dim);border-radius:6px;background:#0d0d0d;color:var(--white);font-family:'DM Sans',sans-serif;font-size:0.88rem;outline:none;transition:border-color 0.2s}
+    .inv-qty-input:focus{border-color:var(--red)}
+    .inv-unit{font-size:0.78rem;color:var(--gray)}
+    .inv-par{font-size:0.72rem;color:var(--gray);margin-bottom:0.75rem}
+    .inv-par span{color:var(--light-gray)}
+    .inv-status{font-size:0.7rem;padding:0.2rem 0.6rem;border-radius:20px;display:inline-block;font-weight:500}
+    .inv-status.ok{background:rgba(76,175,80,0.1);color:#4caf50;border:1px solid rgba(76,175,80,0.2)}
+    .inv-status.low{background:rgba(255,152,0,0.1);color:#ff9800;border:1px solid rgba(255,152,0,0.2)}
+    .inv-status.out{background:rgba(204,0,0,0.1);color:var(--red-bright);border:1px solid var(--border)}
+    .inv-actions{display:flex;gap:0.5rem;margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border-dim)}
+    .inv-save-btn{flex:1;background:var(--red);color:white;border:none;border-radius:6px;padding:0.5rem;font-family:'DM Sans',sans-serif;font-size:0.78rem;font-weight:500;cursor:pointer;transition:all 0.2s;text-transform:uppercase;letter-spacing:0.05em}
+    .inv-save-btn:hover{background:var(--red-bright)}
+    .inv-edit-btn{background:rgba(255,255,255,0.04);border:1px solid var(--border-dim);border-radius:6px;padding:0.5rem 0.75rem;color:var(--gray);font-size:0.78rem;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s}
+    .inv-edit-btn:hover{color:var(--white);border-color:var(--border)}
+    .log-row{display:flex;justify-content:space-between;align-items:flex-start;padding:0.75rem 1.25rem;border-bottom:1px solid rgba(255,255,255,0.03);font-size:0.82rem;gap:1rem}
+    .log-row:last-child{border-bottom:none}
+    .log-change-pos{color:#4caf50;font-weight:500}
+    .log-change-neg{color:var(--red-bright);font-weight:500}
+    .log-meta{font-size:0.7rem;color:var(--gray);margin-top:0.15rem}
 
     /* Inventory */
     .table-wrap { background: var(--card); border: 1px solid var(--border-dim); border-radius: 12px; overflow: hidden; }
@@ -259,14 +290,40 @@
     <!-- Inventory -->
     <div id="section-inventory" style="display:none">
       <div class="page-eyebrow">Stock Management</div>
-      <h1 class="page-title">Inventory</h1>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Item</th><th>Category</th><th>Stock</th><th>Status</th><th>Update</th></tr></thead>
-          <tbody id="inventory-body"><tr><td colspan="5" style="text-align:center;color:var(--gray);padding:2rem">Loading...</td></tr></tbody>
-        </table>
+      <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:0.4rem">
+        <h1 class="page-title" style="margin-bottom:0">Inventory</h1>
+        <button class="btn-primary" style="font-size:0.78rem;padding:0.55rem 1.1rem" onclick="openAddItemModal()">+ Add Item</button>
       </div>
-      <div style="margin-top:1rem"><button class="btn-primary" onclick="addInventoryItem()">+ Add Item</button></div>
+
+      <!-- Low stock alert banner -->
+      <div id="low-stock-banner" style="display:none;background:rgba(255,152,0,0.08);border:1px solid rgba(255,152,0,0.25);border-radius:10px;padding:0.85rem 1.25rem;margin-bottom:1.25rem;font-size:0.85rem;color:#ff9800">
+        ⚠️ <span id="low-stock-banner-text"></span>
+      </div>
+
+      <!-- Category filter tabs -->
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:1.25rem" id="inv-category-tabs">
+        <button class="inv-cat-btn active" onclick="filterInventory('all',this)">All</button>
+        <button class="inv-cat-btn" onclick="filterInventory('cold_drinks',this)">🧊 Cold Drinks</button>
+        <button class="inv-cat-btn" onclick="filterInventory('hot_drinks',this)">☕ Hot Drinks</button>
+        <button class="inv-cat-btn" onclick="filterInventory('flavors',this)">🍬 Flavors</button>
+        <button class="inv-cat-btn" onclick="filterInventory('supplies',this)">📦 Supplies</button>
+        <button class="inv-cat-btn" onclick="filterInventory('baked_goods',this)">🍪 Baked Goods</button>
+        <button class="inv-cat-btn" onclick="filterInventory('low',this)" id="low-tab">🔴 Low Stock</button>
+      </div>
+
+      <!-- Inventory grid -->
+      <div id="inventory-grid"></div>
+
+      <!-- Change log toggle -->
+      <div style="margin-top:2rem">
+        <button onclick="toggleLog()" style="background:none;border:none;color:var(--gray);font-size:0.82rem;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:0.4rem">
+          <span id="log-toggle-icon">▶</span> View Change Log
+        </button>
+        <div id="inventory-log" style="display:none;margin-top:1rem;background:var(--card);border:1px solid var(--border-dim);border-radius:12px;overflow:hidden">
+          <div style="padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim);font-size:0.68rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray)">Recent Changes</div>
+          <div id="log-body" style="max-height:320px;overflow-y:auto"></div>
+        </div>
+      </div>
     </div>
 
     <!-- Sales -->
@@ -663,35 +720,174 @@
     }
   }
 
+  let allInventory = [], currentInvFilter = 'all';
+
+  const CAT_LABELS = {cold_drinks:'🧊 Cold Drinks',hot_drinks:'☕ Hot Drinks',flavors:'🍬 Flavors & Syrups',supplies:'📦 Supplies',baked_goods:'🍪 Baked Goods'};
+
   async function loadInventory() {
-    const {data} = await sb.from('inventory').select('*').order('name');
-    const body=document.getElementById('inventory-body');
-    if(!data||!data.length){body.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--gray);padding:2rem">No items yet. Add your first!</td></tr>';document.getElementById('stat-low-stock').textContent='0';return;}
-    const low=data.filter(i=>i.quantity<=i.low_threshold).length;
-    document.getElementById('stat-low-stock').textContent=low;
-    body.innerHTML=data.map(item=>{
-      const s=item.quantity===0?'out':item.quantity<=item.low_threshold?'low':'ok';
-      const labels={ok:'In Stock',low:'Low',out:'Out of Stock'};
-      return `<tr><td><strong>${item.name}</strong></td><td style="color:var(--gray)">${item.category||'—'}</td><td>${item.quantity} ${item.unit||''}</td>
-        <td><span class="stock-badge stock-${s}">${labels[s]}</span></td>
-        <td style="display:flex;gap:0.5rem;align-items:center"><input class="qty-input" type="number" id="qty-${item.id}" value="${item.quantity}" min="0"/><button class="update-btn" onclick="updateInventory('${item.id}')">Save</button></td></tr>`;
+    const {data} = await sb.from('inventory').select('*').order('category').order('name');
+    allInventory = data||[];
+    const low = allInventory.filter(i=>i.quantity>0&&i.quantity<=i.par_level).length;
+    const out = allInventory.filter(i=>i.quantity===0).length;
+    document.getElementById('stat-low-stock').textContent=low+out;
+
+    // Low stock banner
+    const banner = document.getElementById('low-stock-banner');
+    const lowItems = allInventory.filter(i=>i.quantity<=i.par_level);
+    if(lowItems.length){
+      banner.style.display='block';
+      document.getElementById('low-stock-banner-text').textContent=
+        `${lowItems.length} item${lowItems.length!==1?'s':''} need restocking: ${lowItems.map(i=>i.name).join(', ')}`;
+    } else { banner.style.display='none'; }
+
+    // Update low tab badge
+    const lowTab = document.getElementById('low-tab');
+    if(lowItems.length) lowTab.innerHTML=`🔴 Low Stock <span style="background:var(--red);color:white;font-size:0.62rem;padding:0.1rem 0.4rem;border-radius:10px;margin-left:0.3rem">${lowItems.length}</span>`;
+
+    renderInventoryGrid();
+  }
+
+  function filterInventory(cat, btn) {
+    currentInvFilter = cat;
+    document.querySelectorAll('.inv-cat-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    renderInventoryGrid();
+  }
+
+  function renderInventoryGrid() {
+    const grid = document.getElementById('inventory-grid');
+    let items = allInventory;
+    if(currentInvFilter==='low') items=allInventory.filter(i=>i.quantity<=i.par_level);
+    else if(currentInvFilter!=='all') items=allInventory.filter(i=>i.category===currentInvFilter);
+
+    if(!items.length){grid.innerHTML='<div style="color:var(--gray);text-align:center;padding:3rem;background:var(--card);border-radius:12px;border:1px solid var(--border-dim)">No items in this category.</div>';return;}
+
+    grid.innerHTML='<div class="inv-grid">'+items.map(item=>{
+      const pct = item.par_level>0 ? Math.min(item.quantity/item.par_level,1) : 1;
+      const status = item.quantity===0?'out':item.quantity<=item.par_level?'low':'ok';
+      const statusLabel = {ok:'In Stock',low:'Low Stock',out:'Out of Stock'};
+      const barColor = status==='ok'?'#4caf50':status==='low'?'#ff9800':'#cc0000';
+      return `<div class="inv-card ${status}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div class="inv-item-name">${item.name}</div>
+            <div class="inv-item-cat">${CAT_LABELS[item.category]||item.category}</div>
+          </div>
+          <span class="inv-status ${status}">${statusLabel[status]}</span>
+        </div>
+        <div style="background:rgba(255,255,255,0.06);border-radius:4px;height:4px;margin-bottom:0.75rem;overflow:hidden">
+          <div style="height:100%;width:${Math.round(pct*100)}%;background:${barColor};border-radius:4px;transition:width 0.4s"></div>
+        </div>
+        <div class="inv-qty-row">
+          <input class="inv-qty-input" type="number" id="qty-${item.id}" value="${item.quantity}" min="0" step="0.5" />
+          <span class="inv-unit">${item.unit}</span>
+        </div>
+        <div class="inv-par">Par level: <span>${item.par_level} ${item.unit}</span>
+          &nbsp;·&nbsp; Par: <input type="number" id="par-${item.id}" value="${item.par_level}" min="0" step="0.5"
+            style="width:55px;background:transparent;border:none;border-bottom:1px solid var(--border-dim);color:var(--light-gray);font-size:0.72rem;font-family:'DM Sans',sans-serif;outline:none;padding:0 0.2rem"/>
+          ${item.unit}
+        </div>
+        ${item.notes?`<div style="font-size:0.72rem;color:var(--gray);margin-bottom:0.5rem">📝 ${item.notes}</div>`:''}
+        <div class="inv-actions">
+          <button class="inv-save-btn" onclick="saveInventoryItem('${item.id}','${item.name}',${item.quantity})">Save Count</button>
+          <button class="inv-edit-btn" onclick="openEditItemModal('${item.id}')">✏️</button>
+        </div>
+      </div>`;
+    }).join('')+'</div>';
+  }
+
+  async function saveInventoryItem(id, name, prevQty) {
+    const newQty = parseFloat(document.getElementById('qty-'+id).value);
+    const newPar = parseFloat(document.getElementById('par-'+id).value);
+    const change = newQty - prevQty;
+    const changeType = change>0?'restock':change<0?'usage':'count';
+    const studentName = currentUser.user_metadata?.first_name+' '+currentUser.user_metadata?.last_name;
+
+    await sb.from('inventory').update({quantity:newQty, par_level:newPar, updated_at:new Date().toISOString()}).eq('id',id);
+    await sb.from('inventory_log').insert({
+      inventory_id:id, item_name:name,
+      previous_quantity:prevQty, new_quantity:newQty, change_amount:change,
+      change_type:changeType, changed_by_id:currentUser.id, changed_by_name:studentName
+    });
+    loadInventory();
+  }
+
+  // ── Add / Edit Item Modal ──
+  let editingItemId = null;
+  function openAddItemModal() {
+    editingItemId=null;
+    document.getElementById('item-modal-title').textContent='Add Inventory Item';
+    document.getElementById('item-name').value='';
+    document.getElementById('item-category').value='cold_drinks';
+    document.getElementById('item-qty').value='0';
+    document.getElementById('item-unit').value='units';
+    document.getElementById('item-par').value='1';
+    document.getElementById('item-notes').value='';
+    document.getElementById('item-modal-msg').style.display='none';
+    document.getElementById('item-modal').style.display='flex';
+  }
+
+  function openEditItemModal(id) {
+    const item = allInventory.find(i=>i.id===id);
+    if(!item) return;
+    editingItemId=id;
+    document.getElementById('item-modal-title').textContent='Edit Item';
+    document.getElementById('item-name').value=item.name;
+    document.getElementById('item-category').value=item.category;
+    document.getElementById('item-qty').value=item.quantity;
+    document.getElementById('item-unit').value=item.unit;
+    document.getElementById('item-par').value=item.par_level;
+    document.getElementById('item-notes').value=item.notes||'';
+    document.getElementById('item-modal-msg').style.display='none';
+    document.getElementById('item-modal').style.display='flex';
+  }
+
+  async function saveItemModal() {
+    const name=document.getElementById('item-name').value.trim();
+    const category=document.getElementById('item-category').value;
+    const qty=parseFloat(document.getElementById('item-qty').value)||0;
+    const unit=document.getElementById('item-unit').value.trim()||'units';
+    const par=parseFloat(document.getElementById('item-par').value)||0;
+    const notes=document.getElementById('item-notes').value.trim();
+    const m=document.getElementById('item-modal-msg');
+    if(!name){m.textContent='Item name is required.';m.className='msg error';return;}
+    const payload={name,category,quantity:qty,unit,par_level:par,notes,updated_at:new Date().toISOString()};
+    const {error}=editingItemId
+      ?await sb.from('inventory').update(payload).eq('id',editingItemId)
+      :await sb.from('inventory').insert({...payload,created_by:currentUser.id});
+    if(error){m.textContent='Error: '+error.message;m.className='msg error';}
+    else{document.getElementById('item-modal').style.display='none';loadInventory();}
+  }
+
+  // ── Change Log ──
+  let logVisible=false;
+  async function toggleLog() {
+    logVisible=!logVisible;
+    document.getElementById('inventory-log').style.display=logVisible?'block':'none';
+    document.getElementById('log-toggle-icon').textContent=logVisible?'▼':'▶';
+    if(logVisible) loadLog();
+  }
+
+  async function loadLog() {
+    const {data}=await sb.from('inventory_log').select('*').order('created_at',{ascending:false}).limit(50);
+    const body=document.getElementById('log-body');
+    if(!data||!data.length){body.innerHTML='<div style="color:var(--gray);font-size:0.82rem;padding:1.25rem">No changes logged yet.</div>';return;}
+    body.innerHTML=data.map(row=>{
+      const change=row.change_amount;
+      const sign=change>0?'+':'';
+      const cls=change>0?'log-change-pos':change<0?'log-change-neg':'';
+      const typeLabel={restock:'Restocked',usage:'Used',adjustment:'Adjusted',count:'Count update'};
+      return `<div class="log-row">
+        <div>
+          <div style="font-weight:500">${row.item_name}</div>
+          <div class="log-meta">${typeLabel[row.change_type]||row.change_type} · by ${row.changed_by_name||'Unknown'}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="${cls}">${sign}${change} → ${row.new_quantity}</div>
+          <div class="log-meta">${new Date(row.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
+        </div>
+      </div>`;
     }).join('');
-  }
-
-  async function updateInventory(id) {
-    const qty=parseInt(document.getElementById('qty-'+id).value);
-    await sb.from('inventory').update({quantity:qty,updated_at:new Date().toISOString()}).eq('id',id);
-    loadInventory();
-  }
-
-  async function addInventoryItem() {
-    const name=prompt('Item name:'); if(!name)return;
-    const category=prompt('Category:')||'General';
-    const qty=parseInt(prompt('Starting quantity:')||'0');
-    const unit=prompt('Unit (e.g. bottles, oz):')||'units';
-    const threshold=parseInt(prompt('Alert when quantity falls below:')||'5');
-    await sb.from('inventory').insert({name,category,quantity:qty,unit,low_threshold:threshold});
-    loadInventory();
   }
 
   async function loadSales() {
@@ -888,6 +1084,7 @@
     if(name==='menu')loadMenuAvailability();
     if(name==='orders')loadOrders();
     if(name==='schedule')loadSchedule();
+    if(name==='inventory')loadInventory();
   }
 
   async function signOut() { await sb.auth.signOut(); window.location.href='index.html'; }
@@ -1097,5 +1294,36 @@
 
   init();
 </script>
+<!-- Add/Edit Item Modal -->
+<div id="item-modal" style="position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:100;display:none;align-items:center;justify-content:center">
+  <div style="background:#111;border:1px solid rgba(204,0,0,0.18);border-radius:16px;padding:2rem;width:420px;max-width:95vw;max-height:90vh;overflow-y:auto">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:0.05em;margin-bottom:1.5rem" id="item-modal-title">Add Item</div>
+    <div style="margin-bottom:1rem"><label style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Item Name</label>
+      <input type="text" id="item-name" placeholder="e.g. Vanilla Syrup" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/></div>
+    <div style="margin-bottom:1rem"><label style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Category</label>
+      <select id="item-category" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none">
+        <option value="cold_drinks">🧊 Cold Drinks</option>
+        <option value="hot_drinks">☕ Hot Drinks</option>
+        <option value="flavors">🍬 Flavors & Syrups</option>
+        <option value="supplies">📦 Supplies</option>
+        <option value="baked_goods">🍪 Baked Goods</option>
+      </select></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem">
+      <div><label style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Quantity</label>
+        <input type="number" id="item-qty" value="0" min="0" step="0.5" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/></div>
+      <div><label style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Unit</label>
+        <input type="text" id="item-unit" placeholder="bottles, lbs, units..." style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/></div>
+    </div>
+    <div style="margin-bottom:1rem"><label style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Par Level (reorder when below this)</label>
+      <input type="number" id="item-par" value="1" min="0" step="0.5" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/></div>
+    <div style="margin-bottom:1.25rem"><label style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Notes <span style="color:#444;font-weight:300">(optional)</span></label>
+      <input type="text" id="item-notes" placeholder="Storage location, special instructions..." style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/></div>
+    <div class="msg" id="item-modal-msg"></div>
+    <div style="display:flex;gap:0.75rem;margin-top:1.25rem">
+      <button style="background:transparent;color:#999;border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:0.82rem 1.5rem;font-family:'DM Sans',sans-serif;font-size:0.88rem;cursor:pointer" onclick="document.getElementById('item-modal').style.display='none'">Cancel</button>
+      <button class="btn-primary" onclick="saveItemModal()">Save Item</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
