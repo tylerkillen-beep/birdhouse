@@ -495,12 +495,18 @@
     const {data:{session}} = await sb.auth.getSession();
     if(!session){window.location.href='index.html';return;}
     currentUser = session.user;
+
+    // Check role from students table (supports both Google OAuth and password login)
+    const {data: studentRow} = await sb.from('students').select('role,first_name,last_name').eq('id', currentUser.id).single();
+    const role = studentRow?.role || currentUser.user_metadata?.role;
+    if(role!=='student'&&role!=='admin'){await sb.auth.signOut();window.location.href='index.html';return;}
+
     const meta = currentUser.user_metadata;
-    if(meta.role!=='student'&&meta.role!=='admin'){await sb.auth.signOut();window.location.href='index.html';return;}
-    const firstName = meta.first_name||'Eagle';
-    document.getElementById('user-display-name').textContent = firstName+' '+(meta.last_name||'');
+    const firstName = studentRow?.first_name || meta.first_name || 'Eagle';
+    const lastName = studentRow?.last_name || meta.last_name || '';
+    document.getElementById('user-display-name').textContent = firstName+' '+lastName;
     document.getElementById('greeting-name').textContent = firstName;
-    document.getElementById('user-role-badge').textContent = meta.role==='admin'?'Admin':'Student Staff';
+    document.getElementById('user-role-badge').textContent = role==='admin'?'Admin':'Student Staff';
     loadSchedule(); loadInventory(); loadSales(); loadOrders();
     const today=new Date(); const monday=new Date(today);
     monday.setDate(today.getDate()-(today.getDay()===0?6:today.getDay()-1));
