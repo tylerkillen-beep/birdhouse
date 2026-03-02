@@ -35,7 +35,6 @@
     .page-title { font-family:'Bebas Neue',sans-serif; font-size:2.5rem; letter-spacing:0.04em; margin-bottom:0.4rem; }
     .page-sub { color:var(--light-gray); font-size:0.88rem; margin-bottom:2rem; line-height:1.6; }
 
-    /* Steps */
     .steps { display:flex; align-items:center; margin-bottom:2.5rem; }
     .step { display:flex; align-items:center; gap:0.6rem; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--gray); white-space:nowrap; }
     .step.active { color:var(--red-bright); }
@@ -48,7 +47,6 @@
     .step-panel.active { display:block; }
     @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
 
-    /* Menu */
     .menu-section-header { display:flex; align-items:center; gap:0.75rem; margin:2rem 0 1rem; }
     .menu-section-header:first-child { margin-top:0; }
     .menu-section-title { font-family:'Bebas Neue',sans-serif; font-size:1.5rem; letter-spacing:0.05em; }
@@ -56,7 +54,7 @@
     .pill-hot  { background:rgba(255,100,0,0.1); color:#ff9944; border:1px solid rgba(255,100,0,0.25); }
     .pill-iced { background:rgba(80,160,255,0.1); color:#66aaff; border:1px solid rgba(80,160,255,0.25); }
     .menu-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:0.75rem; margin-bottom:0.5rem; }
-    .menu-card { background:var(--card); border:1.5px solid var(--border-dim); border-radius:12px; padding:1.1rem 1.2rem; cursor:pointer; transition:all 0.2s; position:relative; }
+    .menu-card { background:var(--card); border:1.5px solid var(--border-dim); border-radius:12px; padding:1.1rem 1.2rem; transition:all 0.2s; position:relative; }
     .menu-card:hover { border-color:rgba(204,0,0,0.3); transform:translateY(-2px); }
     .menu-card-name { font-weight:500; font-size:0.92rem; margin-bottom:0.2rem; }
     .menu-card-desc { font-size:0.75rem; color:var(--gray); line-height:1.4; margin-bottom:0.5rem; }
@@ -65,8 +63,7 @@
     .add-btn:hover { background:rgba(204,0,0,0.22); }
     .no-menu { color:var(--gray); text-align:center; padding:3rem; background:var(--card); border-radius:12px; border:1px solid var(--border-dim); }
 
-    /* Cart */
-    .cart-bar { position:sticky; bottom:0; background:#0d0000; border-top:1px solid var(--border); padding:1rem 3rem; display:flex; align-items:center; justify-content:space-between; z-index:10; }
+    .cart-bar { position:fixed; bottom:0; left:220px; right:0; background:#0d0000; border-top:1px solid var(--border); padding:1rem 3rem; display:flex; align-items:center; justify-content:space-between; z-index:10; }
     .cart-bar.hidden { display:none; }
     .cart-summary { font-size:0.88rem; color:var(--light-gray); }
     .cart-summary strong { color:var(--white); }
@@ -82,7 +79,6 @@
     .qty-num { font-size:0.9rem; font-weight:500; min-width:18px; text-align:center; }
     .cart-total { display:flex; justify-content:space-between; padding:1rem 0; border-top:1px solid var(--border-dim); font-size:1rem; font-weight:600; margin-bottom:1.5rem; }
 
-    /* Delivery form */
     .delivery-form { max-width:480px; }
     .form-group { margin-bottom:1.2rem; }
     label { display:block; font-size:0.68rem; font-weight:500; letter-spacing:0.1em; text-transform:uppercase; color:var(--gray); margin-bottom:0.45rem; }
@@ -92,7 +88,6 @@
     select option { background:#1a1a1a; }
     .form-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
 
-    /* Payment */
     .pay-layout { display:grid; grid-template-columns:1fr 1fr; gap:2rem; align-items:start; }
     .order-summary-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:1.75rem; }
     .summary-label { font-size:0.62rem; text-transform:uppercase; letter-spacing:0.15em; color:var(--red); margin-bottom:1rem; }
@@ -104,21 +99,20 @@
     .card-form-title { font-family:'Bebas Neue',sans-serif; font-size:1.5rem; letter-spacing:0.04em; margin-bottom:0.4rem; }
     .card-form-sub { font-size:0.82rem; color:var(--light-gray); margin-bottom:1.5rem; line-height:1.6; }
     #card-container { min-height:89px; margin-bottom:1.25rem; }
-    #card-container iframe { border-radius:8px !important; }
+    .card-loading { color:var(--gray); font-size:0.85rem; padding:1rem 0; }
     .pay-error { background:rgba(204,0,0,0.1); border:1px solid rgba(204,0,0,0.3); border-radius:8px; padding:0.85rem 1rem; font-size:0.85rem; color:#ff6b6b; margin-bottom:1rem; display:none; }
 
-    /* Buttons */
     .btn-primary { background:var(--red); color:white; border:none; border-radius:8px; padding:0.9rem 2rem; font-family:'DM Sans',sans-serif; font-size:0.9rem; font-weight:500; cursor:pointer; transition:all 0.2s; text-transform:uppercase; letter-spacing:0.06em; }
     .btn-primary:hover { background:var(--red-bright); box-shadow:0 0 20px rgba(204,0,0,0.4); transform:translateY(-1px); }
     .btn-primary:disabled { opacity:0.4; cursor:not-allowed; transform:none; box-shadow:none; }
     .btn-ghost { background:transparent; color:var(--light-gray); border:1px solid var(--border-dim); border-radius:8px; padding:0.9rem 2rem; font-family:'DM Sans',sans-serif; font-size:0.9rem; cursor:pointer; transition:all 0.2s; text-transform:uppercase; letter-spacing:0.06em; }
     .btn-ghost:hover { border-color:var(--border); color:var(--white); }
     .btn-row { display:flex; gap:1rem; margin-top:2rem; flex-wrap:wrap; }
-    .btn-full { width:100%; padding:1.1rem; font-size:1rem; display:flex; align-items:center; justify-content:center; gap:0.75rem; animation:pulse-btn 2.2s ease-in-out infinite; box-shadow:0 4px 30px rgba(204,0,0,0.35); }
+    .btn-full { width:100%; padding:1.1rem; font-size:1rem; display:flex; align-items:center; justify-content:center; gap:0.75rem; box-shadow:0 4px 30px rgba(204,0,0,0.35); }
+    .btn-full:not(:disabled) { animation:pulse-btn 2.2s ease-in-out infinite; }
     .btn-full:hover { animation:none; }
     @keyframes pulse-btn { 0%,100%{box-shadow:0 4px 25px rgba(204,0,0,0.3)} 50%{box-shadow:0 4px 45px rgba(204,0,0,0.6)} }
 
-    /* Success */
     .success-screen { max-width:480px; text-align:center; padding:2rem 0; }
     .success-icon { font-size:4rem; margin-bottom:1rem; display:block; animation:pop 0.4s cubic-bezier(0.175,0.885,0.32,1.275); }
     @keyframes pop { 0%{transform:scale(0)} 100%{transform:scale(1)} }
@@ -127,7 +121,7 @@
     .btn-outline { display:inline-block; padding:0.85rem 1.75rem; border:1px solid var(--border); border-radius:8px; color:var(--light-gray); text-decoration:none; font-size:0.85rem; transition:all 0.2s; margin:0.35rem; }
     .btn-outline:hover { border-color:var(--red); color:var(--white); }
 
-    @media(max-width:900px) { .layout{grid-template-columns:1fr} .sidebar{display:none} .main{padding:1.5rem} .cart-bar{padding:1rem 1.5rem} .pay-layout{grid-template-columns:1fr} .form-row{grid-template-columns:1fr} }
+    @media(max-width:900px) { .layout{grid-template-columns:1fr} .sidebar{display:none} .main{padding:1.5rem} .cart-bar{left:0;padding:1rem 1.5rem} .pay-layout{grid-template-columns:1fr} .form-row{grid-template-columns:1fr} }
   </style>
 </head>
 <body>
@@ -161,7 +155,7 @@
       <div class="step" id="step-ind-3"><div class="step-num">3</div> Payment</div>
     </div>
 
-    <!-- Step 1: Menu + Cart -->
+    <!-- Step 1: Menu -->
     <div class="step-panel active" id="panel-1">
       <div id="menu-container"><div class="no-menu">Loading menu...</div></div>
       <div class="btn-row" style="margin-top:2rem">
@@ -217,8 +211,8 @@
           <div class="card-form-title">Pay Securely</div>
           <p class="card-form-sub">Your card info is handled entirely by Square — we never see your card number.</p>
           <div id="pay-error" class="pay-error"></div>
-          <div id="card-container"></div>
-          <button class="btn-primary btn-full" id="pay-btn" onclick="submitPayment()">
+          <div id="card-container"><div class="card-loading">Loading payment form...</div></div>
+          <button class="btn-primary btn-full" id="pay-btn" onclick="submitPayment()" disabled>
             💳 Pay <span id="pay-btn-amount"></span>
           </button>
         </div>
@@ -256,9 +250,8 @@
 <script>
   const SUPABASE_URL = 'https://ljukrhneikqbabcmcpet.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn';
-  const SQUARE_APP_ID = 'sandbox-sq0idb-yWJ5XE7cr0qzF8uZroukMw';
+  const SQUARE_APP_ID = 'sandbox-sq0idb-yWJ5XE7cr0qzF8uZroukMw'; 
   const SQUARE_LOCATION_ID = 'LRQM2TH22WH83';
-
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   let currentUser = null, menuItems = [], cart = [], squareCard = null;
 
@@ -273,24 +266,31 @@
     if (meta.room) document.getElementById('delivery-room').value = meta.room;
     await loadMenu();
     await loadDeliveryTimes();
-    await initSquare();
+    // Square initializes only when customer reaches step 3
   }
 
   // ── Square SDK ────────────────────────────────────────
   async function initSquare() {
-    if (!window.Square) { console.error('Square SDK not loaded'); return; }
+    if (!window.Square) {
+      document.getElementById('card-container').innerHTML = '<div class="card-loading" style="color:#ff6b6b">Payment form unavailable. Please refresh the page.</div>';
+      return;
+    }
     try {
       const payments = Square.payments(SQUARE_APP_ID, SQUARE_LOCATION_ID);
       squareCard = await payments.card({
         style: {
           '.input-container': { borderColor: 'rgba(255,255,255,0.07)', borderRadius: '8px', backgroundColor: '#0d0d0d' },
           '.input-container.is-focus': { borderColor: '#cc0000' },
-          input: { color: '#f0f0f0', fontFamily: '"DM Sans", sans-serif' },
+          'input': { color: '#f0f0f0', fontFamily: '"DM Sans", sans-serif' },
           'input::placeholder': { color: '#3a3a3a' },
         }
       });
       await squareCard.attach('#card-container');
-    } catch (e) { console.error('Square init error:', e); }
+      document.getElementById('pay-btn').disabled = false;
+    } catch (e) {
+      console.error('Square init error:', e);
+      document.getElementById('card-container').innerHTML = '<div class="card-loading" style="color:#ff6b6b">Failed to load payment form: ' + e.message + '</div>';
+    }
   }
 
   // ── Menu ──────────────────────────────────────────────
@@ -356,7 +356,6 @@
     cart[idx].quantity += delta;
     if (cart[idx].quantity <= 0) cart.splice(idx, 1);
     updateCartUI();
-    // Re-render cart review if on step 2
     if (document.getElementById('panel-2').classList.contains('active')) renderCartReview();
   }
 
@@ -366,8 +365,7 @@
   function updateCartUI() {
     const count = cartCount();
     const total = cartTotal();
-    const bar = document.getElementById('cart-bar');
-    bar.classList.toggle('hidden', count === 0);
+    document.getElementById('cart-bar').classList.toggle('hidden', count === 0);
     document.getElementById('cart-bar-count').textContent = count;
     document.getElementById('cart-bar-total').textContent = `$${total.toFixed(2)}`;
     document.getElementById('btn-to-step2').disabled = count === 0;
@@ -424,7 +422,7 @@
     btn.textContent = 'Processing...';
 
     try {
-      if (!squareCard) throw new Error('Payment form not loaded. Please refresh and try again.');
+      if (!squareCard) throw new Error('Payment form not ready. Please wait a moment and try again.');
       const result = await squareCard.tokenize();
       if (result.status !== 'OK') throw new Error(result.errors?.[0]?.message || 'Card tokenization failed');
 
@@ -481,6 +479,10 @@
     document.getElementById('panel-' + step).classList.add('active');
     setStepIndicators(step);
     window.scrollTo(0, 0);
+    // Initialize Square card form only when reaching payment step
+    if (step === 3 && !squareCard) {
+      await initSquare();
+    }
   }
 
   function setStepIndicators(active) {
