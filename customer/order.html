@@ -6,6 +6,7 @@
   <title>The Birdhouse — Place an Order</title>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://sandbox.web.squarecdn.com/v1/square.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -29,7 +30,7 @@
     .signout-btn { background:none; border:1px solid rgba(255,255,255,0.08); border-radius:7px; padding:0.65rem 1rem; color:var(--gray); font-size:0.8rem; cursor:pointer; width:100%; text-align:left; transition:all 0.2s; display:flex; align-items:center; gap:0.5rem; font-family:'DM Sans',sans-serif; }
     .signout-btn:hover { color:var(--white); }
 
-    .main { padding:2.5rem 3rem; position:relative; z-index:1; max-width:860px; }
+    .main { padding:2.5rem 3rem; position:relative; z-index:1; }
     .page-eyebrow { font-size:0.65rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--red); margin-bottom:0.3rem; }
     .page-title { font-family:'Bebas Neue',sans-serif; font-size:2.5rem; letter-spacing:0.04em; margin-bottom:0.4rem; }
     .page-sub { color:var(--light-gray); font-size:0.88rem; margin-bottom:2rem; line-height:1.6; }
@@ -39,99 +40,72 @@
     .step { display:flex; align-items:center; gap:0.6rem; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--gray); white-space:nowrap; }
     .step.active { color:var(--red-bright); }
     .step.done { color:var(--light-gray); }
-    .step-num { width:28px; height:28px; border-radius:50%; border:1px solid currentColor; display:flex; align-items:center; justify-content:center; font-size:0.72rem; flex-shrink:0; transition:all 0.3s; }
+    .step-num { width:28px; height:28px; border-radius:50%; border:1px solid currentColor; display:flex; align-items:center; justify-content:center; font-size:0.72rem; flex-shrink:0; }
     .step.active .step-num { background:var(--red); border-color:var(--red); color:white; box-shadow:0 0 12px rgba(204,0,0,0.4); }
     .step.done .step-num { background:rgba(255,255,255,0.08); border-color:transparent; }
     .step-line { flex:1; height:1px; background:rgba(255,255,255,0.06); margin:0 1rem; }
-
     .step-panel { display:none; animation:fadeIn 0.25s ease; }
     .step-panel.active { display:block; }
     @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
 
-    /* ── Step 1: Menu ── */
+    /* Menu */
     .menu-section-header { display:flex; align-items:center; gap:0.75rem; margin:2rem 0 1rem; }
     .menu-section-header:first-child { margin-top:0; }
     .menu-section-title { font-family:'Bebas Neue',sans-serif; font-size:1.5rem; letter-spacing:0.05em; }
     .size-pill { font-size:0.62rem; padding:0.22rem 0.65rem; border-radius:20px; font-weight:500; letter-spacing:0.06em; }
     .pill-hot  { background:rgba(255,100,0,0.1); color:#ff9944; border:1px solid rgba(255,100,0,0.25); }
     .pill-iced { background:rgba(80,160,255,0.1); color:#66aaff; border:1px solid rgba(80,160,255,0.25); }
-
-    .menu-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(175px,1fr)); gap:0.75rem; margin-bottom:0.5rem; }
+    .menu-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:0.75rem; margin-bottom:0.5rem; }
     .menu-card { background:var(--card); border:1.5px solid var(--border-dim); border-radius:12px; padding:1.1rem 1.2rem; cursor:pointer; transition:all 0.2s; position:relative; }
-    .menu-card:hover { border-color:rgba(204,0,0,0.3); transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,0.3); }
-    .menu-card.selected { border-color:var(--red); background:rgba(204,0,0,0.07); box-shadow:0 0 20px rgba(204,0,0,0.15); }
-    .menu-card-check { position:absolute; top:0.75rem; right:0.75rem; width:20px; height:20px; border-radius:50%; background:var(--red); display:none; align-items:center; justify-content:center; font-size:0.65rem; box-shadow:0 0 8px rgba(204,0,0,0.5); }
-    .menu-card.selected .menu-card-check { display:flex; }
-    .menu-card-name { font-weight:500; font-size:0.92rem; margin-bottom:0.25rem; line-height:1.3; }
-    .menu-card-desc { font-size:0.75rem; color:var(--gray); line-height:1.4; }
-    .no-menu { color:var(--gray); text-align:center; padding:3rem; background:var(--card); border-radius:12px; border:1px solid var(--border-dim); font-size:0.9rem; }
+    .menu-card:hover { border-color:rgba(204,0,0,0.3); transform:translateY(-2px); }
+    .menu-card-name { font-weight:500; font-size:0.92rem; margin-bottom:0.2rem; }
+    .menu-card-desc { font-size:0.75rem; color:var(--gray); line-height:1.4; margin-bottom:0.5rem; }
+    .menu-card-price { font-size:0.8rem; color:var(--red-bright); font-weight:600; margin-bottom:0.75rem; }
+    .add-btn { width:100%; padding:0.5rem; background:rgba(204,0,0,0.12); border:1px solid var(--border); border-radius:7px; color:var(--red-bright); font-size:0.8rem; font-family:'DM Sans',sans-serif; cursor:pointer; transition:all 0.2s; font-weight:500; }
+    .add-btn:hover { background:rgba(204,0,0,0.22); }
+    .no-menu { color:var(--gray); text-align:center; padding:3rem; background:var(--card); border-radius:12px; border:1px solid var(--border-dim); }
 
-    /* ── Step 2: Delivery ── */
-    .selected-drink-banner { display:flex; align-items:center; gap:1rem; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:1rem 1.25rem; margin-bottom:1.75rem; }
-    .sdb-icon { font-size:1.6rem; }
-    .sdb-name { font-weight:500; font-size:1rem; }
-    .sdb-temp { font-size:0.75rem; margin-top:0.2rem; }
-    .sdb-temp.hot { color:#ff9944; }
-    .sdb-temp.iced { color:#66aaff; }
+    /* Cart */
+    .cart-bar { position:sticky; bottom:0; background:#0d0000; border-top:1px solid var(--border); padding:1rem 3rem; display:flex; align-items:center; justify-content:space-between; z-index:10; }
+    .cart-bar.hidden { display:none; }
+    .cart-summary { font-size:0.88rem; color:var(--light-gray); }
+    .cart-summary strong { color:var(--white); }
+    .cart-items-list { display:flex; flex-direction:column; gap:0.75rem; margin-bottom:1.5rem; }
+    .cart-item { display:flex; align-items:center; gap:1rem; background:var(--card); border:1px solid var(--border-dim); border-radius:10px; padding:0.9rem 1.1rem; }
+    .cart-item-info { flex:1; }
+    .cart-item-name { font-weight:500; font-size:0.92rem; }
+    .cart-item-sub { font-size:0.75rem; color:var(--gray); margin-top:0.15rem; }
+    .cart-item-price { font-size:0.88rem; color:var(--red-bright); font-weight:600; min-width:50px; text-align:right; }
+    .qty-ctrl { display:flex; align-items:center; gap:0.5rem; }
+    .qty-btn { width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--border-dim); color:var(--white); font-size:1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.2s; line-height:1; }
+    .qty-btn:hover { background:rgba(204,0,0,0.15); border-color:var(--border); }
+    .qty-num { font-size:0.9rem; font-weight:500; min-width:18px; text-align:center; }
+    .cart-total { display:flex; justify-content:space-between; padding:1rem 0; border-top:1px solid var(--border-dim); font-size:1rem; font-weight:600; margin-bottom:1.5rem; }
 
+    /* Delivery form */
     .delivery-form { max-width:480px; }
     .form-group { margin-bottom:1.2rem; }
     label { display:block; font-size:0.68rem; font-weight:500; letter-spacing:0.1em; text-transform:uppercase; color:var(--gray); margin-bottom:0.45rem; }
-    input[type=text], select { width:100%; padding:0.875rem 1rem; border:1px solid var(--border-dim); border-radius:8px; background:#0d0d0d; font-family:'DM Sans',sans-serif; font-size:0.92rem; color:var(--white); outline:none; transition:border-color 0.2s, box-shadow 0.2s; }
+    input[type=text], select { width:100%; padding:0.875rem 1rem; border:1px solid var(--border-dim); border-radius:8px; background:#0d0d0d; font-family:'DM Sans',sans-serif; font-size:0.92rem; color:var(--white); outline:none; transition:border-color 0.2s; }
     input:focus, select:focus { border-color:var(--red); box-shadow:0 0 0 3px rgba(204,0,0,0.1); }
     input::placeholder { color:#3a3a3a; }
     select option { background:#1a1a1a; }
     .form-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
-    .form-note { font-size:0.75rem; color:var(--gray); margin-top:0.35rem; line-height:1.5; }
 
-    /* ── Step 3: Confirm & Pay ── */
-    .confirm-layout { display:grid; grid-template-columns:1fr 1fr; gap:2rem; align-items:start; }
+    /* Payment */
+    .pay-layout { display:grid; grid-template-columns:1fr 1fr; gap:2rem; align-items:start; }
     .order-summary-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:1.75rem; }
     .summary-label { font-size:0.62rem; text-transform:uppercase; letter-spacing:0.15em; color:var(--red); margin-bottom:1rem; }
-    .summary-drink { font-family:'Bebas Neue',sans-serif; font-size:2rem; letter-spacing:0.04em; margin-bottom:0.25rem; }
-    .summary-temp { font-size:0.78rem; margin-bottom:1.25rem; }
-    .summary-line { display:flex; justify-content:space-between; padding:0.6rem 0; border-bottom:1px solid var(--border-dim); font-size:0.86rem; }
-    .summary-line:last-child { border-bottom:none; }
+    .summary-line { display:flex; justify-content:space-between; padding:0.55rem 0; border-bottom:1px solid var(--border-dim); font-size:0.86rem; }
+    .summary-line:last-child { border-bottom:none; font-weight:600; font-size:0.95rem; padding-top:0.75rem; }
     .summary-key { color:var(--light-gray); }
-    .summary-val { color:var(--white); font-weight:500; text-align:right; max-width:55%; }
-    .loyalty-note { background:rgba(204,0,0,0.07); border:1px solid var(--border); border-radius:8px; padding:0.85rem 1rem; margin-top:1.25rem; font-size:0.82rem; color:var(--light-gray); display:flex; align-items:center; gap:0.6rem; }
-    .loyalty-note span { color:var(--red-bright); font-weight:500; }
-
-    .pay-panel { }
-    .pay-title { font-family:'Bebas Neue',sans-serif; font-size:1.5rem; letter-spacing:0.04em; margin-bottom:0.5rem; }
-    .pay-sub { font-size:0.85rem; color:var(--light-gray); line-height:1.65; margin-bottom:1.75rem; }
-    .pay-steps { margin-bottom:1.75rem; }
-    .pay-step { display:flex; align-items:flex-start; gap:0.85rem; margin-bottom:1rem; }
-    .pay-step-num { width:26px; height:26px; border-radius:50%; background:rgba(204,0,0,0.12); border:1px solid var(--border); color:var(--red-bright); font-size:0.72rem; font-weight:600; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:0.1rem; }
-    .pay-step-text { font-size:0.85rem; color:var(--light-gray); line-height:1.5; }
-    .pay-step-text strong { color:var(--white); display:block; margin-bottom:0.1rem; }
-
-    /* Square button — the hero CTA */
-    .square-btn {
-      display:flex; align-items:center; justify-content:center; gap:0.85rem;
-      width:100%; padding:1.15rem 2rem;
-      background:var(--red); color:white; border:none; border-radius:11px;
-      font-family:'DM Sans',sans-serif; font-size:1rem; font-weight:600;
-      cursor:pointer; text-decoration:none; text-transform:uppercase; letter-spacing:0.08em;
-      transition:all 0.2s; animation:pulse-btn 2.2s ease-in-out infinite;
-      box-shadow:0 4px 30px rgba(204,0,0,0.35);
-    }
-    .square-btn:hover { background:var(--red-bright); transform:translateY(-2px); box-shadow:0 8px 40px rgba(204,0,0,0.55); animation:none; }
-    @keyframes pulse-btn { 0%,100%{box-shadow:0 4px 25px rgba(204,0,0,0.3)} 50%{box-shadow:0 4px 45px rgba(204,0,0,0.6)} }
-    .square-btn-icon { font-size:1.25rem; }
-
-    .no-link-note { background:rgba(255,152,0,0.07); border:1px solid rgba(255,152,0,0.2); border-radius:10px; padding:1.1rem 1.25rem; font-size:0.85rem; color:#ff9800; line-height:1.6; }
-    .skip-link { display:block; text-align:center; margin-top:1.1rem; font-size:0.8rem; color:var(--gray); text-decoration:none; transition:color 0.2s; }
-    .skip-link:hover { color:var(--light-gray); }
-
-    /* Success screen */
-    .success-screen { max-width:480px; text-align:center; padding:2rem 0; }
-    .success-icon { font-size:4rem; margin-bottom:1rem; display:block; animation:pop 0.4s cubic-bezier(0.175,0.885,0.32,1.275); }
-    @keyframes pop { 0%{transform:scale(0)} 100%{transform:scale(1)} }
-    .success-title { font-family:'Bebas Neue',sans-serif; font-size:2.8rem; letter-spacing:0.04em; margin-bottom:0.5rem; }
-    .success-sub { color:var(--light-gray); font-size:0.92rem; line-height:1.65; margin-bottom:2rem; }
-    .btn-outline { display:inline-block; padding:0.85rem 1.75rem; border:1px solid var(--border); border-radius:8px; color:var(--light-gray); text-decoration:none; font-size:0.85rem; transition:all 0.2s; margin:0.35rem; }
-    .btn-outline:hover { border-color:var(--red); color:var(--white); }
+    .summary-val { color:var(--white); font-weight:500; }
+    .card-form-wrap { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:1.75rem; }
+    .card-form-title { font-family:'Bebas Neue',sans-serif; font-size:1.5rem; letter-spacing:0.04em; margin-bottom:0.4rem; }
+    .card-form-sub { font-size:0.82rem; color:var(--light-gray); margin-bottom:1.5rem; line-height:1.6; }
+    #card-container { min-height:89px; margin-bottom:1.25rem; }
+    #card-container iframe { border-radius:8px !important; }
+    .pay-error { background:rgba(204,0,0,0.1); border:1px solid rgba(204,0,0,0.3); border-radius:8px; padding:0.85rem 1rem; font-size:0.85rem; color:#ff6b6b; margin-bottom:1rem; display:none; }
 
     /* Buttons */
     .btn-primary { background:var(--red); color:white; border:none; border-radius:8px; padding:0.9rem 2rem; font-family:'DM Sans',sans-serif; font-size:0.9rem; font-weight:500; cursor:pointer; transition:all 0.2s; text-transform:uppercase; letter-spacing:0.06em; }
@@ -140,8 +114,20 @@
     .btn-ghost { background:transparent; color:var(--light-gray); border:1px solid var(--border-dim); border-radius:8px; padding:0.9rem 2rem; font-family:'DM Sans',sans-serif; font-size:0.9rem; cursor:pointer; transition:all 0.2s; text-transform:uppercase; letter-spacing:0.06em; }
     .btn-ghost:hover { border-color:var(--border); color:var(--white); }
     .btn-row { display:flex; gap:1rem; margin-top:2rem; flex-wrap:wrap; }
+    .btn-full { width:100%; padding:1.1rem; font-size:1rem; display:flex; align-items:center; justify-content:center; gap:0.75rem; animation:pulse-btn 2.2s ease-in-out infinite; box-shadow:0 4px 30px rgba(204,0,0,0.35); }
+    .btn-full:hover { animation:none; }
+    @keyframes pulse-btn { 0%,100%{box-shadow:0 4px 25px rgba(204,0,0,0.3)} 50%{box-shadow:0 4px 45px rgba(204,0,0,0.6)} }
 
-    @media(max-width:900px) { .layout{grid-template-columns:1fr} .sidebar{display:none} .main{padding:1.5rem} .confirm-layout{grid-template-columns:1fr} .form-row{grid-template-columns:1fr} }
+    /* Success */
+    .success-screen { max-width:480px; text-align:center; padding:2rem 0; }
+    .success-icon { font-size:4rem; margin-bottom:1rem; display:block; animation:pop 0.4s cubic-bezier(0.175,0.885,0.32,1.275); }
+    @keyframes pop { 0%{transform:scale(0)} 100%{transform:scale(1)} }
+    .success-title { font-family:'Bebas Neue',sans-serif; font-size:2.8rem; letter-spacing:0.04em; margin-bottom:0.5rem; }
+    .success-sub { color:var(--light-gray); font-size:0.92rem; line-height:1.65; margin-bottom:2rem; }
+    .btn-outline { display:inline-block; padding:0.85rem 1.75rem; border:1px solid var(--border); border-radius:8px; color:var(--light-gray); text-decoration:none; font-size:0.85rem; transition:all 0.2s; margin:0.35rem; }
+    .btn-outline:hover { border-color:var(--red); color:var(--white); }
+
+    @media(max-width:900px) { .layout{grid-template-columns:1fr} .sidebar{display:none} .main{padding:1.5rem} .cart-bar{padding:1rem 1.5rem} .pay-layout{grid-template-columns:1fr} .form-row{grid-template-columns:1fr} }
   </style>
 </head>
 <body>
@@ -165,39 +151,32 @@
   <main class="main">
     <div class="page-eyebrow">Customer Portal</div>
     <h1 class="page-title">Place an Order</h1>
-    <p class="page-sub">Choose your drink and delivery details — then customize and pay in Square.</p>
+    <p class="page-sub">Add drinks to your cart, then fill in delivery details and pay.</p>
 
-    <!-- Step indicators -->
     <div class="steps">
-      <div class="step active" id="step-ind-1"><div class="step-num">1</div> Choose Drink</div>
+      <div class="step active" id="step-ind-1"><div class="step-num">1</div> Build Cart</div>
       <div class="step-line"></div>
       <div class="step" id="step-ind-2"><div class="step-num">2</div> Delivery Info</div>
       <div class="step-line"></div>
-      <div class="step" id="step-ind-3"><div class="step-num">3</div> Pay in Square</div>
+      <div class="step" id="step-ind-3"><div class="step-num">3</div> Payment</div>
     </div>
 
-    <!-- ── Step 1: Choose drink ── -->
+    <!-- Step 1: Menu + Cart -->
     <div class="step-panel active" id="panel-1">
       <div id="menu-container"><div class="no-menu">Loading menu...</div></div>
-      <div class="btn-row">
-        <button class="btn-primary" id="btn-next-1" onclick="goToStep(2)" disabled>Next: Delivery Info →</button>
+      <div class="btn-row" style="margin-top:2rem">
+        <button class="btn-primary" id="btn-to-step2" onclick="goToStep(2)" disabled>Next: Delivery Info →</button>
       </div>
     </div>
 
-    <!-- ── Step 2: Delivery info ── -->
+    <!-- Step 2: Delivery -->
     <div class="step-panel" id="panel-2">
-      <div class="selected-drink-banner">
-        <div class="sdb-icon" id="sdb-icon">☕</div>
-        <div>
-          <div class="sdb-name" id="sdb-name">—</div>
-          <div class="sdb-temp" id="sdb-temp">—</div>
-        </div>
-      </div>
+      <div class="cart-items-list" id="cart-review"></div>
+      <div class="cart-total"><span>Total</span><span id="cart-total-val">$0.00</span></div>
       <div class="delivery-form">
         <div class="form-group">
           <label>Room / Location</label>
           <input type="text" id="delivery-room" placeholder="e.g. Room 204, Library, Front Office" />
-          <div class="form-note">We'll deliver straight to you.</div>
         </div>
         <div class="form-row">
           <div class="form-group">
@@ -217,9 +196,8 @@
           </div>
         </div>
         <div class="form-group">
-          <label>Any notes for your order? <span style="color:var(--gray);font-weight:300">(optional)</span></label>
+          <label>Order Notes <span style="color:var(--gray);font-weight:300">(optional)</span></label>
           <input type="text" id="order-notes" placeholder="e.g. extra shot, no whip, oat milk..." />
-          <div class="form-note">You'll also be able to customize fully when you pay in Square.</div>
         </div>
       </div>
       <div class="btn-row">
@@ -228,235 +206,293 @@
       </div>
     </div>
 
-    <!-- ── Step 3: Confirm & Pay ── -->
+    <!-- Step 3: Payment -->
     <div class="step-panel" id="panel-3">
-      <div class="confirm-layout">
-        <!-- Order summary -->
+      <div class="pay-layout">
         <div class="order-summary-card">
           <div class="summary-label">Order Summary</div>
-          <div class="summary-drink" id="sum-drink">—</div>
-          <div class="summary-temp" id="sum-temp">—</div>
-          <div id="sum-lines"></div>
-          <div class="loyalty-note">⭐ You'll earn <span>+1 loyalty point</span> on this order!</div>
+          <div id="pay-summary-lines"></div>
         </div>
-
-        <!-- Pay panel -->
-        <div class="pay-panel">
-          <div class="pay-title">Complete Your Order</div>
-          <p class="pay-sub">Your delivery request is saved. Click below to customize your drink and pay securely through Square.</p>
-          <div class="pay-steps">
-            <div class="pay-step">
-              <div class="pay-step-num">1</div>
-              <div class="pay-step-text"><strong>Customize in Square</strong>Add syrups, milk options, cold foam, extra shots and more.</div>
-            </div>
-            <div class="pay-step">
-              <div class="pay-step-num">2</div>
-              <div class="pay-step-text"><strong>Pay securely</strong>Square handles all payment processing — card, Apple Pay, Google Pay.</div>
-            </div>
-            <div class="pay-step">
-              <div class="pay-step-num">3</div>
-              <div class="pay-step-text"><strong>We deliver</strong>Our team sees your delivery request and brings it to your room.</div>
-            </div>
-          </div>
-          <div id="square-btn-wrap"></div>
-          <a class="skip-link" href="orders.html">← Save for later / pay cash</a>
+        <div class="card-form-wrap">
+          <div class="card-form-title">Pay Securely</div>
+          <p class="card-form-sub">Your card info is handled entirely by Square — we never see your card number.</p>
+          <div id="pay-error" class="pay-error"></div>
+          <div id="card-container"></div>
+          <button class="btn-primary btn-full" id="pay-btn" onclick="submitPayment()">
+            💳 Pay <span id="pay-btn-amount"></span>
+          </button>
         </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-ghost" onclick="goToStep(2)">← Back</button>
       </div>
     </div>
 
-    <!-- ── Success screen ── -->
+    <!-- Success -->
     <div class="step-panel" id="panel-success">
       <div class="success-screen">
         <span class="success-icon">✅</span>
-        <div class="success-title">You're all set!</div>
-        <p class="success-sub">Your delivery request is in. Once you've paid in Square, our team will get your order ready and deliver it to your room.</p>
+        <div class="success-title">Order Placed!</div>
+        <p class="success-sub">Payment confirmed. Our team will get your order ready and deliver it to your room.</p>
         <div>
-          <a class="btn-outline" href="order.html">Order Another</a>
+          <a class="btn-outline" href="order.html">Order Again</a>
           <a class="btn-outline" href="orders.html">View My Orders</a>
         </div>
       </div>
     </div>
-
   </main>
 </div>
 
-<script>
-  const sb = supabase.createClient('https://ljukrhneikqbabcmcpet.supabase.co','sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn');
-  let currentUser = null, menuItems = [], selectedItem = null, selectedTemp = null, savedOrderId = null;
+<!-- Sticky cart bar -->
+<div class="cart-bar hidden" id="cart-bar">
+  <div class="cart-summary">
+    🛒 <strong id="cart-bar-count">0</strong> items · <strong id="cart-bar-total">$0.00</strong>
+  </div>
+  <button class="btn-primary" style="padding:0.65rem 1.5rem;font-size:0.85rem" onclick="goToStep(2)">
+    Review Cart →
+  </button>
+</div>
 
+<script>
+  const SUPABASE_URL = 'https://ljukrhneikqbabcmcpet.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn';
+  const SQUARE_APP_ID = 'sandbox-sq0idb-yWJ5XE7cr0qzF8uZroukMw';
+  const SQUARE_LOCATION_ID = 'LRQM2TH22WH83';
+
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  let currentUser = null, menuItems = [], cart = [], squareCard = null;
+
+  // ── Init ──────────────────────────────────────────────
   async function init() {
-    const {data:{session}} = await sb.auth.getSession();
-    if(!session){window.location.href='index.html';return;}
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = 'index.html'; return; }
     currentUser = session.user;
     const meta = currentUser.user_metadata;
-    document.getElementById('user-display-name').textContent=(meta.first_name||'Eagle')+' '+(meta.last_name||'');
-    document.getElementById('user-points-badge').textContent=(meta.loyalty_points||0)+' points';
-    if(meta.room) document.getElementById('delivery-room').value=meta.room;
+    document.getElementById('user-display-name').textContent = (meta.first_name || 'Eagle') + ' ' + (meta.last_name || '');
+    document.getElementById('user-points-badge').textContent = (meta.loyalty_points || 0) + ' points';
+    if (meta.room) document.getElementById('delivery-room').value = meta.room;
     await loadMenu();
     await loadDeliveryTimes();
+    await initSquare();
   }
 
-  async function loadMenu() {
-    const {data,error} = await sb.from('menu_items').select('*').eq('available',true).order('sort_order');
-    const container = document.getElementById('menu-container');
-    if(error||!data?.length){container.innerHTML='<div class="no-menu">No menu items available right now — check back soon!</div>';return;}
-    menuItems = data;
+  // ── Square SDK ────────────────────────────────────────
+  async function initSquare() {
+    if (!window.Square) { console.error('Square SDK not loaded'); return; }
+    try {
+      const payments = Square.payments(SQUARE_APP_ID, SQUARE_LOCATION_ID);
+      squareCard = await payments.card({
+        style: {
+          '.input-container': { borderColor: 'rgba(255,255,255,0.07)', borderRadius: '8px', backgroundColor: '#0d0d0d' },
+          '.input-container.is-focus': { borderColor: '#cc0000' },
+          input: { color: '#f0f0f0', fontFamily: '"DM Sans", sans-serif' },
+          'input::placeholder': { color: '#3a3a3a' },
+        }
+      });
+      await squareCard.attach('#card-container');
+    } catch (e) { console.error('Square init error:', e); }
+  }
 
+  // ── Menu ──────────────────────────────────────────────
+  async function loadMenu() {
+    const { data, error } = await sb.from('menu_items').select('*').eq('available', true).order('sort_order');
+    const container = document.getElementById('menu-container');
+    if (error || !data?.length) {
+      container.innerHTML = '<div class="no-menu">No menu items available right now.</div>';
+      return;
+    }
+    menuItems = data;
     const hotItems  = data.filter(i => i.is_hot !== false && i.is_iced !== true);
     const icedItems = data.filter(i => i.is_iced === true);
     const bothItems = data.filter(i => i.is_hot !== false && i.is_iced === true);
 
     let html = '';
-    if(hotItems.length || bothItems.length) {
+    if (hotItems.length || bothItems.length) {
       html += `<div class="menu-section-header">
         <span style="font-size:1.3rem">☕</span>
         <span class="menu-section-title">Hot Drinks</span>
         <span class="size-pill pill-hot">12 oz</span>
       </div>
-      <div class="menu-grid">
-        ${[...hotItems,...bothItems].map(i=>menuCard(i,'hot')).join('')}
-      </div>`;
+      <div class="menu-grid">${[...hotItems, ...bothItems].map(i => menuCard(i, 'hot')).join('')}</div>`;
     }
-    if(icedItems.length || bothItems.length) {
+    if (icedItems.length || bothItems.length) {
       html += `<div class="menu-section-header">
         <span style="font-size:1.3rem">🧊</span>
         <span class="menu-section-title">Iced Drinks</span>
         <span class="size-pill pill-iced">16 oz</span>
       </div>
-      <div class="menu-grid">
-        ${[...icedItems,...bothItems].map(i=>menuCard(i,'iced')).join('')}
-      </div>`;
+      <div class="menu-grid">${[...icedItems, ...bothItems].map(i => menuCard(i, 'iced')).join('')}</div>`;
     }
     container.innerHTML = html || '<div class="no-menu">No items available.</div>';
   }
 
   function menuCard(item, temp) {
-    return `<div class="menu-card" id="card-${item.id}-${temp}" onclick="selectItem('${item.id}','${temp}')">
-      <div class="menu-card-check">✓</div>
+    const price = item.base_price ? `$${parseFloat(item.base_price).toFixed(2)}` : 'Price TBD';
+    return `<div class="menu-card">
       <div class="menu-card-name">${item.name}</div>
-      <div class="menu-card-desc">${item.description||''}</div>
+      <div class="menu-card-desc">${item.description || ''}</div>
+      <div class="menu-card-price">${price}</div>
+      <button class="add-btn" onclick="addToCart('${item.id}','${temp}')">+ Add to Cart</button>
     </div>`;
   }
 
-  function selectItem(id, temp) {
-    document.querySelectorAll('.menu-card').forEach(c=>c.classList.remove('selected'));
-    document.getElementById(`card-${id}-${temp}`)?.classList.add('selected');
-    selectedItem = menuItems.find(i=>i.id===id);
-    selectedTemp = temp;
-    document.getElementById('btn-next-1').disabled = false;
-  }
-
-  async function loadDeliveryTimes() {
-    const {data} = await sb.from('store_config').select('value').eq('key','delivery_times').single();
-    const times = data?.value||['7:30 AM','8:00 AM','8:30 AM','9:00 AM','10:00 AM','11:00 AM','12:00 PM'];
-    const sel = document.getElementById('delivery-time');
-    times.forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;sel.appendChild(o);});
-  }
-
-  function buildSummary() {
-    const isIced = selectedTemp==='iced';
-    // Drink banner
-    document.getElementById('sdb-icon').textContent = isIced?'🧊':'☕';
-    document.getElementById('sdb-name').textContent = selectedItem.name;
-    const tempEl = document.getElementById('sdb-temp');
-    tempEl.textContent = isIced?'Iced · 16 oz':'Hot · 12 oz';
-    tempEl.className = 'sdb-temp '+(isIced?'iced':'hot');
-
-    // Summary card
-    document.getElementById('sum-drink').textContent = selectedItem.name;
-    const sumTemp = document.getElementById('sum-temp');
-    sumTemp.textContent = isIced?'🧊 Iced · 16 oz':'☕ Hot · 12 oz';
-    sumTemp.style.color = isIced?'#66aaff':'#ff9944';
-
-    const room  = document.getElementById('delivery-room').value;
-    const time  = document.getElementById('delivery-time').value;
-    const day   = document.getElementById('delivery-day').value;
-    const notes = document.getElementById('order-notes').value;
-
-    const lines = [
-      {k:'Deliver to', v:room||'—'},
-      {k:'Day', v:day},
-      {k:'Time', v:time||'—'},
-    ];
-    if(notes) lines.push({k:'Notes', v:notes});
-    document.getElementById('sum-lines').innerHTML = lines.map(l=>
-      `<div class="summary-line"><span class="summary-key">${l.k}</span><span class="summary-val">${l.v}</span></div>`
-    ).join('');
-  }
-
-  async function saveAndShowPayment() {
-    // Save order to Supabase
-    const meta  = currentUser.user_metadata;
-    const isIced = selectedTemp==='iced';
-    const room  = document.getElementById('delivery-room').value;
-    const time  = document.getElementById('delivery-time').value;
-    const day   = document.getElementById('delivery-day').value;
-    const notes = document.getElementById('order-notes').value;
-
-    const {data, error} = await sb.from('orders').insert({
-      user_id: currentUser.id,
-      customer_name: (meta.first_name||'')+' '+(meta.last_name||''),
-      drink_name: selectedItem.name,
-      room, size: isIced?'Iced 16oz':'Hot 12oz',
-      delivery_time: time, delivery_day: day,
-      special_instructions: notes,
-      points_earned: 1, status: 'pending'
-    }).select().single();
-
-    if(!error) {
-      savedOrderId = data?.id;
-      await sb.auth.updateUser({data:{loyalty_points:(meta.loyalty_points||0)+1}});
-    }
-
-    // Show Square button
-    const squareLink = isIced ? selectedItem.square_link_iced : selectedItem.square_link_hot;
-    const wrap = document.getElementById('square-btn-wrap');
-    if(squareLink) {
-      wrap.innerHTML = `<a class="square-btn" href="${squareLink}" target="_blank" onclick="showSuccess()">
-        <span class="square-btn-icon">💳</span> Customize & Pay in Square
-      </a>`;
+  // ── Cart ──────────────────────────────────────────────
+  function addToCart(itemId, temp) {
+    const item = menuItems.find(i => i.id === itemId);
+    if (!item) return;
+    const key = `${itemId}-${temp}`;
+    const existing = cart.find(c => c.key === key);
+    if (existing) {
+      existing.quantity++;
     } else {
-      wrap.innerHTML = `<div class="no-link-note">⚠️ Online payment isn't set up for this item yet. Please pay in person or contact staff.<br><br>Your delivery request has been saved!</div>`;
+      cart.push({ key, id: itemId, name: item.name, temp, price: parseFloat(item.base_price) || 0, quantity: 1 });
     }
+    updateCartUI();
   }
 
-  function showSuccess() {
-    // Show success screen after a short delay (they've clicked out to Square)
-    setTimeout(()=>{
-      document.querySelectorAll('.step-panel').forEach(p=>p.classList.remove('active'));
+  function changeQty(key, delta) {
+    const idx = cart.findIndex(c => c.key === key);
+    if (idx === -1) return;
+    cart[idx].quantity += delta;
+    if (cart[idx].quantity <= 0) cart.splice(idx, 1);
+    updateCartUI();
+    // Re-render cart review if on step 2
+    if (document.getElementById('panel-2').classList.contains('active')) renderCartReview();
+  }
+
+  function cartTotal() { return cart.reduce((s, c) => s + c.price * c.quantity, 0); }
+  function cartCount() { return cart.reduce((s, c) => s + c.quantity, 0); }
+
+  function updateCartUI() {
+    const count = cartCount();
+    const total = cartTotal();
+    const bar = document.getElementById('cart-bar');
+    bar.classList.toggle('hidden', count === 0);
+    document.getElementById('cart-bar-count').textContent = count;
+    document.getElementById('cart-bar-total').textContent = `$${total.toFixed(2)}`;
+    document.getElementById('btn-to-step2').disabled = count === 0;
+  }
+
+  function renderCartReview() {
+    const list = document.getElementById('cart-review');
+    list.innerHTML = cart.map(c => `
+      <div class="cart-item">
+        <div class="cart-item-info">
+          <div class="cart-item-name">${c.name}</div>
+          <div class="cart-item-sub">${c.temp === 'iced' ? '🧊 Iced 16oz' : '☕ Hot 12oz'}</div>
+        </div>
+        <div class="qty-ctrl">
+          <button class="qty-btn" onclick="changeQty('${c.key}',-1)">−</button>
+          <span class="qty-num">${c.quantity}</span>
+          <button class="qty-btn" onclick="changeQty('${c.key}',1)">+</button>
+        </div>
+        <div class="cart-item-price">$${(c.price * c.quantity).toFixed(2)}</div>
+      </div>`).join('');
+    document.getElementById('cart-total-val').textContent = `$${cartTotal().toFixed(2)}`;
+  }
+
+  function renderPaySummary() {
+    const lines = cart.map(c =>
+      `<div class="summary-line">
+        <span class="summary-key">${c.name} × ${c.quantity} (${c.temp === 'iced' ? 'Iced' : 'Hot'})</span>
+        <span class="summary-val">$${(c.price * c.quantity).toFixed(2)}</span>
+      </div>`
+    ).join('');
+    const room = document.getElementById('delivery-room').value;
+    const time = document.getElementById('delivery-time').value;
+    document.getElementById('pay-summary-lines').innerHTML = lines + `
+      <div class="summary-line"><span class="summary-key">Deliver to</span><span class="summary-val">${room || '—'}</span></div>
+      <div class="summary-line"><span class="summary-key">Time</span><span class="summary-val">${time || '—'}</span></div>
+      <div class="summary-line"><span class="summary-key">Total</span><span class="summary-val">$${cartTotal().toFixed(2)}</span></div>`;
+    document.getElementById('pay-btn-amount').textContent = `$${cartTotal().toFixed(2)}`;
+  }
+
+  // ── Delivery Times ────────────────────────────────────
+  async function loadDeliveryTimes() {
+    const { data } = await sb.from('store_config').select('value').eq('key', 'delivery_times').single();
+    const times = data?.value || ['7:30 AM','8:00 AM','8:30 AM','9:00 AM','10:00 AM','11:00 AM','12:00 PM'];
+    const sel = document.getElementById('delivery-time');
+    times.forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; sel.appendChild(o); });
+  }
+
+  // ── Payment ───────────────────────────────────────────
+  async function submitPayment() {
+    const btn = document.getElementById('pay-btn');
+    const errEl = document.getElementById('pay-error');
+    errEl.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = 'Processing...';
+
+    try {
+      if (!squareCard) throw new Error('Payment form not loaded. Please refresh and try again.');
+      const result = await squareCard.tokenize();
+      if (result.status !== 'OK') throw new Error(result.errors?.[0]?.message || 'Card tokenization failed');
+
+      const meta = currentUser.user_metadata;
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/process-payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_KEY}` },
+        body: JSON.stringify({
+          sourceId: result.token,
+          cartItems: cart,
+          userId: currentUser.id,
+          customerInfo: {
+            customerName: (meta.first_name || '') + ' ' + (meta.last_name || ''),
+            room: document.getElementById('delivery-room').value,
+            deliveryDay: document.getElementById('delivery-day').value,
+            deliveryTime: document.getElementById('delivery-time').value,
+            notes: document.getElementById('order-notes').value,
+          }
+        })
+      });
+
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Payment failed');
+
+      // Award loyalty points
+      const pointsEarned = cartCount();
+      await sb.auth.updateUser({ data: { loyalty_points: (meta.loyalty_points || 0) + pointsEarned } });
+
+      // Show success
+      document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
       document.getElementById('panel-success').classList.add('active');
+      document.getElementById('cart-bar').classList.add('hidden');
       setStepIndicators('success');
-    }, 800);
+
+    } catch (err) {
+      errEl.textContent = err.message;
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.innerHTML = '💳 Pay <span id="pay-btn-amount">$' + cartTotal().toFixed(2) + '</span>';
+    }
   }
 
+  // ── Navigation ────────────────────────────────────────
   async function goToStep(step) {
-    if(step===2) {
-      buildSummary();
-    }
-    if(step===3) {
+    if (step === 2) { renderCartReview(); }
+    if (step === 3) {
       const room = document.getElementById('delivery-room').value.trim();
       const time = document.getElementById('delivery-time').value;
-      if(!room){alert('Please enter your room or delivery location.');return;}
-      if(!time){alert('Please select a delivery time.');return;}
-      buildSummary();
-      await saveAndShowPayment();
+      if (!room) { alert('Please enter your room or delivery location.'); return; }
+      if (!time) { alert('Please select a delivery time.'); return; }
+      renderPaySummary();
     }
-    document.querySelectorAll('.step-panel').forEach(p=>p.classList.remove('active'));
-    document.getElementById('panel-'+step).classList.add('active');
+    document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('panel-' + step).classList.add('active');
     setStepIndicators(step);
-    window.scrollTo(0,0);
+    window.scrollTo(0, 0);
   }
 
   function setStepIndicators(active) {
-    for(let i=1;i<=3;i++){
-      const el=document.getElementById('step-ind-'+i);
-      if(!el) continue;
-      if(active==='success') { el.className='step done'; continue; }
-      el.className='step'+(i===active?' active':i<active?' done':'');
+    for (let i = 1; i <= 3; i++) {
+      const el = document.getElementById('step-ind-' + i);
+      if (!el) continue;
+      if (active === 'success') { el.className = 'step done'; continue; }
+      el.className = 'step' + (i === active ? ' active' : i < active ? ' done' : '');
     }
   }
 
-  async function signOut(){await sb.auth.signOut();window.location.href='index.html';}
+  async function signOut() { await sb.auth.signOut(); window.location.href = 'index.html'; }
   init();
 </script>
 </body>
