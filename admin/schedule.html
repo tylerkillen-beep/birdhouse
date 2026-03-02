@@ -406,11 +406,30 @@ async function openPosModal(teamId, roleKey, e) {
   // Use correct position set for this role
   const posSet = roleKey==='mathews' ? MATHEWS_POSITIONS : BIRDHOUSE_POSITIONS;
 
-  // Auto-assign if empty
+  // Auto-assign — every student rotates through all roles across the week
   if(!existing?.length) {
-    students.forEach((s,si)=>{
-      workingDays.forEach((d,di)=>{
-        posMap[`${s.id}_${fmtDate(d.date)}`]=posSet[(si+di)%posSet.length];
+    const numStudents = students.length;
+    const numDays = workingDays.length;
+
+    // Build expanded position list to cover all students per day
+    // Priority for extras: barista, then cashier/deliverer, then stocker, custodian
+    function buildDayRoles(posArr, count) {
+      const roles = [...posArr];
+      const overflow = [posArr[1], posArr[0], posArr[2], posArr[3]||posArr[2]];
+      let oi = 0;
+      while(roles.length < count) { roles.push(overflow[oi++ % overflow.length]); }
+      return roles;
+    }
+
+    // Shuffle starting offset per student so rotation feels natural
+    const dayRoles = buildDayRoles(posSet, numStudents);
+
+    workingDays.forEach((d, di) => {
+      const dateStr = fmtDate(d.date);
+      // Rotate the role list by di positions each day
+      const rotated = [...dayRoles.slice(di % numStudents), ...dayRoles.slice(0, di % numStudents)];
+      students.forEach((s, si) => {
+        posMap[`${s.id}_${dateStr}`] = rotated[si % rotated.length];
       });
     });
   }
