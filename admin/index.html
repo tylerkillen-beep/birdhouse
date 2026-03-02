@@ -16,7 +16,6 @@
     body { background: var(--black); color: var(--white); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
     body::before { content:''; position:fixed; inset:0; background-image:linear-gradient(rgba(204,0,0,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(204,0,0,0.03) 1px,transparent 1px); background-size:40px 40px; pointer-events:none; z-index:0; }
 
-    /* Layout */
     .layout { display:grid; grid-template-columns:240px 1fr; min-height:100vh; }
     .sidebar { background:#0d0000; border-right:1px solid var(--border); padding:1.75rem 1.25rem; position:sticky; top:0; height:100vh; display:flex; flex-direction:column; overflow-y:auto; }
     .sidebar-logo img { height:40px; filter:drop-shadow(0 0 10px rgba(204,0,0,0.6)); margin-bottom:0.75rem; }
@@ -28,7 +27,6 @@
     .signout-btn { background:none; border:1px solid rgba(255,255,255,0.08); border-radius:7px; padding:0.65rem 1rem; color:var(--gray); font-size:0.8rem; cursor:pointer; width:100%; text-align:left; transition:all 0.2s; display:flex; align-items:center; gap:0.5rem; font-family:'DM Sans',sans-serif; margin-top:auto; }
     .signout-btn:hover { color:var(--white); }
 
-    /* Main */
     .main { padding:2.5rem 3rem; position:relative; z-index:1; }
     .page-eyebrow { font-size:0.62rem; letter-spacing:0.22em; text-transform:uppercase; color:var(--red); margin-bottom:0.3rem; }
     .page-title { font-family:'Bebas Neue',sans-serif; font-size:2.5rem; letter-spacing:0.04em; margin-bottom:2rem; }
@@ -36,7 +34,6 @@
     .section-panel { display:none; }
     .section-panel.active { display:block; }
 
-    /* Stats */
     .stats-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-bottom:2rem; }
     .stat-card { background:var(--card); border-radius:12px; padding:1.4rem; border:1px solid var(--border-dim); transition:border-color 0.2s; }
     .stat-card:hover { border-color:var(--border); }
@@ -44,7 +41,6 @@
     .stat-value { font-family:'Bebas Neue',sans-serif; font-size:2.2rem; color:var(--red-bright); text-shadow:0 0 15px rgba(204,0,0,0.3); }
     .stat-sub { font-size:0.72rem; color:var(--gray); margin-top:0.2rem; }
 
-    /* Cards / Tables */
     .card { background:var(--card); border:1px solid var(--border-dim); border-radius:14px; overflow:hidden; margin-bottom:1.5rem; }
     .card-header { display:flex; justify-content:space-between; align-items:center; padding:1.1rem 1.5rem; border-bottom:1px solid var(--border-dim); }
     .card-title { font-size:0.78rem; font-weight:500; color:var(--light-gray); text-transform:uppercase; letter-spacing:0.08em; }
@@ -54,13 +50,11 @@
     tr:last-child td { border-bottom:none; }
     tr:hover td { background:rgba(255,255,255,0.02); }
 
-    /* Role badge */
     .role-badge { display:inline-block; padding:0.2rem 0.65rem; border-radius:20px; font-size:0.7rem; font-weight:500; }
     .role-student { background:rgba(80,160,255,0.1); color:#66aaff; border:1px solid rgba(80,160,255,0.2); }
     .role-admin { background:rgba(204,0,0,0.12); color:var(--red-bright); border:1px solid var(--border); }
     .role-customer { background:rgba(255,255,255,0.06); color:var(--light-gray); border:1px solid var(--border-dim); }
 
-    /* Summary card */
     .summary-card { background:var(--card); border:1px solid var(--border-dim); border-radius:12px; padding:1.5rem; margin-bottom:0.75rem; transition:border-color 0.2s; }
     .summary-card:hover { border-color:var(--border); }
     .summary-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1rem; }
@@ -72,7 +66,6 @@
     .summary-field-val { font-size:0.86rem; color:var(--white); line-height:1.6; }
     .summary-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-top:0.75rem; }
 
-    /* Schedule builder */
     .schedule-wrap { display:grid; grid-template-columns:360px 1fr; gap:2rem; align-items:start; }
     .schedule-form { background:var(--card); border:1px solid var(--border-dim); border-radius:14px; padding:1.75rem; }
     .form-group { margin-bottom:1.1rem; }
@@ -101,25 +94,21 @@
     .msg.success { background:rgba(0,200,80,0.08); border:1px solid rgba(0,200,80,0.2); color:#4caf50; display:block; }
     .msg.error { background:rgba(204,0,0,0.1); border:1px solid var(--border); color:#ff6b6b; display:block; }
 
-    /* Week nav */
     .week-nav { display:flex; align-items:center; gap:1rem; margin-bottom:1.25rem; }
     .week-nav button { background:none; border:1px solid var(--border-dim); border-radius:6px; padding:0.4rem 0.75rem; color:var(--light-gray); cursor:pointer; font-size:0.82rem; transition:all 0.2s; font-family:'DM Sans',sans-serif; }
     .week-nav button:hover { border-color:var(--border); color:var(--white); }
     .week-label { font-size:0.88rem; color:var(--white); font-weight:500; }
 
-    /* Schedule table */
     .sched-table { background:var(--card); border:1px solid var(--border-dim); border-radius:14px; overflow:hidden; }
     .sched-table table th { background:rgba(204,0,0,0.06); }
     .shift-chip { display:inline-flex; align-items:center; gap:0.5rem; background:rgba(204,0,0,0.1); border:1px solid rgba(204,0,0,0.2); border-radius:6px; padding:0.3rem 0.65rem; font-size:0.78rem; color:var(--red-bright); margin:0.2rem; }
 
-    /* Student accounts */
     .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.88); z-index:100; display:none; align-items:center; justify-content:center; }
     .modal-overlay.open { display:flex; }
     .modal { background:#111; border:1px solid var(--border); border-radius:16px; padding:2rem; width:460px; max-width:95vw; }
     .modal-title { font-family:'Bebas Neue',sans-serif; font-size:1.8rem; letter-spacing:0.05em; margin-bottom:1.5rem; }
     .modal .btn-row { display:flex; gap:1rem; margin-top:1.5rem; }
 
-    /* Filters */
     .filter-row { display:flex; gap:0.75rem; margin-bottom:1.25rem; flex-wrap:wrap; }
     .filter-btn { background:transparent; border:1px solid var(--border-dim); border-radius:20px; padding:0.35rem 0.9rem; font-size:0.78rem; color:var(--gray); cursor:pointer; transition:all 0.2s; font-family:'DM Sans',sans-serif; }
     .filter-btn.active { background:rgba(204,0,0,0.12); border-color:var(--border); color:var(--red-bright); }
@@ -171,15 +160,11 @@
     <div class="section-panel" id="section-orders">
       <div class="page-eyebrow">Orders</div>
       <h1 class="page-title">All Orders & Revenue</h1>
-
-      <!-- Revenue summary -->
       <div class="stats-grid" id="orders-stats" style="margin-bottom:2rem">
         <div class="stat-card"><div class="stat-label">Total Orders</div><div class="stat-value" id="rev-total">—</div></div>
         <div class="stat-card"><div class="stat-label">Delivered</div><div class="stat-value" id="rev-delivered">—</div></div>
         <div class="stat-card"><div class="stat-label">Active Now</div><div class="stat-value" id="rev-active">—</div></div>
       </div>
-
-      <!-- Filters -->
       <div class="filter-row" style="margin-bottom:1.25rem">
         <button class="filter-btn active" onclick="adminFilterOrders('all',this)">All</button>
         <button class="filter-btn" onclick="adminFilterOrders('paid',this)">💳 Paid</button>
@@ -187,18 +172,11 @@
         <button class="filter-btn" onclick="adminFilterOrders('delivered',this)">✅ Delivered</button>
         <button class="filter-btn" onclick="adminFilterOrders('cancelled',this)">Cancelled</button>
       </div>
-
       <div class="card">
         <table>
           <thead>
             <tr>
-              <th>Customer</th>
-              <th>Drink</th>
-              <th>Details</th>
-              <th>Delivery</th>
-              <th>Status</th>
-              <th>Date</th>
-              <th></th>
+              <th>Customer</th><th>Drink</th><th>Details</th><th>Delivery</th><th>Status</th><th>Date</th><th></th>
             </tr>
           </thead>
           <tbody id="admin-orders-tbody">
@@ -213,29 +191,16 @@
       <div class="page-eyebrow">Team</div>
       <h1 class="page-title">Schedule Builder</h1>
       <div class="schedule-wrap">
-
-        <!-- Add shift form -->
         <div class="schedule-form">
           <div class="section-title" style="font-size:1.1rem;margin-bottom:1.25rem">Add a Shift</div>
           <div class="form-group">
             <label>Student</label>
-            <select id="sched-student">
-              <option value="">Select a student...</option>
-            </select>
+            <select id="sched-student"><option value="">Select a student...</option></select>
           </div>
-          <div class="form-group">
-            <label>Date</label>
-            <input type="date" id="sched-date" />
-          </div>
+          <div class="form-group"><label>Date</label><input type="date" id="sched-date" /></div>
           <div class="form-row">
-            <div class="form-group">
-              <label>Start Time</label>
-              <input type="time" id="sched-start" />
-            </div>
-            <div class="form-group">
-              <label>End Time</label>
-              <input type="time" id="sched-end" />
-            </div>
+            <div class="form-group"><label>Start Time</label><input type="time" id="sched-start" /></div>
+            <div class="form-group"><label>End Time</label><input type="time" id="sched-end" /></div>
           </div>
           <div class="form-group">
             <label>Notes <span style="color:var(--gray);font-weight:300">(optional)</span></label>
@@ -244,8 +209,6 @@
           <button class="btn-primary" onclick="addShift()">Add Shift</button>
           <div class="msg" id="sched-msg"></div>
         </div>
-
-        <!-- Week view -->
         <div>
           <div class="week-nav">
             <button onclick="changeWeek(-1)">← Prev</button>
@@ -255,13 +218,7 @@
           <div class="sched-table">
             <table>
               <thead>
-                <tr>
-                  <th>Student</th>
-                  <th>Date</th>
-                  <th>Time</th>
-                  <th>Notes</th>
-                  <th></th>
-                </tr>
+                <tr><th>Student</th><th>Date</th><th>Time</th><th>Notes</th><th></th></tr>
               </thead>
               <tbody id="sched-table-body">
                 <tr><td colspan="5" class="empty-state">Loading schedule...</td></tr>
@@ -276,14 +233,31 @@
     <div class="section-panel" id="section-summaries">
       <div class="page-eyebrow">Team</div>
       <h1 class="page-title">Weekly Summaries</h1>
-
       <div class="filter-row">
         <button class="filter-btn active" onclick="filterSummaries('all',this)">All</button>
         <button class="filter-btn" onclick="filterSummaries('week',this)">This Week</button>
         <button class="filter-btn" onclick="filterSummaries('last',this)">Last Week</button>
       </div>
-
       <div id="summaries-container"><div class="empty-state">Loading...</div></div>
+    </div>
+
+    <!-- ── SCORE RUBRIC ── -->
+    <div class="section-panel" id="section-rubric">
+      <div class="page-eyebrow">Manager</div>
+      <h1 class="page-title">Score Rubric</h1>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
+        <p style="color:var(--gray);font-size:0.88rem">Define the scoring categories managers use to evaluate students each week.</p>
+        <button class="btn-primary" onclick="openRubricModal()">+ Add Category</button>
+      </div>
+      <div id="rubric-list"><div class="empty-state">Loading...</div></div>
+    </div>
+
+    <!-- ── STUDENT SCORES ── -->
+    <div class="section-panel" id="section-manager-scores">
+      <div class="page-eyebrow">Manager</div>
+      <h1 class="page-title">Student Scores</h1>
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap" id="score-week-nav-admin"></div>
+      <div id="admin-scores-content"><div class="empty-state">Loading...</div></div>
     </div>
 
     <!-- ── STUDENT ACCOUNTS ── -->
@@ -412,7 +386,6 @@
   const sb = supabase.createClient('https://ljukrhneikqbabcmcpet.supabase.co','sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn');
   let allSummaries = [], allStudents = [], weekOffset = 0, editingItemId = null;
 
-  // ── Auth guard ──
   async function init() {
     const {data:{session}} = await sb.auth.getSession();
     if(!session) { window.location.href = 'login.html'; return; }
@@ -422,7 +395,6 @@
     loadOverview();
     loadStudentDropdown();
     loadSchedule();
-    // Load pending submissions badge
     sb.from('menu_submissions').select('*',{count:'exact',head:true}).eq('status','pending').then(({count})=>{
       const badge = document.getElementById('admin-sub-badge');
       if(count>0){badge.textContent=count;badge.style.display='inline';}
@@ -483,14 +455,10 @@
   async function approveSubmission(id) {
     const sub = allSubmissions.find(s=>s.id===id);
     if(!sub) return;
-    // Add or update menu item
     const payload = {
-      name: sub.proposed_name,
-      description: sub.proposed_description,
-      category: sub.proposed_category,
-      is_hot: sub.proposed_is_hot,
-      is_iced: sub.proposed_is_iced,
-      available: true
+      name: sub.proposed_name, description: sub.proposed_description,
+      category: sub.proposed_category, is_hot: sub.proposed_is_hot,
+      is_iced: sub.proposed_is_iced, available: true
     };
     if(sub.type==='edit' && sub.target_item_id) {
       await sb.from('menu_items').update(payload).eq('id', sub.target_item_id);
@@ -506,7 +474,7 @@
 
   async function rejectSubmission(id) {
     const note = prompt('Optional: Leave a note for the student explaining why (or leave blank):');
-    if(note===null) return; // cancelled
+    if(note===null) return;
     await sb.from('menu_submissions').update({status:'rejected', admin_note: note||null, reviewed_at: new Date().toISOString()}).eq('id',id);
     const sub = allSubmissions.find(s=>s.id===id);
     if(sub){sub.status='rejected';sub.admin_note=note;}
@@ -520,7 +488,6 @@
   async function loadAdminOrders() {
     const {data} = await sb.from('orders').select('*').order('created_at',{ascending:false});
     adminAllOrders = data||[];
-    // Stats
     const total     = adminAllOrders.length;
     const delivered = adminAllOrders.filter(o=>o.status==='delivered').length;
     const active    = adminAllOrders.filter(o=>o.status==='pending'||o.status==='paid').length;
@@ -584,7 +551,6 @@
     document.getElementById('ov-students').textContent = uniqueStudents.size;
     document.getElementById('ov-summaries').textContent = summaries?.length||0;
     document.getElementById('ov-shifts').textContent = shifts?.length||0;
-
     const container = document.getElementById('ov-recent-summaries');
     if(!summaries?.length){container.innerHTML='<div class="empty-state">No summaries submitted this week yet.</div>';return;}
     container.innerHTML = summaries.slice(0,3).map(s => renderSummaryCard(s)).join('');
@@ -598,22 +564,17 @@
     return new Date(d.setDate(diff));
   }
 
-  function changeWeek(dir) {
-    weekOffset += dir;
-    loadSchedule();
-  }
+  function changeWeek(dir) { weekOffset += dir; loadSchedule(); }
 
   async function loadSchedule() {
     const ws = getWeekStart(weekOffset);
     const we = new Date(ws); we.setDate(ws.getDate()+7);
     const label = document.getElementById('week-label');
     label.textContent = `Week of ${ws.toLocaleDateString('en-US',{month:'short',day:'numeric'})} – ${new Date(we.getTime()-1).toLocaleDateString('en-US',{month:'short',day:'numeric'})}`;
-
     const {data} = await sb.from('schedules').select('*')
       .gte('shift_date', ws.toISOString().split('T')[0])
       .lt('shift_date', we.toISOString().split('T')[0])
       .order('shift_date').order('start_time');
-
     const tbody = document.getElementById('sched-table-body');
     if(!data?.length){tbody.innerHTML='<tr><td colspan="5" class="empty-state">No shifts scheduled for this week.</td></tr>';return;}
     tbody.innerHTML = data.map(s=>`
@@ -634,13 +595,10 @@
   }
 
   async function loadStudentDropdown() {
-    // Load from schedules student_name list + known students
     const {data} = await sb.from('schedules').select('student_name').order('student_name');
     const sel = document.getElementById('sched-student');
-    // Clear existing options after placeholder
     while(sel.options.length > 1) sel.remove(1);
     const seen = new Set();
-    // Also load student accounts if available
     const {data:accounts} = await sb.from('student_accounts_view').select('*').limit(50).catch(()=>({data:null}));
     if(accounts) {
       accounts.forEach(a=>{
@@ -652,7 +610,6 @@
         }
       });
     }
-    // Fall back to names from schedules
     (data||[]).forEach(r=>{
       if(!seen.has(r.student_name)){
         seen.add(r.student_name);
@@ -661,7 +618,6 @@
         sel.appendChild(o);
       }
     });
-    // Add manual entry option
     const manual = document.createElement('option');
     manual.value='__manual__'; manual.textContent='+ Enter name manually...';
     sel.appendChild(manual);
@@ -688,18 +644,15 @@
     const end     = document.getElementById('sched-end').value;
     const notes   = document.getElementById('sched-notes').value;
     const m = document.getElementById('sched-msg');
-
     if(!student||student==='__manual__'||!date||!start||!end){
       m.textContent='Please fill in all required fields.'; m.className='msg error';
       btn.disabled=false; btn.textContent='Add Shift'; return;
     }
-
     const {error} = await sb.from('schedules').insert({
       student_id: '00000000-0000-0000-0000-000000000000',
       student_name: student, shift_date: date,
       start_time: start, end_time: end, notes
     });
-
     if(error){m.textContent='Error: '+error.message; m.className='msg error';}
     else {
       m.textContent='✓ Shift added!'; m.className='msg success';
@@ -729,7 +682,6 @@
   function filterSummaries(period, btn) {
     document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
-    const now = new Date();
     let filtered = allSummaries;
     if(period==='week'){
       const ws = getWeekStart(0).toISOString();
@@ -768,8 +720,6 @@
 
   // ── Student Accounts ──
   async function loadStudents() {
-    // We can only see users via Supabase admin API which requires service role key (not safe client-side)
-    // So we store student info in a students table instead
     const {data} = await sb.from('students').select('*').order('created_at',{ascending:false});
     allStudents = data||[];
     const tbody = document.getElementById('students-table-body');
@@ -801,23 +751,15 @@
     const password = document.getElementById('s-password').value.trim();
     const role     = document.getElementById('s-role').value;
     const m = document.getElementById('student-msg');
-
     if(!first||!last||!email||!password){m.textContent='All fields are required.';m.className='msg error';return;}
-
-    // Create auth user via Supabase signUp (will send confirmation email)
     const {data, error} = await sb.auth.signUp({
       email, password,
       options: { data: { first_name:first, last_name:last, role } }
     });
-
     if(error){m.textContent='Error: '+error.message; m.className='msg error'; return;}
-
-    // Also save to students table for easy listing
     await sb.from('students').insert({
-      id: data.user?.id,
-      first_name:first, last_name:last, email, role
+      id: data.user?.id, first_name:first, last_name:last, email, role
     });
-
     m.textContent=`✓ Account created for ${first}! They'll get a confirmation email at ${email}.`;
     m.className='msg success';
     loadStudents();
@@ -904,35 +846,34 @@
     loadMenu();
   }
 
-  // ── Helpers ──
+  // ── Section Routing ──
   function showSection(name, el) {
     document.querySelectorAll('.section-panel').forEach(p=>p.classList.remove('active'));
-    // Also handle display:none sections
-    document.querySelectorAll('[id^="section-"]').forEach(p=>{
-      if(!p.classList.contains('section-panel')) p.style.display='none';
-    });
     const target = document.getElementById('section-'+name);
-    if(target.classList.contains('section-panel')) target.classList.add('active');
-    else target.style.display='block';
+    if(target) target.classList.add('active');
     document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
     el.classList.add('active');
-    if(name==='summaries') loadSummaries();
-    if(name==='students')  loadStudents();
-    if(name==='menu')      loadMenu();
-    if(name==='schedule')  loadSchedule();
-    if(name==='orders')    loadAdminOrders();
-    if(name==='submissions') loadSubmissions();
-    if(name==='rubric')    loadRubric();
+    if(name==='summaries')      loadSummaries();
+    if(name==='students')       loadStudents();
+    if(name==='menu')           loadMenu();
+    if(name==='schedule')       loadSchedule();
+    if(name==='orders')         loadAdminOrders();
+    if(name==='submissions')    loadSubmissions();
+    if(name==='rubric')         loadRubric();
     if(name==='manager-scores') loadAdminScores();
   }
 
   // ── Score Rubric ──
   let allRubric = [];
+
   async function loadRubric() {
     const {data} = await sb.from('score_rubric').select('*').order('sort_order');
     allRubric = data||[];
     const list = document.getElementById('rubric-list');
-    if(!allRubric.length){list.innerHTML='<div style="color:var(--gray);font-size:0.85rem;padding:2rem;background:var(--card);border-radius:12px;border:1px solid var(--border-dim);text-align:center">No rubric categories yet. Add your first one!</div>';return;}
+    if(!allRubric.length){
+      list.innerHTML='<div style="color:var(--gray);font-size:0.85rem;padding:2rem;background:var(--card);border-radius:12px;border:1px solid var(--border-dim);text-align:center">No rubric categories yet. Add your first one!</div>';
+      return;
+    }
     list.innerHTML = `<div style="border:1px solid var(--border-dim);border-radius:12px;overflow:hidden">
       ${allRubric.map((r,i)=>`<div style="display:flex;align-items:center;gap:1rem;padding:1rem 1.25rem;border-bottom:${i<allRubric.length-1?'1px solid var(--border-dim)':'none'};background:var(--card)">
         <div style="flex:1">
@@ -947,82 +888,100 @@
   }
 
   let editingRubricId = null;
+
   function openRubricModal(id) {
     editingRubricId = id||null;
     const r = id ? allRubric.find(x=>x.id===id) : null;
+    // Remove any existing modal first
+    document.getElementById('rubric-modal')?.remove();
     const html = `<div style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;display:flex;align-items:center;justify-content:center" id="rubric-modal">
       <div style="background:#111;border:1px solid rgba(204,0,0,0.15);border-radius:16px;padding:2rem;width:420px;max-width:95vw">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:0.05em;margin-bottom:1.5rem">${r?'Edit Category':'Add Category'}</div>
-        <div style="margin-bottom:1rem"><label style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.4rem">Category Name</label>
-          <input type="text" id="rub-name" value="${r?.name||''}" placeholder="e.g. Effort, Teamwork..." style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/></div>
-        <div style="margin-bottom:1rem"><label style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.4rem">Description <span style="color:#333">(shown to manager)</span></label>
-          <input type="text" id="rub-desc" value="${r?.description||''}" placeholder="What to look for when scoring..." style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/></div>
-        <div style="margin-bottom:1.5rem"><label style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.4rem">Max Points</label>
-          <input type="number" id="rub-max" value="${r?.max_points||10}" min="1" max="100" style="width:120px;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/></div>
+        <div style="margin-bottom:1rem">
+          <label style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.4rem">Category Name</label>
+          <input type="text" id="rub-name" value="${r?.name||''}" placeholder="e.g. Effort, Teamwork..." style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/>
+        </div>
+        <div style="margin-bottom:1rem">
+          <label style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.4rem">Description <span style="color:#333">(shown to manager)</span></label>
+          <input type="text" id="rub-desc" value="${r?.description||''}" placeholder="What to look for when scoring..." style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/>
+        </div>
+        <div style="margin-bottom:1.5rem">
+          <label style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.4rem">Max Points</label>
+          <input type="number" id="rub-max" value="${r?.max_points||10}" min="1" max="100" style="width:120px;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/>
+        </div>
         <div style="display:flex;gap:0.75rem">
           <button style="background:transparent;color:#999;border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:0.82rem 1.5rem;font-family:'DM Sans',sans-serif;font-size:0.88rem;cursor:pointer" onclick="document.getElementById('rubric-modal').remove()">Cancel</button>
           <button style="flex:1;background:#cc0000;color:white;border:none;border-radius:8px;padding:0.82rem;font-family:'DM Sans',sans-serif;font-size:0.88rem;font-weight:600;cursor:pointer;text-transform:uppercase;letter-spacing:0.08em" onclick="saveRubricItem()">Save</button>
         </div>
       </div>
     </div>`;
-    document.body.insertAdjacentHTML('beforeend',html);
+    document.body.insertAdjacentHTML('beforeend', html);
   }
 
-  function editRubricItem(id){ openRubricModal(id); }
+  function editRubricItem(id) { openRubricModal(id); }
 
-  async function saveRubricItem(){
+  async function saveRubricItem() {
     const name = document.getElementById('rub-name').value.trim();
     const desc = document.getElementById('rub-desc').value.trim();
-    const max = parseInt(document.getElementById('rub-max').value)||10;
+    const max  = parseInt(document.getElementById('rub-max').value)||10;
     if(!name) return;
-    if(editingRubricId){
-      await sb.from('score_rubric').update({name,description:desc,max_points:max}).eq('id',editingRubricId);
+    if(editingRubricId) {
+      await sb.from('score_rubric').update({name, description:desc, max_points:max}).eq('id', editingRubricId);
     } else {
-      const sortOrder = allRubric.length+1;
-      await sb.from('score_rubric').insert({name,description:desc,max_points:max,sort_order:sortOrder});
+      const sortOrder = allRubric.length + 1;
+      await sb.from('score_rubric').insert({name, description:desc, max_points:max, sort_order:sortOrder, active:true});
     }
     document.getElementById('rubric-modal')?.remove();
     loadRubric();
   }
 
-  async function toggleRubricItem(id, active){
-    await sb.from('score_rubric').update({active}).eq('id',id);
+  async function toggleRubricItem(id, active) {
+    await sb.from('score_rubric').update({active}).eq('id', id);
     loadRubric();
   }
 
   // ── Admin Score View ──
   let adminScoreWeekOffset = 0;
-  async function loadAdminScores(offset){
-    if(offset!==undefined) adminScoreWeekOffset=offset;
-    const mon = getMondayOfWeek ? getMondayOfWeek(adminScoreWeekOffset) : (() => {
-      const today=new Date(); const day=today.getDay(); const diff=day===0?-6:1-day;
-      const m=new Date(today); m.setDate(today.getDate()+diff+(adminScoreWeekOffset*7)); m.setHours(0,0,0,0); return m;
-    })();
+
+  async function loadAdminScores(offset) {
+    if(offset !== undefined) adminScoreWeekOffset = offset;
+    const today = new Date();
+    const day = today.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    const mon = new Date(today);
+    mon.setDate(today.getDate() + diff + (adminScoreWeekOffset * 7));
+    mon.setHours(0,0,0,0);
     const ws = mon.toISOString().split('T')[0];
     const fri = new Date(mon); fri.setDate(mon.getDate()+4);
-    const wLabel = mon.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' – '+fri.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    const wLabel = mon.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' – ' + fri.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
 
     document.getElementById('score-week-nav-admin').innerHTML=`
       <button onclick="loadAdminScores(${adminScoreWeekOffset-1})" style="background:none;border:1px solid var(--border-dim);border-radius:7px;padding:0.45rem 1rem;color:var(--gray);cursor:pointer;font-size:0.82rem;font-family:'DM Sans',sans-serif">← Prev</button>
       <span style="font-size:0.95rem;font-weight:500">${wLabel}</span>
-      <button onclick="loadAdminScores(${adminScoreWeekOffset+1})" style="background:none;border:1px solid var(--border-dim);border-radius:7px;padding:0.45rem 1rem;color:var(--gray);cursor:pointer;font-size:0.82rem;font-family:'DM Sans',sans-serif">Next →</button>`;
+      <button onclick="loadAdminScores(${adminScoreWeekOffset+1})" style="background:none;border:1px solid var(--border-dim);border-radius:7px;padding:0.45rem 1rem;color:var(--gray);cursor:pointer;font-size:0.82rem;font-family:'DM Sans',sans-serif">Next →</button>
+      ${adminScoreWeekOffset!==0?`<button onclick="loadAdminScores(0)" style="background:none;border:1px solid var(--border-dim);border-radius:7px;padding:0.45rem 1rem;color:var(--gray);cursor:pointer;font-size:0.82rem;font-family:'DM Sans',sans-serif;margin-left:auto">This Week</button>`:''}`;
 
-    const {data:rubric}=await sb.from('score_rubric').select('*').eq('active',true).order('sort_order');
-    const {data:scores}=await sb.from('student_scores').select('*').eq('week_start',ws);
-    const {data:students}=await sb.from('students').select('id,first_name,last_name,teams(name,period)');
-    const c=document.getElementById('admin-scores-content');
+    const [{data:rubric},{data:scores},{data:students}] = await Promise.all([
+      sb.from('score_rubric').select('*').eq('active',true).order('sort_order'),
+      sb.from('student_scores').select('*').eq('week_start',ws),
+      sb.from('students').select('id,first_name,last_name,teams(name,period)')
+    ]);
 
-    if(!scores?.length){c.innerHTML='<div style="color:var(--gray);text-align:center;padding:3rem;background:var(--card);border-radius:12px;border:1px solid var(--border-dim)">No scores submitted for this week yet.</div>';return;}
+    const c = document.getElementById('admin-scores-content');
 
-    // Group by student
-    const byStudent={};
+    if(!scores?.length) {
+      c.innerHTML='<div style="color:var(--gray);text-align:center;padding:3rem;background:var(--card);border-radius:12px;border:1px solid var(--border-dim)">No scores submitted for this week yet.</div>';
+      return;
+    }
+
+    const byStudent = {};
     (scores||[]).forEach(s=>{
-      if(!byStudent[s.student_id])byStudent[s.student_id]={scores:{},comment:s.comment,scoredBy:s.scored_by_name};
-      byStudent[s.student_id].scores[s.rubric_id]=s.score;
+      if(!byStudent[s.student_id]) byStudent[s.student_id] = {scores:{}, comment:s.comment, scoredBy:s.scored_by_name};
+      byStudent[s.student_id].scores[s.rubric_id] = s.score;
     });
 
-    c.innerHTML=`<div style="border:1px solid var(--border-dim);border-radius:12px;overflow:hidden">
-      <table style="width:100%;border-collapse:collapse">
+    c.innerHTML = `<div style="border:1px solid var(--border-dim);border-radius:12px;overflow:hidden;overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;min-width:600px">
         <thead><tr style="background:#0d0d0d">
           <th style="padding:0.85rem 1.1rem;text-align:left;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--gray);border-bottom:1px solid var(--border-dim)">Student</th>
           ${(rubric||[]).map(r=>`<th style="padding:0.85rem 1.1rem;text-align:center;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--gray);border-bottom:1px solid var(--border-dim)">${r.name}<br/><span style="font-size:0.6rem;color:#333">/${r.max_points}</span></th>`).join('')}
@@ -1030,19 +989,19 @@
           <th style="padding:0.85rem 1.1rem;text-align:left;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--gray);border-bottom:1px solid var(--border-dim)">Comment</th>
         </tr></thead>
         <tbody>${(students||[]).filter(s=>byStudent[s.id]).map(s=>{
-          const data=byStudent[s.id]||{};
-          const total=Object.values(data.scores||{}).reduce((a,b)=>a+b,0);
-          const maxTotal=(rubric||[]).reduce((a,r)=>a+r.max_points,0);
-          const pct=maxTotal?Math.round(total/maxTotal*100):0;
-          const color=pct>=80?'#4caf50':pct>=60?'#ff9800':'#cc0000';
+          const d = byStudent[s.id]||{};
+          const total = Object.values(d.scores||{}).reduce((a,b)=>a+b,0);
+          const maxTotal = (rubric||[]).reduce((a,r)=>a+r.max_points,0);
+          const pct = maxTotal ? Math.round(total/maxTotal*100) : 0;
+          const color = pct>=80?'#4caf50':pct>=60?'#ff9800':'#cc0000';
           return `<tr style="border-bottom:1px solid var(--border-dim)">
             <td style="padding:0.85rem 1.1rem">
               <div style="font-weight:500">${s.first_name} ${s.last_name}</div>
               <div style="font-size:0.7rem;color:var(--gray)">${s.teams?.name||'—'} · ${s.teams?.period||''}</div>
             </td>
-            ${(rubric||[]).map(r=>`<td style="padding:0.85rem 1.1rem;text-align:center;font-size:0.88rem">${data.scores[r.id]??'—'}</td>`).join('')}
+            ${(rubric||[]).map(r=>`<td style="padding:0.85rem 1.1rem;text-align:center;font-size:0.88rem">${d.scores[r.id]??'—'}</td>`).join('')}
             <td style="padding:0.85rem 1.1rem"><span style="font-weight:600;color:${color}">${total}</span><span style="color:var(--gray);font-size:0.78rem"> /${maxTotal}</span> <span style="font-size:0.68rem;color:${color}">(${pct}%)</span></td>
-            <td style="padding:0.85rem 1.1rem;font-size:0.82rem;color:var(--gray);max-width:220px">${data.comment||'—'}</td>
+            <td style="padding:0.85rem 1.1rem;font-size:0.82rem;color:var(--gray);max-width:220px">${d.comment||'—'}</td>
           </tr>`;
         }).join('')}</tbody>
       </table>
