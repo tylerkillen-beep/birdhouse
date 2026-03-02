@@ -177,6 +177,9 @@
       </div>
     </div>
     <div class="msg" id="page-msg"></div>
+    <div style="margin-top:0.75rem">
+      <button onclick="backfillPositions()" style="background:none;border:none;color:var(--gray);font-size:0.78rem;cursor:pointer;font-family:'DM Sans',sans-serif;text-decoration:underline">Re-run auto-assign positions for this week</button>
+    </div>
   </main>
 </div>
 
@@ -487,6 +490,56 @@ async function savePositions() {
 function closePosModal(){document.getElementById('pos-modal').classList.remove('open');}
 
 // ── Confirm & Publish ──
+// Auto-assign positions for a team — extracted so confirmWeek can call it
+async function autoAssignPositions(teamId, roleKey, monday) {
+  const team = allTeams.find(t=>t.id===teamId);
+  if(!team) return;
+  const students = team.students||[];
+  if(!students.length) return;
+
+  let workingDays=[];
+  if(roleKey==='birdhouse') workingDays=[0,1,2,3,4].map(i=>({date:addDays(monday,i),name:['Monday','Tuesday','Wednesday','Thursday','Friday'][i]}));
+  if(roleKey==='mathews')   workingDays=[0,2,4].map(i=>({date:addDays(monday,i),name:['Monday','Wednesday','Friday'][i]}));
+  if(!workingDays.length) return; // menu/inclass don't need positions
+
+  // Check if positions already exist for this team this week
+  const {data:existing} = await sb.from('daily_positions').select('id')
+    .in('shift_date', workingDays.map(d=>fmtDate(d.date)))
+    .in('student_id', students.map(s=>s.id));
+  if(existing?.length) return; // already assigned, don't overwrite
+
+  const posSet = roleKey==='mathews' ? MATHEWS_POSITIONS : BIRDHOUSE_POSITIONS;
+  const numStudents = students.length;
+
+  function buildDayRoles(posArr, count) {
+    const roles=[...posArr];
+    const overflow=[posArr[1],posArr[0],posArr[2],posArr[3]||posArr[2]];
+    let oi=0;
+    while(roles.length<count){roles.push(overflow[oi++%overflow.length]);}
+    return roles;
+  }
+
+  const dayRoles = buildDayRoles(posSet, numStudents);
+  const rows = [];
+
+  workingDays.forEach((d, di) => {
+    const dateStr = fmtDate(d.date);
+    const rotated = [...dayRoles.slice(di % numStudents), ...dayRoles.slice(0, di % numStudents)];
+    students.forEach((s, si) => {
+      rows.push({
+        student_id: s.id,
+        shift_date: dateStr,
+        position: rotated[si % rotated.length],
+        assignment_id: null
+      });
+    });
+  });
+
+  if(rows.length) {
+    await sb.from('daily_positions').upsert(rows, {onConflict:'student_id,shift_date'});
+  }
+}
+
 async function confirmWeek() {
   const monday=getMondayOfWeek(weekOffset);
   const unassigned=allTeams.filter(t=>!getTeamRole(t.id));
@@ -500,9 +553,14 @@ async function confirmWeek() {
   const rows=Object.values(assignments).map(a=>({
     team_id:a.team_id, week_start:fmtDate(monday), role:a.role, confirmed:true
   }));
-  const {error}=await sb.from('weekly_assignments').upsert(rows,{onConflict:'team_id,week_start'});
+  const {data:savedRows, error}=await sb.from('weekly_assignments').upsert(rows,{onConflict:'team_id,week_start'}).select();
 
   if(!error) {
+    // Auto-assign positions for all birdhouse/mathews teams
+    const positionTeams = Object.values(assignments).filter(a=>a.role==='birdhouse'||a.role==='mathews');
+    btn.textContent='Assigning positions...';
+    await Promise.all(positionTeams.map(a=>autoAssignPositions(a.team_id, a.role, monday)));
+
     // Update last_role on each team
     await Promise.all(Object.values(assignments).map(a=>
       sb.from('teams').update({last_role:a.role, last_role_week:fmtDate(monday)}).eq('id',a.team_id)
@@ -510,11 +568,29 @@ async function confirmWeek() {
     const badge=document.getElementById('week-status-badge');
     badge.textContent='Published';badge.className='week-status status-confirmed';
     const m=document.getElementById('page-msg');
-    m.textContent='✓ Schedule published! Students can now see their assignments.';m.className='msg success';
-    // Reload teams to get updated last_role
+    const posCount = positionTeams.length;
+    m.textContent=`✓ Schedule published! Positions auto-assigned for ${posCount} team${posCount!==1?'s':''} at Birdhouse/Mathews. Students can now see their assignments.`;
+    m.className='msg success';
     await loadTeams();
   }
   btn.disabled=false;btn.textContent='✓ Confirm & Publish';
+}
+
+async function backfillPositions() {
+  const monday=getMondayOfWeek(weekOffset);
+  // Delete existing positions for this week first so we get a fresh assignment
+  const weekDates=[0,1,2,3,4].map(i=>fmtDate(addDays(monday,i)));
+  const allStudentIds=allTeams.flatMap(t=>(t.students||[]).map(s=>s.id));
+  if(allStudentIds.length){
+    await sb.from('daily_positions').delete()
+      .in('shift_date',weekDates)
+      .in('student_id',allStudentIds);
+  }
+  const positionTeams=Object.values(assignments).filter(a=>a.role==='birdhouse'||a.role==='mathews');
+  await Promise.all(positionTeams.map(a=>autoAssignPositions(a.team_id,a.role,monday)));
+  const m=document.getElementById('page-msg');
+  m.textContent=`✓ Positions re-assigned for ${positionTeams.length} team(s).`;
+  m.className='msg success';
 }
 
 async function clearWeek() {
