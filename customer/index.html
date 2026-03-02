@@ -52,6 +52,20 @@
     .msg.success { background: rgba(0,255,100,0.08); border: 1px solid rgba(0,255,100,0.2); color: #4caf50; display: block; }
     .msg.error { background: rgba(204,0,0,0.1); border: 1px solid rgba(204,0,0,0.3); color: #ff6b6b; display: block; }
 
+    .divider { display: flex; align-items: center; gap: 1rem; margin: 1.5rem 0; color: var(--gray); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; }
+    .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border-dim); }
+
+    .btn-google {
+      width: 100%; padding: 0.95rem 1rem; background: transparent; color: var(--white);
+      border: 1px solid var(--border-dim); border-radius: 8px; font-family: 'DM Sans', sans-serif;
+      font-size: 0.93rem; font-weight: 500; cursor: pointer; transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center; gap: 0.75rem;
+      letter-spacing: 0.03em;
+    }
+    .btn-google:hover { border-color: rgba(204,0,0,0.5); background: rgba(204,0,0,0.06); box-shadow: 0 0 15px rgba(204,0,0,0.15); }
+    .btn-google svg { flex-shrink: 0; }
+    .school-note { font-size: 0.72rem; color: var(--gray); text-align: center; margin-top: 0.6rem; }
+
     @media (max-width: 768px) { body{grid-template-columns:1fr} .panel-left{display:none} .panel-right{padding:2.5rem 1.5rem} }
   </style>
 </head>
@@ -74,6 +88,14 @@
     <a class="back-link" href="../index.html">← Back to Home</a>
     <div class="form-eyebrow">Customer Portal</div>
     <h1 class="form-title">Welcome Back.</h1>
+
+    <button class="btn-google" onclick="handleGoogleLogin()">
+      <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.703-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.55 0 9s.348 2.825.957 4.039l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z"/></svg>
+      Continue with Google
+    </button>
+    <p class="school-note">School accounts only — @nixaschools.net or @nixastudents.net</p>
+
+    <div class="divider">or use email</div>
 
     <div class="tabs">
       <button class="tab active" onclick="showTab('login', this)">Sign In</button>
@@ -110,6 +132,38 @@
       document.getElementById('login-form').style.display = tab==='login'?'block':'none';
       document.getElementById('signup-form').style.display = tab==='signup'?'block':'none';
     }
+
+    async function handleGoogleLogin() {
+      const btn = event.target.closest('.btn-google');
+      btn.disabled = true; btn.innerHTML = btn.innerHTML.replace('Continue with Google', 'Redirecting...');
+      const { error } = await sb.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin + '/customer/dashboard.html',
+          queryParams: { hd: 'nixaschools.net' }
+        }
+      });
+      if (error) {
+        const m = document.getElementById('login-msg');
+        m.textContent = error.message; m.className = 'msg error';
+        btn.disabled = false; btn.innerHTML = btn.innerHTML.replace('Redirecting...', 'Continue with Google');
+      }
+    }
+
+    // Check after Google OAuth redirect — enforce school domain
+    sb.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        const email = session.user.email || '';
+        if (!email.endsWith('@nixaschools.net') && !email.endsWith('@nixastudents.net')) {
+          await sb.auth.signOut();
+          const m = document.getElementById('login-msg');
+          m.textContent = 'Only @nixaschools.net or @nixastudents.net accounts are allowed.';
+          m.className = 'msg error';
+          return;
+        }
+        window.location.href = 'dashboard.html';
+      }
+    });
 
     async function handleLogin() {
       const btn = event.target; btn.disabled=true; btn.textContent='Signing in...';
