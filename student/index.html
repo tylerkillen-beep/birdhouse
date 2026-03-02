@@ -118,7 +118,7 @@
       }
     }
 
-    // After Google OAuth redirect — enforce school domain + student/admin role
+    // After Google OAuth redirect — enforce school domain + check students table for approval
     sb.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session) {
         const email = session.user.email || '';
@@ -129,11 +129,24 @@
           m.className = 'msg error';
           return;
         }
-        const role = session.user.user_metadata?.role;
+
+        // Upsert into students table so admin can see them for approval
+        await sb.from('students').upsert({
+          id: session.user.id,
+          email: session.user.email,
+          first_name: session.user.user_metadata?.full_name?.split(' ')[0] || '',
+          last_name: session.user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || '',
+          role: null // pending approval
+        }, { onConflict: 'id', ignoreDuplicates: true });
+
+        // Check if they have an approved role in the students table
+        const { data: student } = await sb.from('students').select('role').eq('id', session.user.id).single();
+        const role = student?.role;
+
         if (role !== 'student' && role !== 'admin') {
           await sb.auth.signOut();
           const m = document.getElementById('login-msg');
-          m.textContent = 'Your account does not have student staff access. Contact your instructor.';
+          m.textContent = 'Your account is pending approval. Contact your instructor.';
           m.className = 'msg error';
           return;
         }
