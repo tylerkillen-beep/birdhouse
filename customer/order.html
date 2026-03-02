@@ -30,7 +30,7 @@
     .signout-btn { background:none; border:1px solid rgba(255,255,255,0.08); border-radius:7px; padding:0.65rem 1rem; color:var(--gray); font-size:0.8rem; cursor:pointer; width:100%; text-align:left; transition:all 0.2s; display:flex; align-items:center; gap:0.5rem; font-family:'DM Sans',sans-serif; }
     .signout-btn:hover { color:var(--white); }
 
-    .main { padding:2.5rem 3rem; position:relative; z-index:1; }
+    .main { padding:2.5rem 3rem 6rem; position:relative; z-index:1; }
     .page-eyebrow { font-size:0.65rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--red); margin-bottom:0.3rem; }
     .page-title { font-family:'Bebas Neue',sans-serif; font-size:2.5rem; letter-spacing:0.04em; margin-bottom:0.4rem; }
     .page-sub { color:var(--light-gray); font-size:0.88rem; margin-bottom:2rem; line-height:1.6; }
@@ -252,6 +252,7 @@
   const SUPABASE_KEY = 'sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn';
   const SQUARE_APP_ID = 'sandbox-sq0idb-yWJ5XE7cr0qzF8uZroukMw'; 
   const SQUARE_LOCATION_ID = 'LRQM2TH22WH83';
+
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   let currentUser = null, menuItems = [], cart = [], squareCard = null;
 
@@ -277,14 +278,7 @@
     }
     try {
       const payments = Square.payments(SQUARE_APP_ID, SQUARE_LOCATION_ID);
-      squareCard = await payments.card({
-        style: {
-          '.input-container': { borderColor: 'rgba(255,255,255,0.07)', borderRadius: '8px', backgroundColor: '#0d0d0d' },
-          '.input-container.is-focus': { borderColor: '#cc0000' },
-          'input': { color: '#f0f0f0', fontFamily: '"DM Sans", sans-serif' },
-          'input::placeholder': { color: '#3a3a3a' },
-        }
-      });
+      squareCard = await payments.card();
       await squareCard.attach('#card-container');
       document.getElementById('pay-btn').disabled = false;
     } catch (e) {
