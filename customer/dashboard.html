@@ -12,11 +12,14 @@
       --black: #0a0a0a; --dark: #111111; --red: #cc0000; --red-bright: #ff1a1a;
       --gray: #555; --light-gray: #999; --white: #f0f0f0;
       --card: #141414; --border: rgba(204,0,0,0.18); --border-dim: rgba(255,255,255,0.07);
+      --gold: #f5c842;
     }
     body { background: var(--black); color: var(--white); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+    body::before { content:''; position:fixed; inset:0; background-image:linear-gradient(rgba(204,0,0,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(204,0,0,0.03) 1px,transparent 1px); background-size:40px 40px; pointer-events:none; z-index:0; }
+
     .layout { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
 
-    .sidebar { background: #0d0000; border-right: 1px solid var(--border); padding: 1.75rem 1.25rem; position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; }
+    .sidebar { background: #0d0000; border-right: 1px solid var(--border); padding: 1.75rem 1.25rem; position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; z-index: 10; }
     .sidebar-logo img { height: 38px; filter: drop-shadow(0 0 8px rgba(204,0,0,0.5)); margin-bottom: 2rem; }
     .user-card { background: rgba(204,0,0,0.08); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; margin-bottom: 1.75rem; }
     .user-name { font-size: 0.9rem; color: var(--white); font-weight: 500; }
@@ -28,12 +31,13 @@
     .signout-btn { background: none; border: 1px solid rgba(255,255,255,0.08); border-radius: 7px; padding: 0.65rem 1rem; color: var(--gray); font-size: 0.8rem; cursor: pointer; width: 100%; text-align: left; transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem; font-family: 'DM Sans', sans-serif; }
     .signout-btn:hover { color: var(--white); border-color: rgba(255,255,255,0.2); }
 
-    .main { padding: 2.5rem 3rem; }
+    .main { padding: 2.5rem 3rem; position: relative; z-index: 1; }
     .page-eyebrow { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--red); margin-bottom: 0.3rem; }
     .page-title { font-family: 'Bebas Neue', sans-serif; font-size: 2.5rem; letter-spacing: 0.04em; margin-bottom: 2rem; }
 
+    /* Stats */
     .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem; }
-    .stat-card { background: var(--card); border-radius: 12px; padding: 1.5rem; border: 1px solid var(--border-dim); }
+    .stat-card { background: var(--card); border-radius: 12px; padding: 1.5rem; border: 1px solid var(--border-dim); transition: border-color 0.2s; }
     .stat-card:hover { border-color: var(--border); }
     .stat-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--light-gray); margin-bottom: 0.5rem; }
     .stat-value { font-family: 'Bebas Neue', sans-serif; font-size: 2.5rem; color: var(--red-bright); text-shadow: 0 0 15px rgba(204,0,0,0.4); letter-spacing: 0.05em; }
@@ -44,24 +48,84 @@
     .section { margin-bottom: 2rem; }
     .section-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; letter-spacing: 0.05em; margin-bottom: 1rem; color: var(--white); }
 
-    .order-btn { display: inline-flex; align-items: center; gap: 0.5rem; background: var(--red); color: var(--white); border: none; border-radius: 8px; padding: 0.85rem 1.5rem; font-family: 'DM Sans', sans-serif; font-size: 0.88rem; cursor: pointer; text-decoration: none; transition: background 0.2s, box-shadow 0.2s, transform 0.15s; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500; }
-    .order-btn:hover { background: var(--red-bright); box-shadow: 0 0 20px rgba(204,0,0,0.4); transform: translateY(-1px); }
+    /* Buttons */
+    .btn-primary { display: inline-flex; align-items: center; gap: 0.5rem; background: var(--red); color: var(--white); border: none; border-radius: 8px; padding: 0.85rem 1.5rem; font-family: 'DM Sans', sans-serif; font-size: 0.88rem; cursor: pointer; text-decoration: none; transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500; }
+    .btn-primary:hover { background: var(--red-bright); box-shadow: 0 0 20px rgba(204,0,0,0.4); transform: translateY(-1px); }
+    .btn-ghost { display: inline-flex; align-items: center; gap: 0.5rem; background: transparent; color: var(--light-gray); border: 1px solid var(--border-dim); border-radius: 8px; padding: 0.75rem 1.25rem; font-family: 'DM Sans', sans-serif; font-size: 0.85rem; cursor: pointer; text-decoration: none; transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.05em; }
+    .btn-ghost:hover { border-color: var(--border); color: var(--white); }
+    .btn-danger { display: inline-flex; align-items: center; gap: 0.5rem; background: transparent; color: #ff6b6b; border: 1px solid rgba(255,100,100,0.25); border-radius: 8px; padding: 0.75rem 1.25rem; font-family: 'DM Sans', sans-serif; font-size: 0.85rem; cursor: pointer; text-decoration: none; transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.05em; }
+    .btn-danger:hover { background: rgba(255,100,100,0.08); border-color: rgba(255,100,100,0.5); }
 
-    .subscription-card { background: linear-gradient(135deg, #1a0000, var(--card)); border: 1px solid var(--border); border-radius: 12px; padding: 2rem; display: flex; justify-content: space-between; align-items: center; }
-    .sub-tier { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; letter-spacing: 0.05em; margin-bottom: 0.25rem; }
-    .sub-detail { font-size: 0.82rem; color: var(--gray); }
-    .sub-badge { background: var(--red); color: white; border-radius: 20px; padding: 0.4rem 1rem; font-size: 0.75rem; font-weight: 500; letter-spacing: 0.05em; box-shadow: 0 0 12px rgba(204,0,0,0.4); }
-    .no-sub { background: var(--card); border: 1px dashed rgba(204,0,0,0.25); border-radius: 12px; padding: 2rem; text-align: center; }
-    .no-sub p { color: var(--gray); margin-bottom: 1rem; font-size: 0.9rem; }
+    /* Subscription card — overview widget */
+    .sub-overview-card { background: linear-gradient(135deg, #1a0000, var(--card)); border: 1px solid var(--border); border-radius: 14px; padding: 1.75rem; margin-bottom: 2rem; }
+    .sub-overview-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem; }
+    .sub-overview-plan { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; letter-spacing: 0.05em; }
+    .sub-overview-price { font-size: 0.85rem; color: var(--light-gray); margin-top: 0.15rem; }
+    .sub-status-badge { border-radius: 20px; padding: 0.35rem 0.9rem; font-size: 0.72rem; font-weight: 500; letter-spacing: 0.05em; white-space: nowrap; }
+    .badge-active   { background: rgba(76,175,80,0.12); color: #4caf50; border: 1px solid rgba(76,175,80,0.25); }
+    .badge-paused   { background: rgba(255,152,0,0.12); color: #ff9800; border: 1px solid rgba(255,152,0,0.25); }
+    .badge-failed   { background: rgba(204,0,0,0.12); color: var(--red-bright); border: 1px solid var(--border); }
+    .badge-cancelled{ background: rgba(255,255,255,0.05); color: var(--gray); border: 1px solid var(--border-dim); }
+    .sub-slots-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 0.75rem; margin-bottom: 1.25rem; }
+    .sub-slot-card { background: rgba(255,255,255,0.03); border: 1px solid var(--border-dim); border-radius: 10px; padding: 1rem 1.1rem; }
+    .sub-slot-label { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--red); margin-bottom: 0.4rem; }
+    .sub-slot-drink { font-weight: 500; font-size: 0.92rem; margin-bottom: 0.2rem; }
+    .sub-slot-mods  { font-size: 0.75rem; color: var(--light-gray); margin-bottom: 0.35rem; }
+    .sub-slot-when  { font-size: 0.78rem; color: var(--gray); }
+    .sub-renewal    { font-size: 0.8rem; color: var(--gray); margin-bottom: 1.25rem; }
+    .sub-renewal strong { color: var(--white); }
+    .sub-actions    { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .no-sub { background: var(--card); border: 1.5px dashed rgba(204,0,0,0.2); border-radius: 14px; padding: 2.5rem; text-align: center; margin-bottom: 2rem; }
+    .no-sub p { color: var(--gray); margin-bottom: 1.25rem; font-size: 0.9rem; line-height: 1.6; }
 
+    /* Full subscription management section */
+    .sub-manage-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 1.75rem; margin-bottom: 1.5rem; }
+    .sub-manage-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; letter-spacing: 0.05em; margin-bottom: 1rem; }
+    .sub-event-list { display: flex; flex-direction: column; gap: 0.5rem; }
+    .sub-event { display: flex; align-items: center; gap: 1rem; padding: 0.65rem 0; border-bottom: 1px solid var(--border-dim); font-size: 0.82rem; }
+    .sub-event:last-child { border-bottom: none; }
+    .sub-event-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .dot-charged  { background: #4caf50; }
+    .dot-failed   { background: var(--red-bright); }
+    .dot-created  { background: var(--gold); }
+    .dot-paused   { background: #ff9800; }
+    .dot-resumed  { background: #4caf50; }
+    .dot-cancelled{ background: var(--gray); }
+    .dot-changed  { background: #66aaff; }
+    .sub-event-note { flex: 1; color: var(--light-gray); }
+    .sub-event-date { color: var(--gray); font-size: 0.75rem; white-space: nowrap; }
+    .sub-event-amount { color: var(--white); font-weight: 500; white-space: nowrap; }
+
+    /* Orders */
     .order-item { background: var(--card); border: 1px solid var(--border-dim); border-radius: 10px; padding: 1.1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem; transition: border-color 0.2s; }
     .order-item:hover { border-color: var(--border); }
     .order-drink { font-weight: 500; font-size: 0.92rem; }
     .order-meta { font-size: 0.76rem; color: var(--gray); margin-top: 0.2rem; }
+    .order-right { text-align: right; }
     .order-points { color: var(--red-bright); font-size: 0.82rem; font-weight: 500; }
-    .no-orders { color: var(--gray); font-size: 0.88rem; text-align: center; padding: 2rem; }
+    .order-status { font-size: 0.72rem; color: var(--gray); margin-top: 0.15rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .order-status.sub { color: #66aaff; }
+    .no-orders { color: var(--gray); font-size: 0.88rem; text-align: center; padding: 2rem; background: var(--card); border-radius: 10px; border: 1px solid var(--border-dim); }
 
-    @media (max-width: 900px) { .layout{grid-template-columns:1fr} .sidebar{display:none} .main{padding:1.5rem} .stats-grid{grid-template-columns:1fr 1fr} }
+    /* Loyalty */
+    .reward-track { background: var(--card); border: 1px solid var(--border-dim); border-radius: 12px; padding: 1.5rem; margin-top: 1.5rem; }
+    .reward-track-label { display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--gray); margin-bottom: 0.6rem; }
+    .reward-bar { height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; margin-bottom: 0.6rem; }
+    .reward-fill { height: 100%; background: linear-gradient(90deg, var(--red), var(--red-bright)); border-radius: 4px; box-shadow: 0 0 10px rgba(204,0,0,0.5); transition: width 1s ease; }
+    .reward-desc { font-size: 0.82rem; color: var(--gray); line-height: 1.65; }
+
+    /* Confirm dialog */
+    .confirm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; display: none; align-items: center; justify-content: center; }
+    .confirm-overlay.open { display: flex; }
+    .confirm-modal { background: #111; border: 1px solid var(--border); border-radius: 16px; padding: 2rem; width: 400px; max-width: 90%; }
+    .confirm-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; letter-spacing: 0.04em; margin-bottom: 0.5rem; }
+    .confirm-body  { font-size: 0.88rem; color: var(--light-gray); line-height: 1.6; margin-bottom: 1.5rem; }
+    .confirm-btns  { display: flex; gap: 0.75rem; }
+
+    @media (max-width: 900px) {
+      .layout{grid-template-columns:1fr} .sidebar{display:none} .main{padding:1.5rem}
+      .stats-grid{grid-template-columns:1fr 1fr} .sub-slots-grid{grid-template-columns:1fr}
+    }
   </style>
 </head>
 <body>
@@ -83,9 +147,12 @@
   </aside>
 
   <main class="main">
+
+    <!-- ── Overview ─────────────────────────────────────────────────────── -->
     <div id="section-overview">
       <div class="page-eyebrow">Customer Portal</div>
-      <h1 class="page-title">Good morning, <span id="greeting-name">Eagle</span>.</h1>
+      <h1 class="page-title">Good <span id="greeting-time">morning</span>, <span id="greeting-name">Eagle</span>.</h1>
+
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-label">Loyalty Points</div>
@@ -104,105 +171,413 @@
           <div class="stat-sub" id="stat-sub-detail">No active plan</div>
         </div>
       </div>
+
+      <!-- Subscription widget -->
+      <div id="overview-sub-widget"></div>
+
       <div class="section">
-        <div class="section-title">Quick Order</div>
-        <a class="order-btn" href="order.html">☕ Order Now →</a>
+        <div class="section-title">Quick Actions</div>
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+          <a class="btn-primary" href="order.html">☕ Order Now →</a>
+          <a class="btn-ghost" id="overview-sub-cta" href="subscribe.html">📦 Subscribe →</a>
+        </div>
       </div>
+
       <div class="section">
         <div class="section-title">Recent Orders</div>
         <div id="recent-orders-list"><div class="no-orders">No orders yet. Place your first order!</div></div>
       </div>
     </div>
 
-    <div id="section-order" style="display:none">
-      <div class="page-eyebrow">Place an Order</div>
-      <h1 class="page-title">What Are You Having?</h1>
-      <p style="color:var(--gray);margin-bottom:2rem;font-size:0.9rem">Menu items are loaded from store configuration.</p>
-      <div id="menu-items"></div>
+    <!-- ── Subscription Management ───────────────────────────────────────── -->
+    <div id="section-subscription" style="display:none">
+      <div class="page-eyebrow">Subscription</div>
+      <h1 class="page-title">My Plan</h1>
+      <div id="subscription-display"></div>
     </div>
 
+    <!-- ── Order History ─────────────────────────────────────────────────── -->
     <div id="section-history" style="display:none">
       <div class="page-eyebrow">Your Orders</div>
       <h1 class="page-title">Order History</h1>
       <div id="full-orders-list"><div class="no-orders">No orders yet.</div></div>
     </div>
 
-    <div id="section-subscription" style="display:none">
-      <div class="page-eyebrow">Subscription</div>
-      <h1 class="page-title">My Plan</h1>
-      <div id="subscription-display"></div>
-      <div style="margin-top:2rem"><a class="order-btn" href="../index.html">Browse Plans →</a></div>
-    </div>
-
+    <!-- ── Loyalty ───────────────────────────────────────────────────────── -->
     <div id="section-loyalty" style="display:none">
       <div class="page-eyebrow">Rewards</div>
       <h1 class="page-title">Loyalty Points</h1>
       <div class="stats-grid">
-        <div class="stat-card"><div class="stat-label">Current Points</div><div class="stat-value" id="loyalty-points">0</div><div class="stat-sub">1 point per drink</div></div>
-        <div class="stat-card"><div class="stat-label">To Next Reward</div><div class="stat-value" id="loyalty-to-reward">100</div><div class="stat-sub">Free drink at 100 pts</div></div>
+        <div class="stat-card">
+          <div class="stat-label">Current Points</div>
+          <div class="stat-value" id="loyalty-points">0</div>
+          <div class="stat-sub">1 point per drink</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">To Next Reward</div>
+          <div class="stat-value" id="loyalty-to-reward">100</div>
+          <div class="stat-sub">Free drink at 100 pts</div>
+        </div>
       </div>
-      <div style="margin-top:1.5rem;background:var(--card);border-radius:12px;padding:1.5rem;border:1px solid var(--border-dim)">
-        <div class="section-title" style="margin-bottom:0.5rem">How It Works</div>
-        <p style="color:var(--gray);font-size:0.88rem;line-height:1.7">Earn 1 loyalty point for every drink you order. When you reach 100 points, you earn a free drink. Subscription orders also earn points!</p>
+      <div class="reward-track">
+        <div class="reward-track-label">
+          <span id="loyalty-bar-label">0 / 100 points</span>
+          <span>🎁 Free drink</span>
+        </div>
+        <div class="reward-bar"><div class="reward-fill" id="loyalty-bar-fill" style="width:0%"></div></div>
+        <p class="reward-desc">Earn 1 point for every drink — one-off orders and subscription deliveries both count. Hit 100 points and your next drink is on us.</p>
       </div>
     </div>
+
   </main>
 </div>
 
+<!-- Confirm dialog (pause / cancel) -->
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-modal">
+    <div class="confirm-title" id="confirm-title">Are you sure?</div>
+    <div class="confirm-body"  id="confirm-body">This action cannot be undone.</div>
+    <div class="confirm-btns">
+      <button class="btn-ghost"   style="flex:1" onclick="closeConfirm()">Cancel</button>
+      <button class="btn-danger"  style="flex:2" id="confirm-action-btn">Confirm</button>
+    </div>
+  </div>
+</div>
+
 <script>
-  const sb = supabase.createClient('https://ljukrhneikqbabcmcpet.supabase.co','sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn');
+  const SUPABASE_URL = 'https://ljukrhneikqbabcmcpet.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqdWtyaG5laWtxYmFiY21jcGV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyODg1MjEsImV4cCI6MjA4Nzg2NDUyMX0.UbtB_-syG9a9vLcJp04w_k2F3XP2tMScYtB4sez3j78';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
   let currentUser = null;
+  let activeSubscription = null;
+  let sessionToken = null;
 
+  // ── Init ──────────────────────────────────────────────────────────────────
   async function init() {
-    const {data:{session}} = await sb.auth.getSession();
-    if (!session) { window.location.href='index.html'; return; }
-    currentUser = session.user;
-    const meta = currentUser.user_metadata;
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = 'index.html'; return; }
+    currentUser  = session.user;
+    sessionToken = session.access_token;
+
+    const meta      = currentUser.user_metadata;
     const firstName = meta.first_name || 'Eagle';
-    document.getElementById('user-display-name').textContent = firstName + ' ' + (meta.last_name||'');
-    document.getElementById('greeting-name').textContent = firstName;
+    document.getElementById('user-display-name').textContent = firstName + ' ' + (meta.last_name || '');
+    document.getElementById('greeting-name').textContent     = firstName;
+
+    // Time-aware greeting
+    const hour = new Date().getHours();
+    document.getElementById('greeting-time').textContent =
+      hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+
+    // Points
     const points = meta.loyalty_points || 0;
-    document.getElementById('user-points-badge').textContent = points + ' points';
-    document.getElementById('stat-points').textContent = points;
-    document.getElementById('loyalty-points').textContent = points;
-    document.getElementById('loyalty-to-reward').textContent = Math.max(0, 100-(points%100));
-    document.getElementById('points-fill').style.width = Math.min(100,(points%100))+'%';
-    const sub = meta.subscription_tier || null;
-    document.getElementById('stat-sub').textContent = sub || '—';
-    document.getElementById('stat-sub-detail').textContent = sub ? 'Active plan' : 'No active plan';
-    loadOrders();
-    loadSubscription(sub);
+    document.getElementById('user-points-badge').textContent   = points + ' points';
+    document.getElementById('stat-points').textContent         = points;
+    document.getElementById('loyalty-points').textContent      = points;
+    document.getElementById('loyalty-to-reward').textContent   = Math.max(0, 100 - (points % 100));
+    document.getElementById('points-fill').style.width         = Math.min(100, points % 100) + '%';
+    document.getElementById('loyalty-bar-fill').style.width    = Math.min(100, points % 100) + '%';
+    document.getElementById('loyalty-bar-label').textContent   = `${points % 100} / 100 points`;
+
+    await Promise.all([loadSubscription(), loadOrders()]);
   }
 
-  async function loadOrders() {
-    const {data} = await sb.from('orders').select('*').eq('user_id',currentUser.id).order('created_at',{ascending:false}).limit(5);
-    if (!data||!data.length) return;
-    document.getElementById('stat-orders').textContent = data.length;
-    const render = (list,id) => {
-      document.getElementById(id).innerHTML = list.map(o=>`
-        <div class="order-item">
-          <div><div class="order-drink">${o.drink_name}</div><div class="order-meta">${new Date(o.created_at).toLocaleDateString()} · Room ${o.room||'—'}</div></div>
-          <div class="order-points">+${o.points_earned||1} pt</div>
-        </div>`).join('');
+  // ── Subscription ──────────────────────────────────────────────────────────
+  async function loadSubscription() {
+    const { data: sub } = await sb
+      .from('subscriptions')
+      .select(`*, subscription_plans(*), subscription_drink_slots(*, menu_items(name))`)
+      .eq('user_id', currentUser.id)
+      .maybeSingle();
+
+    activeSubscription = sub;
+
+    // Update stat card
+    if (sub) {
+      document.getElementById('stat-sub').textContent        = sub.subscription_plans?.name || '—';
+      document.getElementById('stat-sub-detail').textContent =
+        sub.status === 'active' ? 'Active plan' :
+        sub.status === 'paused' ? 'Paused' :
+        sub.status === 'payment_failed' ? 'Payment failed' : 'Cancelled';
+    }
+
+    // Render overview widget
+    renderSubWidget(sub);
+
+    // Render full subscription section
+    renderSubSection(sub);
+
+    // Update CTA button
+    if (sub && sub.status === 'active') {
+      const cta = document.getElementById('overview-sub-cta');
+      cta.textContent = '📦 Manage Subscription →';
+      cta.onclick = (e) => { e.preventDefault(); showSection('subscription', null); };
+      cta.href = '#';
+    }
+  }
+
+  function renderSubWidget(sub) {
+    const el = document.getElementById('overview-sub-widget');
+    if (!sub || sub.status === 'cancelled') {
+      el.innerHTML = `<div class="no-sub">
+        <p>You don't have an active subscription yet.<br>Subscribe for weekly drinks delivered right to your room.</p>
+        <a class="btn-primary" href="subscribe.html">View Plans →</a>
+      </div>`;
+      return;
+    }
+
+    const plan    = sub.subscription_plans;
+    const slots   = sub.subscription_drink_slots || [];
+    const renewal = new Date(sub.renewal_date).toLocaleDateString('en-US', { month:'long', day:'numeric' });
+    const badgeClass = {
+      active: 'badge-active', paused: 'badge-paused',
+      payment_failed: 'badge-failed', cancelled: 'badge-cancelled'
+    }[sub.status] || 'badge-active';
+    const badgeLabel = {
+      active:'Active ✓', paused:'Paused', payment_failed:'Payment Failed', cancelled:'Cancelled'
+    }[sub.status] || sub.status;
+
+    const slotsHtml = slots.map(s => `
+      <div class="sub-slot-card">
+        <div class="sub-slot-label">Drink ${s.slot_number}</div>
+        <div class="sub-slot-drink">${s.menu_items?.name || 'Unknown drink'}</div>
+        ${s.drink_modifiers?.length ? `<div class="sub-slot-mods">${s.drink_modifiers.map(m=>m.name).join(', ')}</div>` : ''}
+        <div class="sub-slot-when">📅 ${s.delivery_day} · ${s.delivery_time}</div>
+        <div class="sub-slot-when">📍 ${s.delivery_location}</div>
+      </div>`).join('');
+
+    el.innerHTML = `<div class="sub-overview-card">
+      <div class="sub-overview-header">
+        <div>
+          <div class="sub-overview-plan">${plan?.name || '—'}</div>
+          <div class="sub-overview-price">$${((plan?.price_cents||0)/100).toFixed(2)}/month</div>
+        </div>
+        <span class="sub-status-badge ${badgeClass}">${badgeLabel}</span>
+      </div>
+      <div class="sub-slots-grid">${slotsHtml}</div>
+      <div class="sub-renewal">Next billing date: <strong>${renewal}</strong></div>
+      <div class="sub-actions">
+        <button class="btn-ghost" onclick="showSection('subscription',null)">Manage →</button>
+        ${sub.status === 'active'
+          ? `<button class="btn-ghost" onclick="showSection('subscription',null);setTimeout(()=>document.getElementById('change-drink-btn')?.scrollIntoView({behavior:'smooth'}),200)">Change Drink</button>`
+          : ''}
+        ${sub.status === 'payment_failed'
+          ? `<a class="btn-primary" href="subscribe.html">Update Card →</a>`
+          : ''}
+      </div>
+    </div>`;
+  }
+
+  function renderSubSection(sub) {
+    const el = document.getElementById('subscription-display');
+    if (!sub || sub.status === 'cancelled') {
+      el.innerHTML = `<div class="no-sub">
+        <p>You don't have an active subscription.<br>Subscribe to get weekly drinks delivered automatically.</p>
+        <a class="btn-primary" href="subscribe.html">View Plans →</a>
+      </div>`;
+      return;
+    }
+
+    const plan    = sub.subscription_plans;
+    const slots   = sub.subscription_drink_slots || [];
+    const renewal = new Date(sub.renewal_date).toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' });
+    const badgeClass = {
+      active:'badge-active', paused:'badge-paused',
+      payment_failed:'badge-failed', cancelled:'badge-cancelled'
+    }[sub.status] || 'badge-active';
+    const badgeLabel = {
+      active:'Active ✓', paused:'Paused', payment_failed:'Payment Failed', cancelled:'Cancelled'
+    }[sub.status];
+
+    const slotsHtml = slots.map(s => `
+      <div class="sub-slot-card">
+        <div class="sub-slot-label">Drink ${s.slot_number}</div>
+        <div class="sub-slot-drink">${s.menu_items?.name || 'Unknown drink'}</div>
+        ${s.drink_modifiers?.length ? `<div class="sub-slot-mods">${s.drink_modifiers.map(m=>m.name).join(', ')}</div>` : ''}
+        <div class="sub-slot-when">📅 ${s.delivery_day} · ${s.delivery_time}</div>
+        <div class="sub-slot-when">📍 ${s.delivery_location}</div>
+      </div>`).join('');
+
+    // Billing history
+    el.innerHTML = `
+      <div class="sub-manage-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.25rem">
+          <div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:0.05em">${plan?.name || '—'}</div>
+            <div style="font-size:0.85rem;color:var(--light-gray)">$${((plan?.price_cents||0)/100).toFixed(2)}/month · Renews ${renewal}</div>
+          </div>
+          <span class="sub-status-badge ${badgeClass}">${badgeLabel}</span>
+        </div>
+
+        <div class="sub-manage-title">Your Drink${slots.length > 1 ? 's' : ''}</div>
+        <div class="sub-slots-grid" style="margin-bottom:1.25rem">${slotsHtml}</div>
+
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+          <a class="btn-primary" id="change-drink-btn" href="subscribe.html">✏️ Change Drink / Plan</a>
+          ${sub.status === 'active'
+            ? `<button class="btn-danger" onclick="confirmAction('pause')">Pause Subscription</button>`
+            : sub.status === 'paused'
+              ? `<button class="btn-primary" onclick="resumeSubscription()">Resume Subscription</button>`
+              : ''}
+          ${sub.status !== 'cancelled'
+            ? `<button class="btn-danger" onclick="confirmAction('cancel')">Cancel Subscription</button>`
+            : ''}
+        </div>
+      </div>
+
+      <div class="sub-manage-card">
+        <div class="sub-manage-title">Billing History</div>
+        <div id="sub-events-list"><div style="color:var(--gray);font-size:0.85rem">Loading...</div></div>
+      </div>`;
+
+    loadSubEvents(sub.id);
+  }
+
+  async function loadSubEvents(subId) {
+    const { data: events } = await sb
+      .from('subscription_events')
+      .select('*')
+      .eq('subscription_id', subId)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    const el = document.getElementById('sub-events-list');
+    if (!events?.length) {
+      el.innerHTML = '<div style="color:var(--gray);font-size:0.85rem">No events yet.</div>';
+      return;
+    }
+
+    const dotMap = {
+      charged:'dot-charged', charge_failed:'dot-failed', created:'dot-created',
+      paused:'dot-paused', resumed:'dot-resumed', cancelled:'dot-cancelled',
+      plan_changed:'dot-changed', drink_changed:'dot-changed', card_updated:'dot-changed'
     };
-    render(data.slice(0,3),'recent-orders-list');
-    render(data,'full-orders-list');
+    const labelMap = {
+      charged:'Payment charged', charge_failed:'Payment failed', created:'Subscription created',
+      paused:'Subscription paused', resumed:'Subscription resumed', cancelled:'Subscription cancelled',
+      plan_changed:'Plan changed', drink_changed:'Drink updated', card_updated:'Card updated'
+    };
+
+    el.innerHTML = `<div class="sub-event-list">${events.map(e => `
+      <div class="sub-event">
+        <div class="sub-event-dot ${dotMap[e.event_type] || 'dot-changed'}"></div>
+        <div class="sub-event-note">${labelMap[e.event_type] || e.event_type}${e.note ? ` — ${e.note}` : ''}</div>
+        ${e.amount_cents ? `<div class="sub-event-amount">$${(e.amount_cents/100).toFixed(2)}</div>` : ''}
+        <div class="sub-event-date">${new Date(e.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>
+      </div>`).join('')}
+    </div>`;
   }
 
-  function loadSubscription(sub) {
-    document.getElementById('subscription-display').innerHTML = sub
-      ? `<div class="subscription-card"><div><div class="sub-tier">${sub}</div><div class="sub-detail">Active · Renews monthly</div></div><div class="sub-badge">Active ✓</div></div>`
-      : `<div class="no-sub"><p>No active subscription yet.</p><a class="order-btn" href="../index.html">View Plans →</a></div>`;
+  // ── Pause / Resume / Cancel ───────────────────────────────────────────────
+  function confirmAction(action) {
+    const isCancel = action === 'cancel';
+    document.getElementById('confirm-title').textContent = isCancel ? 'Cancel Subscription?' : 'Pause Subscription?';
+    document.getElementById('confirm-body').textContent  = isCancel
+      ? 'Your subscription will be cancelled immediately. You can re-subscribe anytime, but your current pricing may not be available.'
+      : 'Your subscription will be paused. No charges will occur until you resume. Your drink slots will be saved.';
+    const btn = document.getElementById('confirm-action-btn');
+    btn.textContent = isCancel ? 'Yes, Cancel' : 'Yes, Pause';
+    btn.onclick = () => isCancel ? cancelSubscription() : pauseSubscription();
+    document.getElementById('confirm-overlay').classList.add('open');
   }
 
+  function closeConfirm() {
+    document.getElementById('confirm-overlay').classList.remove('open');
+  }
+
+  async function pauseSubscription() {
+    closeConfirm();
+    if (!activeSubscription) return;
+    await sb.from('subscriptions').update({ status: 'paused' }).eq('id', activeSubscription.id);
+    await sb.from('subscription_events').insert({
+      subscription_id: activeSubscription.id,
+      event_type: 'paused',
+      note: 'Paused by customer',
+    });
+    await loadSubscription();
+  }
+
+  async function resumeSubscription() {
+    if (!activeSubscription) return;
+    await sb.from('subscriptions').update({ status: 'active' }).eq('id', activeSubscription.id);
+    await sb.from('subscription_events').insert({
+      subscription_id: activeSubscription.id,
+      event_type: 'resumed',
+      note: 'Resumed by customer',
+    });
+    await loadSubscription();
+  }
+
+  async function cancelSubscription() {
+    closeConfirm();
+    if (!activeSubscription) return;
+    await sb.from('subscriptions').update({ status: 'cancelled' }).eq('id', activeSubscription.id);
+    await sb.from('subscription_events').insert({
+      subscription_id: activeSubscription.id,
+      event_type: 'cancelled',
+      note: 'Cancelled by customer',
+    });
+    activeSubscription = null;
+    await loadSubscription();
+  }
+
+  // ── Orders ────────────────────────────────────────────────────────────────
+  async function loadOrders() {
+    const { data } = await sb
+      .from('orders')
+      .select('*')
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (!data?.length) return;
+
+    // Total order count (excluding subscription-generated ones for the stat)
+    const paidOrders = data.filter(o => o.status === 'paid');
+    document.getElementById('stat-orders').textContent = paidOrders.length;
+
+    const renderOrder = o => {
+      const isSub   = o.status === 'subscription';
+      const dateStr = new Date(o.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric' });
+      return `<div class="order-item">
+        <div>
+          <div class="order-drink">${o.drink_name}</div>
+          <div class="order-meta">${dateStr} · Room ${o.room || '—'}${o.delivery_time ? ' · ' + o.delivery_time : ''}</div>
+        </div>
+        <div class="order-right">
+          <div class="order-points">+${o.points_earned || 1} pt</div>
+          <div class="order-status${isSub ? ' sub' : ''}">${isSub ? '📦 Subscription' : '☕ One-off'}</div>
+        </div>
+      </div>`;
+    };
+
+    document.getElementById('recent-orders-list').innerHTML =
+      data.slice(0, 3).map(renderOrder).join('');
+    document.getElementById('full-orders-list').innerHTML =
+      data.map(renderOrder).join('');
+  }
+
+  // ── Navigation ────────────────────────────────────────────────────────────
   function showSection(name, el) {
-    document.querySelectorAll('[id^="section-"]').forEach(s=>s.style.display='none');
-    document.getElementById('section-'+name).style.display='block';
-    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-    if(el) el.classList.add('active');
+    document.querySelectorAll('[id^="section-"]').forEach(s => s.style.display = 'none');
+    document.getElementById('section-' + name).style.display = 'block';
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    if (el) el.classList.add('active');
+    // Mark correct nav item active when triggered programmatically
+    if (!el) {
+      const navMap = { overview:0, subscription:3, history:2, loyalty:4 };
+      const items  = document.querySelectorAll('.nav-item');
+      if (navMap[name] !== undefined) items[navMap[name]]?.classList.add('active');
+    }
+    window.scrollTo(0, 0);
   }
 
-  async function signOut() { await sb.auth.signOut(); window.location.href='index.html'; }
+  document.getElementById('confirm-overlay').addEventListener('click', function(e) {
+    if (e.target === this) closeConfirm();
+  });
+
+  async function signOut() { await sb.auth.signOut(); window.location.href = 'index.html'; }
   init();
 </script>
 </body>
