@@ -254,13 +254,14 @@
   const SQUARE_LOCATION_ID = 'LRQM2TH22WH83';
 
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  let currentUser = null, menuItems = [], cart = [], squareCard = null;
+  let currentUser = null, sessionToken = null, menuItems = [], cart = [], squareCard = null;
 
   // ── Init ──────────────────────────────────────────────
   async function init() {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) { window.location.href = 'index.html'; return; }
     currentUser = session.user;
+    sessionToken = session.access_token;
     const meta = currentUser.user_metadata;
     document.getElementById('user-display-name').textContent = (meta.first_name || 'Eagle') + ' ' + (meta.last_name || '');
     document.getElementById('user-points-badge').textContent = (meta.loyalty_points || 0) + ' points';
@@ -423,7 +424,7 @@
       const meta = currentUser.user_metadata;
       const res = await fetch(`${SUPABASE_URL}/functions/v1/process-payment`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_KEY}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionToken}` },
         body: JSON.stringify({
           sourceId: result.token,
           cartItems: cart,
@@ -441,7 +442,7 @@
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Payment failed');
 
-      // Award loyalty points
+      // Award loyalty points (1 point per drink ordered)
       const pointsEarned = cartCount();
       await sb.auth.updateUser({ data: { loyalty_points: (meta.loyalty_points || 0) + pointsEarned } });
 
@@ -455,7 +456,7 @@
       errEl.textContent = err.message;
       errEl.style.display = 'block';
       btn.disabled = false;
-      btn.innerHTML = '💳 Pay <span id="pay-btn-amount">$' + cartTotal().toFixed(2) + '</span>';
+      btn.innerHTML = `💳 Pay <span id="pay-btn-amount">$${cartTotal().toFixed(2)}</span>`;
     }
   }
 

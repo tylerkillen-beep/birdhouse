@@ -170,12 +170,29 @@
     container.innerHTML = list.map(order=>{
       const date = new Date(order.created_at).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
       const time = new Date(order.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+
+      // Build the items section — use cart_items (multi-item) if available, otherwise legacy single-drink fields
+      let itemsHtml = '';
+      if (order.cart_items?.length) {
+        itemsHtml = order.cart_items.map(i =>
+          `<div style="margin-bottom:0.2rem">${i.name} ×${i.quantity} &middot; ${i.temp==='iced'?'🧊 Iced':'☕ Hot'} &middot; <span style="color:var(--red-bright)">$${(i.price*i.quantity).toFixed(2)}</span></div>`
+        ).join('');
+      } else {
+        // Legacy single-drink order
+        const extras = [order.size, order.milk, (order.syrup&&order.syrup!=='None'?order.syrup+' syrup':null)].filter(Boolean).join(' · ');
+        itemsHtml = `<div>${order.drink_name}${extras?` &middot; <span style="color:var(--gray)">${extras}</span>`:''}</div>`;
+      }
+
+      const totalDisplay = order.total_amount
+        ? `<div style="font-size:0.8rem;color:var(--light-gray);margin-top:0.35rem">$${parseFloat(order.total_amount).toFixed(2)}</div>`
+        : '';
+
       return `<div class="order-card status-${order.status}">
         <div>
           <div class="order-drink">${order.drink_name}</div>
           <div class="order-customization">
-            ${order.size||''} ${order.milk?'· '+order.milk:''} ${order.syrup&&order.syrup!=='None'?'· '+order.syrup+' syrup':''}
-            ${order.special_instructions?`<br><span style="color:var(--gray)">Note: ${order.special_instructions}</span>`:''}
+            ${itemsHtml}
+            ${order.special_instructions?`<div style="color:var(--gray);margin-top:0.3rem;font-size:0.78rem">Note: ${order.special_instructions}</div>`:''}
           </div>
           <div class="order-delivery">
             <span><strong>Room:</strong> ${order.room||'—'}</span>
@@ -186,6 +203,7 @@
         <div class="order-right">
           <div class="status-badge badge-${order.status}">${statusLabel[order.status]||order.status}</div>
           <div class="order-date">${date} at ${time}</div>
+          ${totalDisplay}
           ${order.points_earned?`<div class="order-points">+${order.points_earned} pt${order.points_earned!==1?'s':''}</div>`:''}
           ${order.status==='delivered'?`<a class="btn-reorder" href="order.html">Order Again →</a>`:''}
         </div>
