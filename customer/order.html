@@ -424,7 +424,7 @@
       const meta = currentUser.user_metadata;
       const res = await fetch(`${SUPABASE_URL}/functions/v1/process-payment`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionToken}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionToken}`, 'apikey': SUPABASE_KEY },
         body: JSON.stringify({
           sourceId: result.token,
           cartItems: cart,
