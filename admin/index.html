@@ -116,6 +116,29 @@
 
     .empty-state { color:var(--gray); text-align:center; padding:3rem; font-size:0.88rem; }
 
+    /* ── Square Sync ── */
+    .sync-banner { background:rgba(204,0,0,0.06); border:1px solid var(--border); border-radius:12px; padding:1.25rem 1.5rem; margin-bottom:1.5rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; }
+    .sync-info { font-size:0.83rem; color:var(--light-gray); line-height:1.6; }
+    .sync-info strong { color:var(--white); }
+    .sync-result { background:var(--card); border:1px solid var(--border-dim); border-radius:12px; padding:1.5rem; margin-bottom:1.5rem; display:none; }
+    .sync-result.visible { display:block; }
+    .sync-stats { display:flex; gap:2rem; margin-bottom:1.25rem; flex-wrap:wrap; }
+    .sync-stat-val { font-family:'Bebas Neue',sans-serif; font-size:2rem; color:var(--red-bright); }
+    .sync-stat-label { font-size:0.65rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--gray); }
+    .sync-item-row { display:flex; align-items:center; gap:0.75rem; padding:0.65rem 0; border-bottom:1px solid rgba(255,255,255,0.04); font-size:0.84rem; }
+    .sync-item-row:last-child { border-bottom:none; }
+    .sync-badge { font-size:0.65rem; padding:0.15rem 0.5rem; border-radius:20px; font-weight:500; flex-shrink:0; }
+    .sync-badge-matched { background:rgba(76,175,80,0.1); color:#4caf50; border:1px solid rgba(76,175,80,0.2); }
+    .sync-badge-new { background:rgba(255,152,0,0.1); color:#ff9800; border:1px solid rgba(255,152,0,0.2); }
+    .sync-badge-skipped { background:rgba(255,255,255,0.04); color:var(--gray); border:1px solid var(--border-dim); }
+    .toggle-switch { position:relative; width:40px; height:22px; flex-shrink:0; }
+    .toggle-switch input { opacity:0; width:0; height:0; position:absolute; }
+    .toggle-slider { position:absolute; inset:0; background:#333; border-radius:22px; cursor:pointer; transition:0.2s; }
+    .toggle-slider:before { content:''; position:absolute; width:16px; height:16px; left:3px; bottom:3px; background:white; border-radius:50%; transition:0.2s; }
+    .toggle-switch input:checked + .toggle-slider { background:var(--red); }
+    .toggle-switch input:checked + .toggle-slider:before { transform:translateX(18px); }
+    @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+
     @media (max-width:1000px) { .layout{grid-template-columns:1fr} .sidebar{display:none} .main{padding:1.5rem} .schedule-wrap{grid-template-columns:1fr} .stats-grid{grid-template-columns:1fr 1fr} }
   </style>
 </head>
@@ -139,6 +162,7 @@
     <div class="nav-section">Menu</div>
     <div class="nav-item" onclick="showSection('submissions',this)">📬 Pending Submissions <span id="admin-sub-badge" style="display:none;background:var(--red);color:white;font-size:0.6rem;padding:0.1rem 0.45rem;border-radius:10px;margin-left:auto"></span></div>
     <div class="nav-item" onclick="showSection('menu',this)">☕ Menu Manager</div>
+    <div class="nav-item" onclick="showSection('square-sync',this)">🔄 Square Sync</div>
     <button class="signout-btn" onclick="signOut()">← Sign Out</button>
   </aside>
 
@@ -175,14 +199,8 @@
       </div>
       <div class="card">
         <table>
-          <thead>
-            <tr>
-              <th>Customer</th><th>Drink</th><th>Details</th><th>Delivery</th><th>Status</th><th>Date</th><th></th>
-            </tr>
-          </thead>
-          <tbody id="admin-orders-tbody">
-            <tr><td colspan="7" class="empty-state">Loading...</td></tr>
-          </tbody>
+          <thead><tr><th>Customer</th><th>Drink</th><th>Details</th><th>Delivery</th><th>Status</th><th>Date</th><th></th></tr></thead>
+          <tbody id="admin-orders-tbody"><tr><td colspan="7" class="empty-state">Loading...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -218,12 +236,8 @@
           </div>
           <div class="sched-table">
             <table>
-              <thead>
-                <tr><th>Student</th><th>Date</th><th>Time</th><th>Notes</th><th></th></tr>
-              </thead>
-              <tbody id="sched-table-body">
-                <tr><td colspan="5" class="empty-state">Loading schedule...</td></tr>
-              </tbody>
+              <thead><tr><th>Student</th><th>Date</th><th>Time</th><th>Notes</th><th></th></tr></thead>
+              <tbody id="sched-table-body"><tr><td colspan="5" class="empty-state">Loading schedule...</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -272,9 +286,7 @@
       <div class="card">
         <table>
           <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead>
-          <tbody id="students-table-body">
-            <tr><td colspan="4" class="empty-state">Loading...</td></tr>
-          </tbody>
+          <tbody id="students-table-body"><tr><td colspan="4" class="empty-state">Loading...</td></tr></tbody>
         </table>
       </div>
       <p style="color:var(--gray);font-size:0.78rem;margin-top:0.75rem">* Student accounts are managed in Supabase Auth. Role changes take effect on next login.</p>
@@ -288,9 +300,7 @@
       <div class="card" id="approvals-card">
         <table>
           <thead><tr><th>Email</th><th>Signed Up</th><th>Actions</th></tr></thead>
-          <tbody id="approvals-tbody">
-            <tr><td colspan="3" class="empty-state">Loading...</td></tr>
-          </tbody>
+          <tbody id="approvals-tbody"><tr><td colspan="3" class="empty-state">Loading...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -321,6 +331,50 @@
           <thead><tr><th>Item</th><th>Category</th><th>Hot Link</th><th>Iced Link</th><th>Available</th><th></th></tr></thead>
           <tbody id="menu-tbody"><tr><td colspan="6" class="empty-state">Loading...</td></tr></tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- ── SQUARE SYNC ── -->
+    <div class="section-panel" id="section-square-sync">
+      <div class="page-eyebrow">Menu</div>
+      <h1 class="page-title">Square Sync</h1>
+
+      <div class="sync-banner">
+        <div class="sync-info">
+          <strong>Square is the source of truth</strong> for item names, prices, and modifiers.
+          Syncing pulls your latest catalog and matches items by name. New items land as
+          <em>unpublished</em> — you decide what appears on the order page.
+          <div style="margin-top:0.3rem;font-size:0.76rem;color:var(--gray)" id="sync-last-run">Last sync: never</div>
+        </div>
+        <button class="btn-primary" id="sync-btn" onclick="runSync()" style="flex-shrink:0">
+          🔄 Sync from Square
+        </button>
+      </div>
+
+      <!-- Results panel (hidden until sync runs) -->
+      <div class="sync-result" id="sync-result-panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.25rem;letter-spacing:0.05em">Sync Results</div>
+          <div style="font-size:0.75rem;color:var(--gray)" id="sync-result-time"></div>
+        </div>
+        <div class="sync-stats" id="sync-stats"></div>
+        <div id="sync-item-list"></div>
+      </div>
+
+      <!-- Modifier lists (hidden until sync runs) -->
+      <div id="sync-modifier-section" style="display:none;margin-bottom:2rem">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.25rem;letter-spacing:0.05em;margin-bottom:0.5rem">Modifier Lists in Square</div>
+        <p style="color:var(--gray);font-size:0.82rem;margin-bottom:1rem">These are attached to items in your catalog. Customers will see them when ordering.</p>
+        <div id="modifier-list-display"></div>
+      </div>
+
+      <!-- All items with publish toggles -->
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.25rem;letter-spacing:0.05em">All Menu Items</div>
+          <div style="font-size:0.76rem;color:var(--gray)">Toggle to publish or hide on the order page</div>
+        </div>
+        <div id="sync-menu-items"><div class="empty-state">Run a sync to see items here.</div></div>
       </div>
     </div>
 
@@ -399,7 +453,9 @@
 </div>
 
 <script>
-  const sb = supabase.createClient('https://ljukrhneikqbabcmcpet.supabase.co','sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn');
+  const SUPABASE_URL = 'https://ljukrhneikqbabcmcpet.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   let allSummaries = [], allStudents = [], weekOffset = 0, editingItemId = null;
 
   async function init() {
@@ -417,7 +473,105 @@
     });
   }
 
-  // ── Menu Submissions ──
+  // ── Square Sync ────────────────────────────────────────────────────────────
+
+  async function runSync() {
+    const btn = document.getElementById('sync-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span style="display:inline-block;animation:spin 1s linear infinite">🔄</span> Syncing...';
+
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/sync-catalog`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Sync failed');
+
+      const now = new Date().toLocaleTimeString('en-US', {hour:'numeric',minute:'2-digit'});
+      document.getElementById('sync-last-run').textContent = `Last sync: today at ${now}`;
+
+      const panel = document.getElementById('sync-result-panel');
+      panel.classList.add('visible');
+      document.getElementById('sync-result-time').textContent = new Date().toLocaleString();
+
+      const s = data.summary;
+      document.getElementById('sync-stats').innerHTML = `
+        <div><div class="sync-stat-val">${s.totalSquareItems}</div><div class="sync-stat-label">Square Items</div></div>
+        <div><div class="sync-stat-val" style="color:#4caf50">${s.matched}</div><div class="sync-stat-label">Matched</div></div>
+        <div><div class="sync-stat-val" style="color:#ff9800">${s.newItems}</div><div class="sync-stat-label">New</div></div>
+        <div><div class="sync-stat-val">${s.updated}</div><div class="sync-stat-label">Updated</div></div>
+      `;
+
+      document.getElementById('sync-item-list').innerHTML = data.items.map(item => `
+        <div class="sync-item-row">
+          <span class="sync-badge ${item.action==='updated'?'sync-badge-matched':item.action==='new'?'sync-badge-new':'sync-badge-skipped'}">
+            ${item.action==='updated'?'✓ Matched':item.action==='new'?'+ New':'✕ Skipped'}
+          </span>
+          <span style="flex:1;font-weight:500">${item.squareName}</span>
+          <span style="color:var(--red-bright);font-size:0.82rem">$${(item.priceCents/100).toFixed(2)}</span>
+          ${item.modifierListNames?.length ? `<span style="color:var(--gray);font-size:0.75rem">${item.modifierListNames.join(', ')}</span>` : ''}
+        </div>`).join('');
+
+      if (data.modifierLists?.length) {
+        document.getElementById('sync-modifier-section').style.display = 'block';
+        document.getElementById('modifier-list-display').innerHTML = data.modifierLists.map(ml => `
+          <div style="background:var(--card);border:1px solid var(--border-dim);border-radius:10px;padding:1rem 1.25rem;margin-bottom:0.75rem">
+            <div style="font-weight:500;margin-bottom:0.5rem">${ml.name}
+              <span style="font-size:0.72rem;color:var(--gray);font-weight:400">${ml.modifierCount} options</span>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:0.4rem">
+              ${ml.modifiers.map(m=>`<span style="font-size:0.75rem;padding:0.2rem 0.6rem;background:rgba(255,255,255,0.05);border-radius:20px;color:var(--light-gray)">${m.name}${m.priceCents>0?' +$'+(m.priceCents/100).toFixed(2):''}</span>`).join('')}
+            </div>
+          </div>`).join('');
+      }
+
+      loadSyncMenuItems();
+
+    } catch (err) {
+      alert('Sync error: ' + err.message);
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '🔄 Sync from Square';
+  }
+
+  async function loadSyncMenuItems() {
+    const { data } = await sb.from('menu_items').select('*').order('sort_order');
+    const container = document.getElementById('sync-menu-items');
+    if (!data?.length) {
+      container.innerHTML = '<div class="empty-state">No items yet. Run a sync first.</div>';
+      return;
+    }
+    container.innerHTML = `<div style="border:1px solid var(--border-dim);border-radius:12px;overflow:hidden">
+      ${data.map((item, i) => `
+        <div style="display:flex;align-items:center;gap:1rem;padding:1rem 1.25rem;border-bottom:${i<data.length-1?'1px solid var(--border-dim)':'none'};background:var(--card)">
+          <div style="flex:1">
+            <div style="font-weight:500;font-size:0.92rem">${item.name}
+              ${item.square_catalog_id
+                ? '<span style="font-size:0.65rem;color:#4caf50;margin-left:0.5rem">✓ Square linked</span>'
+                : '<span style="font-size:0.65rem;color:var(--gray);margin-left:0.5rem">⚠ Not synced</span>'}
+            </div>
+            <div style="font-size:0.75rem;color:var(--gray);margin-top:0.15rem">
+              ${item.description||''} ${item.base_price ? '· $'+parseFloat(item.base_price).toFixed(2) : ''}
+            </div>
+          </div>
+          <span style="font-size:0.75rem;color:${item.available?'#4caf50':'var(--gray)'};min-width:58px;text-align:right">
+            ${item.available ? 'Published' : 'Hidden'}
+          </span>
+          <label class="toggle-switch">
+            <input type="checkbox" ${item.available?'checked':''} onchange="toggleItemPublished('${item.id}', this.checked)" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>`).join('')}
+    </div>`;
+  }
+
+  async function toggleItemPublished(id, available) {
+    await sb.from('menu_items').update({ available }).eq('id', id);
+  }
+
+  // ── Menu Submissions ──────────────────────────────────────────────────────
   let allSubmissions = [];
 
   async function loadSubmissions() {
@@ -498,18 +652,15 @@
     renderSubmissions(document.querySelector('#section-submissions .filter-btn.active')?.dataset.filter||'pending');
   }
 
-  // ── Admin Orders ──
+  // ── Admin Orders ──────────────────────────────────────────────────────────
   let adminAllOrders = [];
 
   async function loadAdminOrders() {
     const {data} = await sb.from('orders').select('*').order('created_at',{ascending:false});
     adminAllOrders = data||[];
-    const total     = adminAllOrders.length;
-    const delivered = adminAllOrders.filter(o=>o.status==='delivered').length;
-    const active    = adminAllOrders.filter(o=>o.status==='pending'||o.status==='paid').length;
-    document.getElementById('rev-total').textContent     = total;
-    document.getElementById('rev-delivered').textContent = delivered;
-    document.getElementById('rev-active').textContent    = active;
+    document.getElementById('rev-total').textContent     = adminAllOrders.length;
+    document.getElementById('rev-delivered').textContent = adminAllOrders.filter(o=>o.status==='delivered').length;
+    document.getElementById('rev-active').textContent    = adminAllOrders.filter(o=>o.status==='pending'||o.status==='paid').length;
     adminRenderOrders('all');
   }
 
@@ -554,7 +705,7 @@
     adminRenderOrders(document.querySelector('#section-orders .filter-btn.active')?.textContent.trim().replace(/[^a-z]/gi,'').toLowerCase()||'all');
   }
 
-  // ── Overview ──
+  // ── Overview ──────────────────────────────────────────────────────────────
   async function loadOverview() {
     const weekStart = getWeekStart(0);
     const weekEnd   = new Date(weekStart); weekEnd.setDate(weekStart.getDate()+7);
@@ -572,7 +723,7 @@
     container.innerHTML = summaries.slice(0,3).map(s => renderSummaryCard(s)).join('');
   }
 
-  // ── Schedule ──
+  // ── Schedule ──────────────────────────────────────────────────────────────
   function getWeekStart(offset=0) {
     const d = new Date();
     const day = d.getDay();
@@ -585,8 +736,7 @@
   async function loadSchedule() {
     const ws = getWeekStart(weekOffset);
     const we = new Date(ws); we.setDate(ws.getDate()+7);
-    const label = document.getElementById('week-label');
-    label.textContent = `Week of ${ws.toLocaleDateString('en-US',{month:'short',day:'numeric'})} – ${new Date(we.getTime()-1).toLocaleDateString('en-US',{month:'short',day:'numeric'})}`;
+    document.getElementById('week-label').textContent = `Week of ${ws.toLocaleDateString('en-US',{month:'short',day:'numeric'})} – ${new Date(we.getTime()-1).toLocaleDateString('en-US',{month:'short',day:'numeric'})}`;
     const {data} = await sb.from('schedules').select('*')
       .gte('shift_date', ws.toISOString().split('T')[0])
       .lt('shift_date', we.toISOString().split('T')[0])
@@ -688,7 +838,7 @@
     loadSchedule();
   }
 
-  // ── Summaries ──
+  // ── Summaries ──────────────────────────────────────────────────────────────
   async function loadSummaries() {
     const {data} = await sb.from('weekly_summaries').select('*').order('created_at',{ascending:false});
     allSummaries = data||[];
@@ -734,7 +884,7 @@
     </div>`;
   }
 
-  // ── Student Accounts ──
+  // ── Student Accounts ──────────────────────────────────────────────────────
   async function loadStudents() {
     const {data} = await sb.from('students').select('*').order('created_at',{ascending:false});
     allStudents = data||[];
@@ -795,7 +945,7 @@
     });
   }
 
-  // ── Menu Manager ──
+  // ── Menu Manager ──────────────────────────────────────────────────────────
   async function loadMenu() {
     const {data} = await sb.from('menu_items').select('*').order('sort_order');
     const tbody = document.getElementById('menu-tbody');
@@ -862,7 +1012,7 @@
     loadMenu();
   }
 
-  // ── Section Routing ──
+  // ── Section Routing ───────────────────────────────────────────────────────
   function showSection(name, el) {
     document.querySelectorAll('.section-panel').forEach(p=>p.classList.remove('active'));
     const target = document.getElementById('section-'+name);
@@ -878,40 +1028,23 @@
     if(name==='rubric')         loadRubric();
     if(name==='manager-scores') loadAdminScores();
     if(name==='approvals')      loadApprovals();
+    if(name==='square-sync')    loadSyncMenuItems();
   }
 
-  // ── Staff Approvals ──
+  // ── Staff Approvals ───────────────────────────────────────────────────────
   async function loadApprovals() {
     const tbody = document.getElementById('approvals-tbody');
     const badge = document.getElementById('approvals-badge');
     tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Loading...</td></tr>';
-
-    // Fetch all auth users via the students table — find those with no role or role=null
-    // We use a special RPC or just query profiles. Since we store students in the students table,
-    // pending users are those in auth but NOT in the students table yet.
-    // We'll query a pending_approvals view or just use the profiles table if available.
-    // For now we check the students table for role=null or no entry.
-
-    // Get users from profiles/students who have no role set (came in via Google OAuth)
-    const { data, error } = await sb
-      .from('students')
-      .select('*')
-      .is('role', null)
-      .order('created_at', { ascending: false });
-
+    const { data } = await sb.from('students').select('*').is('role', null).order('created_at', { ascending: false });
     const pending = data || [];
-
-    // Also check for users that are in auth but have no students row yet using a fallback
-    // We will show pending from students table with null role
     if (!pending.length) {
       tbody.innerHTML = '<tr><td colspan="3" class="empty-state" style="padding:2rem;text-align:center;color:var(--gray)">No pending approvals. 🎉</td></tr>';
       badge.style.display = 'none';
       return;
     }
-
     badge.textContent = pending.length;
     badge.style.display = 'inline-block';
-
     tbody.innerHTML = pending.map(u => `
       <tr>
         <td style="font-size:0.9rem">${u.email || '—'}<br><span style="font-size:0.75rem;color:var(--gray)">${(u.first_name||'')+' '+(u.last_name||'')}</span></td>
@@ -920,15 +1053,13 @@
           <button class="btn-primary" style="padding:0.35rem 0.9rem;font-size:0.78rem" onclick="approveStaff('${u.id}','${u.email}')">✓ Approve</button>
           <button class="btn-danger" onclick="denyStaff('${u.id}','${u.email}')">✕ Deny</button>
         </td>
-      </tr>
-    `).join('');
+      </tr>`).join('');
   }
 
   async function approveStaff(id, email) {
     if (!confirm(`Approve ${email} as student staff?`)) return;
     const { error } = await sb.from('students').update({ role: 'student' }).eq('id', id);
     if (error) { alert('Error: ' + error.message); return; }
-    // Also update their auth metadata
     await sb.auth.admin?.updateUserById(id, { user_metadata: { role: 'student' } });
     loadApprovals();
     loadStudents();
@@ -940,7 +1071,7 @@
     loadApprovals();
   }
 
-  // ── Score Rubric ──
+  // ── Score Rubric ──────────────────────────────────────────────────────────
   let allRubric = [];
 
   async function loadRubric() {
@@ -969,7 +1100,6 @@
   function openRubricModal(id) {
     editingRubricId = id||null;
     const r = id ? allRubric.find(x=>x.id===id) : null;
-    // Remove any existing modal first
     document.getElementById('rubric-modal')?.remove();
     const html = `<div style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;display:flex;align-items:center;justify-content:center" id="rubric-modal">
       <div style="background:#111;border:1px solid rgba(204,0,0,0.15);border-radius:16px;padding:2rem;width:420px;max-width:95vw">
@@ -1017,7 +1147,7 @@
     loadRubric();
   }
 
-  // ── Admin Score View ──
+  // ── Admin Score View ──────────────────────────────────────────────────────
   let adminScoreWeekOffset = 0;
 
   async function loadAdminScores(offset) {
