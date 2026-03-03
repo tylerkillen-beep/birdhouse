@@ -3,1225 +3,1102 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>The Birdhouse — Super Admin</title>
+  <title>The Birdhouse — Admin</title>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --black: #0a0a0a; --red: #cc0000; --red-bright: #ff1a1a;
-      --gray: #555; --light-gray: #999; --white: #f0f0f0;
-      --card: #141414; --border: rgba(204,0,0,0.18); --border-dim: rgba(255,255,255,0.07);
+      --bg: #0a0a0a;
+      --card: #111;
+      --border: #1e1e1e;
+      --border-dim: #181818;
+      --accent: #c8a96e;
+      --accent-dim: #a8894e;
+      --text: #f0ece4;
+      --gray: #555;
+      --gray-mid: #888;
+      --danger: #c0392b;
+      --success: #27ae60;
+      --warning: #e67e22;
     }
-    body { background: var(--black); color: var(--white); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
-    body::before { content:''; position:fixed; inset:0; background-image:linear-gradient(rgba(204,0,0,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(204,0,0,0.03) 1px,transparent 1px); background-size:40px 40px; pointer-events:none; z-index:0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.92rem; min-height: 100vh; display: flex; }
 
-    .layout { display:grid; grid-template-columns:240px 1fr; min-height:100vh; }
-    .sidebar { background:#0d0000; border-right:1px solid var(--border); padding:1.75rem 1.25rem; position:sticky; top:0; height:100vh; display:flex; flex-direction:column; overflow-y:auto; }
-    .sidebar-logo img { height:40px; filter:drop-shadow(0 0 10px rgba(204,0,0,0.6)); margin-bottom:0.75rem; }
-    .admin-badge { background:rgba(204,0,0,0.15); border:1px solid var(--border); border-radius:6px; padding:0.3rem 0.75rem; font-size:0.62rem; text-transform:uppercase; letter-spacing:0.14em; color:var(--red-bright); margin-bottom:2rem; display:inline-block; }
-    .nav-section { font-size:0.58rem; text-transform:uppercase; letter-spacing:0.16em; color:var(--gray); margin:1.1rem 0 0.4rem 0.9rem; }
-    .nav-item { display:flex; align-items:center; gap:0.7rem; padding:0.7rem 0.9rem; border-radius:7px; color:var(--gray); font-size:0.85rem; cursor:pointer; transition:all 0.2s; margin-bottom:0.2rem; border:1px solid transparent; user-select:none; }
-    .nav-item:hover { color:var(--white); background:rgba(255,255,255,0.04); }
-    .nav-item.active { background:rgba(204,0,0,0.12); color:var(--red-bright); border-color:rgba(204,0,0,0.25); }
-    .signout-btn { background:none; border:1px solid rgba(255,255,255,0.08); border-radius:7px; padding:0.65rem 1rem; color:var(--gray); font-size:0.8rem; cursor:pointer; width:100%; text-align:left; transition:all 0.2s; display:flex; align-items:center; gap:0.5rem; font-family:'DM Sans',sans-serif; margin-top:auto; }
-    .signout-btn:hover { color:var(--white); }
-
-    .main { padding:2.5rem 3rem; position:relative; z-index:1; }
-    .page-eyebrow { font-size:0.62rem; letter-spacing:0.22em; text-transform:uppercase; color:var(--red); margin-bottom:0.3rem; }
-    .page-title { font-family:'Bebas Neue',sans-serif; font-size:2.5rem; letter-spacing:0.04em; margin-bottom:2rem; }
-    .section-title { font-family:'Bebas Neue',sans-serif; font-size:1.35rem; letter-spacing:0.05em; margin-bottom:1rem; }
-    .section-panel { display:none; }
-    .section-panel.active { display:block; }
-
-    .stats-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-bottom:2rem; }
-    .stat-card { background:var(--card); border-radius:12px; padding:1.4rem; border:1px solid var(--border-dim); transition:border-color 0.2s; }
-    .stat-card:hover { border-color:var(--border); }
-    .stat-label { font-size:0.65rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--light-gray); margin-bottom:0.4rem; }
-    .stat-value { font-family:'Bebas Neue',sans-serif; font-size:2.2rem; color:var(--red-bright); text-shadow:0 0 15px rgba(204,0,0,0.3); }
-    .stat-sub { font-size:0.72rem; color:var(--gray); margin-top:0.2rem; }
-
-    .card { background:var(--card); border:1px solid var(--border-dim); border-radius:14px; overflow:hidden; margin-bottom:1.5rem; }
-    .card-header { display:flex; justify-content:space-between; align-items:center; padding:1.1rem 1.5rem; border-bottom:1px solid var(--border-dim); }
-    .card-title { font-size:0.78rem; font-weight:500; color:var(--light-gray); text-transform:uppercase; letter-spacing:0.08em; }
-    table { width:100%; border-collapse:collapse; }
-    th { text-align:left; font-size:0.62rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--light-gray); padding:0.7rem 1.25rem; border-bottom:1px solid var(--border-dim); font-weight:500; }
-    td { padding:0.95rem 1.25rem; border-bottom:1px solid rgba(255,255,255,0.03); font-size:0.86rem; vertical-align:middle; }
-    tr:last-child td { border-bottom:none; }
-    tr:hover td { background:rgba(255,255,255,0.02); }
-
-    .role-badge { display:inline-block; padding:0.2rem 0.65rem; border-radius:20px; font-size:0.7rem; font-weight:500; }
-    .role-student { background:rgba(80,160,255,0.1); color:#66aaff; border:1px solid rgba(80,160,255,0.2); }
-    .role-admin { background:rgba(204,0,0,0.12); color:var(--red-bright); border:1px solid var(--border); }
-    .role-customer { background:rgba(255,255,255,0.06); color:var(--light-gray); border:1px solid var(--border-dim); }
-
-    .summary-card { background:var(--card); border:1px solid var(--border-dim); border-radius:12px; padding:1.5rem; margin-bottom:0.75rem; transition:border-color 0.2s; }
-    .summary-card:hover { border-color:var(--border); }
-    .summary-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1rem; }
-    .summary-name { font-weight:500; font-size:0.95rem; }
-    .summary-meta { font-size:0.75rem; color:var(--gray); margin-top:0.2rem; }
-    .summary-date { font-size:0.75rem; color:var(--gray); text-align:right; }
-    .summary-field { margin-bottom:0.85rem; }
-    .summary-field-label { font-size:0.62rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--light-gray); margin-bottom:0.3rem; }
-    .summary-field-val { font-size:0.86rem; color:var(--white); line-height:1.6; }
-    .summary-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-top:0.75rem; }
-
-    .schedule-wrap { display:grid; grid-template-columns:360px 1fr; gap:2rem; align-items:start; }
-    .schedule-form { background:var(--card); border:1px solid var(--border-dim); border-radius:14px; padding:1.75rem; }
-    .form-group { margin-bottom:1.1rem; }
-    label { display:block; font-size:0.68rem; font-weight:500; letter-spacing:0.1em; text-transform:uppercase; color:var(--gray); margin-bottom:0.4rem; }
-    input[type=text], input[type=date], input[type=time], input[type=email], input[type=password], select {
-      width:100%; padding:0.82rem 1rem; border:1px solid var(--border-dim); border-radius:8px;
-      background:#0d0d0d; font-family:'DM Sans',sans-serif; font-size:0.9rem; color:var(--white); outline:none; transition:border-color 0.2s;
+    /* ── Sidebar ── */
+    #sidebar {
+      width: 220px; min-height: 100vh; background: #0d0d0d; border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; padding: 1.5rem 0; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100;
     }
-    input:focus, select:focus { border-color:var(--red); box-shadow:0 0 0 3px rgba(204,0,0,0.1); }
-    input::placeholder { color:#444; }
-    select option { background:#1a1a1a; }
-    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:0.85rem; }
-    .form-note { font-size:0.73rem; color:var(--gray); margin-top:0.3rem; line-height:1.5; }
+    .sidebar-logo { font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; letter-spacing: 0.08em; color: var(--accent); padding: 0 1.4rem 1.5rem; border-bottom: 1px solid var(--border); }
+    .sidebar-logo span { display: block; font-size: 0.6rem; font-family: 'DM Sans', sans-serif; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gray); margin-top: 0.1rem; }
+    .nav-section { padding: 1.2rem 1.4rem 0.4rem; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--gray); }
+    .nav-item {
+      display: flex; align-items: center; gap: 0.6rem; padding: 0.65rem 1.4rem;
+      color: var(--gray-mid); cursor: pointer; transition: all 0.15s; font-size: 0.84rem; position: relative;
+      border-left: 2px solid transparent;
+    }
+    .nav-item:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+    .nav-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(200,169,110,0.06); }
+    .nav-icon { width: 16px; text-align: center; font-size: 0.9rem; }
+    .nav-badge {
+      margin-left: auto; background: var(--danger); color: #fff; font-size: 0.6rem;
+      padding: 0.1rem 0.4rem; border-radius: 20px; font-weight: 500; min-width: 18px; text-align: center;
+    }
+    .sidebar-bottom { margin-top: auto; padding: 1rem 1.4rem; border-top: 1px solid var(--border); }
+    .admin-badge { font-size: 0.7rem; color: var(--gray); }
+    .admin-badge strong { color: var(--accent); display: block; font-size: 0.78rem; }
+    .sign-out-btn { margin-top: 0.75rem; width: 100%; padding: 0.5rem; background: none; border: 1px solid var(--border); border-radius: 7px; color: var(--gray); cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 0.78rem; transition: all 0.15s; }
+    .sign-out-btn:hover { border-color: var(--danger); color: var(--danger); }
 
-    .btn-primary { background:var(--red); color:white; border:none; border-radius:8px; padding:0.85rem 1.75rem; font-family:'DM Sans',sans-serif; font-size:0.88rem; font-weight:500; cursor:pointer; transition:all 0.2s; text-transform:uppercase; letter-spacing:0.06em; }
-    .btn-primary:hover { background:var(--red-bright); box-shadow:0 0 20px rgba(204,0,0,0.4); transform:translateY(-1px); }
-    .btn-primary:disabled { opacity:0.45; cursor:not-allowed; transform:none; }
-    .btn-ghost { background:transparent; color:var(--light-gray); border:1px solid var(--border-dim); border-radius:8px; padding:0.85rem 1.75rem; font-family:'DM Sans',sans-serif; font-size:0.88rem; cursor:pointer; transition:all 0.2s; text-transform:uppercase; letter-spacing:0.06em; }
-    .btn-ghost:hover { border-color:var(--border); color:var(--white); }
-    .btn-danger { background:rgba(204,0,0,0.12); color:var(--red-bright); border:1px solid rgba(204,0,0,0.2); border-radius:6px; padding:0.35rem 0.7rem; font-size:0.75rem; cursor:pointer; transition:all 0.2s; font-family:'DM Sans',sans-serif; }
-    .btn-danger:hover { background:rgba(204,0,0,0.2); }
-    .icon-btn { background:none; border:1px solid var(--border-dim); border-radius:6px; padding:0.35rem 0.65rem; color:var(--light-gray); cursor:pointer; font-size:0.8rem; transition:all 0.2s; font-family:'DM Sans',sans-serif; }
-    .icon-btn:hover { border-color:var(--border); color:var(--white); }
+    /* ── Main ── */
+    #main { margin-left: 220px; flex: 1; padding: 2rem 2.5rem; min-height: 100vh; }
+    .page-header { margin-bottom: 2rem; }
+    .page-header h1 { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; letter-spacing: 0.06em; color: var(--text); }
+    .page-header p { color: var(--gray-mid); font-size: 0.83rem; margin-top: 0.2rem; }
 
-    .msg { padding:0.82rem 1rem; border-radius:8px; font-size:0.83rem; display:none; margin-top:0.75rem; }
-    .msg.success { background:rgba(0,200,80,0.08); border:1px solid rgba(0,200,80,0.2); color:#4caf50; display:block; }
-    .msg.error { background:rgba(204,0,0,0.1); border:1px solid var(--border); color:#ff6b6b; display:block; }
+    /* ── Section Panels ── */
+    .section-panel { display: none; }
+    .section-panel.active { display: block; }
 
-    .week-nav { display:flex; align-items:center; gap:1rem; margin-bottom:1.25rem; }
-    .week-nav button { background:none; border:1px solid var(--border-dim); border-radius:6px; padding:0.4rem 0.75rem; color:var(--light-gray); cursor:pointer; font-size:0.82rem; transition:all 0.2s; font-family:'DM Sans',sans-serif; }
-    .week-nav button:hover { border-color:var(--border); color:var(--white); }
-    .week-label { font-size:0.88rem; color:var(--white); font-weight:500; }
+    /* ── Stat Cards ── */
+    .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.2rem 1.4rem; }
+    .stat-label { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--gray); margin-bottom: 0.5rem; }
+    .stat-value { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; color: var(--text); line-height: 1; }
+    .stat-value.accent { color: var(--accent); }
+    .stat-sub { font-size: 0.72rem; color: var(--gray); margin-top: 0.3rem; }
 
-    .sched-table { background:var(--card); border:1px solid var(--border-dim); border-radius:14px; overflow:hidden; }
-    .sched-table table th { background:rgba(204,0,0,0.06); }
-    .shift-chip { display:inline-flex; align-items:center; gap:0.5rem; background:rgba(204,0,0,0.1); border:1px solid rgba(204,0,0,0.2); border-radius:6px; padding:0.3rem 0.65rem; font-size:0.78rem; color:var(--red-bright); margin:0.2rem; }
+    /* ── Tables ── */
+    .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 500px; }
+    thead tr { background: #0d0d0d; }
+    th { padding: 0.85rem 1.1rem; text-align: left; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--gray); border-bottom: 1px solid var(--border-dim); white-space: nowrap; }
+    td { padding: 0.85rem 1.1rem; border-bottom: 1px solid var(--border-dim); font-size: 0.84rem; vertical-align: middle; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: rgba(255,255,255,0.015); }
 
-    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.88); z-index:100; display:none; align-items:center; justify-content:center; }
-    .modal-overlay.open { display:flex; }
-    .modal { background:#111; border:1px solid var(--border); border-radius:16px; padding:2rem; width:460px; max-width:95vw; }
-    .modal-title { font-family:'Bebas Neue',sans-serif; font-size:1.8rem; letter-spacing:0.05em; margin-bottom:1.5rem; }
-    .modal .btn-row { display:flex; gap:1rem; margin-top:1.5rem; }
+    /* ── Buttons ── */
+    .btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.5rem 1.1rem; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 0.82rem; font-weight: 500; cursor: pointer; transition: all 0.15s; border: none; }
+    .btn-primary { background: var(--accent); color: #0a0a0a; }
+    .btn-primary:hover { background: var(--accent-dim); }
+    .btn-ghost { background: none; border: 1px solid var(--border); color: var(--gray-mid); }
+    .btn-ghost:hover { border-color: var(--gray); color: var(--text); }
+    .btn-danger { background: none; border: 1px solid var(--danger); color: var(--danger); }
+    .btn-danger:hover { background: var(--danger); color: #fff; }
+    .btn-success { background: none; border: 1px solid var(--success); color: var(--success); }
+    .btn-success:hover { background: var(--success); color: #fff; }
+    .btn-sm { padding: 0.35rem 0.75rem; font-size: 0.76rem; }
 
-    .filter-row { display:flex; gap:0.75rem; margin-bottom:1.25rem; flex-wrap:wrap; }
-    .filter-btn { background:transparent; border:1px solid var(--border-dim); border-radius:20px; padding:0.35rem 0.9rem; font-size:0.78rem; color:var(--gray); cursor:pointer; transition:all 0.2s; font-family:'DM Sans',sans-serif; }
-    .filter-btn.active { background:rgba(204,0,0,0.12); border-color:var(--border); color:var(--red-bright); }
-    .filter-btn:hover { border-color:var(--border); color:var(--white); }
+    /* ── Pills / badges ── */
+    .pill { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.68rem; font-weight: 500; letter-spacing: 0.04em; }
+    .pill-green { background: rgba(39,174,96,0.15); color: #4cd07d; border: 1px solid rgba(39,174,96,0.2); }
+    .pill-yellow { background: rgba(230,126,34,0.15); color: #f0a044; border: 1px solid rgba(230,126,34,0.2); }
+    .pill-red { background: rgba(192,57,43,0.15); color: #e05a4a; border: 1px solid rgba(192,57,43,0.2); }
+    .pill-gray { background: rgba(100,100,100,0.15); color: var(--gray-mid); border: 1px solid rgba(100,100,100,0.2); }
+    .pill-blue { background: rgba(52,152,219,0.15); color: #5dade2; border: 1px solid rgba(52,152,219,0.2); }
 
-    .empty-state { color:var(--gray); text-align:center; padding:3rem; font-size:0.88rem; }
+    /* ── Section header row ── */
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: gap; gap: 0.75rem; }
+    .section-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; letter-spacing: 0.06em; color: var(--text); }
 
-    /* ── Square Sync ── */
-    .sync-banner { background:rgba(204,0,0,0.06); border:1px solid var(--border); border-radius:12px; padding:1.25rem 1.5rem; margin-bottom:1.5rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; }
-    .sync-info { font-size:0.83rem; color:var(--light-gray); line-height:1.6; }
-    .sync-info strong { color:var(--white); }
-    .sync-result { background:var(--card); border:1px solid var(--border-dim); border-radius:12px; padding:1.5rem; margin-bottom:1.5rem; display:none; }
-    .sync-result.visible { display:block; }
-    .sync-stats { display:flex; gap:2rem; margin-bottom:1.25rem; flex-wrap:wrap; }
-    .sync-stat-val { font-family:'Bebas Neue',sans-serif; font-size:2rem; color:var(--red-bright); }
-    .sync-stat-label { font-size:0.65rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--gray); }
-    .sync-item-row { display:flex; align-items:center; gap:0.75rem; padding:0.65rem 0; border-bottom:1px solid rgba(255,255,255,0.04); font-size:0.84rem; }
-    .sync-item-row:last-child { border-bottom:none; }
-    .sync-badge { font-size:0.65rem; padding:0.15rem 0.5rem; border-radius:20px; font-weight:500; flex-shrink:0; }
-    .sync-badge-matched { background:rgba(76,175,80,0.1); color:#4caf50; border:1px solid rgba(76,175,80,0.2); }
-    .sync-badge-new { background:rgba(255,152,0,0.1); color:#ff9800; border:1px solid rgba(255,152,0,0.2); }
-    .sync-badge-skipped { background:rgba(255,255,255,0.04); color:var(--gray); border:1px solid var(--border-dim); }
-    .toggle-switch { position:relative; width:40px; height:22px; flex-shrink:0; }
-    .toggle-switch input { opacity:0; width:0; height:0; position:absolute; }
-    .toggle-slider { position:absolute; inset:0; background:#333; border-radius:22px; cursor:pointer; transition:0.2s; }
-    .toggle-slider:before { content:''; position:absolute; width:16px; height:16px; left:3px; bottom:3px; background:white; border-radius:50%; transition:0.2s; }
-    .toggle-switch input:checked + .toggle-slider { background:var(--red); }
-    .toggle-switch input:checked + .toggle-slider:before { transform:translateX(18px); }
-    @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+    /* ── Search/filter bar ── */
+    .filter-bar { display: flex; gap: 0.6rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+    .filter-input { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 0.9rem; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.83rem; outline: none; transition: border 0.15s; }
+    .filter-input:focus { border-color: var(--accent); }
+    .filter-select { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 0.9rem; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.83rem; outline: none; cursor: pointer; }
 
-    @media (max-width:1000px) { .layout{grid-template-columns:1fr} .sidebar{display:none} .main{padding:1.5rem} .schedule-wrap{grid-template-columns:1fr} .stats-grid{grid-template-columns:1fr 1fr} }
+    /* ── Modal ── */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 500; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: #111; border: 1px solid var(--border); border-radius: 16px; padding: 2rem; width: 90%; max-width: 520px; position: relative; }
+    .modal-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; letter-spacing: 0.06em; margin-bottom: 1.5rem; }
+    .modal-close { position: absolute; top: 1rem; right: 1rem; background: none; border: none; color: var(--gray); font-size: 1.2rem; cursor: pointer; }
+    .modal-close:hover { color: var(--text); }
+    .form-group { margin-bottom: 1rem; }
+    .form-label { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gray); margin-bottom: 0.4rem; }
+    .form-input { width: 100%; background: #0d0d0d; border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.9rem; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.84rem; outline: none; transition: border 0.15s; }
+    .form-input:focus { border-color: var(--accent); }
+    .form-actions { display: flex; gap: 0.6rem; justify-content: flex-end; margin-top: 1.5rem; }
+
+    /* ── Plan cards ── */
+    .plan-cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; margin-bottom: 2rem; }
+    .plan-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; position: relative; }
+    .plan-card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1rem; }
+    .plan-card-name { font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; letter-spacing: 0.06em; }
+    .plan-card-price { font-size: 1.5rem; font-weight: 300; color: var(--accent); }
+    .plan-card-price span { font-size: 0.8rem; color: var(--gray); }
+    .plan-card-detail { font-size: 0.8rem; color: var(--gray-mid); margin-bottom: 0.4rem; }
+    .plan-card-modifiers { margin-top: 0.75rem; }
+    .modifier-tag { display: inline-block; background: rgba(200,169,110,0.1); border: 1px solid rgba(200,169,110,0.2); color: var(--accent); font-size: 0.68rem; padding: 0.15rem 0.5rem; border-radius: 4px; margin: 0.15rem; }
+    .plan-edit-btn { position: absolute; bottom: 1.2rem; right: 1.2rem; }
+
+    /* ── Empty state ── */
+    .empty-state { text-align: center; padding: 3rem; color: var(--gray); background: var(--card); border: 1px solid var(--border); border-radius: 12px; }
+    .empty-state .empty-icon { font-size: 2rem; margin-bottom: 0.75rem; }
+
+    /* ── Loading ── */
+    .loading-row td { text-align: center; color: var(--gray); padding: 2.5rem; }
   </style>
 </head>
 <body>
-<div class="layout">
-  <aside class="sidebar">
-    <div style="margin-bottom:0.5rem"><img src="../logo.png" alt="The Birdhouse" style="height:40px;filter:drop-shadow(0 0 10px rgba(204,0,0,0.6))" /></div>
-    <div class="admin-badge">⚙ Super Admin</div>
-    <div class="nav-section">Overview</div>
-    <div class="nav-item active" onclick="showSection('overview',this)">📊 Dashboard</div>
-    <div class="nav-section">Orders</div>
-    <div class="nav-item" onclick="showSection('orders',this)">🧾 All Orders & Revenue</div>
-    <div class="nav-section">Team</div>
-    <div class="nav-item" onclick="showSection('schedule',this)">🗓️ Schedule Builder</div>
-    <div class="nav-item" onclick="showSection('summaries',this)">📝 Weekly Summaries</div>
-    <div class="nav-section">Manager</div>
-    <div class="nav-item" onclick="showSection('rubric',this)">⭐ Score Rubric</div>
-    <div class="nav-item" onclick="showSection('manager-scores',this)">📊 Student Scores</div>
-    <div class="nav-item" onclick="showSection('students',this)">👥 Student Accounts</div>
-    <div class="nav-item" onclick="showSection('approvals',this)">🔔 Staff Approvals <span id="approvals-badge" style="display:none;background:var(--red);color:white;font-size:0.6rem;padding:0.1rem 0.45rem;border-radius:10px;margin-left:auto"></span></div>
-    <div class="nav-section">Menu</div>
-    <div class="nav-item" onclick="showSection('submissions',this)">📬 Pending Submissions <span id="admin-sub-badge" style="display:none;background:var(--red);color:white;font-size:0.6rem;padding:0.1rem 0.45rem;border-radius:10px;margin-left:auto"></span></div>
-    <div class="nav-item" onclick="showSection('menu',this)">☕ Menu Manager</div>
-    <div class="nav-item" onclick="showSection('square-sync',this)">🔄 Square Sync</div>
-    <button class="signout-btn" onclick="signOut()">← Sign Out</button>
-  </aside>
 
-  <main class="main">
+<!-- ══════════════ SIDEBAR ══════════════ -->
+<nav id="sidebar">
+  <div class="sidebar-logo">
+    The Birdhouse
+    <span>Admin Panel</span>
+  </div>
 
-    <!-- ── OVERVIEW ── -->
-    <div class="section-panel active" id="section-overview">
-      <div class="page-eyebrow">Super Admin</div>
-      <h1 class="page-title">Dashboard</h1>
-      <div class="stats-grid">
-        <div class="stat-card"><div class="stat-label">Student Staff</div><div class="stat-value" id="ov-students">—</div><div class="stat-sub">Active accounts</div></div>
-        <div class="stat-card"><div class="stat-label">Summaries This Week</div><div class="stat-value" id="ov-summaries">—</div><div class="stat-sub">Submitted</div></div>
-        <div class="stat-card"><div class="stat-label">Shifts This Week</div><div class="stat-value" id="ov-shifts">—</div><div class="stat-sub">Scheduled</div></div>
-      </div>
-      <div class="section-title">Recent Summaries</div>
-      <div id="ov-recent-summaries"><div class="empty-state">Loading...</div></div>
+  <div class="nav-section">Operations</div>
+  <div class="nav-item active" onclick="showSection('dashboard')" id="nav-dashboard">
+    <span class="nav-icon">📊</span> Dashboard
+  </div>
+  <div class="nav-item" onclick="showSection('orders')" id="nav-orders">
+    <span class="nav-icon">🧾</span> Orders
+    <span class="nav-badge" id="badge-orders" style="display:none"></span>
+  </div>
+  <div class="nav-item" onclick="showSection('schedule')" id="nav-schedule">
+    <span class="nav-icon">📅</span> Schedule
+  </div>
+
+  <div class="nav-section">Staff & Teams</div>
+  <div class="nav-item" onclick="showSection('staff')" id="nav-staff">
+    <span class="nav-icon">👥</span> Staff
+    <span class="nav-badge" id="badge-staff" style="display:none"></span>
+  </div>
+  <div class="nav-item" onclick="showSection('scores')" id="nav-scores">
+    <span class="nav-icon">⭐</span> Score Rubric
+  </div>
+  <div class="nav-item" onclick="showSection('manager-scores')" id="nav-manager-scores">
+    <span class="nav-icon">📋</span> Manager Scores
+  </div>
+
+  <div class="nav-section">Customers</div>
+  <div class="nav-item" onclick="showSection('subscriptions')" id="nav-subscriptions">
+    <span class="nav-icon">🔄</span> Subscriptions
+  </div>
+  <div class="nav-item" onclick="showSection('customers')" id="nav-customers">
+    <span class="nav-icon">🎓</span> Customers
+  </div>
+
+  <div class="nav-section">Settings</div>
+  <div class="nav-item" onclick="showSection('plans')" id="nav-plans">
+    <span class="nav-icon">💎</span> Plan Manager
+  </div>
+  <div class="nav-item" onclick="showSection('menu')" id="nav-menu">
+    <span class="nav-icon">☕</span> Menu
+  </div>
+
+  <div class="sidebar-bottom">
+    <div class="admin-badge">
+      <strong id="admin-name">Admin</strong>
+      <span id="admin-email"></span>
     </div>
+    <button class="sign-out-btn" onclick="signOut()">Sign Out</button>
+  </div>
+</nav>
 
-    <!-- ── ORDERS & REVENUE ── -->
-    <div class="section-panel" id="section-orders">
-      <div class="page-eyebrow">Orders</div>
-      <h1 class="page-title">All Orders & Revenue</h1>
-      <div class="stats-grid" id="orders-stats" style="margin-bottom:2rem">
-        <div class="stat-card"><div class="stat-label">Total Orders</div><div class="stat-value" id="rev-total">—</div></div>
-        <div class="stat-card"><div class="stat-label">Delivered</div><div class="stat-value" id="rev-delivered">—</div></div>
-        <div class="stat-card"><div class="stat-label">Active Now</div><div class="stat-value" id="rev-active">—</div></div>
-      </div>
-      <div class="filter-row" style="margin-bottom:1.25rem">
-        <button class="filter-btn active" onclick="adminFilterOrders('all',this)">All</button>
-        <button class="filter-btn" onclick="adminFilterOrders('paid',this)">💳 Paid</button>
-        <button class="filter-btn" onclick="adminFilterOrders('pending',this)">⏳ Pending</button>
-        <button class="filter-btn" onclick="adminFilterOrders('delivered',this)">✅ Delivered</button>
-        <button class="filter-btn" onclick="adminFilterOrders('cancelled',this)">Cancelled</button>
-      </div>
-      <div class="card">
-        <table>
-          <thead><tr><th>Customer</th><th>Drink</th><th>Details</th><th>Delivery</th><th>Status</th><th>Date</th><th></th></tr></thead>
-          <tbody id="admin-orders-tbody"><tr><td colspan="7" class="empty-state">Loading...</td></tr></tbody>
-        </table>
-      </div>
+<!-- ══════════════ MAIN ══════════════ -->
+<main id="main">
+
+  <!-- ── DASHBOARD ── -->
+  <div class="section-panel active" id="section-dashboard">
+    <div class="page-header">
+      <h1>Dashboard</h1>
+      <p id="dash-date"></p>
     </div>
-
-    <!-- ── SCHEDULE BUILDER ── -->
-    <div class="section-panel" id="section-schedule">
-      <div class="page-eyebrow">Team</div>
-      <h1 class="page-title">Schedule Builder</h1>
-      <div class="schedule-wrap">
-        <div class="schedule-form">
-          <div class="section-title" style="font-size:1.1rem;margin-bottom:1.25rem">Add a Shift</div>
-          <div class="form-group">
-            <label>Student</label>
-            <select id="sched-student"><option value="">Select a student...</option></select>
-          </div>
-          <div class="form-group"><label>Date</label><input type="date" id="sched-date" /></div>
-          <div class="form-row">
-            <div class="form-group"><label>Start Time</label><input type="time" id="sched-start" /></div>
-            <div class="form-group"><label>End Time</label><input type="time" id="sched-end" /></div>
-          </div>
-          <div class="form-group">
-            <label>Notes <span style="color:var(--gray);font-weight:300">(optional)</span></label>
-            <input type="text" id="sched-notes" placeholder="e.g. Opening shift, bring supplies" />
-          </div>
-          <button class="btn-primary" onclick="addShift()">Add Shift</button>
-          <div class="msg" id="sched-msg"></div>
-        </div>
-        <div>
-          <div class="week-nav">
-            <button onclick="changeWeek(-1)">← Prev</button>
-            <span class="week-label" id="week-label">This Week</span>
-            <button onclick="changeWeek(1)">Next →</button>
-          </div>
-          <div class="sched-table">
-            <table>
-              <thead><tr><th>Student</th><th>Date</th><th>Time</th><th>Notes</th><th></th></tr></thead>
-              <tbody id="sched-table-body"><tr><td colspan="5" class="empty-state">Loading schedule...</td></tr></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+    <div class="stats-row" id="dash-stats">
+      <div class="stat-card"><div class="stat-label">Today's Orders</div><div class="stat-value accent" id="stat-orders-today">—</div></div>
+      <div class="stat-card"><div class="stat-label">Active Subscribers</div><div class="stat-value accent" id="stat-subscribers">—</div></div>
+      <div class="stat-card"><div class="stat-label">Staff Pending</div><div class="stat-value" id="stat-pending">—</div></div>
+      <div class="stat-card"><div class="stat-label">Revenue Today</div><div class="stat-value accent" id="stat-revenue">—</div></div>
     </div>
-
-    <!-- ── WEEKLY SUMMARIES ── -->
-    <div class="section-panel" id="section-summaries">
-      <div class="page-eyebrow">Team</div>
-      <h1 class="page-title">Weekly Summaries</h1>
-      <div class="filter-row">
-        <button class="filter-btn active" onclick="filterSummaries('all',this)">All</button>
-        <button class="filter-btn" onclick="filterSummaries('week',this)">This Week</button>
-        <button class="filter-btn" onclick="filterSummaries('last',this)">Last Week</button>
-      </div>
-      <div id="summaries-container"><div class="empty-state">Loading...</div></div>
+    <div class="section-header"><div class="section-title">Recent Orders</div></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Time</th><th>Customer</th><th>Items</th><th>Total</th><th>Status</th></tr></thead>
+        <tbody id="dash-recent-orders"><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
+      </table>
     </div>
+  </div>
 
-    <!-- ── SCORE RUBRIC ── -->
-    <div class="section-panel" id="section-rubric">
-      <div class="page-eyebrow">Manager</div>
-      <h1 class="page-title">Score Rubric</h1>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
-        <p style="color:var(--gray);font-size:0.88rem">Define the scoring categories managers use to evaluate students each week.</p>
-        <button class="btn-primary" onclick="openRubricModal()">+ Add Category</button>
-      </div>
-      <div id="rubric-list"><div class="empty-state">Loading...</div></div>
-    </div>
-
-    <!-- ── STUDENT SCORES ── -->
-    <div class="section-panel" id="section-manager-scores">
-      <div class="page-eyebrow">Manager</div>
-      <h1 class="page-title">Student Scores</h1>
-      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap" id="score-week-nav-admin"></div>
-      <div id="admin-scores-content"><div class="empty-state">Loading...</div></div>
-    </div>
-
-    <!-- ── STUDENT ACCOUNTS ── -->
-    <div class="section-panel" id="section-students">
-      <div class="page-eyebrow">Team</div>
-      <h1 class="page-title">Student Accounts</h1>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
-        <p style="color:var(--gray);font-size:0.88rem">Manage student staff accounts. New students must be created here — they cannot self-register.</p>
-        <button class="btn-primary" onclick="openNewStudentModal()">+ Add Student</button>
-      </div>
-      <div class="card">
-        <table>
-          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead>
-          <tbody id="students-table-body"><tr><td colspan="4" class="empty-state">Loading...</td></tr></tbody>
-        </table>
-      </div>
-      <p style="color:var(--gray);font-size:0.78rem;margin-top:0.75rem">* Student accounts are managed in Supabase Auth. Role changes take effect on next login.</p>
-    </div>
-
-    <!-- ── STAFF APPROVALS ── -->
-    <div class="section-panel" id="section-approvals">
-      <div class="page-eyebrow">Team</div>
-      <h1 class="page-title">Staff Approvals</h1>
-      <p style="color:var(--gray);font-size:0.88rem;margin-bottom:1.5rem">These users signed in with their school Google account but have not been approved yet. Approve to grant student staff access, or deny to remove them.</p>
-      <div class="card" id="approvals-card">
-        <table>
-          <thead><tr><th>Email</th><th>Signed Up</th><th>Actions</th></tr></thead>
-          <tbody id="approvals-tbody"><tr><td colspan="3" class="empty-state">Loading...</td></tr></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- ── MENU SUBMISSIONS ── -->
-    <div class="section-panel" id="section-submissions">
-      <div class="page-eyebrow">Menu</div>
-      <h1 class="page-title">Pending Submissions</h1>
-      <div class="filter-row">
-        <button class="filter-btn active" onclick="filterSubmissions('pending',this)">⏳ Pending</button>
-        <button class="filter-btn" onclick="filterSubmissions('approved',this)">✅ Approved</button>
-        <button class="filter-btn" onclick="filterSubmissions('rejected',this)">✕ Rejected</button>
-        <button class="filter-btn" onclick="filterSubmissions('all',this)">All</button>
-      </div>
-      <div id="submissions-container"><div class="empty-state">Loading...</div></div>
-    </div>
-
-    <!-- ── MENU MANAGER ── -->
-    <div class="section-panel" id="section-menu">
-      <div class="page-eyebrow">Menu</div>
-      <h1 class="page-title">Menu Manager</h1>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-        <p style="color:var(--gray);font-size:0.88rem">Add or edit items. Students can toggle availability from their Team Hub.</p>
-        <button class="btn-primary" onclick="openItemModal()">+ Add Item</button>
-      </div>
-      <div class="card">
-        <table>
-          <thead><tr><th>Item</th><th>Category</th><th>Hot Link</th><th>Iced Link</th><th>Available</th><th></th></tr></thead>
-          <tbody id="menu-tbody"><tr><td colspan="6" class="empty-state">Loading...</td></tr></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- ── SQUARE SYNC ── -->
-    <div class="section-panel" id="section-square-sync">
-      <div class="page-eyebrow">Menu</div>
-      <h1 class="page-title">Square Sync</h1>
-
-      <div class="sync-banner">
-        <div class="sync-info">
-          <strong>Square is the source of truth</strong> for item names, prices, and modifiers.
-          Syncing pulls your latest catalog and matches items by name. New items land as
-          <em>unpublished</em> — you decide what appears on the order page.
-          <div style="margin-top:0.3rem;font-size:0.76rem;color:var(--gray)" id="sync-last-run">Last sync: never</div>
-        </div>
-        <button class="btn-primary" id="sync-btn" onclick="runSync()" style="flex-shrink:0">
-          🔄 Sync from Square
-        </button>
-      </div>
-
-      <!-- Results panel (hidden until sync runs) -->
-      <div class="sync-result" id="sync-result-panel">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.25rem;letter-spacing:0.05em">Sync Results</div>
-          <div style="font-size:0.75rem;color:var(--gray)" id="sync-result-time"></div>
-        </div>
-        <div class="sync-stats" id="sync-stats"></div>
-        <div id="sync-item-list"></div>
-      </div>
-
-      <!-- Modifier lists (hidden until sync runs) -->
-      <div id="sync-modifier-section" style="display:none;margin-bottom:2rem">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.25rem;letter-spacing:0.05em;margin-bottom:0.5rem">Modifier Lists in Square</div>
-        <p style="color:var(--gray);font-size:0.82rem;margin-bottom:1rem">These are attached to items in your catalog. Customers will see them when ordering.</p>
-        <div id="modifier-list-display"></div>
-      </div>
-
-      <!-- All items with publish toggles -->
-      <div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.25rem;letter-spacing:0.05em">All Menu Items</div>
-          <div style="font-size:0.76rem;color:var(--gray)">Toggle to publish or hide on the order page</div>
-        </div>
-        <div id="sync-menu-items"><div class="empty-state">Run a sync to see items here.</div></div>
-      </div>
-    </div>
-
-  </main>
-</div>
-
-<!-- ── Add Student Modal ── -->
-<div class="modal-overlay" id="student-modal">
-  <div class="modal">
-    <div class="modal-title" id="student-modal-title">Add Student Account</div>
-    <div class="form-group"><label>First Name</label><input type="text" id="s-first" placeholder="First" /></div>
-    <div class="form-group"><label>Last Name</label><input type="text" id="s-last" placeholder="Last" /></div>
-    <div class="form-group"><label>Email</label><input type="email" id="s-email" placeholder="student@example.com" /></div>
-    <div class="form-group">
-      <label>Temporary Password</label>
-      <input type="text" id="s-password" placeholder="They can change this after logging in" />
-      <div class="form-note">Share this with the student so they can sign in for the first time.</div>
-    </div>
-    <div class="form-group">
-      <label>Role</label>
-      <select id="s-role">
-        <option value="student">Student Staff</option>
-        <option value="admin">Admin</option>
+  <!-- ── ORDERS ── -->
+  <div class="section-panel" id="section-orders">
+    <div class="page-header"><h1>Orders</h1><p>View and manage all orders</p></div>
+    <div class="filter-bar">
+      <input class="filter-input" id="orders-search" placeholder="Search customer, item…" oninput="filterOrders()" style="flex:1;min-width:200px" />
+      <select class="filter-select" id="orders-status-filter" onchange="filterOrders()">
+        <option value="">All Statuses</option>
+        <option value="pending">Pending</option>
+        <option value="in_progress">In Progress</option>
+        <option value="ready">Ready</option>
+        <option value="delivered">Delivered</option>
+      </select>
+      <select class="filter-select" id="orders-day-filter" onchange="filterOrders()">
+        <option value="">All Days</option>
+        <option value="Monday">Monday</option>
+        <option value="Tuesday">Tuesday</option>
+        <option value="Wednesday">Wednesday</option>
+        <option value="Thursday">Thursday</option>
+        <option value="Friday">Friday</option>
       </select>
     </div>
-    <div class="msg" id="student-msg"></div>
-    <div class="btn-row">
-      <button class="btn-ghost" onclick="closeStudentModal()">Cancel</button>
-      <button class="btn-primary" onclick="createStudent()">Create Account</button>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Customer</th><th>Items</th><th>Room</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="orders-tbody"><tr class="loading-row"><td colspan="7">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── SCHEDULE ── -->
+  <div class="section-panel" id="section-schedule">
+    <div class="page-header"><h1>Schedule</h1><p>Manage delivery windows</p></div>
+    <div class="empty-state"><div class="empty-icon">📅</div>Schedule builder coming soon.</div>
+  </div>
+
+  <!-- ── STAFF ── -->
+  <div class="section-panel" id="section-staff">
+    <div class="page-header"><h1>Staff</h1><p>Manage team members and approvals</p></div>
+    <div class="section-header">
+      <div class="section-title">Pending Approvals <span id="pending-count-label"></span></div>
+    </div>
+    <div class="table-wrap" style="margin-bottom:2rem">
+      <table>
+        <thead><tr><th>Name</th><th>Email</th><th>Joined</th><th>Actions</th></tr></thead>
+        <tbody id="pending-tbody"><tr class="loading-row"><td colspan="4">Loading…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="section-header"><div class="section-title">Active Staff</div></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Team</th><th>Actions</th></tr></thead>
+        <tbody id="staff-tbody"><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── SCORE RUBRIC ── -->
+  <div class="section-panel" id="section-rubric">
+    <div class="page-header"><h1>Score Rubric</h1><p>Manage scoring categories for staff evaluation</p></div>
+    <div class="section-header">
+      <div class="section-title">Rubric Categories</div>
+      <button class="btn btn-primary btn-sm" onclick="openAddRubricModal()">+ Add Category</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Order</th><th>Category</th><th>Description</th><th>Max Points</th><th>Active</th><th>Actions</th></tr></thead>
+        <tbody id="rubric-tbody"><tr class="loading-row"><td colspan="6">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── MANAGER SCORES ── -->
+  <div class="section-panel" id="section-manager-scores">
+    <div class="page-header"><h1>Manager Scores</h1><p>Review scores submitted by managers</p></div>
+    <div class="section-header" style="margin-bottom:1.25rem">
+      <div class="section-title" id="manager-scores-week-label">This Week</div>
+      <div style="display:flex;gap:0.5rem;align-items:center">
+        <button class="btn btn-ghost btn-sm" onclick="loadAdminScores(-1)">← Prev</button>
+        <button class="btn btn-ghost btn-sm" onclick="loadAdminScores(1)">Next →</button>
+      </div>
+    </div>
+    <div id="admin-scores-content"><div class="empty-state"><div class="empty-icon">📋</div>Loading scores…</div></div>
+  </div>
+
+  <!-- ── SUBSCRIPTIONS ── -->
+  <div class="section-panel" id="section-subscriptions">
+    <div class="page-header"><h1>Subscriptions</h1><p>View and manage all subscriber accounts</p></div>
+    <div class="stats-row" id="sub-stats-row">
+      <div class="stat-card"><div class="stat-label">Active</div><div class="stat-value accent" id="sub-stat-active">—</div></div>
+      <div class="stat-card"><div class="stat-label">Paused</div><div class="stat-value" id="sub-stat-paused">—</div></div>
+      <div class="stat-card"><div class="stat-label">Cancelled</div><div class="stat-value" id="sub-stat-cancelled">—</div></div>
+      <div class="stat-card"><div class="stat-label">MRR</div><div class="stat-value accent" id="sub-stat-mrr">—</div></div>
+    </div>
+    <div class="filter-bar">
+      <input class="filter-input" id="sub-search" placeholder="Search by name or email…" oninput="filterSubscriptions()" style="flex:1;min-width:200px" />
+      <select class="filter-select" id="sub-status-filter" onchange="filterSubscriptions()">
+        <option value="">All Statuses</option>
+        <option value="active">Active</option>
+        <option value="paused">Paused</option>
+        <option value="cancelled">Cancelled</option>
+        <option value="past_due">Past Due</option>
+      </select>
+      <select class="filter-select" id="sub-plan-filter" onchange="filterSubscriptions()">
+        <option value="">All Plans</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Customer</th>
+            <th>Plan</th>
+            <th>Status</th>
+            <th>Next Billing</th>
+            <th>Drinks/Wk</th>
+            <th>Started</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="sub-tbody"><tr class="loading-row"><td colspan="7">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── CUSTOMERS ── -->
+  <div class="section-panel" id="section-customers">
+    <div class="page-header"><h1>Customers</h1><p>View all customer accounts</p></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>Email</th><th>Points</th><th>Orders</th><th>Joined</th></tr></thead>
+        <tbody id="customers-tbody"><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── PLAN MANAGER ── -->
+  <div class="section-panel" id="section-plans">
+    <div class="page-header"><h1>Plan Manager</h1><p>Edit subscription tiers, pricing, and drink allowances</p></div>
+    <div class="section-header">
+      <div class="section-title">Subscription Plans</div>
+      <button class="btn btn-primary btn-sm" onclick="openAddPlanModal()">+ New Plan</button>
+    </div>
+    <div class="plan-cards-grid" id="plan-cards-grid">
+      <div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">💎</div>Loading plans…</div>
+    </div>
+    <div class="section-header" style="margin-top:1rem"><div class="section-title">All Plans</div></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Price / Wk</th>
+            <th>Drinks / Wk</th>
+            <th>Modifiers</th>
+            <th>Active</th>
+            <th>Subscribers</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="plans-tbody"><tr class="loading-row"><td colspan="7">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── MENU ── -->
+  <div class="section-panel" id="section-menu">
+    <div class="page-header"><h1>Menu</h1><p>Manage drink offerings</p></div>
+    <div class="empty-state"><div class="empty-icon">☕</div>Menu management coming soon.</div>
+  </div>
+
+</main>
+
+<!-- ══════════════ MODALS ══════════════ -->
+
+<!-- Subscription Action Modal -->
+<div class="modal-overlay" id="sub-action-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('sub-action-modal')">✕</button>
+    <div class="modal-title" id="sub-modal-title">Manage Subscription</div>
+    <div id="sub-modal-body" style="margin-bottom:1rem;color:var(--gray-mid);font-size:0.84rem;line-height:1.6"></div>
+    <div class="form-actions" id="sub-modal-actions"></div>
+  </div>
+</div>
+
+<!-- Add/Edit Plan Modal -->
+<div class="modal-overlay" id="plan-modal">
+  <div class="modal" style="max-width:580px">
+    <button class="modal-close" onclick="closeModal('plan-modal')">✕</button>
+    <div class="modal-title" id="plan-modal-title">New Plan</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
+      <div class="form-group">
+        <label class="form-label">Plan Name</label>
+        <input class="form-input" id="plan-name" placeholder="e.g. Daily Brew" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Price per Week ($)</label>
+        <input class="form-input" id="plan-price" type="number" step="0.01" placeholder="0.00" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Drinks per Week</label>
+        <input class="form-input" id="plan-drinks" type="number" placeholder="5" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Sort Order</label>
+        <input class="form-input" id="plan-sort" type="number" placeholder="1" />
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description</label>
+      <textarea class="form-input" id="plan-desc" rows="2" placeholder="Short description shown to students…" style="resize:vertical"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Allowed Modifiers (comma-separated)</label>
+      <input class="form-input" id="plan-modifiers" placeholder="e.g. Syrup, Oat Milk, Extra Shot" />
+    </div>
+    <div class="form-group" style="display:flex;align-items:center;gap:0.6rem">
+      <input type="checkbox" id="plan-active" style="width:16px;height:16px;accent-color:var(--accent)" />
+      <label for="plan-active" class="form-label" style="margin:0;cursor:pointer">Plan is active (visible to students)</label>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('plan-modal')">Cancel</button>
+      <button class="btn btn-primary" id="plan-save-btn" onclick="savePlan()">Save Plan</button>
     </div>
   </div>
 </div>
 
-<!-- ── Add/Edit Menu Item Modal ── -->
-<div class="modal-overlay" id="item-modal">
-  <div class="modal" style="width:520px">
-    <div class="modal-title" id="item-modal-title">Add Menu Item</div>
-    <div class="form-row">
-      <div class="form-group"><label>Name</label><input type="text" id="i-name" placeholder="e.g. Vanilla Latte" /></div>
-      <div class="form-group"><label>Category</label>
-        <select id="i-category"><option>Coffee</option><option>Non-Coffee</option><option>Iced</option><option>Seasonal</option></select>
+<!-- Add/Edit Rubric Category Modal -->
+<div class="modal-overlay" id="rubric-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('rubric-modal')">✕</button>
+    <div class="modal-title" id="rubric-modal-title">Add Category</div>
+    <div class="form-group">
+      <label class="form-label">Category Name</label>
+      <input class="form-input" id="rubric-name" placeholder="e.g. Effort" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description</label>
+      <input class="form-input" id="rubric-desc" placeholder="Brief description shown to managers" />
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
+      <div class="form-group">
+        <label class="form-label">Max Points</label>
+        <input class="form-input" id="rubric-max" type="number" placeholder="10" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Sort Order</label>
+        <input class="form-input" id="rubric-sort" type="number" placeholder="1" />
       </div>
     </div>
-    <div class="form-group"><label>Description</label><input type="text" id="i-desc" placeholder="Short description" /></div>
-    <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border-dim);border-radius:10px;padding:1.25rem;margin-bottom:1rem">
-      <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--light-gray);margin-bottom:1rem">Square Payment Links</div>
-      <div style="display:flex;gap:0.75rem;margin-bottom:0.75rem;align-items:center">
-        <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;text-transform:none;letter-spacing:0;font-size:0.85rem;color:var(--white);width:80px;flex-shrink:0">
-          <input type="checkbox" id="i-is-hot" checked style="width:auto;padding:0;accent-color:var(--red)" /> ☕ Hot
-        </label>
-        <input type="url" id="i-link-hot" placeholder="https://square.link/... (12oz)" />
-      </div>
-      <div style="display:flex;gap:0.75rem;align-items:center">
-        <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;text-transform:none;letter-spacing:0;font-size:0.85rem;color:var(--white);width:80px;flex-shrink:0">
-          <input type="checkbox" id="i-is-iced" style="width:auto;padding:0;accent-color:#4488ff" /> 🧊 Iced
-        </label>
-        <input type="url" id="i-link-iced" placeholder="https://square.link/... (16oz)" />
-      </div>
+    <div class="form-group" style="display:flex;align-items:center;gap:0.6rem">
+      <input type="checkbox" id="rubric-active" style="width:16px;height:16px;accent-color:var(--accent)" />
+      <label for="rubric-active" class="form-label" style="margin:0;cursor:pointer">Active</label>
     </div>
-    <div class="form-group"><label>Milk Options (comma-separated)</label><input type="text" id="i-milks" value="Whole Milk, Oat Milk, Almond Milk, 2% Milk" /></div>
-    <div class="form-group"><label>Syrup Options (comma-separated)</label><input type="text" id="i-syrups" value="Vanilla, Caramel, Hazelnut, Sugar Free Vanilla" /></div>
-    <div class="form-row">
-      <div class="form-group"><label>Sort Order</label><input type="text" id="i-sort" value="0" /></div>
-      <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:0.1rem">
-        <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer">
-          <input type="checkbox" id="i-available" checked style="width:auto;padding:0;accent-color:var(--red)" /> Available now
-        </label>
-      </div>
-    </div>
-    <div class="msg" id="item-msg"></div>
-    <div class="btn-row">
-      <button class="btn-ghost" onclick="closeItemModal()">Cancel</button>
-      <button class="btn-primary" onclick="saveItem()">Save Item</button>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('rubric-modal')">Cancel</button>
+      <button class="btn btn-primary" id="rubric-save-btn" onclick="saveRubricCategory()">Save</button>
     </div>
   </div>
 </div>
 
 <script>
-  const SUPABASE_URL = 'https://ljukrhneikqbabcmcpet.supabase.co';
-  const SUPABASE_KEY = 'sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn';
-  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  let allSummaries = [], allStudents = [], weekOffset = 0, editingItemId = null;
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON = 'YOUR_SUPABASE_ANON_KEY';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-  async function init() {
-    const {data:{session}} = await sb.auth.getSession();
-    if(!session) { window.location.href = 'login.html'; return; }
-    if(session.user.user_metadata?.role !== 'admin') {
-      await sb.auth.signOut(); window.location.href = 'login.html'; return;
-    }
-    loadOverview();
-    loadStudentDropdown();
-    loadSchedule();
-    sb.from('menu_submissions').select('*',{count:'exact',head:true}).eq('status','pending').then(({count})=>{
-      const badge = document.getElementById('admin-sub-badge');
-      if(count>0){badge.textContent=count;badge.style.display='inline';}
-    });
+let currentUser = null;
+let allOrders = [];
+let allStaff = [];
+let allSubscriptions = [];
+let allPlans = [];
+let allRubric = [];
+let editingPlanId = null;
+let editingRubricId = null;
+let adminScoreWeekOffset = 0;
+
+// ── Auth ───────────────────────────────────────────────────────────────────
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = 'login.html'; return; }
+  currentUser = session.user;
+
+  // Verify admin role
+  const { data: student } = await sb.from('students').select('role,first_name,last_name').eq('id', currentUser.id).single();
+  if (!student || !['admin','manager'].includes(student.role)) {
+    alert('Access denied.'); await sb.auth.signOut(); window.location.href = 'login.html'; return;
   }
 
-  // ── Square Sync ────────────────────────────────────────────────────────────
+  document.getElementById('admin-name').textContent = `${student.first_name} ${student.last_name}`;
+  document.getElementById('admin-email').textContent = currentUser.email;
 
-  async function runSync() {
-    const btn = document.getElementById('sync-btn');
-    btn.disabled = true;
-    btn.innerHTML = '<span style="display:inline-block;animation:spin 1s linear infinite">🔄</span> Syncing...';
+  document.getElementById('dash-date').textContent = new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
 
-    try {
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/sync-catalog`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
-      });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || 'Sync failed');
+  await loadDashboard();
+  loadPendingBadge();
+  loadOrdersBadge();
+}
 
-      const now = new Date().toLocaleTimeString('en-US', {hour:'numeric',minute:'2-digit'});
-      document.getElementById('sync-last-run').textContent = `Last sync: today at ${now}`;
+async function signOut() { await sb.auth.signOut(); window.location.href = 'login.html'; }
 
-      const panel = document.getElementById('sync-result-panel');
-      panel.classList.add('visible');
-      document.getElementById('sync-result-time').textContent = new Date().toLocaleString();
+// ── Navigation ─────────────────────────────────────────────────────────────
+function showSection(id) {
+  document.querySelectorAll('.section-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('section-' + id)?.classList.add('active');
+  document.getElementById('nav-' + id)?.classList.add('active');
 
-      const s = data.summary;
-      document.getElementById('sync-stats').innerHTML = `
-        <div><div class="sync-stat-val">${s.totalSquareItems}</div><div class="sync-stat-label">Square Items</div></div>
-        <div><div class="sync-stat-val" style="color:#4caf50">${s.matched}</div><div class="sync-stat-label">Matched</div></div>
-        <div><div class="sync-stat-val" style="color:#ff9800">${s.newItems}</div><div class="sync-stat-label">New</div></div>
-        <div><div class="sync-stat-val">${s.updated}</div><div class="sync-stat-label">Updated</div></div>
-      `;
+  // Lazy-load section data
+  const loaders = {
+    orders: loadOrders,
+    staff: loadStaff,
+    rubric: loadRubric,
+    'manager-scores': () => loadAdminScores(0),
+    subscriptions: loadSubscriptions,
+    customers: loadCustomers,
+    plans: loadPlans,
+    dashboard: loadDashboard,
+  };
+  if (loaders[id]) loaders[id]();
+}
 
-      document.getElementById('sync-item-list').innerHTML = data.items.map(item => `
-        <div class="sync-item-row">
-          <span class="sync-badge ${item.action==='updated'?'sync-badge-matched':item.action==='new'?'sync-badge-new':'sync-badge-skipped'}">
-            ${item.action==='updated'?'✓ Matched':item.action==='new'?'+ New':'✕ Skipped'}
-          </span>
-          <span style="flex:1;font-weight:500">${item.squareName}</span>
-          <span style="color:var(--red-bright);font-size:0.82rem">$${(item.priceCents/100).toFixed(2)}</span>
-          ${item.modifierListNames?.length ? `<span style="color:var(--gray);font-size:0.75rem">${item.modifierListNames.join(', ')}</span>` : ''}
-        </div>`).join('');
+// ── Dashboard ──────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  const today = new Date().toISOString().slice(0,10);
+  const [{ data: ordersToday }, { data: subscribers }, { data: pending }, { data: recentOrders }] = await Promise.all([
+    sb.from('orders').select('id,total_cents').gte('created_at', today + 'T00:00:00').lt('created_at', today + 'T23:59:59'),
+    sb.from('subscriptions').select('id').eq('status','active'),
+    sb.from('students').select('id').is('role', null),
+    sb.from('orders').select('*').order('created_at', { ascending: false }).limit(8),
+  ]);
 
-      if (data.modifierLists?.length) {
-        document.getElementById('sync-modifier-section').style.display = 'block';
-        document.getElementById('modifier-list-display').innerHTML = data.modifierLists.map(ml => `
-          <div style="background:var(--card);border:1px solid var(--border-dim);border-radius:10px;padding:1rem 1.25rem;margin-bottom:0.75rem">
-            <div style="font-weight:500;margin-bottom:0.5rem">${ml.name}
-              <span style="font-size:0.72rem;color:var(--gray);font-weight:400">${ml.modifierCount} options</span>
-            </div>
-            <div style="display:flex;flex-wrap:wrap;gap:0.4rem">
-              ${ml.modifiers.map(m=>`<span style="font-size:0.75rem;padding:0.2rem 0.6rem;background:rgba(255,255,255,0.05);border-radius:20px;color:var(--light-gray)">${m.name}${m.priceCents>0?' +$'+(m.priceCents/100).toFixed(2):''}</span>`).join('')}
-            </div>
-          </div>`).join('');
-      }
+  document.getElementById('stat-orders-today').textContent = ordersToday?.length ?? 0;
+  document.getElementById('stat-subscribers').textContent = subscribers?.length ?? 0;
+  document.getElementById('stat-pending').textContent = pending?.length ?? 0;
+  const revenue = (ordersToday || []).reduce((s,o) => s + (o.total_cents || 0), 0);
+  document.getElementById('stat-revenue').textContent = '$' + (revenue / 100).toFixed(2);
 
-      loadSyncMenuItems();
+  const tbody = document.getElementById('dash-recent-orders');
+  if (!recentOrders?.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray);padding:2rem">No orders yet today.</td></tr>'; return; }
+  tbody.innerHTML = (recentOrders || []).map(o => `
+    <tr>
+      <td style="color:var(--gray-mid)">${new Date(o.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</td>
+      <td>${o.customer_name || '—'}</td>
+      <td>${o.item_name || '—'}</td>
+      <td>$${((o.total_cents||0)/100).toFixed(2)}</td>
+      <td>${statusPill(o.status)}</td>
+    </tr>`).join('');
+}
 
-    } catch (err) {
-      alert('Sync error: ' + err.message);
-    }
+// ── Orders ─────────────────────────────────────────────────────────────────
+async function loadOrders() {
+  const { data } = await sb.from('orders').select('*').order('created_at', { ascending: false }).limit(200);
+  allOrders = data || [];
+  renderOrders(allOrders);
+}
 
-    btn.disabled = false;
-    btn.innerHTML = '🔄 Sync from Square';
-  }
+function filterOrders() {
+  const q = document.getElementById('orders-search').value.toLowerCase();
+  const st = document.getElementById('orders-status-filter').value;
+  const day = document.getElementById('orders-day-filter').value;
+  let list = allOrders;
+  if (q) list = list.filter(o => (o.customer_name||'').toLowerCase().includes(q) || (o.item_name||'').toLowerCase().includes(q));
+  if (st) list = list.filter(o => o.status === st);
+  if (day) list = list.filter(o => o.delivery_day === day);
+  renderOrders(list);
+}
 
-  async function loadSyncMenuItems() {
-    const { data } = await sb.from('menu_items').select('*').order('sort_order');
-    const container = document.getElementById('sync-menu-items');
-    if (!data?.length) {
-      container.innerHTML = '<div class="empty-state">No items yet. Run a sync first.</div>';
-      return;
-    }
-    container.innerHTML = `<div style="border:1px solid var(--border-dim);border-radius:12px;overflow:hidden">
-      ${data.map((item, i) => `
-        <div style="display:flex;align-items:center;gap:1rem;padding:1rem 1.25rem;border-bottom:${i<data.length-1?'1px solid var(--border-dim)':'none'};background:var(--card)">
-          <div style="flex:1">
-            <div style="font-weight:500;font-size:0.92rem">${item.name}
-              ${item.square_catalog_id
-                ? '<span style="font-size:0.65rem;color:#4caf50;margin-left:0.5rem">✓ Square linked</span>'
-                : '<span style="font-size:0.65rem;color:var(--gray);margin-left:0.5rem">⚠ Not synced</span>'}
-            </div>
-            <div style="font-size:0.75rem;color:var(--gray);margin-top:0.15rem">
-              ${item.description||''} ${item.base_price ? '· $'+parseFloat(item.base_price).toFixed(2) : ''}
-            </div>
-          </div>
-          <span style="font-size:0.75rem;color:${item.available?'#4caf50':'var(--gray)'};min-width:58px;text-align:right">
-            ${item.available ? 'Published' : 'Hidden'}
-          </span>
-          <label class="toggle-switch">
-            <input type="checkbox" ${item.available?'checked':''} onchange="toggleItemPublished('${item.id}', this.checked)" />
-            <span class="toggle-slider"></span>
-          </label>
-        </div>`).join('')}
-    </div>`;
-  }
+function renderOrders(list) {
+  const tbody = document.getElementById('orders-tbody');
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gray);padding:2rem">No orders found.</td></tr>'; return; }
+  tbody.innerHTML = list.map(o => `
+    <tr>
+      <td style="color:var(--gray-mid);font-size:0.78rem">${new Date(o.created_at).toLocaleDateString()}</td>
+      <td>${o.customer_name || '—'}</td>
+      <td>${o.item_name || '—'}</td>
+      <td>${o.delivery_room || '—'}</td>
+      <td>$${((o.total_cents||0)/100).toFixed(2)}</td>
+      <td>${statusPill(o.status)}</td>
+      <td>
+        <select onchange="updateOrderStatus('${o.id}', this.value)" style="background:#0d0d0d;border:1px solid var(--border);border-radius:6px;padding:0.3rem 0.5rem;color:var(--text);font-size:0.76rem;cursor:pointer">
+          <option value="">Change…</option>
+          <option value="pending">Pending</option>
+          <option value="in_progress">In Progress</option>
+          <option value="ready">Ready</option>
+          <option value="delivered">Delivered</option>
+        </select>
+      </td>
+    </tr>`).join('');
+}
 
-  async function toggleItemPublished(id, available) {
-    await sb.from('menu_items').update({ available }).eq('id', id);
-  }
+async function updateOrderStatus(id, status) {
+  if (!status) return;
+  await sb.from('orders').update({ status }).eq('id', id);
+  loadOrders();
+}
 
-  // ── Menu Submissions ──────────────────────────────────────────────────────
-  let allSubmissions = [];
+async function loadOrdersBadge() {
+  const { count } = await sb.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'pending');
+  const badge = document.getElementById('badge-orders');
+  if (count > 0) { badge.textContent = count; badge.style.display = 'inline-block'; }
+}
 
-  async function loadSubmissions() {
-    const {data} = await sb.from('menu_submissions').select('*').order('created_at',{ascending:false});
-    allSubmissions = data||[];
-    updateAdminSubBadge();
-    renderSubmissions('pending');
-  }
+// ── Staff / Approvals ──────────────────────────────────────────────────────
+async function loadStaff() {
+  const [{ data: pending }, { data: active }] = await Promise.all([
+    sb.from('students').select('*').is('role', null).order('created_at'),
+    sb.from('students').select('*,teams(name)').not('role', 'is', null).order('last_name'),
+  ]);
+  allStaff = [...(pending||[]), ...(active||[])];
 
-  function updateAdminSubBadge() {
-    const count = allSubmissions.filter(s=>s.status==='pending').length;
-    const badge = document.getElementById('admin-sub-badge');
-    if(count>0){badge.textContent=count;badge.style.display='inline';}
-    else{badge.style.display='none';}
-  }
-
-  function filterSubmissions(status, btn) {
-    document.querySelectorAll('#section-submissions .filter-btn').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    renderSubmissions(status);
-  }
-
-  function renderSubmissions(filter) {
-    const list = filter==='all' ? allSubmissions : allSubmissions.filter(s=>s.status===filter);
-    const container = document.getElementById('submissions-container');
-    if(!list.length){container.innerHTML=`<div class="empty-state">No ${filter==='all'?'':filter} submissions.</div>`;return;}
-    const typeLabel = {new:'New Item', edit:'Edit Suggestion'};
-    const statusColor = {pending:'#ff9800',approved:'#4caf50',rejected:'#666'};
-    container.innerHTML = list.map(s=>`
-      <div class="summary-card" style="border-left:3px solid ${statusColor[s.status]}">
-        <div class="summary-top">
-          <div>
-            <div class="summary-name">${s.proposed_name} <span style="font-size:0.72rem;color:var(--gray);font-weight:400">${typeLabel[s.type]||s.type}</span></div>
-            <div class="summary-meta">By ${s.student_name} · ${new Date(s.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
-          </div>
-          <div style="font-size:0.78rem;font-weight:500;color:${statusColor[s.status]}">${s.status.charAt(0).toUpperCase()+s.status.slice(1)}</div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
-          <div><div class="summary-field-label">Description</div><div class="summary-field-val">${s.proposed_description||'—'}</div></div>
-          <div><div class="summary-field-label">Category & Type</div><div class="summary-field-val">${s.proposed_category||'—'} ${s.proposed_is_hot?'☕':''}${s.proposed_is_iced?'🧊':''}</div></div>
-          ${s.notes?`<div style="grid-column:1/-1"><div class="summary-field-label">Student Notes</div><div class="summary-field-val">${s.notes}</div></div>`:''}
-        </div>
-        ${s.status==='pending'?`
-          <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap">
-            <button class="btn-primary" style="padding:0.55rem 1.25rem;font-size:0.82rem" onclick="approveSubmission('${s.id}')">✓ Approve & Add to Menu</button>
-            <button class="btn-ghost" style="padding:0.55rem 1.25rem;font-size:0.82rem" onclick="rejectSubmission('${s.id}')">✕ Reject</button>
-          </div>` : s.admin_note ? `<div style="font-size:0.82rem;color:var(--light-gray);padding:0.6rem 0.85rem;background:rgba(255,255,255,0.03);border-radius:6px">Admin note: ${s.admin_note}</div>` : ''}
-      </div>`).join('');
-  }
-
-  async function approveSubmission(id) {
-    const sub = allSubmissions.find(s=>s.id===id);
-    if(!sub) return;
-    const payload = {
-      name: sub.proposed_name, description: sub.proposed_description,
-      category: sub.proposed_category, is_hot: sub.proposed_is_hot,
-      is_iced: sub.proposed_is_iced, available: true
-    };
-    if(sub.type==='edit' && sub.target_item_id) {
-      await sb.from('menu_items').update(payload).eq('id', sub.target_item_id);
-    } else {
-      await sb.from('menu_items').insert({...payload, sort_order:0});
-    }
-    await sb.from('menu_submissions').update({status:'approved', reviewed_at: new Date().toISOString()}).eq('id',id);
-    sub.status='approved';
-    updateAdminSubBadge();
-    renderSubmissions(document.querySelector('#section-submissions .filter-btn.active')?.dataset.filter||'pending');
-    loadMenu();
-  }
-
-  async function rejectSubmission(id) {
-    const note = prompt('Optional: Leave a note for the student explaining why (or leave blank):');
-    if(note===null) return;
-    await sb.from('menu_submissions').update({status:'rejected', admin_note: note||null, reviewed_at: new Date().toISOString()}).eq('id',id);
-    const sub = allSubmissions.find(s=>s.id===id);
-    if(sub){sub.status='rejected';sub.admin_note=note;}
-    updateAdminSubBadge();
-    renderSubmissions(document.querySelector('#section-submissions .filter-btn.active')?.dataset.filter||'pending');
-  }
-
-  // ── Admin Orders ──────────────────────────────────────────────────────────
-  let adminAllOrders = [];
-
-  async function loadAdminOrders() {
-    const {data} = await sb.from('orders').select('*').order('created_at',{ascending:false});
-    adminAllOrders = data||[];
-    document.getElementById('rev-total').textContent     = adminAllOrders.length;
-    document.getElementById('rev-delivered').textContent = adminAllOrders.filter(o=>o.status==='delivered').length;
-    document.getElementById('rev-active').textContent    = adminAllOrders.filter(o=>o.status==='pending'||o.status==='paid').length;
-    adminRenderOrders('all');
-  }
-
-  function adminFilterOrders(filter, btn) {
-    document.querySelectorAll('#section-orders .filter-btn').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    adminRenderOrders(filter);
-  }
-
-  function adminRenderOrders(filter) {
-    let list = adminAllOrders;
-    if(filter!=='all') list = adminAllOrders.filter(o=>o.status===filter);
-    const tbody = document.getElementById('admin-orders-tbody');
-    if(!list.length){tbody.innerHTML=`<tr><td colspan="7" class="empty-state">No ${filter} orders.</td></tr>`;return;}
-    const statusColors = {pending:'#ff9800',paid:'var(--red-bright)',delivered:'#4caf50',cancelled:'#666'};
-    const statusLabels = {pending:'⏳ Pending',paid:'💳 Paid',delivered:'✅ Delivered',cancelled:'Cancelled'};
-    tbody.innerHTML = list.map(o=>`
+  const pendingTbody = document.getElementById('pending-tbody');
+  const label = document.getElementById('pending-count-label');
+  if (!pending?.length) {
+    pendingTbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--gray);padding:1.5rem">No pending approvals.</td></tr>';
+    label.textContent = '';
+  } else {
+    label.textContent = `(${pending.length})`;
+    pendingTbody.innerHTML = pending.map(s => `
       <tr>
-        <td><strong>${o.customer_name||'—'}</strong></td>
-        <td>${o.drink_name}</td>
-        <td style="font-size:0.8rem;color:var(--gray)">${o.size||''} ${o.milk?'· '+o.milk:''} ${o.syrup&&o.syrup!=='None'?'· '+o.syrup:''}</td>
-        <td style="font-size:0.8rem;color:var(--gray)">${o.room||'—'} · ${o.delivery_time||'—'}</td>
-        <td><span style="font-size:0.75rem;font-weight:500;color:${statusColors[o.status]||'#999'}">${statusLabels[o.status]||o.status}</span></td>
-        <td style="font-size:0.78rem;color:var(--gray)">${new Date(o.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</td>
-        <td style="display:flex;gap:0.4rem;flex-wrap:wrap">
-          ${o.status!=='delivered'&&o.status!=='cancelled'?`<button class="icon-btn" style="color:#4caf50;border-color:rgba(0,200,80,0.2)" onclick="adminMarkDelivered('${o.id}')">✓ Delivered</button>`:''}
-          ${o.status!=='cancelled'&&o.status!=='delivered'?`<button class="btn-danger" onclick="adminCancelOrder('${o.id}')">Cancel</button>`:''}
+        <td>${s.first_name} ${s.last_name}</td>
+        <td style="color:var(--gray-mid)">${s.email||'—'}</td>
+        <td style="color:var(--gray-mid);font-size:0.78rem">${new Date(s.created_at).toLocaleDateString()}</td>
+        <td>
+          <button class="btn btn-success btn-sm" onclick="approveStaff('${s.id}')">Approve</button>
+          <button class="btn btn-danger btn-sm" style="margin-left:0.4rem" onclick="denyStaff('${s.id}')">Deny</button>
         </td>
       </tr>`).join('');
   }
 
-  async function adminMarkDelivered(id) {
-    await sb.from('orders').update({status:'delivered'}).eq('id',id);
-    const o = adminAllOrders.find(x=>x.id===id); if(o) o.status='delivered';
-    adminRenderOrders(document.querySelector('#section-orders .filter-btn.active')?.textContent.trim().replace(/[^a-z]/gi,'').toLowerCase()||'all');
+  const staffTbody = document.getElementById('staff-tbody');
+  if (!active?.length) { staffTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray);padding:1.5rem">No active staff.</td></tr>'; return; }
+  staffTbody.innerHTML = active.map(s => `
+    <tr>
+      <td>${s.first_name} ${s.last_name}</td>
+      <td style="color:var(--gray-mid)">${s.email||'—'}</td>
+      <td>${rolePill(s.role)}</td>
+      <td style="color:var(--gray-mid)">${s.teams?.name || '—'}</td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick="removeStaff('${s.id}')">Remove</button>
+      </td>
+    </tr>`).join('');
+}
+
+async function approveStaff(id) {
+  await sb.from('students').update({ role: 'student' }).eq('id', id);
+  loadStaff(); loadPendingBadge();
+}
+
+async function denyStaff(id) {
+  if (!confirm('Remove this pending user?')) return;
+  await sb.from('students').delete().eq('id', id);
+  loadStaff(); loadPendingBadge();
+}
+
+async function removeStaff(id) {
+  if (!confirm('Remove this staff member?')) return;
+  await sb.from('students').update({ role: null }).eq('id', id);
+  loadStaff();
+}
+
+async function loadPendingBadge() {
+  const { count } = await sb.from('students').select('id', { count: 'exact', head: true }).is('role', null);
+  const badge = document.getElementById('badge-staff');
+  if (count > 0) { badge.textContent = count; badge.style.display = 'inline-block'; } else { badge.style.display = 'none'; }
+}
+
+// ── Rubric ─────────────────────────────────────────────────────────────────
+async function loadRubric() {
+  const { data } = await sb.from('score_rubric').select('*').order('sort_order');
+  allRubric = data || [];
+  const tbody = document.getElementById('rubric-tbody');
+  if (!allRubric.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--gray);padding:2rem">No rubric categories yet.</td></tr>'; return; }
+  tbody.innerHTML = allRubric.map(r => `
+    <tr>
+      <td style="color:var(--gray-mid)">${r.sort_order}</td>
+      <td>${r.name}</td>
+      <td style="color:var(--gray-mid);font-size:0.81rem">${r.description||'—'}</td>
+      <td>${r.max_points}</td>
+      <td>${r.active ? '<span class="pill pill-green">Active</span>' : '<span class="pill pill-gray">Inactive</span>'}</td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick="openEditRubricModal(${r.id})">Edit</button>
+        <button class="btn btn-danger btn-sm" style="margin-left:0.4rem" onclick="deleteRubricCategory(${r.id})">Delete</button>
+      </td>
+    </tr>`).join('');
+}
+
+function openAddRubricModal() {
+  editingRubricId = null;
+  document.getElementById('rubric-modal-title').textContent = 'Add Category';
+  document.getElementById('rubric-name').value = '';
+  document.getElementById('rubric-desc').value = '';
+  document.getElementById('rubric-max').value = '10';
+  document.getElementById('rubric-sort').value = (allRubric.length + 1);
+  document.getElementById('rubric-active').checked = true;
+  document.getElementById('rubric-modal').classList.add('open');
+}
+
+function openEditRubricModal(id) {
+  const r = allRubric.find(x => x.id === id);
+  if (!r) return;
+  editingRubricId = id;
+  document.getElementById('rubric-modal-title').textContent = 'Edit Category';
+  document.getElementById('rubric-name').value = r.name;
+  document.getElementById('rubric-desc').value = r.description || '';
+  document.getElementById('rubric-max').value = r.max_points;
+  document.getElementById('rubric-sort').value = r.sort_order;
+  document.getElementById('rubric-active').checked = r.active;
+  document.getElementById('rubric-modal').classList.add('open');
+}
+
+async function saveRubricCategory() {
+  const payload = {
+    name: document.getElementById('rubric-name').value.trim(),
+    description: document.getElementById('rubric-desc').value.trim(),
+    max_points: parseInt(document.getElementById('rubric-max').value) || 10,
+    sort_order: parseInt(document.getElementById('rubric-sort').value) || 1,
+    active: document.getElementById('rubric-active').checked,
+  };
+  if (!payload.name) { alert('Name is required.'); return; }
+  if (editingRubricId) {
+    await sb.from('score_rubric').update(payload).eq('id', editingRubricId);
+  } else {
+    await sb.from('score_rubric').insert(payload);
+  }
+  closeModal('rubric-modal');
+  loadRubric();
+}
+
+async function deleteRubricCategory(id) {
+  if (!confirm('Delete this category?')) return;
+  await sb.from('score_rubric').delete().eq('id', id);
+  loadRubric();
+}
+
+// ── Manager Scores ─────────────────────────────────────────────────────────
+async function loadAdminScores(offsetDelta) {
+  if (offsetDelta !== undefined) adminScoreWeekOffset += offsetDelta;
+  const now = new Date();
+  const day = now.getDay();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1) + (adminScoreWeekOffset * 7));
+  const ws = monday.toISOString().slice(0,10);
+
+  const label = document.getElementById('manager-scores-week-label');
+  if (adminScoreWeekOffset === 0) label.textContent = 'This Week';
+  else if (adminScoreWeekOffset === -1) label.textContent = 'Last Week';
+  else label.textContent = `Week of ${monday.toLocaleDateString('en-US',{month:'short',day:'numeric'})}`;
+
+  const [{ data: rubric }, { data: scores }, { data: students }] = await Promise.all([
+    sb.from('score_rubric').select('*').eq('active', true).order('sort_order'),
+    sb.from('student_scores').select('*').eq('week_start', ws),
+    sb.from('students').select('id,first_name,last_name,teams(name,period)'),
+  ]);
+
+  const c = document.getElementById('admin-scores-content');
+  if (!scores?.length) {
+    c.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div>No scores submitted for this week yet.</div>';
+    return;
   }
 
-  async function adminCancelOrder(id) {
-    if(!confirm('Cancel this order?')) return;
-    await sb.from('orders').update({status:'cancelled'}).eq('id',id);
-    const o = adminAllOrders.find(x=>x.id===id); if(o) o.status='cancelled';
-    adminRenderOrders(document.querySelector('#section-orders .filter-btn.active')?.textContent.trim().replace(/[^a-z]/gi,'').toLowerCase()||'all');
-  }
-
-  // ── Overview ──────────────────────────────────────────────────────────────
-  async function loadOverview() {
-    const weekStart = getWeekStart(0);
-    const weekEnd   = new Date(weekStart); weekEnd.setDate(weekStart.getDate()+7);
-    const [{data:students},{data:summaries},{data:shifts}] = await Promise.all([
-      sb.from('schedules').select('student_name').gte('shift_date', weekStart.toISOString().split('T')[0]).lt('shift_date', weekEnd.toISOString().split('T')[0]),
-      sb.from('weekly_summaries').select('*').gte('created_at', weekStart.toISOString()).order('created_at',{ascending:false}),
-      sb.from('schedules').select('id').gte('shift_date', weekStart.toISOString().split('T')[0]).lt('shift_date', weekEnd.toISOString().split('T')[0])
-    ]);
-    const uniqueStudents = new Set((students||[]).map(s=>s.student_name));
-    document.getElementById('ov-students').textContent = uniqueStudents.size;
-    document.getElementById('ov-summaries').textContent = summaries?.length||0;
-    document.getElementById('ov-shifts').textContent = shifts?.length||0;
-    const container = document.getElementById('ov-recent-summaries');
-    if(!summaries?.length){container.innerHTML='<div class="empty-state">No summaries submitted this week yet.</div>';return;}
-    container.innerHTML = summaries.slice(0,3).map(s => renderSummaryCard(s)).join('');
-  }
-
-  // ── Schedule ──────────────────────────────────────────────────────────────
-  function getWeekStart(offset=0) {
-    const d = new Date();
-    const day = d.getDay();
-    const diff = d.getDate() - (day===0?6:day-1) + (offset*7);
-    return new Date(d.setDate(diff));
-  }
-
-  function changeWeek(dir) { weekOffset += dir; loadSchedule(); }
-
-  async function loadSchedule() {
-    const ws = getWeekStart(weekOffset);
-    const we = new Date(ws); we.setDate(ws.getDate()+7);
-    document.getElementById('week-label').textContent = `Week of ${ws.toLocaleDateString('en-US',{month:'short',day:'numeric'})} – ${new Date(we.getTime()-1).toLocaleDateString('en-US',{month:'short',day:'numeric'})}`;
-    const {data} = await sb.from('schedules').select('*')
-      .gte('shift_date', ws.toISOString().split('T')[0])
-      .lt('shift_date', we.toISOString().split('T')[0])
-      .order('shift_date').order('start_time');
-    const tbody = document.getElementById('sched-table-body');
-    if(!data?.length){tbody.innerHTML='<tr><td colspan="5" class="empty-state">No shifts scheduled for this week.</td></tr>';return;}
-    tbody.innerHTML = data.map(s=>`
-      <tr>
-        <td><strong>${s.student_name}</strong></td>
-        <td>${new Date(s.shift_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</td>
-        <td>${formatTime(s.start_time)} – ${formatTime(s.end_time)}</td>
-        <td style="color:var(--gray);font-size:0.82rem">${s.notes||'—'}</td>
-        <td><button class="btn-danger" onclick="deleteShift('${s.id}')">Remove</button></td>
-      </tr>`).join('');
-  }
-
-  function formatTime(t) {
-    if(!t) return '—';
-    const [h,m] = t.split(':');
-    const hr = parseInt(h); const ampm = hr>=12?'PM':'AM';
-    return `${hr>12?hr-12:hr||12}:${m} ${ampm}`;
-  }
-
-  async function loadStudentDropdown() {
-    const {data} = await sb.from('schedules').select('student_name').order('student_name');
-    const sel = document.getElementById('sched-student');
-    while(sel.options.length > 1) sel.remove(1);
-    const seen = new Set();
-    const {data:accounts} = await sb.from('student_accounts_view').select('*').limit(50).catch(()=>({data:null}));
-    if(accounts) {
-      accounts.forEach(a=>{
-        if(!seen.has(a.email)){
-          seen.add(a.email);
-          const o=document.createElement('option');
-          o.value=a.full_name||a.email; o.textContent=(a.full_name||a.email);
-          sel.appendChild(o);
-        }
-      });
-    }
-    (data||[]).forEach(r=>{
-      if(!seen.has(r.student_name)){
-        seen.add(r.student_name);
-        const o=document.createElement('option');
-        o.value=r.student_name; o.textContent=r.student_name;
-        sel.appendChild(o);
-      }
-    });
-    const manual = document.createElement('option');
-    manual.value='__manual__'; manual.textContent='+ Enter name manually...';
-    sel.appendChild(manual);
-  }
-
-  document.addEventListener('DOMContentLoaded', ()=>{
-    document.getElementById('sched-student')?.addEventListener('change', function(){
-      if(this.value==='__manual__'){
-        const name = prompt('Enter student name:');
-        if(name){
-          const o=document.createElement('option');
-          o.value=name; o.textContent=name; o.selected=true;
-          this.insertBefore(o, this.lastElementChild);
-        } else { this.value=''; }
-      }
-    });
+  const byStudent = {};
+  (scores||[]).forEach(s => {
+    if (!byStudent[s.student_id]) byStudent[s.student_id] = { scores:{}, comment: s.comment, scoredBy: s.scored_by_name };
+    byStudent[s.student_id].scores[s.rubric_id] = s.score;
   });
 
-  async function addShift() {
-    const btn = event.target; btn.disabled=true; btn.textContent='Adding...';
-    const student = document.getElementById('sched-student').value;
-    const date    = document.getElementById('sched-date').value;
-    const start   = document.getElementById('sched-start').value;
-    const end     = document.getElementById('sched-end').value;
-    const notes   = document.getElementById('sched-notes').value;
-    const m = document.getElementById('sched-msg');
-    if(!student||student==='__manual__'||!date||!start||!end){
-      m.textContent='Please fill in all required fields.'; m.className='msg error';
-      btn.disabled=false; btn.textContent='Add Shift'; return;
-    }
-    const {error} = await sb.from('schedules').insert({
-      student_id: '00000000-0000-0000-0000-000000000000',
-      student_name: student, shift_date: date,
-      start_time: start, end_time: end, notes
-    });
-    if(error){m.textContent='Error: '+error.message; m.className='msg error';}
-    else {
-      m.textContent='✓ Shift added!'; m.className='msg success';
-      document.getElementById('sched-date').value='';
-      document.getElementById('sched-start').value='';
-      document.getElementById('sched-end').value='';
-      document.getElementById('sched-notes').value='';
-      document.getElementById('sched-student').value='';
-      loadSchedule();
-    }
-    btn.disabled=false; btn.textContent='Add Shift';
+  c.innerHTML = `<div class="table-wrap"><table>
+    <thead><tr>
+      <th>Student</th>
+      ${(rubric||[]).map(r => `<th style="text-align:center">${r.name}<br/><span style="font-size:0.6rem;color:#333">/${r.max_points}</span></th>`).join('')}
+      <th>Total</th><th>Comment</th><th>Scored By</th>
+    </tr></thead>
+    <tbody>
+    ${(students||[]).filter(s => byStudent[s.id]).map(s => {
+      const d = byStudent[s.id];
+      const total = Object.values(d.scores||{}).reduce((a,b) => a+b, 0);
+      const maxTotal = (rubric||[]).reduce((a,r) => a + r.max_points, 0);
+      const pct = maxTotal ? Math.round(total/maxTotal*100) : 0;
+      const color = pct>=80 ? '#4cd07d' : pct>=60 ? '#f0a044' : '#e05a4a';
+      return `<tr>
+        <td>${s.first_name} ${s.last_name}<br/><span style="font-size:0.72rem;color:var(--gray)">${s.teams?.name||'—'}</span></td>
+        ${(rubric||[]).map(r => `<td style="text-align:center">${d.scores[r.id] ?? '—'}</td>`).join('')}
+        <td style="color:${color};font-weight:500">${total}/${maxTotal}</td>
+        <td style="color:var(--gray-mid);font-size:0.78rem">${d.comment||'—'}</td>
+        <td style="color:var(--gray-mid);font-size:0.78rem">${d.scoredBy||'—'}</td>
+      </tr>`;
+    }).join('')}
+    </tbody>
+  </table></div>`;
+}
+
+// ── Subscriptions ──────────────────────────────────────────────────────────
+async function loadSubscriptions() {
+  const { data } = await sb.from('subscriptions')
+    .select('*, plans(name,price_cents,drinks_per_week), students(first_name,last_name,email)')
+    .order('created_at', { ascending: false });
+  allSubscriptions = data || [];
+
+  // Stats
+  const active    = allSubscriptions.filter(s => s.status === 'active').length;
+  const paused    = allSubscriptions.filter(s => s.status === 'paused').length;
+  const cancelled = allSubscriptions.filter(s => s.status === 'cancelled').length;
+  const mrr = allSubscriptions.filter(s => s.status === 'active').reduce((sum, s) => sum + (s.plans?.price_cents || 0), 0);
+
+  document.getElementById('sub-stat-active').textContent    = active;
+  document.getElementById('sub-stat-paused').textContent    = paused;
+  document.getElementById('sub-stat-cancelled').textContent = cancelled;
+  document.getElementById('sub-stat-mrr').textContent       = '$' + (mrr / 100).toFixed(2);
+
+  // Populate plan filter
+  const planFilter = document.getElementById('sub-plan-filter');
+  const planNames = [...new Set(allSubscriptions.map(s => s.plans?.name).filter(Boolean))];
+  planFilter.innerHTML = '<option value="">All Plans</option>' + planNames.map(n => `<option value="${n}">${n}</option>`).join('');
+
+  renderSubscriptions(allSubscriptions);
+}
+
+function filterSubscriptions() {
+  const q  = document.getElementById('sub-search').value.toLowerCase();
+  const st = document.getElementById('sub-status-filter').value;
+  const pl = document.getElementById('sub-plan-filter').value;
+  let list = allSubscriptions;
+  if (q)  list = list.filter(s => (`${s.students?.first_name} ${s.students?.last_name} ${s.students?.email}`).toLowerCase().includes(q));
+  if (st) list = list.filter(s => s.status === st);
+  if (pl) list = list.filter(s => s.plans?.name === pl);
+  renderSubscriptions(list);
+}
+
+function renderSubscriptions(list) {
+  const tbody = document.getElementById('sub-tbody');
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gray);padding:2rem">No subscriptions found.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(s => {
+    const name  = s.students ? `${s.students.first_name} ${s.students.last_name}` : '—';
+    const email = s.students?.email || '—';
+    const nextBilling = s.next_billing_date ? new Date(s.next_billing_date).toLocaleDateString() : '—';
+    const started     = s.created_at ? new Date(s.created_at).toLocaleDateString() : '—';
+    return `<tr>
+      <td>
+        <div style="font-weight:500">${name}</div>
+        <div style="font-size:0.75rem;color:var(--gray)">${email}</div>
+      </td>
+      <td>${s.plans?.name || '—'}</td>
+      <td>${subStatusPill(s.status)}</td>
+      <td style="color:var(--gray-mid)">${nextBilling}</td>
+      <td style="text-align:center">${s.plans?.drinks_per_week ?? '—'}</td>
+      <td style="color:var(--gray-mid);font-size:0.81rem">${started}</td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick="openSubActionModal('${s.id}', '${s.status}', '${name}')">Manage</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function openSubActionModal(id, status, name) {
+  document.getElementById('sub-modal-title').textContent = `Manage: ${name}`;
+  document.getElementById('sub-modal-body').textContent = `Current status: ${status}`;
+
+  const actions = document.getElementById('sub-modal-actions');
+  actions.innerHTML = '';
+
+  const cancel = document.createElement('button');
+  cancel.className = 'btn btn-ghost';
+  cancel.textContent = 'Close';
+  cancel.onclick = () => closeModal('sub-action-modal');
+  actions.appendChild(cancel);
+
+  if (status === 'active') {
+    const pauseBtn = document.createElement('button');
+    pauseBtn.className = 'btn btn-ghost';
+    pauseBtn.textContent = 'Pause Subscription';
+    pauseBtn.onclick = () => updateSubStatus(id, 'paused');
+    actions.appendChild(pauseBtn);
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'btn btn-danger';
+    cancelBtn.textContent = 'Cancel Subscription';
+    cancelBtn.onclick = () => updateSubStatus(id, 'cancelled');
+    actions.appendChild(cancelBtn);
+  } else if (status === 'paused') {
+    const resumeBtn = document.createElement('button');
+    resumeBtn.className = 'btn btn-success';
+    resumeBtn.textContent = 'Resume Subscription';
+    resumeBtn.onclick = () => updateSubStatus(id, 'active');
+    actions.appendChild(resumeBtn);
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'btn btn-danger';
+    cancelBtn.textContent = 'Cancel Subscription';
+    cancelBtn.onclick = () => updateSubStatus(id, 'cancelled');
+    actions.appendChild(cancelBtn);
+  } else if (status === 'cancelled') {
+    const reactivateBtn = document.createElement('button');
+    reactivateBtn.className = 'btn btn-success';
+    reactivateBtn.textContent = 'Reactivate';
+    reactivateBtn.onclick = () => updateSubStatus(id, 'active');
+    actions.appendChild(reactivateBtn);
   }
 
-  async function deleteShift(id) {
-    if(!confirm('Remove this shift?')) return;
-    await sb.from('schedules').delete().eq('id',id);
-    loadSchedule();
-  }
+  document.getElementById('sub-action-modal').classList.add('open');
+}
 
-  // ── Summaries ──────────────────────────────────────────────────────────────
-  async function loadSummaries() {
-    const {data} = await sb.from('weekly_summaries').select('*').order('created_at',{ascending:false});
-    allSummaries = data||[];
-    renderSummaries(allSummaries);
-  }
+async function updateSubStatus(id, newStatus) {
+  await sb.from('subscriptions').update({ status: newStatus }).eq('id', id);
+  closeModal('sub-action-modal');
+  loadSubscriptions();
+}
 
-  function filterSummaries(period, btn) {
-    document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    let filtered = allSummaries;
-    if(period==='week'){
-      const ws = getWeekStart(0).toISOString();
-      filtered = allSummaries.filter(s=>s.created_at>=ws);
-    } else if(period==='last'){
-      const ws = getWeekStart(-1).toISOString();
-      const we = getWeekStart(0).toISOString();
-      filtered = allSummaries.filter(s=>s.created_at>=ws && s.created_at<we);
-    }
-    renderSummaries(filtered);
-  }
+// ── Customers ──────────────────────────────────────────────────────────────
+async function loadCustomers() {
+  const { data } = await sb.from('profiles').select('*').order('created_at', { ascending: false }).limit(300);
+  const tbody = document.getElementById('customers-tbody');
+  if (!data?.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray);padding:2rem">No customers yet.</td></tr>'; return; }
+  tbody.innerHTML = (data||[]).map(c => `
+    <tr>
+      <td>${c.full_name || '—'}</td>
+      <td style="color:var(--gray-mid)">${c.email||'—'}</td>
+      <td>${c.loyalty_points ?? 0}</td>
+      <td style="color:var(--gray-mid)">${c.order_count ?? 0}</td>
+      <td style="color:var(--gray-mid);font-size:0.78rem">${new Date(c.created_at).toLocaleDateString()}</td>
+    </tr>`).join('');
+}
 
-  function renderSummaries(list) {
-    const container = document.getElementById('summaries-container');
-    if(!list.length){container.innerHTML='<div class="empty-state">No summaries found.</div>';return;}
-    container.innerHTML = list.map(s=>renderSummaryCard(s)).join('');
-  }
+// ── Plan Manager ───────────────────────────────────────────────────────────
+async function loadPlans() {
+  const { data: plans } = await sb.from('plans').select('*').order('sort_order');
+  allPlans = plans || [];
 
-  function renderSummaryCard(s) {
-    return `<div class="summary-card">
-      <div class="summary-top">
+  // Get subscriber counts per plan
+  const { data: subCounts } = await sb.from('subscriptions')
+    .select('plan_id')
+    .eq('status', 'active');
+  const countByPlan = {};
+  (subCounts||[]).forEach(s => { countByPlan[s.plan_id] = (countByPlan[s.plan_id]||0) + 1; });
+
+  renderPlanCards(allPlans, countByPlan);
+  renderPlansTable(allPlans, countByPlan);
+}
+
+function renderPlanCards(plans, countByPlan) {
+  const grid = document.getElementById('plan-cards-grid');
+  if (!plans.length) {
+    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">💎</div>No plans yet. Add your first plan.</div>';
+    return;
+  }
+  grid.innerHTML = plans.map(p => {
+    const mods = p.allowed_modifiers ? p.allowed_modifiers.split(',').map(m => m.trim()).filter(Boolean) : [];
+    return `<div class="plan-card">
+      <div class="plan-card-header">
         <div>
-          <div class="summary-name">${s.student_name}</div>
-          <div class="summary-meta">Week of ${s.week_of} · ${s.hours_worked}h worked · ${s.orders_fulfilled} orders · ${'⭐'.repeat(s.rating||0)}</div>
+          <div class="plan-card-name">${p.name}</div>
+          <div class="plan-card-price">$${(p.price_cents/100).toFixed(2)}<span> / week</span></div>
         </div>
-        <div class="summary-date">${new Date(s.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
+        ${p.active ? '<span class="pill pill-green">Active</span>' : '<span class="pill pill-gray">Inactive</span>'}
       </div>
-      <div class="summary-grid">
-        ${s.went_well?`<div class="summary-field"><div class="summary-field-label">What Went Well</div><div class="summary-field-val">${s.went_well}</div></div>`:''}
-        ${s.improvements?`<div class="summary-field"><div class="summary-field-label">Improvements</div><div class="summary-field-val">${s.improvements}</div></div>`:''}
-        ${s.inventory_notes?`<div class="summary-field"><div class="summary-field-label">Inventory Notes</div><div class="summary-field-val">${s.inventory_notes}</div></div>`:''}
-        ${s.notes?`<div class="summary-field"><div class="summary-field-label">Additional Notes</div><div class="summary-field-val">${s.notes}</div></div>`:''}
-      </div>
+      <div class="plan-card-detail">🥤 ${p.drinks_per_week} drink${p.drinks_per_week !== 1 ? 's' : ''} per week</div>
+      <div class="plan-card-detail" style="margin-top:0.3rem;color:var(--gray)">${p.description||''}</div>
+      ${mods.length ? `<div class="plan-card-modifiers">${mods.map(m=>`<span class="modifier-tag">${m}</span>`).join('')}</div>` : ''}
+      <div class="plan-card-detail" style="margin-top:0.75rem;color:var(--gray)">${countByPlan[p.id]||0} active subscriber${(countByPlan[p.id]||0) !== 1 ? 's' : ''}</div>
+      <button class="btn btn-ghost btn-sm plan-edit-btn" onclick="openEditPlanModal(${p.id})">Edit</button>
     </div>`;
+  }).join('');
+}
+
+function renderPlansTable(plans, countByPlan) {
+  const tbody = document.getElementById('plans-tbody');
+  if (!plans.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gray);padding:2rem">No plans yet.</td></tr>'; return; }
+  tbody.innerHTML = plans.map(p => {
+    const mods = p.allowed_modifiers ? p.allowed_modifiers.split(',').map(m=>m.trim()).filter(Boolean) : [];
+    return `<tr>
+      <td style="font-weight:500">${p.name}</td>
+      <td>$${(p.price_cents/100).toFixed(2)}</td>
+      <td style="text-align:center">${p.drinks_per_week}</td>
+      <td>${mods.length ? mods.map(m=>`<span class="modifier-tag">${m}</span>`).join('') : '<span style="color:var(--gray)">—</span>'}</td>
+      <td>${p.active ? '<span class="pill pill-green">Active</span>' : '<span class="pill pill-gray">Inactive</span>'}</td>
+      <td style="text-align:center;color:var(--gray-mid)">${countByPlan[p.id]||0}</td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick="openEditPlanModal(${p.id})">Edit</button>
+        <button class="btn btn-danger btn-sm" style="margin-left:0.4rem" onclick="deletePlan(${p.id})">Delete</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function openAddPlanModal() {
+  editingPlanId = null;
+  document.getElementById('plan-modal-title').textContent = 'New Plan';
+  document.getElementById('plan-name').value = '';
+  document.getElementById('plan-price').value = '';
+  document.getElementById('plan-drinks').value = '';
+  document.getElementById('plan-sort').value = allPlans.length + 1;
+  document.getElementById('plan-desc').value = '';
+  document.getElementById('plan-modifiers').value = '';
+  document.getElementById('plan-active').checked = true;
+  document.getElementById('plan-modal').classList.add('open');
+}
+
+function openEditPlanModal(id) {
+  const p = allPlans.find(x => x.id === id);
+  if (!p) return;
+  editingPlanId = id;
+  document.getElementById('plan-modal-title').textContent = 'Edit Plan';
+  document.getElementById('plan-name').value = p.name;
+  document.getElementById('plan-price').value = (p.price_cents / 100).toFixed(2);
+  document.getElementById('plan-drinks').value = p.drinks_per_week;
+  document.getElementById('plan-sort').value = p.sort_order;
+  document.getElementById('plan-desc').value = p.description || '';
+  document.getElementById('plan-modifiers').value = p.allowed_modifiers || '';
+  document.getElementById('plan-active').checked = p.active;
+  document.getElementById('plan-modal').classList.add('open');
+}
+
+async function savePlan() {
+  const name     = document.getElementById('plan-name').value.trim();
+  const price    = parseFloat(document.getElementById('plan-price').value);
+  const drinks   = parseInt(document.getElementById('plan-drinks').value);
+  const sort     = parseInt(document.getElementById('plan-sort').value) || 1;
+  const desc     = document.getElementById('plan-desc').value.trim();
+  const mods     = document.getElementById('plan-modifiers').value.trim();
+  const active   = document.getElementById('plan-active').checked;
+
+  if (!name) { alert('Plan name is required.'); return; }
+  if (isNaN(price) || price < 0) { alert('Enter a valid price.'); return; }
+  if (isNaN(drinks) || drinks < 1) { alert('Enter a valid drinks per week.'); return; }
+
+  const payload = {
+    name, price_cents: Math.round(price * 100), drinks_per_week: drinks,
+    sort_order: sort, description: desc, allowed_modifiers: mods, active,
+  };
+
+  const btn = document.getElementById('plan-save-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+
+  if (editingPlanId) {
+    await sb.from('plans').update(payload).eq('id', editingPlanId);
+  } else {
+    await sb.from('plans').insert(payload);
   }
 
-  // ── Student Accounts ──────────────────────────────────────────────────────
-  async function loadStudents() {
-    const {data} = await sb.from('students').select('*').order('created_at',{ascending:false});
-    allStudents = data||[];
-    const tbody = document.getElementById('students-table-body');
-    if(!allStudents.length){tbody.innerHTML='<tr><td colspan="4" class="empty-state">No student accounts yet.</td></tr>';return;}
-    tbody.innerHTML = allStudents.map(s=>`
-      <tr>
-        <td><strong>${s.first_name} ${s.last_name}</strong></td>
-        <td style="color:var(--gray)">${s.email}</td>
-        <td><span class="role-badge role-${s.role||'student'}">${s.role||'student'}</span></td>
-        <td style="display:flex;gap:0.5rem">
-          <button class="icon-btn" onclick="resetPasswordPrompt('${s.email}')">Reset PW</button>
-          <button class="btn-danger" onclick="removeStudent('${s.id}','${s.first_name}')">Remove</button>
-        </td>
-      </tr>`).join('');
-  }
+  btn.disabled = false; btn.textContent = 'Save Plan';
+  closeModal('plan-modal');
+  loadPlans();
+}
 
-  function openNewStudentModal() {
-    ['s-first','s-last','s-email','s-password'].forEach(id=>document.getElementById(id).value='');
-    document.getElementById('s-role').value='student';
-    document.getElementById('student-msg').style.display='none';
-    document.getElementById('student-modal').classList.add('open');
-  }
-  function closeStudentModal() { document.getElementById('student-modal').classList.remove('open'); }
+async function deletePlan(id) {
+  const { count } = await sb.from('subscriptions').select('id', { count:'exact', head:true }).eq('plan_id', id).eq('status','active');
+  if (count > 0) { alert(`Cannot delete — this plan has ${count} active subscriber(s). Cancel or move them first.`); return; }
+  if (!confirm('Delete this plan?')) return;
+  await sb.from('plans').delete().eq('id', id);
+  loadPlans();
+}
 
-  async function createStudent() {
-    const first    = document.getElementById('s-first').value.trim();
-    const last     = document.getElementById('s-last').value.trim();
-    const email    = document.getElementById('s-email').value.trim();
-    const password = document.getElementById('s-password').value.trim();
-    const role     = document.getElementById('s-role').value;
-    const m = document.getElementById('student-msg');
-    if(!first||!last||!email||!password){m.textContent='All fields are required.';m.className='msg error';return;}
-    const {data, error} = await sb.auth.signUp({
-      email, password,
-      options: { data: { first_name:first, last_name:last, role } }
-    });
-    if(error){m.textContent='Error: '+error.message; m.className='msg error'; return;}
-    await sb.from('students').insert({
-      id: data.user?.id, first_name:first, last_name:last, email, role
-    });
-    m.textContent=`✓ Account created for ${first}! They'll get a confirmation email at ${email}.`;
-    m.className='msg success';
-    loadStudents();
-    loadStudentDropdown();
-  }
+// ── Helpers ────────────────────────────────────────────────────────────────
+function statusPill(s) {
+  const map = { pending:'pill-yellow', in_progress:'pill-blue', ready:'pill-green', delivered:'pill-gray' };
+  return `<span class="pill ${map[s]||'pill-gray'}">${(s||'').replace('_',' ')}</span>`;
+}
 
-  async function removeStudent(id, name) {
-    if(!confirm(`Remove ${name}'s account from the roster? (This removes them from your list but does not delete their Supabase auth account.)`)) return;
-    await sb.from('students').delete().eq('id',id);
-    loadStudents();
-  }
+function subStatusPill(s) {
+  const map = { active:'pill-green', paused:'pill-yellow', cancelled:'pill-red', past_due:'pill-red' };
+  return `<span class="pill ${map[s]||'pill-gray'}">${(s||'').replace('_',' ')}</span>`;
+}
 
-  function resetPasswordPrompt(email) {
-    if(!confirm(`Send a password reset email to ${email}?`)) return;
-    sb.auth.resetPasswordForEmail(email).then(({error})=>{
-      alert(error ? 'Error: '+error.message : `Reset email sent to ${email}!`);
-    });
-  }
+function rolePill(r) {
+  const map = { admin:'pill-blue', manager:'pill-yellow', student:'pill-green' };
+  return `<span class="pill ${map[r]||'pill-gray'}">${r||'—'}</span>`;
+}
 
-  // ── Menu Manager ──────────────────────────────────────────────────────────
-  async function loadMenu() {
-    const {data} = await sb.from('menu_items').select('*').order('sort_order');
-    const tbody = document.getElementById('menu-tbody');
-    if(!data?.length){tbody.innerHTML='<tr><td colspan="6" class="empty-state">No menu items yet.</td></tr>';return;}
-    tbody.innerHTML = data.map(item=>`
-      <tr>
-        <td><strong>${item.name}</strong><div style="font-size:0.75rem;color:var(--gray)">${item.description||''}</div></td>
-        <td style="color:var(--gray)">${item.category}</td>
-        <td>${item.square_link_hot?`<a href="${item.square_link_hot}" target="_blank" style="color:var(--red-bright);font-size:0.8rem;text-decoration:none">Link ↗</a>`:'<span style="color:var(--gray);font-size:0.8rem">—</span>'}</td>
-        <td>${item.square_link_iced?`<a href="${item.square_link_iced}" target="_blank" style="color:#66aaff;font-size:0.8rem;text-decoration:none">Link ↗</a>`:'<span style="color:var(--gray);font-size:0.8rem">—</span>'}</td>
-        <td><span style="font-size:0.78rem;color:${item.available?'#4caf50':'var(--gray)'}">${item.available?'✓ On':'✕ Off'}</span></td>
-        <td style="display:flex;gap:0.5rem">
-          <button class="icon-btn" onclick='openItemModal(${JSON.stringify(item).replace(/'/g,"&#39;")})'>Edit</button>
-          <button class="btn-danger" onclick="deleteItem('${item.id}')">Delete</button>
-        </td>
-      </tr>`).join('');
-  }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
-  function openItemModal(item=null) {
-    editingItemId = item?.id||null;
-    document.getElementById('item-modal-title').textContent = item ? 'Edit Item' : 'Add Menu Item';
-    document.getElementById('i-name').value   = item?.name||'';
-    document.getElementById('i-desc').value   = item?.description||'';
-    document.getElementById('i-link-hot').value  = item?.square_link_hot||'';
-    document.getElementById('i-link-iced').value = item?.square_link_iced||'';
-    document.getElementById('i-is-hot').checked  = item ? item.is_hot!==false : true;
-    document.getElementById('i-is-iced').checked = item?.is_iced===true||false;
-    document.getElementById('i-milks').value  = (item?.available_milks||['Whole Milk','Oat Milk','Almond Milk','2% Milk']).join(', ');
-    document.getElementById('i-syrups').value = (item?.available_syrups||['Vanilla','Caramel','Hazelnut','Sugar Free Vanilla']).join(', ');
-    document.getElementById('i-sort').value   = item?.sort_order||0;
-    document.getElementById('i-available').checked = item?.available!==false;
-    document.getElementById('i-category').value = item?.category||'Coffee';
-    document.getElementById('item-msg').style.display='none';
-    document.getElementById('item-modal').classList.add('open');
-  }
-  function closeItemModal() { document.getElementById('item-modal').classList.remove('open'); }
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+});
 
-  async function saveItem() {
-    const name = document.getElementById('i-name').value.trim();
-    const m = document.getElementById('item-msg');
-    if(!name){m.textContent='Name is required.';m.className='msg error';return;}
-    const payload = {
-      name, category:document.getElementById('i-category').value,
-      description:document.getElementById('i-desc').value,
-      is_hot:document.getElementById('i-is-hot').checked,
-      is_iced:document.getElementById('i-is-iced').checked,
-      square_link_hot:document.getElementById('i-link-hot').value||null,
-      square_link_iced:document.getElementById('i-link-iced').value||null,
-      available_milks:document.getElementById('i-milks').value.split(',').map(s=>s.trim()).filter(Boolean),
-      available_syrups:document.getElementById('i-syrups').value.split(',').map(s=>s.trim()).filter(Boolean),
-      sort_order:parseInt(document.getElementById('i-sort').value)||0,
-      available:document.getElementById('i-available').checked
-    };
-    const {error} = editingItemId
-      ? await sb.from('menu_items').update(payload).eq('id',editingItemId)
-      : await sb.from('menu_items').insert(payload);
-    if(error){m.textContent='Error: '+error.message;m.className='msg error';}
-    else{m.textContent='✓ Saved!';m.className='msg success';setTimeout(()=>{closeItemModal();loadMenu();},700);}
-  }
-
-  async function deleteItem(id) {
-    if(!confirm('Delete this menu item?')) return;
-    await sb.from('menu_items').delete().eq('id',id);
-    loadMenu();
-  }
-
-  // ── Section Routing ───────────────────────────────────────────────────────
-  function showSection(name, el) {
-    document.querySelectorAll('.section-panel').forEach(p=>p.classList.remove('active'));
-    const target = document.getElementById('section-'+name);
-    if(target) target.classList.add('active');
-    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-    el.classList.add('active');
-    if(name==='summaries')      loadSummaries();
-    if(name==='students')       loadStudents();
-    if(name==='menu')           loadMenu();
-    if(name==='schedule')       loadSchedule();
-    if(name==='orders')         loadAdminOrders();
-    if(name==='submissions')    loadSubmissions();
-    if(name==='rubric')         loadRubric();
-    if(name==='manager-scores') loadAdminScores();
-    if(name==='approvals')      loadApprovals();
-    if(name==='square-sync')    loadSyncMenuItems();
-  }
-
-  // ── Staff Approvals ───────────────────────────────────────────────────────
-  async function loadApprovals() {
-    const tbody = document.getElementById('approvals-tbody');
-    const badge = document.getElementById('approvals-badge');
-    tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Loading...</td></tr>';
-    const { data } = await sb.from('students').select('*').is('role', null).order('created_at', { ascending: false });
-    const pending = data || [];
-    if (!pending.length) {
-      tbody.innerHTML = '<tr><td colspan="3" class="empty-state" style="padding:2rem;text-align:center;color:var(--gray)">No pending approvals. 🎉</td></tr>';
-      badge.style.display = 'none';
-      return;
-    }
-    badge.textContent = pending.length;
-    badge.style.display = 'inline-block';
-    tbody.innerHTML = pending.map(u => `
-      <tr>
-        <td style="font-size:0.9rem">${u.email || '—'}<br><span style="font-size:0.75rem;color:var(--gray)">${(u.first_name||'')+' '+(u.last_name||'')}</span></td>
-        <td style="color:var(--gray);font-size:0.82rem">${u.created_at ? new Date(u.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'}</td>
-        <td style="display:flex;gap:0.5rem">
-          <button class="btn-primary" style="padding:0.35rem 0.9rem;font-size:0.78rem" onclick="approveStaff('${u.id}','${u.email}')">✓ Approve</button>
-          <button class="btn-danger" onclick="denyStaff('${u.id}','${u.email}')">✕ Deny</button>
-        </td>
-      </tr>`).join('');
-  }
-
-  async function approveStaff(id, email) {
-    if (!confirm(`Approve ${email} as student staff?`)) return;
-    const { error } = await sb.from('students').update({ role: 'student' }).eq('id', id);
-    if (error) { alert('Error: ' + error.message); return; }
-    await sb.auth.admin?.updateUserById(id, { user_metadata: { role: 'student' } });
-    loadApprovals();
-    loadStudents();
-  }
-
-  async function denyStaff(id, email) {
-    if (!confirm(`Deny and remove ${email}?`)) return;
-    await sb.from('students').delete().eq('id', id);
-    loadApprovals();
-  }
-
-  // ── Score Rubric ──────────────────────────────────────────────────────────
-  let allRubric = [];
-
-  async function loadRubric() {
-    const {data} = await sb.from('score_rubric').select('*').order('sort_order');
-    allRubric = data||[];
-    const list = document.getElementById('rubric-list');
-    if(!allRubric.length){
-      list.innerHTML='<div style="color:var(--gray);font-size:0.85rem;padding:2rem;background:var(--card);border-radius:12px;border:1px solid var(--border-dim);text-align:center">No rubric categories yet. Add your first one!</div>';
-      return;
-    }
-    list.innerHTML = `<div style="border:1px solid var(--border-dim);border-radius:12px;overflow:hidden">
-      ${allRubric.map((r,i)=>`<div style="display:flex;align-items:center;gap:1rem;padding:1rem 1.25rem;border-bottom:${i<allRubric.length-1?'1px solid var(--border-dim)':'none'};background:var(--card)">
-        <div style="flex:1">
-          <div style="font-weight:500;font-size:0.92rem">${r.name} <span style="font-size:0.72rem;color:var(--gray);font-weight:400">/ ${r.max_points} pts</span></div>
-          ${r.description?`<div style="font-size:0.78rem;color:var(--gray);margin-top:0.2rem">${r.description}</div>`:''}
-        </div>
-        <span style="font-size:0.68rem;padding:0.2rem 0.55rem;border-radius:20px;background:${r.active?'rgba(76,175,80,0.1)':'rgba(255,255,255,0.04)'};color:${r.active?'#4caf50':'var(--gray)'};border:1px solid ${r.active?'rgba(76,175,80,0.2)':'var(--border-dim)'}">${r.active?'Active':'Inactive'}</span>
-        <button onclick="editRubricItem('${r.id}')" style="background:none;border:1px solid var(--border-dim);border-radius:6px;padding:0.35rem 0.75rem;color:var(--gray);font-size:0.75rem;cursor:pointer;font-family:'DM Sans',sans-serif">Edit</button>
-        <button onclick="toggleRubricItem('${r.id}',${!r.active})" style="background:none;border:1px solid var(--border-dim);border-radius:6px;padding:0.35rem 0.75rem;color:var(--gray);font-size:0.75rem;cursor:pointer;font-family:'DM Sans',sans-serif">${r.active?'Disable':'Enable'}</button>
-      </div>`).join('')}
-    </div>`;
-  }
-
-  let editingRubricId = null;
-
-  function openRubricModal(id) {
-    editingRubricId = id||null;
-    const r = id ? allRubric.find(x=>x.id===id) : null;
-    document.getElementById('rubric-modal')?.remove();
-    const html = `<div style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;display:flex;align-items:center;justify-content:center" id="rubric-modal">
-      <div style="background:#111;border:1px solid rgba(204,0,0,0.15);border-radius:16px;padding:2rem;width:420px;max-width:95vw">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:0.05em;margin-bottom:1.5rem">${r?'Edit Category':'Add Category'}</div>
-        <div style="margin-bottom:1rem">
-          <label style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.4rem">Category Name</label>
-          <input type="text" id="rub-name" value="${r?.name||''}" placeholder="e.g. Effort, Teamwork..." style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/>
-        </div>
-        <div style="margin-bottom:1rem">
-          <label style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.4rem">Description <span style="color:#333">(shown to manager)</span></label>
-          <input type="text" id="rub-desc" value="${r?.description||''}" placeholder="What to look for when scoring..." style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/>
-        </div>
-        <div style="margin-bottom:1.5rem">
-          <label style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.4rem">Max Points</label>
-          <input type="number" id="rub-max" value="${r?.max_points||10}" min="1" max="100" style="width:120px;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/>
-        </div>
-        <div style="display:flex;gap:0.75rem">
-          <button style="background:transparent;color:#999;border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:0.82rem 1.5rem;font-family:'DM Sans',sans-serif;font-size:0.88rem;cursor:pointer" onclick="document.getElementById('rubric-modal').remove()">Cancel</button>
-          <button style="flex:1;background:#cc0000;color:white;border:none;border-radius:8px;padding:0.82rem;font-family:'DM Sans',sans-serif;font-size:0.88rem;font-weight:600;cursor:pointer;text-transform:uppercase;letter-spacing:0.08em" onclick="saveRubricItem()">Save</button>
-        </div>
-      </div>
-    </div>`;
-    document.body.insertAdjacentHTML('beforeend', html);
-  }
-
-  function editRubricItem(id) { openRubricModal(id); }
-
-  async function saveRubricItem() {
-    const name = document.getElementById('rub-name').value.trim();
-    const desc = document.getElementById('rub-desc').value.trim();
-    const max  = parseInt(document.getElementById('rub-max').value)||10;
-    if(!name) return;
-    if(editingRubricId) {
-      await sb.from('score_rubric').update({name, description:desc, max_points:max}).eq('id', editingRubricId);
-    } else {
-      const sortOrder = allRubric.length + 1;
-      await sb.from('score_rubric').insert({name, description:desc, max_points:max, sort_order:sortOrder, active:true});
-    }
-    document.getElementById('rubric-modal')?.remove();
-    loadRubric();
-  }
-
-  async function toggleRubricItem(id, active) {
-    await sb.from('score_rubric').update({active}).eq('id', id);
-    loadRubric();
-  }
-
-  // ── Admin Score View ──────────────────────────────────────────────────────
-  let adminScoreWeekOffset = 0;
-
-  async function loadAdminScores(offset) {
-    if(offset !== undefined) adminScoreWeekOffset = offset;
-    const today = new Date();
-    const day = today.getDay();
-    const diff = day === 0 ? -6 : 1 - day;
-    const mon = new Date(today);
-    mon.setDate(today.getDate() + diff + (adminScoreWeekOffset * 7));
-    mon.setHours(0,0,0,0);
-    const ws = mon.toISOString().split('T')[0];
-    const fri = new Date(mon); fri.setDate(mon.getDate()+4);
-    const wLabel = mon.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' – ' + fri.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-
-    document.getElementById('score-week-nav-admin').innerHTML=`
-      <button onclick="loadAdminScores(${adminScoreWeekOffset-1})" style="background:none;border:1px solid var(--border-dim);border-radius:7px;padding:0.45rem 1rem;color:var(--gray);cursor:pointer;font-size:0.82rem;font-family:'DM Sans',sans-serif">← Prev</button>
-      <span style="font-size:0.95rem;font-weight:500">${wLabel}</span>
-      <button onclick="loadAdminScores(${adminScoreWeekOffset+1})" style="background:none;border:1px solid var(--border-dim);border-radius:7px;padding:0.45rem 1rem;color:var(--gray);cursor:pointer;font-size:0.82rem;font-family:'DM Sans',sans-serif">Next →</button>
-      ${adminScoreWeekOffset!==0?`<button onclick="loadAdminScores(0)" style="background:none;border:1px solid var(--border-dim);border-radius:7px;padding:0.45rem 1rem;color:var(--gray);cursor:pointer;font-size:0.82rem;font-family:'DM Sans',sans-serif;margin-left:auto">This Week</button>`:''}`;
-
-    const [{data:rubric},{data:scores},{data:students}] = await Promise.all([
-      sb.from('score_rubric').select('*').eq('active',true).order('sort_order'),
-      sb.from('student_scores').select('*').eq('week_start',ws),
-      sb.from('students').select('id,first_name,last_name,teams(name,period)')
-    ]);
-
-    const c = document.getElementById('admin-scores-content');
-
-    if(!scores?.length) {
-      c.innerHTML='<div style="color:var(--gray);text-align:center;padding:3rem;background:var(--card);border-radius:12px;border:1px solid var(--border-dim)">No scores submitted for this week yet.</div>';
-      return;
-    }
-
-    const byStudent = {};
-    (scores||[]).forEach(s=>{
-      if(!byStudent[s.student_id]) byStudent[s.student_id] = {scores:{}, comment:s.comment, scoredBy:s.scored_by_name};
-      byStudent[s.student_id].scores[s.rubric_id] = s.score;
-    });
-
-    c.innerHTML = `<div style="border:1px solid var(--border-dim);border-radius:12px;overflow:hidden;overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;min-width:600px">
-        <thead><tr style="background:#0d0d0d">
-          <th style="padding:0.85rem 1.1rem;text-align:left;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--gray);border-bottom:1px solid var(--border-dim)">Student</th>
-          ${(rubric||[]).map(r=>`<th style="padding:0.85rem 1.1rem;text-align:center;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--gray);border-bottom:1px solid var(--border-dim)">${r.name}<br/><span style="font-size:0.6rem;color:#333">/${r.max_points}</span></th>`).join('')}
-          <th style="padding:0.85rem 1.1rem;text-align:left;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--gray);border-bottom:1px solid var(--border-dim)">Total</th>
-          <th style="padding:0.85rem 1.1rem;text-align:left;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--gray);border-bottom:1px solid var(--border-dim)">Comment</th>
-        </tr></thead>
-        <tbody>${(students||[]).filter(s=>byStudent[s.id]).map(s=>{
-          const d = byStudent[s.id]||{};
-          const total = Object.values(d.scores||{}).reduce((a,b)=>a+b,0);
-          const maxTotal = (rubric||[]).reduce((a,r)=>a+r.max_points,0);
-          const pct = maxTotal ? Math.round(total/maxTotal*100) : 0;
-          const color = pct>=80?'#4caf50':pct>=60?'#ff9800':'#cc0000';
-          return `<tr style="border-bottom:1px solid var(--border-dim)">
-            <td style="padding:0.85rem 1.1rem">
-              <div style="font-weight:500">${s.first_name} ${s.last_name}</div>
-              <div style="font-size:0.7rem;color:var(--gray)">${s.teams?.name||'—'} · ${s.teams?.period||''}</div>
-            </td>
-            ${(rubric||[]).map(r=>`<td style="padding:0.85rem 1.1rem;text-align:center;font-size:0.88rem">${d.scores[r.id]??'—'}</td>`).join('')}
-            <td style="padding:0.85rem 1.1rem"><span style="font-weight:600;color:${color}">${total}</span><span style="color:var(--gray);font-size:0.78rem"> /${maxTotal}</span> <span style="font-size:0.68rem;color:${color}">(${pct}%)</span></td>
-            <td style="padding:0.85rem 1.1rem;font-size:0.82rem;color:var(--gray);max-width:220px">${d.comment||'—'}</td>
-          </tr>`;
-        }).join('')}</tbody>
-      </table>
-    </div>`;
-  }
-
-  async function signOut() { await sb.auth.signOut(); window.location.href='login.html'; }
-
-  document.querySelectorAll('.modal-overlay').forEach(m=>{
-    m.addEventListener('click', e=>{ if(e.target===m) m.classList.remove('open'); });
-  });
-
-  init();
+init();
 </script>
 </body>
 </html>
