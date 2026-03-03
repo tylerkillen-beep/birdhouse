@@ -740,13 +740,17 @@
         });
       }
 
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/save-card`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionToken}`,
-          'apikey': SUPABASE_KEY,
-        },
+// Re-fetch session to ensure token is fresh
+const { data: { session: freshSession } } = await sb.auth.getSession();
+if (!freshSession) throw new Error('Session expired. Please sign in again.');
+
+const res = await fetch(`${SUPABASE_URL}/functions/v1/save-card`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${freshSession.access_token}`,
+    'apikey': SUPABASE_KEY,
+  },
         body: JSON.stringify({
           sourceId:     result.token,
           userId:       currentUser.id,
