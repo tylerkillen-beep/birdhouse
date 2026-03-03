@@ -133,7 +133,7 @@
     .mod-option { display:flex; align-items:center; gap:0.75rem; padding:0.7rem 0.85rem; border-radius:8px; border:1px solid var(--border-dim); margin-bottom:0.4rem; cursor:pointer; transition:all 0.15s; background:rgba(255,255,255,0.02); }
     .mod-option:hover { border-color:rgba(204,0,0,0.25); background:rgba(204,0,0,0.04); }
     .mod-option.selected { border-color:var(--red); background:rgba(204,0,0,0.1); }
-    .mod-option input[type=checkbox] { width:16px; height:16px; accent-color:var(--red); flex-shrink:0; cursor:pointer; }
+    .mod-option input[type=checkbox] { width:16px; height:16px; accent-color:var(--red); flex-shrink:0; cursor:pointer; pointer-events:none; }
     .mod-option-name { flex:1; font-size:0.88rem; }
     .mod-option-price { font-size:0.78rem; color:var(--red-bright); font-weight:500; }
     .mod-total { display:flex; justify-content:space-between; align-items:center; padding:1rem 0 0; border-top:1px solid var(--border-dim); margin-top:1rem; font-size:0.92rem; }
@@ -294,7 +294,7 @@
   let menuItems = [], modifierListsMap = {}, cart = [], squareCard = null;
 
   // Pending modal state
-  let pendingItemId = null, pendingTemp = null;
+  let pendingItemId = null, pendingTemp = null, pendingBaseCents = 0;
 
   // ── Init ──────────────────────────────────────────────────────────────────
   async function init() {
@@ -397,18 +397,14 @@
     const item = menuItems.find(i => i.id === itemId);
     if (!item) return;
 
-    pendingItemId = itemId;
-    pendingTemp   = temp;
+    pendingItemId    = itemId;
+    pendingTemp      = temp;
+    pendingBaseCents = item.base_price_cents || Math.round((parseFloat(item.base_price) || 0) * 100);
 
-    const baseCents = item.base_price_cents || Math.round((parseFloat(item.base_price) || 0) * 100);
+    document.getElementById('mod-title').textContent      = item.name;
+    document.getElementById('mod-base-price').textContent = `Base price: $${(pendingBaseCents / 100).toFixed(2)}`;
 
-    document.getElementById('mod-title').textContent     = item.name;
-    document.getElementById('mod-base-price').textContent = `Base price: $${(baseCents / 100).toFixed(2)}`;
-
-    // Resolve modifier lists attached to this item (using Square IDs stored in JSONB)
     const attachedSquareIds = item.square_modifier_list_ids || [];
-
-    // Find matching modifier_lists by their square_id
     const attachedLists = Object.values(modifierListsMap).filter(ml =>
       attachedSquareIds.includes(ml.squareId)
     );
@@ -421,9 +417,16 @@
         optionsHtml += `<div class="mod-list-name">${ml.name}</div>`;
         for (const opt of ml.options) {
           const priceLabel = opt.price_cents > 0 ? `+$${(opt.price_cents / 100).toFixed(2)}` : 'Free';
+          // FIX: checkbox has pointer-events:none in CSS so all clicks land on the
+          // div, which is the single source of truth for toggling state.
           optionsHtml += `
-            <div class="mod-option" id="mod-opt-wrap-${opt.id}" onclick="toggleModOption('${opt.id}', ${opt.price_cents}, ${baseCents})">
-              <input type="checkbox" id="mod-opt-${opt.id}" data-price="${opt.price_cents}" data-square-id="${opt.square_id}" data-name="${opt.name}" />
+            <div class="mod-option" id="mod-opt-wrap-${opt.id}" onclick="toggleModOption('${opt.id}')">
+              <input type="checkbox"
+                id="mod-opt-${opt.id}"
+                data-price="${opt.price_cents}"
+                data-square-id="${opt.square_id}"
+                data-name="${opt.name}"
+              />
               <span class="mod-option-name">${opt.name}</span>
               <span class="mod-option-price">${priceLabel}</span>
             </div>`;
@@ -432,29 +435,32 @@
     }
 
     document.getElementById('mod-options-container').innerHTML = optionsHtml;
-    updateModTotal(baseCents);
+    updateModTotal();
     document.getElementById('mod-overlay').classList.add('open');
   }
 
-  function toggleModOption(optId, priceCents, baseCents) {
+  // Single toggle handler — the div is always the click target because the
+  // checkbox has pointer-events:none, so there's no double-fire problem.
+  function toggleModOption(optId) {
     const cb   = document.getElementById(`mod-opt-${optId}`);
     const wrap = document.getElementById(`mod-opt-wrap-${optId}`);
     cb.checked = !cb.checked;
     wrap.classList.toggle('selected', cb.checked);
-    updateModTotal(baseCents);
+    updateModTotal();
   }
 
-  function updateModTotal(baseCents) {
+  function updateModTotal() {
     const checkboxes = document.querySelectorAll('#mod-options-container input[type=checkbox]');
     let extra = 0;
     checkboxes.forEach(cb => { if (cb.checked) extra += parseInt(cb.dataset.price || '0'); });
-    document.getElementById('mod-total-price').textContent = `$${((baseCents + extra) / 100).toFixed(2)}`;
+    document.getElementById('mod-total-price').textContent = `$${((pendingBaseCents + extra) / 100).toFixed(2)}`;
   }
 
   function closeModModal() {
     document.getElementById('mod-overlay').classList.remove('open');
-    pendingItemId = null;
-    pendingTemp   = null;
+    pendingItemId    = null;
+    pendingTemp      = null;
+    pendingBaseCents = 0;
   }
 
   function confirmAddToCart() {
@@ -462,17 +468,15 @@
     const item = menuItems.find(i => i.id === pendingItemId);
     if (!item) return;
 
-    const baseCents  = item.base_price_cents || Math.round((parseFloat(item.base_price) || 0) * 100);
     const checkboxes = document.querySelectorAll('#mod-options-container input[type=checkbox]:checked');
-
     const selectedModifiers = Array.from(checkboxes).map(cb => ({
       catalogObjectId: cb.dataset.squareId,
       name:            cb.dataset.name,
       priceCents:      parseInt(cb.dataset.price || '0'),
     }));
 
-    const modsCents = selectedModifiers.reduce((s, m) => s + m.priceCents, 0);
-    const totalCents = baseCents + modsCents;
+    const modsCents  = selectedModifiers.reduce((s, m) => s + m.priceCents, 0);
+    const totalCents = pendingBaseCents + modsCents;
 
     addToCart(pendingItemId, pendingTemp, selectedModifiers, totalCents);
     closeModModal();
@@ -483,9 +487,8 @@
     const item = menuItems.find(i => i.id === itemId);
     if (!item) return;
 
-    // Unique key includes modifier combo so same drink with different mods = separate line
-    const modKey = selectedModifiers.map(m => m.catalogObjectId).sort().join('|');
-    const key = `${itemId}-${temp}-${modKey}`;
+    const modKey   = selectedModifiers.map(m => m.catalogObjectId).sort().join('|');
+    const key      = `${itemId}-${temp}-${modKey}`;
     const existing = cart.find(c => c.key === key);
 
     if (existing) {
@@ -493,13 +496,13 @@
     } else {
       cart.push({
         key,
-        id:                 itemId,
-        name:               item.name,
+        id:                itemId,
+        name:              item.name,
         temp,
-        priceCents:         totalCents,
-        price:              totalCents / 100,
-        quantity:           1,
-        squareVariationId:  item.square_variation_id,
+        priceCents:        totalCents,
+        price:             totalCents / 100,
+        quantity:          1,
+        squareVariationId: item.square_variation_id,
         selectedModifiers,
       });
     }
@@ -515,8 +518,8 @@
     if (document.getElementById('panel-2').classList.contains('active')) renderCartReview();
   }
 
-  function cartTotal()    { return cart.reduce((s, c) => s + c.price * c.quantity, 0); }
-  function cartCount()    { return cart.reduce((s, c) => s + c.quantity, 0); }
+  function cartTotal() { return cart.reduce((s, c) => s + c.price * c.quantity, 0); }
+  function cartCount() { return cart.reduce((s, c) => s + c.quantity, 0); }
 
   function updateCartUI() {
     const count = cartCount();
@@ -591,7 +594,6 @@
 
       const meta = currentUser.user_metadata;
 
-      // Build cart items in the shape process-payment expects
       const cartItems = cart.map(c => ({
         id:                c.id,
         name:              c.name,
