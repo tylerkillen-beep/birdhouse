@@ -72,6 +72,7 @@
     .cart-item-info { flex:1; }
     .cart-item-name { font-weight:500; font-size:0.92rem; }
     .cart-item-sub { font-size:0.75rem; color:var(--gray); margin-top:0.15rem; }
+    .cart-item-mods { font-size:0.73rem; color:var(--light-gray); margin-top:0.2rem; }
     .cart-item-price { font-size:0.88rem; color:var(--red-bright); font-weight:600; min-width:50px; text-align:right; }
     .qty-ctrl { display:flex; align-items:center; gap:0.5rem; }
     .qty-btn { width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--border-dim); color:var(--white); font-size:1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.2s; line-height:1; }
@@ -120,6 +121,24 @@
     .success-sub { color:var(--light-gray); font-size:0.92rem; line-height:1.65; margin-bottom:2rem; }
     .btn-outline { display:inline-block; padding:0.85rem 1.75rem; border:1px solid var(--border); border-radius:8px; color:var(--light-gray); text-decoration:none; font-size:0.85rem; transition:all 0.2s; margin:0.35rem; }
     .btn-outline:hover { border-color:var(--red); color:var(--white); }
+
+    /* ── Modifier Modal ── */
+    .mod-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.88); z-index:100; display:none; align-items:center; justify-content:center; padding:1rem; }
+    .mod-overlay.open { display:flex; }
+    .mod-modal { background:#111; border:1px solid var(--border); border-radius:16px; padding:2rem; width:460px; max-width:100%; max-height:90vh; overflow-y:auto; }
+    .mod-modal-title { font-family:'Bebas Neue',sans-serif; font-size:1.8rem; letter-spacing:0.05em; margin-bottom:0.25rem; }
+    .mod-modal-price { font-size:0.85rem; color:var(--red-bright); margin-bottom:1.5rem; }
+    .mod-list-name { font-size:0.65rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--gray); margin-bottom:0.65rem; margin-top:1.25rem; }
+    .mod-list-name:first-of-type { margin-top:0; }
+    .mod-option { display:flex; align-items:center; gap:0.75rem; padding:0.7rem 0.85rem; border-radius:8px; border:1px solid var(--border-dim); margin-bottom:0.4rem; cursor:pointer; transition:all 0.15s; background:rgba(255,255,255,0.02); }
+    .mod-option:hover { border-color:rgba(204,0,0,0.25); background:rgba(204,0,0,0.04); }
+    .mod-option.selected { border-color:var(--red); background:rgba(204,0,0,0.1); }
+    .mod-option input[type=checkbox] { width:16px; height:16px; accent-color:var(--red); flex-shrink:0; cursor:pointer; }
+    .mod-option-name { flex:1; font-size:0.88rem; }
+    .mod-option-price { font-size:0.78rem; color:var(--red-bright); font-weight:500; }
+    .mod-total { display:flex; justify-content:space-between; align-items:center; padding:1rem 0 0; border-top:1px solid var(--border-dim); margin-top:1rem; font-size:0.92rem; }
+    .mod-total-price { font-family:'Bebas Neue',sans-serif; font-size:1.5rem; color:var(--red-bright); }
+    .mod-btn-row { display:flex; gap:0.75rem; margin-top:1.25rem; }
 
     @media(max-width:900px) { .layout{grid-template-columns:1fr} .sidebar{display:none} .main{padding:1.5rem} .cart-bar{left:0;padding:1rem 1.5rem} .pay-layout{grid-template-columns:1fr} .form-row{grid-template-columns:1fr} }
   </style>
@@ -247,34 +266,53 @@
   </button>
 </div>
 
+<!-- Modifier Selection Modal -->
+<div class="mod-overlay" id="mod-overlay">
+  <div class="mod-modal">
+    <div class="mod-modal-title" id="mod-title">Customize</div>
+    <div class="mod-modal-price" id="mod-base-price"></div>
+    <div id="mod-options-container"></div>
+    <div class="mod-total">
+      <span style="color:var(--light-gray);font-size:0.82rem">Total</span>
+      <span class="mod-total-price" id="mod-total-price">$0.00</span>
+    </div>
+    <div class="mod-btn-row">
+      <button class="btn-ghost" style="flex:1" onclick="closeModModal()">Cancel</button>
+      <button class="btn-primary" style="flex:2" onclick="confirmAddToCart()">Add to Cart</button>
+    </div>
+  </div>
+</div>
+
 <script>
-  const SUPABASE_URL = 'https://ljukrhneikqbabcmcpet.supabase.co';
-  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqdWtyaG5laWtxYmFiY21jcGV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyODg1MjEsImV4cCI6MjA4Nzg2NDUyMX0.UbtB_-syG9a9vLcJp04w_k2F3XP2tMScYtB4sez3j78';
-  const SQUARE_APP_ID = 'sandbox-sq0idb-yWJ5XE7cr0qzF8uZroukMw'; 
+  const SUPABASE_URL  = 'https://ljukrhneikqbabcmcpet.supabase.co';
+  const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqdWtyaG5laWtxYmFiY21jcGV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyODg1MjEsImV4cCI6MjA4Nzg2NDUyMX0.UbtB_-syG9a9vLcJp04w_k2F3XP2tMScYtB4sez3j78';
+  const SQUARE_APP_ID      = 'sandbox-sq0idb-yWJ5XE7cr0qzF8uZroukMw';
   const SQUARE_LOCATION_ID = 'LRQM2TH22WH83';
 
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  let currentUser = null, sessionToken = null, menuItems = [], cart = [], squareCard = null;
+  let currentUser = null, sessionToken = null;
+  let menuItems = [], modifierListsMap = {}, cart = [], squareCard = null;
 
-  // ── Init ──────────────────────────────────────────────
+  // Pending modal state
+  let pendingItemId = null, pendingTemp = null;
+
+  // ── Init ──────────────────────────────────────────────────────────────────
   async function init() {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) { window.location.href = 'index.html'; return; }
-    currentUser = session.user;
+    currentUser  = session.user;
     sessionToken = session.access_token;
     const meta = currentUser.user_metadata;
     document.getElementById('user-display-name').textContent = (meta.first_name || 'Eagle') + ' ' + (meta.last_name || '');
     document.getElementById('user-points-badge').textContent = (meta.loyalty_points || 0) + ' points';
     if (meta.room) document.getElementById('delivery-room').value = meta.room;
-    await loadMenu();
-    await loadDeliveryTimes();
-    // Square initializes only when customer reaches step 3
+    await Promise.all([loadMenu(), loadDeliveryTimes()]);
   }
 
-  // ── Square SDK ────────────────────────────────────────
+  // ── Square SDK ────────────────────────────────────────────────────────────
   async function initSquare() {
     if (!window.Square) {
-      document.getElementById('card-container').innerHTML = '<div class="card-loading" style="color:#ff6b6b">Payment form unavailable. Please refresh the page.</div>';
+      document.getElementById('card-container').innerHTML = '<div class="card-loading" style="color:#ff6b6b">Payment form unavailable. Please refresh.</div>';
       return;
     }
     try {
@@ -283,23 +321,44 @@
       await squareCard.attach('#card-container');
       document.getElementById('pay-btn').disabled = false;
     } catch (e) {
-      console.error('Square init error:', e);
       document.getElementById('card-container').innerHTML = '<div class="card-loading" style="color:#ff6b6b">Failed to load payment form: ' + e.message + '</div>';
     }
   }
 
-  // ── Menu ──────────────────────────────────────────────
+  // ── Menu + Modifiers ──────────────────────────────────────────────────────
   async function loadMenu() {
-    const { data, error } = await sb.from('menu_items').select('*').eq('available', true).order('sort_order');
+    const [{ data: items }, { data: modLists }, { data: modOptions }] = await Promise.all([
+      sb.from('menu_items').select('*').eq('available', true).order('sort_order'),
+      sb.from('modifier_lists').select('*'),
+      sb.from('modifier_options').select('*').order('sort_order'),
+    ]);
+
     const container = document.getElementById('menu-container');
-    if (error || !data?.length) {
+    if (!items?.length) {
       container.innerHTML = '<div class="no-menu">No menu items available right now.</div>';
       return;
     }
-    menuItems = data;
-    const hotItems  = data.filter(i => i.is_hot !== false && i.is_iced !== true);
-    const icedItems = data.filter(i => i.is_iced === true);
-    const bothItems = data.filter(i => i.is_hot !== false && i.is_iced === true);
+
+    // Build modifier list lookup: { [modifier_list UUID]: { name, options[] } }
+    modifierListsMap = {};
+    (modLists || []).forEach(ml => {
+      modifierListsMap[ml.id] = {
+        squareId: ml.square_id,
+        name:     ml.name,
+        options:  [],
+      };
+    });
+    (modOptions || []).forEach(opt => {
+      if (modifierListsMap[opt.modifier_list_id]) {
+        modifierListsMap[opt.modifier_list_id].options.push(opt);
+      }
+    });
+
+    menuItems = items;
+
+    const hotItems  = items.filter(i => i.is_hot !== false && i.is_iced !== true);
+    const icedItems = items.filter(i => i.is_iced === true);
+    const bothItems = items.filter(i => i.is_hot !== false && i.is_iced === true);
 
     let html = '';
     if (hotItems.length || bothItems.length) {
@@ -322,25 +381,127 @@
   }
 
   function menuCard(item, temp) {
-    const price = item.base_price ? `$${parseFloat(item.base_price).toFixed(2)}` : 'Price TBD';
+    const price   = item.base_price ? `$${parseFloat(item.base_price).toFixed(2)}` : 'Price TBD';
+    const hasMods = item.square_modifier_list_ids?.length > 0;
+    const btnLabel = hasMods ? '+ Customize & Add' : '+ Add to Cart';
     return `<div class="menu-card">
       <div class="menu-card-name">${item.name}</div>
       <div class="menu-card-desc">${item.description || ''}</div>
       <div class="menu-card-price">${price}</div>
-      <button class="add-btn" onclick="addToCart('${item.id}','${temp}')">+ Add to Cart</button>
+      <button class="add-btn" onclick="openModModal('${item.id}','${temp}')">${btnLabel}</button>
     </div>`;
   }
 
-  // ── Cart ──────────────────────────────────────────────
-  function addToCart(itemId, temp) {
+  // ── Modifier Modal ────────────────────────────────────────────────────────
+  function openModModal(itemId, temp) {
     const item = menuItems.find(i => i.id === itemId);
     if (!item) return;
-    const key = `${itemId}-${temp}`;
+
+    pendingItemId = itemId;
+    pendingTemp   = temp;
+
+    const baseCents = item.base_price_cents || Math.round((parseFloat(item.base_price) || 0) * 100);
+
+    document.getElementById('mod-title').textContent     = item.name;
+    document.getElementById('mod-base-price').textContent = `Base price: $${(baseCents / 100).toFixed(2)}`;
+
+    // Resolve modifier lists attached to this item (using Square IDs stored in JSONB)
+    const attachedSquareIds = item.square_modifier_list_ids || [];
+
+    // Find matching modifier_lists by their square_id
+    const attachedLists = Object.values(modifierListsMap).filter(ml =>
+      attachedSquareIds.includes(ml.squareId)
+    );
+
+    let optionsHtml = '';
+    if (attachedLists.length === 0) {
+      optionsHtml = '<p style="color:var(--gray);font-size:0.85rem">No customizations available for this item.</p>';
+    } else {
+      for (const ml of attachedLists) {
+        optionsHtml += `<div class="mod-list-name">${ml.name}</div>`;
+        for (const opt of ml.options) {
+          const priceLabel = opt.price_cents > 0 ? `+$${(opt.price_cents / 100).toFixed(2)}` : 'Free';
+          optionsHtml += `
+            <div class="mod-option" id="mod-opt-wrap-${opt.id}" onclick="toggleModOption('${opt.id}', ${opt.price_cents}, ${baseCents})">
+              <input type="checkbox" id="mod-opt-${opt.id}" data-price="${opt.price_cents}" data-square-id="${opt.square_id}" data-name="${opt.name}" />
+              <span class="mod-option-name">${opt.name}</span>
+              <span class="mod-option-price">${priceLabel}</span>
+            </div>`;
+        }
+      }
+    }
+
+    document.getElementById('mod-options-container').innerHTML = optionsHtml;
+    updateModTotal(baseCents);
+    document.getElementById('mod-overlay').classList.add('open');
+  }
+
+  function toggleModOption(optId, priceCents, baseCents) {
+    const cb   = document.getElementById(`mod-opt-${optId}`);
+    const wrap = document.getElementById(`mod-opt-wrap-${optId}`);
+    cb.checked = !cb.checked;
+    wrap.classList.toggle('selected', cb.checked);
+    updateModTotal(baseCents);
+  }
+
+  function updateModTotal(baseCents) {
+    const checkboxes = document.querySelectorAll('#mod-options-container input[type=checkbox]');
+    let extra = 0;
+    checkboxes.forEach(cb => { if (cb.checked) extra += parseInt(cb.dataset.price || '0'); });
+    document.getElementById('mod-total-price').textContent = `$${((baseCents + extra) / 100).toFixed(2)}`;
+  }
+
+  function closeModModal() {
+    document.getElementById('mod-overlay').classList.remove('open');
+    pendingItemId = null;
+    pendingTemp   = null;
+  }
+
+  function confirmAddToCart() {
+    if (!pendingItemId) return;
+    const item = menuItems.find(i => i.id === pendingItemId);
+    if (!item) return;
+
+    const baseCents  = item.base_price_cents || Math.round((parseFloat(item.base_price) || 0) * 100);
+    const checkboxes = document.querySelectorAll('#mod-options-container input[type=checkbox]:checked');
+
+    const selectedModifiers = Array.from(checkboxes).map(cb => ({
+      catalogObjectId: cb.dataset.squareId,
+      name:            cb.dataset.name,
+      priceCents:      parseInt(cb.dataset.price || '0'),
+    }));
+
+    const modsCents = selectedModifiers.reduce((s, m) => s + m.priceCents, 0);
+    const totalCents = baseCents + modsCents;
+
+    addToCart(pendingItemId, pendingTemp, selectedModifiers, totalCents);
+    closeModModal();
+  }
+
+  // ── Cart ──────────────────────────────────────────────────────────────────
+  function addToCart(itemId, temp, selectedModifiers, totalCents) {
+    const item = menuItems.find(i => i.id === itemId);
+    if (!item) return;
+
+    // Unique key includes modifier combo so same drink with different mods = separate line
+    const modKey = selectedModifiers.map(m => m.catalogObjectId).sort().join('|');
+    const key = `${itemId}-${temp}-${modKey}`;
     const existing = cart.find(c => c.key === key);
+
     if (existing) {
       existing.quantity++;
     } else {
-      cart.push({ key, id: itemId, name: item.name, temp, price: parseFloat(item.base_price) || 0, quantity: 1 });
+      cart.push({
+        key,
+        id:                 itemId,
+        name:               item.name,
+        temp,
+        priceCents:         totalCents,
+        price:              totalCents / 100,
+        quantity:           1,
+        squareVariationId:  item.square_variation_id,
+        selectedModifiers,
+      });
     }
     updateCartUI();
   }
@@ -354,25 +515,28 @@
     if (document.getElementById('panel-2').classList.contains('active')) renderCartReview();
   }
 
-  function cartTotal() { return cart.reduce((s, c) => s + c.price * c.quantity, 0); }
-  function cartCount() { return cart.reduce((s, c) => s + c.quantity, 0); }
+  function cartTotal()    { return cart.reduce((s, c) => s + c.price * c.quantity, 0); }
+  function cartCount()    { return cart.reduce((s, c) => s + c.quantity, 0); }
 
   function updateCartUI() {
     const count = cartCount();
-    const total = cartTotal();
     document.getElementById('cart-bar').classList.toggle('hidden', count === 0);
     document.getElementById('cart-bar-count').textContent = count;
-    document.getElementById('cart-bar-total').textContent = `$${total.toFixed(2)}`;
+    document.getElementById('cart-bar-total').textContent = `$${cartTotal().toFixed(2)}`;
     document.getElementById('btn-to-step2').disabled = count === 0;
   }
 
   function renderCartReview() {
     const list = document.getElementById('cart-review');
-    list.innerHTML = cart.map(c => `
-      <div class="cart-item">
+    list.innerHTML = cart.map(c => {
+      const modsLabel = c.selectedModifiers?.length
+        ? c.selectedModifiers.map(m => m.name).join(', ')
+        : null;
+      return `<div class="cart-item">
         <div class="cart-item-info">
           <div class="cart-item-name">${c.name}</div>
           <div class="cart-item-sub">${c.temp === 'iced' ? '🧊 Iced 16oz' : '☕ Hot 12oz'}</div>
+          ${modsLabel ? `<div class="cart-item-mods">${modsLabel}</div>` : ''}
         </div>
         <div class="qty-ctrl">
           <button class="qty-btn" onclick="changeQty('${c.key}',-1)">−</button>
@@ -380,17 +544,21 @@
           <button class="qty-btn" onclick="changeQty('${c.key}',1)">+</button>
         </div>
         <div class="cart-item-price">$${(c.price * c.quantity).toFixed(2)}</div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
     document.getElementById('cart-total-val').textContent = `$${cartTotal().toFixed(2)}`;
   }
 
   function renderPaySummary() {
-    const lines = cart.map(c =>
-      `<div class="summary-line">
-        <span class="summary-key">${c.name} × ${c.quantity} (${c.temp === 'iced' ? 'Iced' : 'Hot'})</span>
+    const lines = cart.map(c => {
+      const modsLabel = c.selectedModifiers?.length
+        ? ` (${c.selectedModifiers.map(m => m.name).join(', ')})`
+        : '';
+      return `<div class="summary-line">
+        <span class="summary-key">${c.name}${modsLabel} × ${c.quantity}</span>
         <span class="summary-val">$${(c.price * c.quantity).toFixed(2)}</span>
-      </div>`
-    ).join('');
+      </div>`;
+    }).join('');
     const room = document.getElementById('delivery-room').value;
     const time = document.getElementById('delivery-time').value;
     document.getElementById('pay-summary-lines').innerHTML = lines + `
@@ -400,7 +568,7 @@
     document.getElementById('pay-btn-amount').textContent = `$${cartTotal().toFixed(2)}`;
   }
 
-  // ── Delivery Times ────────────────────────────────────
+  // ── Delivery Times ────────────────────────────────────────────────────────
   async function loadDeliveryTimes() {
     const { data } = await sb.from('store_config').select('value').eq('key', 'delivery_times').single();
     const times = data?.value || ['7:30 AM','8:00 AM','8:30 AM','9:00 AM','10:00 AM','11:00 AM','12:00 PM'];
@@ -408,9 +576,9 @@
     times.forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; sel.appendChild(o); });
   }
 
-  // ── Payment ───────────────────────────────────────────
+  // ── Payment ───────────────────────────────────────────────────────────────
   async function submitPayment() {
-    const btn = document.getElementById('pay-btn');
+    const btn   = document.getElementById('pay-btn');
     const errEl = document.getElementById('pay-error');
     errEl.style.display = 'none';
     btn.disabled = true;
@@ -422,31 +590,45 @@
       if (result.status !== 'OK') throw new Error(result.errors?.[0]?.message || 'Card tokenization failed');
 
       const meta = currentUser.user_metadata;
+
+      // Build cart items in the shape process-payment expects
+      const cartItems = cart.map(c => ({
+        id:                c.id,
+        name:              c.name,
+        price:             c.price,
+        priceCents:        c.priceCents,
+        quantity:          c.quantity,
+        squareVariationId: c.squareVariationId,
+        selectedModifiers: c.selectedModifiers || [],
+      }));
+
       const res = await fetch(`${SUPABASE_URL}/functions/v1/process-payment`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionToken}`, 'apikey': SUPABASE_KEY },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`,
+          'apikey': SUPABASE_KEY,
+        },
         body: JSON.stringify({
-          sourceId: result.token,
-          cartItems: cart,
-          userId: currentUser.id,
+          sourceId:  result.token,
+          cartItems,
+          userId:    currentUser.id,
           customerInfo: {
             customerName: (meta.first_name || '') + ' ' + (meta.last_name || ''),
-            room: document.getElementById('delivery-room').value,
-            deliveryDay: document.getElementById('delivery-day').value,
+            room:         document.getElementById('delivery-room').value,
+            deliveryDay:  document.getElementById('delivery-day').value,
             deliveryTime: document.getElementById('delivery-time').value,
-            notes: document.getElementById('order-notes').value,
-          }
-        })
+            notes:        document.getElementById('order-notes').value,
+          },
+        }),
       });
 
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Payment failed');
 
-      // Award loyalty points (1 point per drink ordered)
-      const pointsEarned = cartCount();
-      await sb.auth.updateUser({ data: { loyalty_points: (meta.loyalty_points || 0) + pointsEarned } });
+      // Award loyalty points
+      await sb.auth.updateUser({ data: { loyalty_points: (meta.loyalty_points || 0) + cartCount() } });
 
-      // Show success
       document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
       document.getElementById('panel-success').classList.add('active');
       document.getElementById('cart-bar').classList.add('hidden');
@@ -460,9 +642,9 @@
     }
   }
 
-  // ── Navigation ────────────────────────────────────────
+  // ── Navigation ────────────────────────────────────────────────────────────
   async function goToStep(step) {
-    if (step === 2) { renderCartReview(); }
+    if (step === 2) renderCartReview();
     if (step === 3) {
       const room = document.getElementById('delivery-room').value.trim();
       const time = document.getElementById('delivery-time').value;
@@ -474,10 +656,7 @@
     document.getElementById('panel-' + step).classList.add('active');
     setStepIndicators(step);
     window.scrollTo(0, 0);
-    // Initialize Square card form only when reaching payment step
-    if (step === 3 && !squareCard) {
-      await initSquare();
-    }
+    if (step === 3 && !squareCard) await initSquare();
   }
 
   function setStepIndicators(active) {
@@ -488,6 +667,11 @@
       el.className = 'step' + (i === active ? ' active' : i < active ? ' done' : '');
     }
   }
+
+  // Close modal on overlay click
+  document.getElementById('mod-overlay').addEventListener('click', function(e) {
+    if (e.target === this) closeModModal();
+  });
 
   async function signOut() { await sb.auth.signOut(); window.location.href = 'index.html'; }
   init();
