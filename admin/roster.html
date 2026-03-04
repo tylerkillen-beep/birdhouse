@@ -288,8 +288,16 @@
   let allStudents=[], allTeams=[], parsedCSV=[], editingTeamId=null, reassigningStudentId=null;
 
   async function init() {
-    const {data:{session}} = await sb.auth.getSession();
-    if(!session||session.user.user_metadata?.role!=='admin'){window.location.href='login.html';return;}
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = 'login.html'; return; }
+
+    const { data: student } = await sb.from('students').select('role').eq('id', session.user.id).single();
+    if (!student || !['admin','manager'].includes(student.role)) {
+      await sb.auth.signOut();
+      window.location.href = 'login.html';
+      return;
+    }
+
     await Promise.all([loadTeams(), loadAllStudents()]);
   }
 
