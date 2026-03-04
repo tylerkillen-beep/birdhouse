@@ -85,7 +85,8 @@
 
 .cup-wrap {
   position: relative;
-  height: 700px; width: 300px;
+  height: clamp(480px, 72vh, 700px);
+  width: clamp(220px, 20vw, 320px);
   display: flex; align-items: center; justify-content: center;
   animation: float 5s ease-in-out infinite;
   z-index: 1;
@@ -93,7 +94,8 @@
     @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-16px)} }
 
 .cup-img {
-  height: 700px; width: auto;
+  height: 100%; width: auto;
+  max-width: 100%;
   object-fit: contain;
   opacity: 0.42;
   filter: saturate(0.6) brightness(1.1);
@@ -119,7 +121,7 @@
     @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
 
     .cup-logo { position: relative; z-index: 4; animation: logo-float 5s ease-in-out infinite; }
-    .cup-logo img { width: 300px; filter: drop-shadow(0 0 22px rgba(204,0,0,1)) drop-shadow(0 0 55px rgba(204,0,0,0.65)) brightness(1.2); }
+    .cup-logo img { width: clamp(210px, 18vw, 300px); filter: drop-shadow(0 0 22px rgba(204,0,0,1)) drop-shadow(0 0 55px rgba(204,0,0,0.65)) brightness(1.2); }
     @keyframes logo-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
 
     /* Fade-up animations */
@@ -130,6 +132,18 @@
     .fade-up:nth-child(4) { animation-delay: 0.55s; }
     .fade-up:nth-child(5) { animation-delay: 0.65s; }
     @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+
+
+    @media (max-width: 1200px) {
+      .hero-left { padding: 3.5rem 2.5rem 3.5rem 3rem; }
+      .cup-wrap { height: clamp(420px, 65vh, 620px); width: clamp(190px, 18vw, 280px); }
+      .glow-ring-3 { width: 620px; height: 620px; }
+      .glow-ring-2 { width: 500px; height: 500px; }
+      .glow-ring-1 { width: 380px; height: 380px; }
+      .glow-core { width: 280px; height: 280px; }
+      .spin-ring-1 { width: 430px; height: 430px; }
+      .spin-ring-2 { width: 620px; height: 620px; }
+    }
 
     @media (max-width: 768px) {
       .hero { grid-template-columns: 1fr; }
