@@ -45,10 +45,19 @@ Student accounts **cannot self-register** (by design). You (the admin) create th
 ```
 4. For admin access, set `"role": "admin"` instead
 
-### Step 3: Deploy to GitHub Pages
-1. Replace the files in your `tylerkillen-beep/birdhouse` repo with all these files
-2. Make sure the `customer/` and `student/` folders are uploaded too
-3. Your site will be live at: `https://tylerkillen-beep.github.io/birdhouse/`
+### Step 3: Deploy to Vercel
+1. Push this repository to GitHub.
+2. In Vercel, click **Add New → Project** and import this repo.
+3. Keep defaults (static site, no build command required) and click **Deploy**.
+4. After deploy, your app will be live at `https://<your-project>.vercel.app/`.
+
+### Step 4: Configure Supabase Auth Redirects (Required)
+In Supabase → **Authentication → URL Configuration**:
+1. Set **Site URL** to your production Vercel URL (or custom domain).
+2. Add these **Redirect URLs**:
+   - `https://<your-project>.vercel.app/customer/dashboard.html`
+   - `https://<your-project>.vercel.app/student/index.html`
+3. If you connect a custom domain, add matching redirect URLs for that domain too.
 
 ---
 

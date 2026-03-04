@@ -139,7 +139,7 @@
       const { error } = await sb.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: 'https://tylerkillen-beep.github.io/birdhouse/customer/dashboard.html',
+          redirectTo: `${window.location.origin}/customer/dashboard.html`,
           queryParams: { hd: 'nixaschools.net' }
         }
       });
