@@ -34,6 +34,7 @@ Use this package when you want to apply backend changes directly in Supabase.
 Run these migration files in order:
 1. `supabase/migrations/20260304_fix_recursive_students_policies.sql`
 2. `supabase/migrations/20260305_fix_admin_related_rls_policies.sql`
+3. `supabase/migrations/20260306_create_plans_table_and_staff_subscriptions_policy.sql` (adds missing `plans` table + plan/subscription policies)
 
 ### Edge Function updates (Supabase Edge Functions)
 If you want Square sync backend logic from repo, use file:

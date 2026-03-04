@@ -776,16 +776,15 @@ function showSection(id) {
 // ════════════════════════════════════
 async function loadDashboard() {
   const startDate = new Date();
-  const endDate = new Date(startDate);
-  endDate.setDate(endDate.getDate() + 1);
-  const dayStart = startDate.toISOString().slice(0, 10) + 'T00:00:00Z';
-  const dayEnd = endDate.toISOString().slice(0, 10) + 'T00:00:00Z';
-  const [{ data: ordersToday }, { data: subscribers }, { data: pending }, { data: recentOrders }] = await Promise.all([
-    sb.from('orders').select('id,total_cents').gte('created_at', dayStart).lt('created_at', dayEnd),
+  const todayIso = startDate.toISOString().slice(0, 10);
+  const [{ data: todayOrdersRaw }, { data: subscribers }, { data: pending }, { data: recentOrders }] = await Promise.all([
+    sb.from('orders').select('id,total_cents,created_at').order('created_at', { ascending: false }).limit(500),
     sb.from('subscriptions').select('id').eq('status','active'),
     sb.from('students').select('id').is('role', null),
     sb.from('orders').select('*').order('created_at', { ascending: false }).limit(8),
   ]);
+
+  const ordersToday = (todayOrdersRaw || []).filter(o => (o.created_at || '').slice(0, 10) === todayIso);
 
   document.getElementById('stat-orders-today').textContent = ordersToday?.length ?? 0;
   document.getElementById('stat-subscribers').textContent = subscribers?.length ?? 0;
@@ -1183,13 +1182,36 @@ async function loadCustomers() {
 // Plan Manager
 // ════════════════════════════════════
 async function loadPlans() {
-  const { data: plans } = await sb.from('plans').select('*').order('sort_order');
+  const { data: plans, error: plansError } = await sb.from('plans').select('*').order('sort_order');
+  if (plansError) {
+    renderPlansLoadError(plansError);
+    return;
+  }
   allPlans = plans || [];
-  const { data: subCounts } = await sb.from('subscriptions').select('plan_id').eq('status', 'active');
+  const { data: subCounts, error: subCountsError } = await sb.from('subscriptions').select('plan_id').eq('status', 'active');
+  if (subCountsError) {
+    renderPlansLoadError(subCountsError);
+    return;
+  }
   const countByPlan = {};
   (subCounts||[]).forEach(s => { countByPlan[s.plan_id] = (countByPlan[s.plan_id]||0) + 1; });
   renderPlanCards(allPlans, countByPlan);
   renderPlansTable(allPlans, countByPlan);
+}
+
+function renderPlansLoadError(error) {
+  const message = error?.message || 'Unable to load plans.';
+  const hint = /42P01|not found|relation/i.test(message)
+    ? 'The "plans" table is missing in Supabase. Run the setup SQL package, then reload this page.'
+    : 'Check Supabase RLS/policies for plans and subscriptions.';
+  const grid = document.getElementById('plan-cards-grid');
+  const tbody = document.getElementById('plans-tbody');
+  if (grid) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">⚠️</div>${hint}<div style="font-size:0.8rem;color:var(--gray);margin-top:0.4rem">${message}</div></div>`;
+  }
+  if (tbody) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#ff6b6b;padding:1.25rem">${hint}<br><span style="color:var(--gray)">${message}</span></td></tr>`;
+  }
 }
 
 function renderPlanCards(plans, countByPlan) {
