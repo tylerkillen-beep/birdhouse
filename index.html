@@ -32,7 +32,7 @@
     .hero { display: grid; grid-template-columns: 1.2fr 0.8fr; min-height: calc(100vh - 85px); position: relative; z-index: 1; }
 
     /* LEFT */
-    .hero-left { display: flex; flex-direction: column; justify-content: center; padding: 4rem 3rem 4rem 5rem; }
+    .hero-left { display: flex; flex-direction: column; justify-content: center; padding: 4rem 3rem 4rem 5rem; min-width: 0; }
     .hero-eyebrow { font-size: 0.72rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--red); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; }
     .hero-eyebrow::before { content: ''; display: block; width: 30px; height: 1px; background: var(--red); }
     .hero-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(5rem, 8vw, 8rem); line-height: 0.95; letter-spacing: 0.02em; margin-bottom: 1.5rem; }
@@ -81,7 +81,7 @@
     .portal-card:hover .portal-arrow { opacity: 1; transform: translate(3px,-3px); }
 
     /* RIGHT */
-    .hero-right { position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; height: calc(100vh - 85px); }
+    .hero-right { position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; height: calc(100vh - 85px); min-width: 0; }
 
 .cup-wrap {
   position: relative;
