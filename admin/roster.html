@@ -299,9 +299,10 @@
 
       const email = (session.user.email || '').toLowerCase();
       const isOwnerAdmin = email === OWNER_ADMIN_EMAIL;
-      const { data: student } = await sb.from('students').select('role').eq('id', session.user.id).single();
+      const { data: student, error: studentError } = await sb.from('students').select('role').eq('id', session.user.id).single();
       const hasStaffRole = !!student && ['admin','manager'].includes(student.role);
       if (!isOwnerAdmin && !hasStaffRole) {
+        if (studentError) console.error('students role lookup failed', studentError);
         await sb.auth.signOut();
         window.location.href = 'login.html';
         return;
