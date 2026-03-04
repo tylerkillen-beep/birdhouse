@@ -32,7 +32,7 @@
     .hero { display: grid; grid-template-columns: 1.2fr 0.8fr; min-height: calc(100vh - 85px); position: relative; z-index: 1; }
 
     /* LEFT */
-    .hero-left { display: flex; flex-direction: column; justify-content: center; padding: 4rem 3rem 4rem 5rem; }
+    .hero-left { display: flex; flex-direction: column; justify-content: center; padding: 4rem 3rem 4rem 5rem; min-width: 0; }
     .hero-eyebrow { font-size: 0.72rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--red); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; }
     .hero-eyebrow::before { content: ''; display: block; width: 30px; height: 1px; background: var(--red); }
     .hero-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(5rem, 8vw, 8rem); line-height: 0.95; letter-spacing: 0.02em; margin-bottom: 1.5rem; }
@@ -67,7 +67,7 @@
     @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
     /* Portal cards */
-    .portal-cards { display: flex; gap: 1rem; max-width: 460px; }
+    .portal-cards { display: flex; gap: 1rem; width: min(680px, 100%); max-width: 100%; }
     .portal-card { flex: 1; border-radius: 14px; padding: 1.4rem 1.25rem; text-decoration: none; position: relative; overflow: hidden; transition: transform 0.25s, box-shadow 0.25s; border: 1px solid var(--border); background: var(--card); }
     .portal-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(204,0,0,0.15) 0%, transparent 60%); opacity: 0; transition: opacity 0.3s; }
     .portal-card:hover { transform: translateY(-5px); box-shadow: 0 20px 50px rgba(204,0,0,0.25), 0 0 0 1px rgba(204,0,0,0.4); }
@@ -81,11 +81,12 @@
     .portal-card:hover .portal-arrow { opacity: 1; transform: translate(3px,-3px); }
 
     /* RIGHT */
-    .hero-right { position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; height: calc(100vh - 85px); }
+    .hero-right { position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; height: calc(100vh - 85px); min-width: 0; }
 
 .cup-wrap {
   position: relative;
-  height: 700px; width: 300px;
+  height: clamp(480px, 72vh, 700px);
+  width: clamp(220px, 20vw, 320px);
   display: flex; align-items: center; justify-content: center;
   animation: float 5s ease-in-out infinite;
   z-index: 1;
@@ -93,7 +94,8 @@
     @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-16px)} }
 
 .cup-img {
-  height: 700px; width: auto;
+  height: 100%; width: auto;
+  max-width: 100%;
   object-fit: contain;
   opacity: 0.42;
   filter: saturate(0.6) brightness(1.1);
@@ -119,7 +121,7 @@
     @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
 
     .cup-logo { position: relative; z-index: 4; animation: logo-float 5s ease-in-out infinite; }
-    .cup-logo img { width: 300px; filter: drop-shadow(0 0 22px rgba(204,0,0,1)) drop-shadow(0 0 55px rgba(204,0,0,0.65)) brightness(1.2); }
+    .cup-logo img { width: clamp(210px, 18vw, 300px); filter: drop-shadow(0 0 22px rgba(204,0,0,1)) drop-shadow(0 0 55px rgba(204,0,0,0.65)) brightness(1.2); }
     @keyframes logo-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
 
     /* Fade-up animations */
@@ -130,6 +132,18 @@
     .fade-up:nth-child(4) { animation-delay: 0.55s; }
     .fade-up:nth-child(5) { animation-delay: 0.65s; }
     @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+
+
+    @media (max-width: 1200px) {
+      .hero-left { padding: 3.5rem 2.5rem 3.5rem 3rem; }
+      .cup-wrap { height: clamp(420px, 65vh, 620px); width: clamp(190px, 18vw, 280px); }
+      .glow-ring-3 { width: 620px; height: 620px; }
+      .glow-ring-2 { width: 500px; height: 500px; }
+      .glow-ring-1 { width: 380px; height: 380px; }
+      .glow-core { width: 280px; height: 280px; }
+      .spin-ring-1 { width: 430px; height: 430px; }
+      .spin-ring-2 { width: 620px; height: 620px; }
+    }
 
     @media (max-width: 768px) {
       .hero { grid-template-columns: 1fr; }
