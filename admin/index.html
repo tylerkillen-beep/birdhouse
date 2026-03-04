@@ -23,6 +23,9 @@
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.92rem; min-height: 100vh; display: flex; }
+    body.auth-pending #sidebar, body.auth-pending #main { display: none; }
+    .auth-gate { display: none; position: fixed; inset: 0; align-items: center; justify-content: center; background: var(--bg); color: var(--gray-mid); letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.72rem; z-index: 9999; }
+    body.auth-pending .auth-gate { display: flex; }
 
     /* ── Sidebar ── */
     #sidebar {
@@ -219,7 +222,8 @@
     .pos-modal-footer { padding: 1rem 1.6rem 1.4rem; border-top: 1px solid var(--border-dim); display: flex; gap: 0.75rem; justify-content: flex-end; }
   </style>
 </head>
-<body>
+<body class="auth-pending">
+<div class="auth-gate">Checking access…</div>
 
 <!-- ══════════════ SIDEBAR ══════════════ -->
 <nav id="sidebar">
@@ -615,9 +619,10 @@
 </div>
 
 <script>
-const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-const SUPABASE_ANON = 'YOUR_SUPABASE_ANON_KEY';
+const SUPABASE_URL = 'https://ljukrhneikqbabcmcpet.supabase.co';
+const SUPABASE_ANON = 'sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+const OWNER_ADMIN_EMAIL = 'tylerkillen@nixaschools.net';
 
 let currentUser = null;
 let allOrders = [];
@@ -633,22 +638,34 @@ let adminScoreWeekOffset = 0;
 // Auth
 // ════════════════════════════════════
 async function init() {
-  const { data: { session } } = await sb.auth.getSession();
-  if (!session) { window.location.href = 'login.html'; return; }
-  currentUser = session.user;
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = 'login.html'; return; }
+    currentUser = session.user;
 
-  const { data: student } = await sb.from('students').select('role,first_name,last_name').eq('id', currentUser.id).single();
-  if (!student || !['admin','manager'].includes(student.role)) {
-    alert('Access denied.'); await sb.auth.signOut(); window.location.href = 'login.html'; return;
+    const email = (currentUser.email || '').toLowerCase();
+    const isOwnerAdmin = email === OWNER_ADMIN_EMAIL;
+    const { data: student } = await sb.from('students').select('role,first_name,last_name').eq('id', currentUser.id).single();
+    const hasStaffRole = !!student && ['admin','manager'].includes(student.role);
+    if (!isOwnerAdmin && !hasStaffRole) {
+      await sb.auth.signOut();
+      window.location.href = 'login.html';
+      return;
+    }
+
+    document.body.classList.remove('auth-pending');
+    const displayName = student ? `${student.first_name} ${student.last_name}` : 'Owner Admin';
+    document.getElementById('admin-name').textContent = displayName;
+    document.getElementById('admin-email').textContent = currentUser.email;
+    document.getElementById('dash-date').textContent = new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+    await loadDashboard();
+    loadPendingBadge();
+    loadOrdersBadge();
+  } catch (e) {
+    await sb.auth.signOut();
+    window.location.href = 'login.html';
   }
-
-  document.getElementById('admin-name').textContent = `${student.first_name} ${student.last_name}`;
-  document.getElementById('admin-email').textContent = currentUser.email;
-  document.getElementById('dash-date').textContent = new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
-
-  await loadDashboard();
-  loadPendingBadge();
-  loadOrdersBadge();
 }
 
 async function signOut() { await sb.auth.signOut(); window.location.href = 'login.html'; }

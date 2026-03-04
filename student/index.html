@@ -98,8 +98,19 @@
 
   <script>
     const sb = supabase.createClient('https://ljukrhneikqbabcmcpet.supabase.co','sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn');
+    const ADMIN_TEAM_HUB_EMAIL = 'tylerkillen@nixaschools.net';
+
+    function getPostLoginPath(user) {
+      const email = (user?.email || '').toLowerCase();
+      if (email === ADMIN_TEAM_HUB_EMAIL) return '../admin/index.html';
+      return 'dashboard.html';
+    }
+
     sb.auth.getSession().then(({data})=>{
-      if(data.session){const r=data.session.user.user_metadata?.role; if(r==='student'||r==='admin') window.location.href='dashboard.html';}
+      if(data.session){
+        const r=data.session.user.user_metadata?.role;
+        if(r==='student'||r==='admin') window.location.href=getPostLoginPath(data.session.user);
+      }
     });
     async function handleGoogleLogin() {
       const btn = event.target.closest('.btn-google');
@@ -107,7 +118,7 @@
       const { error } = await sb.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: 'https://tylerkillen-beep.github.io/birdhouse/student/dashboard.html',
+          redirectTo: 'https://tylerkillen-beep.github.io/birdhouse/student/index.html',
           queryParams: { hd: 'nixaschools.net' }
         }
       });
@@ -150,7 +161,7 @@
           m.className = 'msg error';
           return;
         }
-        window.location.href = 'dashboard.html';
+        window.location.href = getPostLoginPath(session.user);
       }
     });
 
@@ -164,7 +175,7 @@
         const m=document.getElementById('login-msg');m.textContent='This account does not have student staff access.';m.className='msg error';
         btn.disabled=false;btn.textContent='Sign In to Team Hub →';return;
       }
-      window.location.href='dashboard.html';
+      window.location.href=getPostLoginPath(data.user);
     }
   </script>
 </body>
