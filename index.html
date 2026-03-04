@@ -31,60 +31,42 @@
 
     .hero { display: grid; grid-template-columns: 1.2fr 0.8fr; min-height: calc(100vh - 85px); position: relative; z-index: 1; }
 
-    /* ── LEFT ── */
+    /* LEFT */
     .hero-left { display: flex; flex-direction: column; justify-content: center; padding: 4rem 3rem 4rem 5rem; }
     .hero-eyebrow { font-size: 0.72rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--red); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; }
     .hero-eyebrow::before { content: ''; display: block; width: 30px; height: 1px; background: var(--red); }
     .hero-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(5rem, 8vw, 8rem); line-height: 0.95; letter-spacing: 0.02em; margin-bottom: 1.5rem; }
     .hero-title .glow { color: var(--red-bright); text-shadow: 0 0 30px rgba(204,0,0,0.8), 0 0 60px rgba(204,0,0,0.4); }
-    .hero-desc { font-size: 1.08rem; color: var(--light-gray); line-height: 1.7; max-width: 380px; margin-bottom: 0; font-weight: 300; }
+    .hero-desc { font-size: 1.08rem; color: var(--light-gray); line-height: 1.7; max-width: 420px; margin-bottom: 0; font-weight: 300; }
 
-    /* ── Marquee ticker ── */
+    /* Marquee */
     .marquee-wrap {
       margin: 2rem 0 2.5rem;
       overflow: hidden;
       position: relative;
-      /* Fade edges */
-      mask-image: linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%);
-      -webkit-mask-image: linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%);
     }
     .marquee-wrap::before {
       content: '';
-      position: absolute;
-      inset: 0;
+      position: absolute; inset: 0;
       border-top: 1px solid rgba(204,0,0,0.18);
       border-bottom: 1px solid rgba(204,0,0,0.18);
-      pointer-events: none;
-      z-index: 1;
+      pointer-events: none; z-index: 1;
     }
     .marquee-track {
-      display: flex;
-      width: max-content;
+      display: flex; width: max-content;
       animation: marquee 22s linear infinite;
       padding: 0.6rem 0;
     }
     .marquee-track:hover { animation-play-state: paused; }
     .marquee-item {
-      font-size: 0.68rem;
-      letter-spacing: 0.22em;
-      text-transform: uppercase;
-      color: var(--red-bright);
-      white-space: nowrap;
-      padding: 0 2rem;
-      opacity: 1;
-      text-shadow: 0 0 12px rgba(255,26,26,0.5);
+      font-size: 0.68rem; letter-spacing: 0.22em; text-transform: uppercase;
+      color: var(--red-bright); white-space: nowrap; padding: 0 2rem;
+      text-shadow: 0 0 8px rgba(255,26,26,1), 0 0 20px rgba(255,26,26,0.8), 0 0 40px rgba(255,26,26,0.4);
     }
-    .marquee-dot {
-      font-size: 0.5rem;
-      color: rgba(255,26,26,0.7);
-      padding: 0 0.25rem;
-      align-self: center;
-    }
-    @keyframes marquee {
-      from { transform: translateX(0); }
-      to   { transform: translateX(-50%); }
-    }
+    .marquee-dot { font-size: 0.5rem; color: rgba(255,26,26,1); padding: 0 0.25rem; align-self: center; }
+    @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
+    /* Portal cards */
     .portal-cards { display: flex; gap: 1rem; max-width: 460px; }
     .portal-card { flex: 1; border-radius: 14px; padding: 1.4rem 1.25rem; text-decoration: none; position: relative; overflow: hidden; transition: transform 0.25s, box-shadow 0.25s; border: 1px solid var(--border); background: var(--card); }
     .portal-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(204,0,0,0.15) 0%, transparent 60%); opacity: 0; transition: opacity 0.3s; }
@@ -98,20 +80,13 @@
     .portal-arrow { position: absolute; bottom: 1.5rem; right: 1.5rem; font-size: 1rem; color: var(--red); opacity: 0.5; transition: opacity 0.2s, transform 0.2s; }
     .portal-card:hover .portal-arrow { opacity: 1; transform: translate(3px,-3px); }
 
-    /* ── RIGHT ── */
-    .hero-right {
-      position: relative;
-      display: flex; align-items: center; justify-content: center;
-      overflow: hidden;
-    }
+    /* RIGHT */
+    .hero-right { position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 
     .cup-wrap {
       position: relative;
-      height: 100vh;
-      width: auto;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      height: 100vh; width: auto;
+      display: flex; align-items: center; justify-content: center;
       animation: float 5s ease-in-out infinite;
       z-index: 1;
       margin-left: -12%;
@@ -119,8 +94,7 @@
     @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-16px)} }
 
     .cup-img {
-      height: 100%;
-      width: auto;
+      height: 100%; width: auto;
       object-fit: contain;
       opacity: 0.42;
       filter: saturate(0.6) brightness(1.1);
@@ -128,19 +102,13 @@
 
     .cup-logo-wrap {
       position: absolute;
-      top: 62%;
-      left: 50%;
+      top: 62%; left: 50%;
       transform: translate(-50%, -50%);
       display: flex; align-items: center; justify-content: center;
       z-index: 3;
     }
 
-    .glow-core {
-      position: absolute;
-      width: 330px; height: 330px; border-radius: 50%;
-      background: radial-gradient(circle, rgba(204,0,0,0.5) 0%, rgba(204,0,0,0.18) 50%, transparent 72%);
-      animation: flash 1.8s ease-in-out infinite;
-    }
+    .glow-core { position: absolute; width: 330px; height: 330px; border-radius: 50%; background: radial-gradient(circle, rgba(204,0,0,0.5) 0%, rgba(204,0,0,0.18) 50%, transparent 72%); animation: flash 1.8s ease-in-out infinite; }
     .glow-ring-1 { position: absolute; width: 450px; height: 450px; border-radius: 50%; border: 2px solid rgba(204,0,0,0.6); animation: flash 1.8s ease-in-out infinite; animation-delay: 0.2s; }
     .glow-ring-2 { position: absolute; width: 600px; height: 600px; border-radius: 50%; border: 1.5px solid rgba(204,0,0,0.3); animation: flash 1.8s ease-in-out infinite; animation-delay: 0.4s; }
     .glow-ring-3 { position: absolute; width: 765px; height: 765px; border-radius: 50%; border: 1px solid rgba(204,0,0,0.12); animation: flash 1.8s ease-in-out infinite; animation-delay: 0.6s; }
@@ -155,15 +123,20 @@
     .cup-logo img { width: 300px; filter: drop-shadow(0 0 22px rgba(204,0,0,1)) drop-shadow(0 0 55px rgba(204,0,0,0.65)) brightness(1.2); }
     @keyframes logo-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
 
-    .fade-up { opacity:0; transform:translateY(20px); animation:fadeUp 0.7s forwards; }
-    .fade-up:nth-child(1){animation-delay:0.1s} .fade-up:nth-child(2){animation-delay:0.25s} .fade-up:nth-child(3){animation-delay:0.4s} .fade-up:nth-child(4){animation-delay:0.55s} .fade-up:nth-child(5){animation-delay:0.65s}
-    @keyframes fadeUp { to { opacity:1; transform:translateY(0); } }
+    /* Fade-up animations */
+    .fade-up { opacity: 0; transform: translateY(20px); animation: fadeUp 0.7s ease forwards; }
+    .fade-up:nth-child(1) { animation-delay: 0.1s; }
+    .fade-up:nth-child(2) { animation-delay: 0.25s; }
+    .fade-up:nth-child(3) { animation-delay: 0.4s; }
+    .fade-up:nth-child(4) { animation-delay: 0.55s; }
+    .fade-up:nth-child(5) { animation-delay: 0.65s; }
+    @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
 
     @media (max-width: 768px) {
       .hero { grid-template-columns: 1fr; }
       .hero-right { display: none; }
       .hero-left { padding: 3rem 2rem; }
-      .portal-cards { flex-direction: column; }
+      .portal-cards { flex-direction: column; max-width: 100%; }
       header { padding: 1.25rem 1.5rem; }
     }
   </style>
@@ -183,10 +156,8 @@
       <h1 class="hero-title fade-up">YOUR<br>DAILY<br><span class="glow">BREW.</span></h1>
       <p class="hero-desc fade-up">Order your favorite drinks, earn loyalty rewards, and get delivery straight to your room.</p>
 
-      <!-- Marquee ticker -->
       <div class="marquee-wrap fade-up">
         <div class="marquee-track">
-          <!-- First set -->
           <span class="marquee-item">Student-Run</span><span class="marquee-dot">✦</span>
           <span class="marquee-item">Classroom Delivery</span><span class="marquee-dot">✦</span>
           <span class="marquee-item">Nixa High School</span><span class="marquee-dot">✦</span>
@@ -195,7 +166,6 @@
           <span class="marquee-item">Order Online</span><span class="marquee-dot">✦</span>
           <span class="marquee-item">Eagles Spirit</span><span class="marquee-dot">✦</span>
           <span class="marquee-item">Real Experience</span><span class="marquee-dot">✦</span>
-          <!-- Duplicate for seamless loop -->
           <span class="marquee-item">Student-Run</span><span class="marquee-dot">✦</span>
           <span class="marquee-item">Classroom Delivery</span><span class="marquee-dot">✦</span>
           <span class="marquee-item">Nixa High School</span><span class="marquee-dot">✦</span>
