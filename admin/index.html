@@ -619,9 +619,10 @@
 </div>
 
 <script>
-const SUPABASE_URL = 'https://ljukrhneikqbabcmcpet.supabase.co';
-const SUPABASE_ANON = 'sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn';
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+const sb = supabase.createClient(
+  'https://ljukrhneikqbabcmcpet.supabase.co',
+  'sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn'
+);
 const OWNER_ADMIN_EMAIL = 'tylerkillen@nixaschools.net';
 
 let currentUser = null;
