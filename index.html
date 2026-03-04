@@ -83,22 +83,21 @@
     /* RIGHT */
     .hero-right { position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; height: calc(100vh - 85px); }
 
-    .cup-wrap {
-      position: relative;
-      height: 80%; width: auto;
-      display: flex; align-items: center; justify-content: center;
-      animation: float 5s ease-in-out infinite;
-      z-index: 1;
-      margin-left: -12%;
-    }
+.cup-wrap {
+  position: relative;
+  height: 700px; width: 300px;
+  display: flex; align-items: center; justify-content: center;
+  animation: float 5s ease-in-out infinite;
+  z-index: 1;
+}
     @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-16px)} }
 
-    .cup-img {
-      height: 100%; width: auto;
-      object-fit: contain;
-      opacity: 0.42;
-      filter: saturate(0.6) brightness(1.1);
-    }
+.cup-img {
+  height: 700px; width: auto;
+  object-fit: contain;
+  opacity: 0.42;
+  filter: saturate(0.6) brightness(1.1);
+}
 
     .cup-logo-wrap {
       position: absolute;
