@@ -289,6 +289,7 @@
 
 <script>
   const sb = supabase.createClient('https://ljukrhneikqbabcmcpet.supabase.co','sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn');
+  const OWNER_ADMIN_EMAIL = 'tylerkillen@nixaschools.net';
   let allStudents=[], allTeams=[], parsedCSV=[], editingTeamId=null, reassigningStudentId=null;
 
   async function init() {
@@ -296,8 +297,11 @@
       const { data: { session } } = await sb.auth.getSession();
       if (!session) { window.location.href = 'login.html'; return; }
 
+      const email = (session.user.email || '').toLowerCase();
+      const isOwnerAdmin = email === OWNER_ADMIN_EMAIL;
       const { data: student } = await sb.from('students').select('role').eq('id', session.user.id).single();
-      if (!student || !['admin','manager'].includes(student.role)) {
+      const hasStaffRole = !!student && ['admin','manager'].includes(student.role);
+      if (!isOwnerAdmin && !hasStaffRole) {
         await sb.auth.signOut();
         window.location.href = 'login.html';
         return;
