@@ -23,6 +23,9 @@
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.92rem; min-height: 100vh; display: flex; }
+    body.auth-pending #sidebar, body.auth-pending #main { display: none; }
+    .auth-gate { display: none; position: fixed; inset: 0; align-items: center; justify-content: center; background: var(--bg); color: var(--gray-mid); letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.72rem; z-index: 9999; }
+    body.auth-pending .auth-gate { display: flex; }
 
     /* ── Sidebar ── */
     #sidebar {
@@ -219,7 +222,8 @@
     .pos-modal-footer { padding: 1rem 1.6rem 1.4rem; border-top: 1px solid var(--border-dim); display: flex; gap: 0.75rem; justify-content: flex-end; }
   </style>
 </head>
-<body>
+<body class="auth-pending">
+<div class="auth-gate">Checking access…</div>
 
 <!-- ══════════════ SIDEBAR ══════════════ -->
 <nav id="sidebar">
@@ -502,8 +506,33 @@
 
   <!-- ── MENU ── -->
   <div class="section-panel" id="section-menu">
-    <div class="page-header"><h1>Menu</h1><p>Manage drink offerings</p></div>
-    <div class="empty-state"><div class="empty-icon">☕</div>Menu management coming soon.</div>
+    <div class="page-header"><h1>Menu Management</h1><p>Directly manage live menu items and review student staff suggestions.</p></div>
+
+    <div class="section-header">
+      <div class="section-title">Live Menu Items</div>
+      <div style="display:flex;gap:0.6rem"><button class="btn btn-ghost btn-sm" onclick="syncSquareMenu()">⟳ Sync Square Catalog</button><button class="btn btn-primary btn-sm" onclick="openAddMenuItemModal()">+ New Menu Item</button></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Name</th><th>Category</th><th>Temp</th><th>Price</th><th>Availability</th><th>Square</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="menu-items-tbody"><tr class="loading-row"><td colspan="7">Loading menu items…</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="section-header" style="margin-top:1.5rem">
+      <div class="section-title">Student Suggestions</div>
+      <button class="btn btn-ghost btn-sm" onclick="loadMenuSubmissions()">Refresh</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Submitted</th><th>Student</th><th>Type</th><th>Proposed Item</th><th>Details</th><th>Status</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="menu-submissions-tbody"><tr class="loading-row"><td colspan="7">Loading suggestions…</td></tr></tbody>
+      </table>
+    </div>
   </div>
 
 </main>
@@ -517,6 +546,53 @@
     <div class="modal-title" id="sub-modal-title">Manage Subscription</div>
     <div id="sub-modal-body" style="margin-bottom:1rem;color:var(--gray-mid);font-size:0.84rem;line-height:1.6"></div>
     <div class="form-actions" id="sub-modal-actions"></div>
+  </div>
+</div>
+
+<!-- Add/Edit Menu Item Modal -->
+<div class="modal-overlay" id="menu-item-modal">
+  <div class="modal" style="max-width:680px">
+    <button class="modal-close" onclick="closeModal('menu-item-modal')">✕</button>
+    <div class="modal-title" id="menu-item-modal-title">New Menu Item</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
+      <div class="form-group">
+        <label class="form-label">Name</label>
+        <input class="form-input" id="menu-item-name" placeholder="e.g. Iced Vanilla Latte" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Category</label>
+        <input class="form-input" id="menu-item-category" placeholder="Coffee" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Price ($)</label>
+        <input class="form-input" id="menu-item-price" type="number" step="0.01" min="0" placeholder="4.50" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Sort Order</label>
+        <input class="form-input" id="menu-item-sort" type="number" placeholder="1" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Square Item ID (optional)</label>
+        <input class="form-input" id="menu-item-square-id" placeholder="SQUARE_CATALOG_ITEM_ID" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Square Modifier List IDs (comma-separated)</label>
+        <input class="form-input" id="menu-item-mod-list-ids" placeholder="MOD_LIST_1, MOD_LIST_2" />
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description</label>
+      <textarea class="form-input" id="menu-item-description" rows="2" style="resize:vertical" placeholder="Shown to customers when ordering."></textarea>
+    </div>
+    <div style="display:flex;gap:1.25rem;flex-wrap:wrap;margin-bottom:1rem">
+      <label style="display:flex;align-items:center;gap:0.45rem;color:var(--gray-mid);font-size:0.83rem"><input type="checkbox" id="menu-item-hot" checked style="accent-color:var(--accent)" /> Hot</label>
+      <label style="display:flex;align-items:center;gap:0.45rem;color:var(--gray-mid);font-size:0.83rem"><input type="checkbox" id="menu-item-iced" style="accent-color:var(--accent)" /> Iced</label>
+      <label style="display:flex;align-items:center;gap:0.45rem;color:var(--gray-mid);font-size:0.83rem"><input type="checkbox" id="menu-item-available" checked style="accent-color:var(--accent)" /> Available to customers</label>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('menu-item-modal')">Cancel</button>
+      <button class="btn btn-primary" id="menu-item-save-btn" onclick="saveMenuItem()">Save Item</button>
+    </div>
   </div>
 </div>
 
@@ -615,9 +691,11 @@
 </div>
 
 <script>
-const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-const SUPABASE_ANON = 'YOUR_SUPABASE_ANON_KEY';
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+const sb = supabase.createClient(
+  'https://ljukrhneikqbabcmcpet.supabase.co',
+  'sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn'
+);
+const OWNER_ADMIN_EMAIL = 'tylerkillen@nixaschools.net';
 
 let currentUser = null;
 let allOrders = [];
@@ -625,7 +703,10 @@ let allStaff = [];
 let allSubscriptions = [];
 let allPlans = [];
 let allRubric = [];
+let allMenuItems = [];
+let allMenuSubmissions = [];
 let editingPlanId = null;
+let editingMenuItemId = null;
 let editingRubricId = null;
 let adminScoreWeekOffset = 0;
 
@@ -633,22 +714,35 @@ let adminScoreWeekOffset = 0;
 // Auth
 // ════════════════════════════════════
 async function init() {
-  const { data: { session } } = await sb.auth.getSession();
-  if (!session) { window.location.href = 'login.html'; return; }
-  currentUser = session.user;
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = 'login.html'; return; }
+    currentUser = session.user;
 
-  const { data: student } = await sb.from('students').select('role,first_name,last_name').eq('id', currentUser.id).single();
-  if (!student || !['admin','manager'].includes(student.role)) {
-    alert('Access denied.'); await sb.auth.signOut(); window.location.href = 'login.html'; return;
+    const email = (currentUser.email || '').toLowerCase();
+    const isOwnerAdmin = email === OWNER_ADMIN_EMAIL;
+    const { data: student, error: studentError } = await sb.from('students').select('role,first_name,last_name').eq('id', currentUser.id).single();
+    const hasStaffRole = !!student && ['admin','manager'].includes(student.role);
+    if (!isOwnerAdmin && !hasStaffRole) {
+      if (studentError) console.error('students role lookup failed', studentError);
+      await sb.auth.signOut();
+      window.location.href = 'login.html';
+      return;
+    }
+
+    document.body.classList.remove('auth-pending');
+    const displayName = student ? `${student.first_name} ${student.last_name}` : 'Owner Admin';
+    document.getElementById('admin-name').textContent = displayName;
+    document.getElementById('admin-email').textContent = currentUser.email;
+    document.getElementById('dash-date').textContent = new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+    await loadDashboard();
+    loadPendingBadge();
+    loadOrdersBadge();
+  } catch (e) {
+    await sb.auth.signOut();
+    window.location.href = 'login.html';
   }
-
-  document.getElementById('admin-name').textContent = `${student.first_name} ${student.last_name}`;
-  document.getElementById('admin-email').textContent = currentUser.email;
-  document.getElementById('dash-date').textContent = new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
-
-  await loadDashboard();
-  loadPendingBadge();
-  loadOrdersBadge();
 }
 
 async function signOut() { await sb.auth.signOut(); window.location.href = 'login.html'; }
@@ -670,6 +764,7 @@ function showSection(id) {
     subscriptions: loadSubscriptions,
     customers: loadCustomers,
     plans: loadPlans,
+    menu: loadMenuSection,
     dashboard: loadDashboard,
     schedule: schedInit,
   };
@@ -680,13 +775,16 @@ function showSection(id) {
 // Dashboard
 // ════════════════════════════════════
 async function loadDashboard() {
-  const today = new Date().toISOString().slice(0,10);
-  const [{ data: ordersToday }, { data: subscribers }, { data: pending }, { data: recentOrders }] = await Promise.all([
-    sb.from('orders').select('id,total_cents').gte('created_at', today + 'T00:00:00').lt('created_at', today + 'T23:59:59'),
+  const startDate = new Date();
+  const todayIso = startDate.toISOString().slice(0, 10);
+  const [{ data: todayOrdersRaw }, { data: subscribers }, { data: pending }, { data: recentOrders }] = await Promise.all([
+    sb.from('orders').select('id,total_cents,created_at').order('created_at', { ascending: false }).limit(500),
     sb.from('subscriptions').select('id').eq('status','active'),
     sb.from('students').select('id').is('role', null),
     sb.from('orders').select('*').order('created_at', { ascending: false }).limit(8),
   ]);
+
+  const ordersToday = (todayOrdersRaw || []).filter(o => (o.created_at || '').slice(0, 10) === todayIso);
 
   document.getElementById('stat-orders-today').textContent = ordersToday?.length ?? 0;
   document.getElementById('stat-subscribers').textContent = subscribers?.length ?? 0;
@@ -1084,13 +1182,36 @@ async function loadCustomers() {
 // Plan Manager
 // ════════════════════════════════════
 async function loadPlans() {
-  const { data: plans } = await sb.from('plans').select('*').order('sort_order');
+  const { data: plans, error: plansError } = await sb.from('plans').select('*').order('sort_order');
+  if (plansError) {
+    renderPlansLoadError(plansError);
+    return;
+  }
   allPlans = plans || [];
-  const { data: subCounts } = await sb.from('subscriptions').select('plan_id').eq('status', 'active');
+  const { data: subCounts, error: subCountsError } = await sb.from('subscriptions').select('plan_id').eq('status', 'active');
+  if (subCountsError) {
+    renderPlansLoadError(subCountsError);
+    return;
+  }
   const countByPlan = {};
   (subCounts||[]).forEach(s => { countByPlan[s.plan_id] = (countByPlan[s.plan_id]||0) + 1; });
   renderPlanCards(allPlans, countByPlan);
   renderPlansTable(allPlans, countByPlan);
+}
+
+function renderPlansLoadError(error) {
+  const message = error?.message || 'Unable to load plans.';
+  const hint = /42P01|not found|relation/i.test(message)
+    ? 'The "plans" table is missing in Supabase. Run the setup SQL package, then reload this page.'
+    : 'Check Supabase RLS/policies for plans and subscriptions.';
+  const grid = document.getElementById('plan-cards-grid');
+  const tbody = document.getElementById('plans-tbody');
+  if (grid) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">⚠️</div>${hint}<div style="font-size:0.8rem;color:var(--gray);margin-top:0.4rem">${message}</div></div>`;
+  }
+  if (tbody) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#ff6b6b;padding:1.25rem">${hint}<br><span style="color:var(--gray)">${message}</span></td></tr>`;
+  }
 }
 
 function renderPlanCards(plans, countByPlan) {
@@ -1189,6 +1310,247 @@ async function deletePlan(id) {
   if (!confirm('Delete this plan?')) return;
   await sb.from('plans').delete().eq('id', id);
   loadPlans();
+}
+
+// ════════════════════════════════════
+// Menu Management
+// ════════════════════════════════════
+async function loadMenuSection() {
+  await Promise.all([loadMenuItems(), loadMenuSubmissions()]);
+}
+
+async function syncSquareMenu() {
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { alert('Please sign in again.'); return; }
+
+    // Canonical backend endpoint is sync-catalog.
+    // Do not switch this to sync-square-menu unless that function is explicitly deployed and intended.
+    const res = await fetch('https://ljukrhneikqbabcmcpet.supabase.co/functions/v1/sync-catalog', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': 'sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({}),
+    });
+
+    const out = await res.json();
+    if (!res.ok || !out.success) {
+      throw new Error(out.error || 'Sync failed');
+    }
+
+    const updated = out.updated ?? out.summary?.updated ?? 0;
+    const inserted = out.inserted ?? out.summary?.newItems ?? 0;
+    alert(`Square sync complete. ${updated} updated, ${inserted} inserted.`);
+    await loadMenuItems();
+  } catch (err) {
+    alert(err.message || 'Unable to sync from Square.');
+  }
+}
+
+async function loadMenuItems() {
+  const tbody = document.getElementById('menu-items-tbody');
+  tbody.innerHTML = '<tr class="loading-row"><td colspan="7">Loading menu items…</td></tr>';
+  const { data, error } = await sb.from('menu_items').select('*').order('sort_order');
+  if (error) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#ff6b6b;padding:1.25rem">${error.message}</td></tr>`;
+    return;
+  }
+  allMenuItems = data || [];
+  if (!allMenuItems.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gray);padding:1.5rem">No menu items yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = allMenuItems.map(item => {
+    const temp = `${item.is_hot !== false ? '☕' : ''}${item.is_iced ? '🧊' : ''}` || '—';
+    const priceCents = item.base_price_cents ?? Math.round((parseFloat(item.base_price) || 0) * 100);
+    const price = `$${(priceCents / 100).toFixed(2)}`;
+    const square = item.square_item_id || '—';
+    return `<tr>
+      <td><strong>${item.name || '—'}</strong><div style="font-size:0.72rem;color:var(--gray)">${item.description || ''}</div></td>
+      <td>${item.category || '—'}</td>
+      <td>${temp}</td>
+      <td>${price}</td>
+      <td>${item.available ? '<span style="color:#27ae60">Available</span>' : '<span style="color:var(--gray)">Hidden</span>'}</td>
+      <td style="font-size:0.75rem;color:var(--gray)">${square}</td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick="editMenuItem('${item.id}')">Edit</button>
+        <button class="btn btn-success btn-sm" onclick="toggleMenuItemAvailability('${item.id}', ${item.available ? 'false' : 'true'})">${item.available ? 'Hide' : 'Show'}</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteMenuItem('${item.id}')">Delete</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function parseModifierListIds(raw) {
+  return (raw || '').split(',').map(v => v.trim()).filter(Boolean);
+}
+
+function menuItemPayloadFromForm() {
+  const name = document.getElementById('menu-item-name').value.trim();
+  const price = parseFloat(document.getElementById('menu-item-price').value || '0');
+  if (!name) throw new Error('Menu item name is required.');
+  if (isNaN(price) || price < 0) throw new Error('Enter a valid non-negative price.');
+  return {
+    name,
+    description: document.getElementById('menu-item-description').value.trim(),
+    category: document.getElementById('menu-item-category').value.trim() || 'Coffee',
+    is_hot: document.getElementById('menu-item-hot').checked,
+    is_iced: document.getElementById('menu-item-iced').checked,
+    available: document.getElementById('menu-item-available').checked,
+    sort_order: parseInt(document.getElementById('menu-item-sort').value || '1', 10) || 1,
+    square_item_id: document.getElementById('menu-item-square-id').value.trim() || null,
+    square_modifier_list_ids: parseModifierListIds(document.getElementById('menu-item-mod-list-ids').value),
+    base_price: price.toFixed(2),
+    base_price_cents: Math.round(price * 100),
+  };
+}
+
+function resetMenuItemModal() {
+  editingMenuItemId = null;
+  document.getElementById('menu-item-modal-title').textContent = 'New Menu Item';
+  document.getElementById('menu-item-save-btn').textContent = 'Save Item';
+  document.getElementById('menu-item-name').value = '';
+  document.getElementById('menu-item-description').value = '';
+  document.getElementById('menu-item-category').value = 'Coffee';
+  document.getElementById('menu-item-price').value = '';
+  document.getElementById('menu-item-sort').value = '1';
+  document.getElementById('menu-item-square-id').value = '';
+  document.getElementById('menu-item-mod-list-ids').value = '';
+  document.getElementById('menu-item-hot').checked = true;
+  document.getElementById('menu-item-iced').checked = false;
+  document.getElementById('menu-item-available').checked = true;
+}
+
+function openAddMenuItemModal() {
+  resetMenuItemModal();
+  document.getElementById('menu-item-modal').classList.add('open');
+}
+
+function editMenuItem(id) {
+  const item = allMenuItems.find(i => i.id === id);
+  if (!item) return;
+  editingMenuItemId = id;
+  document.getElementById('menu-item-modal-title').textContent = 'Edit Menu Item';
+  document.getElementById('menu-item-save-btn').textContent = 'Save Changes';
+  document.getElementById('menu-item-name').value = item.name || '';
+  document.getElementById('menu-item-description').value = item.description || '';
+  document.getElementById('menu-item-category').value = item.category || 'Coffee';
+  document.getElementById('menu-item-price').value = ((item.base_price_cents ?? Math.round((parseFloat(item.base_price) || 0) * 100)) / 100).toFixed(2);
+  document.getElementById('menu-item-sort').value = item.sort_order || 1;
+  document.getElementById('menu-item-square-id').value = item.square_item_id || '';
+  document.getElementById('menu-item-mod-list-ids').value = (item.square_modifier_list_ids || []).join(', ');
+  document.getElementById('menu-item-hot').checked = item.is_hot !== false;
+  document.getElementById('menu-item-iced').checked = item.is_iced === true;
+  document.getElementById('menu-item-available').checked = item.available !== false;
+  document.getElementById('menu-item-modal').classList.add('open');
+}
+
+async function saveMenuItem() {
+  try {
+    const payload = menuItemPayloadFromForm();
+    const q = editingMenuItemId
+      ? sb.from('menu_items').update(payload).eq('id', editingMenuItemId)
+      : sb.from('menu_items').insert(payload);
+    const { error } = await q;
+    if (error) throw error;
+    closeModal('menu-item-modal');
+    await loadMenuItems();
+  } catch (err) {
+    alert(err.message || 'Unable to save menu item.');
+  }
+}
+
+async function toggleMenuItemAvailability(id, nextVal) {
+  const { error } = await sb.from('menu_items').update({ available: nextVal }).eq('id', id);
+  if (error) { alert(error.message); return; }
+  await loadMenuItems();
+}
+
+async function deleteMenuItem(id) {
+  if (!confirm('Delete this menu item?')) return;
+  const { error } = await sb.from('menu_items').delete().eq('id', id);
+  if (error) { alert(error.message); return; }
+  await loadMenuItems();
+}
+
+async function loadMenuSubmissions() {
+  const tbody = document.getElementById('menu-submissions-tbody');
+  tbody.innerHTML = '<tr class="loading-row"><td colspan="7">Loading suggestions…</td></tr>';
+  const { data, error } = await sb.from('menu_submissions').select('*').order('created_at', { ascending: false }).limit(200);
+  if (error) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#ff6b6b;padding:1.25rem">${error.message}</td></tr>`;
+    return;
+  }
+  allMenuSubmissions = data || [];
+  if (!allMenuSubmissions.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gray);padding:1.5rem">No submissions yet.</td></tr>';
+    return;
+  }
+  const pill = s => s==='approved' ? 'pill-green' : s==='rejected' ? 'pill-red' : 'pill-yellow';
+  tbody.innerHTML = allMenuSubmissions.map(s => `
+    <tr>
+      <td style="color:var(--gray-mid)">${new Date(s.created_at).toLocaleDateString()}</td>
+      <td>${s.student_name || 'Student'}</td>
+      <td>${s.type === 'edit' ? 'Edit' : 'New'}</td>
+      <td><strong>${s.proposed_name || '—'}</strong></td>
+      <td style="font-size:0.78rem;color:var(--gray-mid)">${s.proposed_description || ''}<div>${s.proposed_category || ''} ${(s.proposed_is_hot?'☕':'')}${(s.proposed_is_iced?'🧊':'')}</div>${s.notes ? `<div>Note: ${s.notes}</div>` : ''}</td>
+      <td><span class="pill ${pill(s.status)}">${s.status || 'pending'}</span></td>
+      <td>
+        <button class="btn btn-success btn-sm" ${s.status !== 'pending' ? 'disabled' : ''} onclick="approveMenuSubmission('${s.id}')">Approve</button>
+        <button class="btn btn-danger btn-sm" ${s.status !== 'pending' ? 'disabled' : ''} onclick="rejectMenuSubmission('${s.id}')">Reject</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function approveMenuSubmission(id) {
+  const sub = allMenuSubmissions.find(s => s.id === id);
+  if (!sub) return;
+  const adminNote = prompt('Optional note to student (shown in their submission history):', '') || '';
+
+  let applyError = null;
+  if (sub.type === 'edit' && sub.target_item_id) {
+    const payload = {
+      name: sub.proposed_name,
+      description: sub.proposed_description,
+      category: sub.proposed_category,
+      is_hot: sub.proposed_is_hot,
+      is_iced: sub.proposed_is_iced,
+    };
+    const { error } = await sb.from('menu_items').update(payload).eq('id', sub.target_item_id);
+    applyError = error;
+  } else {
+    const maxSort = Math.max(0, ...allMenuItems.map(i => i.sort_order || 0));
+    const payload = {
+      name: sub.proposed_name,
+      description: sub.proposed_description,
+      category: sub.proposed_category || 'Coffee',
+      is_hot: sub.proposed_is_hot !== false,
+      is_iced: sub.proposed_is_iced === true,
+      available: true,
+      base_price: '0.00',
+      base_price_cents: 0,
+      sort_order: maxSort + 1,
+      square_modifier_list_ids: [],
+    };
+    const { error } = await sb.from('menu_items').insert(payload);
+    applyError = error;
+  }
+  if (applyError) { alert(`Unable to apply submission: ${applyError.message}`); return; }
+
+  const { error: statusErr } = await sb.from('menu_submissions').update({ status: 'approved', admin_note: adminNote }).eq('id', id);
+  if (statusErr) { alert(statusErr.message); return; }
+  await loadMenuSection();
+}
+
+async function rejectMenuSubmission(id) {
+  const adminNote = prompt('Reason for rejection (shown to student):', '') || '';
+  const { error } = await sb.from('menu_submissions').update({ status: 'rejected', admin_note: adminNote }).eq('id', id);
+  if (error) { alert(error.message); return; }
+  await loadMenuSubmissions();
 }
 
 // ════════════════════════════════════

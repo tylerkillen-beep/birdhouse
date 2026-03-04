@@ -134,10 +134,16 @@
 
   <script>
     const sb = supabase.createClient('https://ljukrhneikqbabcmcpet.supabase.co','sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn');
+    const OWNER_ADMIN_EMAIL = 'tylerkillen@nixaschools.net';
+
+    function isOwnerAdmin(user) {
+      return (user?.email || '').toLowerCase() === OWNER_ADMIN_EMAIL;
+    }
 
     // If already logged in as admin, go straight to dashboard
     sb.auth.getSession().then(({data}) => {
-      if(data.session?.user?.user_metadata?.role === 'admin') {
+      const user = data.session?.user;
+      if (user && (isOwnerAdmin(user) || user.user_metadata?.role === 'admin')) {
         window.location.href = 'index.html';
       }
     });
@@ -158,7 +164,7 @@
         btn.disabled = false; btn.textContent = 'Sign In →'; return;
       }
 
-      if(data.user?.user_metadata?.role !== 'admin') {
+      if(!isOwnerAdmin(data.user) && data.user?.user_metadata?.role !== 'admin') {
         await sb.auth.signOut();
         msg.textContent = 'This account does not have admin access.';
         msg.className = 'msg error';
