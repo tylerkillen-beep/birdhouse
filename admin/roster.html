@@ -14,6 +14,9 @@
       --card:#141414; --border:rgba(204,0,0,0.18); --border-dim:rgba(255,255,255,0.07);
     }
     body { background:var(--black); color:var(--white); font-family:'DM Sans',sans-serif; min-height:100vh; }
+    body.auth-pending .layout { display:none; }
+    .auth-gate { display:none; position:fixed; inset:0; align-items:center; justify-content:center; background:var(--black); color:var(--light-gray); letter-spacing:0.08em; text-transform:uppercase; font-size:0.72rem; z-index:9999; }
+    body.auth-pending .auth-gate { display:flex; }
     body::before { content:''; position:fixed; inset:0; background-image:linear-gradient(rgba(204,0,0,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(204,0,0,0.03) 1px,transparent 1px); background-size:40px 40px; pointer-events:none; }
 
     .layout { display:grid; grid-template-columns:240px 1fr; min-height:100vh; }
@@ -129,7 +132,8 @@
     @media(max-width:1100px){.layout{grid-template-columns:1fr}.sidebar{display:none}.main{padding:1.5rem}.import-wrap{grid-template-columns:1fr}.schedule-layout{grid-template-columns:1fr}.sched-grid{grid-template-columns:1fr 1fr}}
   </style>
 </head>
-<body>
+<body class="auth-pending">
+<div class="auth-gate">Checking access…</div>
 <div class="layout">
   <aside class="sidebar">
     <div style="margin-bottom:0.5rem"><img src="../logo.png" alt="The Birdhouse" style="height:40px;filter:drop-shadow(0 0 10px rgba(204,0,0,0.6))" /></div>
@@ -285,12 +289,31 @@
 
 <script>
   const sb = supabase.createClient('https://ljukrhneikqbabcmcpet.supabase.co','sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn');
+  const OWNER_ADMIN_EMAIL = 'tylerkillen@nixaschools.net';
   let allStudents=[], allTeams=[], parsedCSV=[], editingTeamId=null, reassigningStudentId=null;
 
   async function init() {
-    const {data:{session}} = await sb.auth.getSession();
-    if(!session||session.user.user_metadata?.role!=='admin'){window.location.href='login.html';return;}
-    await Promise.all([loadTeams(), loadAllStudents()]);
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) { window.location.href = 'login.html'; return; }
+
+      const email = (session.user.email || '').toLowerCase();
+      const isOwnerAdmin = email === OWNER_ADMIN_EMAIL;
+      const { data: student, error: studentError } = await sb.from('students').select('role').eq('id', session.user.id).single();
+      const hasStaffRole = !!student && ['admin','manager'].includes(student.role);
+      if (!isOwnerAdmin && !hasStaffRole) {
+        if (studentError) console.error('students role lookup failed', studentError);
+        await sb.auth.signOut();
+        window.location.href = 'login.html';
+        return;
+      }
+
+      document.body.classList.remove('auth-pending');
+      await Promise.all([loadTeams(), loadAllStudents()]);
+    } catch (e) {
+      await sb.auth.signOut();
+      window.location.href = 'login.html';
+    }
   }
 
   // ── CSV Import ──
