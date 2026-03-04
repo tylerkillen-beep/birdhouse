@@ -98,7 +98,7 @@
     .pill-blue { background: rgba(52,152,219,0.15); color: #5dade2; border: 1px solid rgba(52,152,219,0.2); }
 
     /* ── Section header row ── */
-    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: gap; gap: 0.75rem; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem; }
     .section-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; letter-spacing: 0.06em; color: var(--text); }
 
     /* ── Search/filter bar ── */
@@ -138,6 +138,85 @@
 
     /* ── Loading ── */
     .loading-row td { text-align: center; color: var(--gray); padding: 2.5rem; }
+
+    /* ════════════════════════════════════
+       SCHEDULE SECTION STYLES
+       ════════════════════════════════════ */
+
+    /* Week nav */
+    .sched-week-nav { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.75rem; flex-wrap: wrap; }
+    .sched-week-btn { background: none; border: 1px solid var(--border); border-radius: 7px; padding: 0.45rem 1rem; color: var(--gray-mid); cursor: pointer; font-size: 0.83rem; transition: all 0.15s; font-family: 'DM Sans', sans-serif; }
+    .sched-week-btn:hover { border-color: var(--gray); color: var(--text); }
+    .sched-week-label { font-size: 1rem; color: var(--text); font-weight: 500; }
+    .sched-week-status { font-size: 0.68rem; padding: 0.2rem 0.65rem; border-radius: 20px; }
+    .sched-status-published { background: rgba(39,174,96,0.12); color: #4cd07d; border: 1px solid rgba(39,174,96,0.2); }
+    .sched-status-draft { background: rgba(230,126,34,0.1); color: #f0a044; border: 1px solid rgba(230,126,34,0.2); }
+
+    /* Suggest banner */
+    .sched-suggest-banner { background: rgba(200,169,110,0.06); border: 1px solid rgba(200,169,110,0.15); border-radius: 12px; padding: 1rem 1.4rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+    .sched-suggest-text { font-size: 0.85rem; color: var(--gray-mid); }
+    .sched-suggest-text strong { color: var(--text); }
+
+    /* Unassigned pool */
+    .sched-pool { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.1rem 1.4rem; margin-bottom: 1.5rem; }
+    .sched-pool-title { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--gray); margin-bottom: 0.85rem; }
+    .sched-pool-teams { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .sched-pool-chip { border-radius: 8px; padding: 0.4rem 0.85rem; font-size: 0.81rem; font-weight: 500; cursor: pointer; transition: all 0.15s; border: 1.5px solid rgba(255,255,255,0.08); }
+    .sched-pool-chip:hover { transform: translateY(-1px); }
+    .sched-pool-chip.selected { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    /* Periods grid */
+    .sched-periods-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.5rem; }
+    @media (max-width: 1100px) { .sched-periods-grid { grid-template-columns: 1fr; } }
+    .sched-period-section { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .sched-period-header { padding: 0.8rem 1.2rem; border-bottom: 1px solid var(--border-dim); display: flex; align-items: center; justify-content: space-between; }
+    .sched-period-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.2rem; letter-spacing: 0.05em; }
+    .sched-period-title.first { color: #f0a044; }
+    .sched-period-title.sixth { color: #5dade2; }
+
+    /* Role columns */
+    .sched-roles-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
+    .sched-role-col { border-right: 1px solid var(--border-dim); }
+    .sched-role-col:last-child { border-right: none; }
+    .sched-role-header { padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border-dim); text-align: center; background: #0d0d0d; }
+    .sched-role-icon { font-size: 1rem; display: block; margin-bottom: 0.1rem; }
+    .sched-role-name { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gray); }
+    .sched-role-days { font-size: 0.56rem; color: #444; margin-top: 0.1rem; }
+    .sched-role-body { padding: 0.65rem 0.7rem; min-height: 80px; }
+
+    /* Team assignment card */
+    .sched-team-card { border-radius: 7px; padding: 0.55rem 0.7rem; margin-bottom: 0.45rem; position: relative; border: 1px solid transparent; transition: all 0.15s; }
+    .sched-team-card-name { font-size: 0.8rem; font-weight: 600; }
+    .sched-team-card-meta { font-size: 0.66rem; color: var(--gray); margin-top: 0.15rem; }
+    .sched-team-card-pos { font-size: 0.66rem; color: var(--accent); cursor: pointer; margin-left: 0.3rem; }
+    .sched-team-card-pos:hover { text-decoration: underline; }
+    .sched-remove-btn { position: absolute; top: 0.3rem; right: 0.3rem; background: none; border: none; color: rgba(255,255,255,0.2); cursor: pointer; font-size: 0.72rem; transition: color 0.15s; padding: 0; line-height: 1; }
+    .sched-remove-btn:hover { color: var(--danger); }
+    .sched-drop-zone { border: 2px dashed rgba(255,255,255,0.07); border-radius: 7px; padding: 0.55rem; text-align: center; font-size: 0.7rem; color: rgba(255,255,255,0.18); cursor: pointer; transition: all 0.15s; min-height: 40px; display: flex; align-items: center; justify-content: center; }
+    .sched-drop-zone:hover { border-color: rgba(200,169,110,0.3); color: var(--accent); background: rgba(200,169,110,0.04); }
+
+    /* Confirm bar */
+    .sched-confirm-bar { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.4rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+    .sched-confirm-text { font-size: 0.84rem; color: var(--gray-mid); }
+    .sched-msg { padding: 0.7rem 1rem; border-radius: 8px; font-size: 0.81rem; display: none; margin-top: 0.5rem; }
+    .sched-msg.success { background: rgba(39,174,96,0.08); border: 1px solid rgba(39,174,96,0.2); color: #4cd07d; display: block; }
+    .sched-msg.error { background: rgba(192,57,43,0.08); border: 1px solid rgba(192,57,43,0.2); color: #e05a4a; display: block; }
+
+    /* Position modal */
+    .pos-modal-inner { background: #111; border: 1px solid var(--border); border-radius: 16px; padding: 0; width: 700px; max-width: 95vw; max-height: 85vh; overflow-y: auto; position: relative; }
+    .pos-modal-header { padding: 1.4rem 1.6rem; border-bottom: 1px solid var(--border-dim); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: #111; z-index: 1; }
+    .pos-modal-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 0.05em; }
+    .pos-modal-body { padding: 1.4rem 1.6rem; }
+    .pos-day { margin-bottom: 1.25rem; }
+    .pos-day-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.6rem; }
+    .pos-day-name { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gray-mid); font-weight: 500; min-width: 80px; }
+    .pos-day-date { font-size: 0.67rem; color: var(--gray); }
+    .pos-students-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.45rem; }
+    .pos-row { display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.025); border: 1px solid var(--border-dim); border-radius: 7px; padding: 0.45rem 0.7rem; }
+    .pos-student-name { font-size: 0.83rem; }
+    .pos-select { background: #0d0d0d; border: 1px solid var(--border-dim); border-radius: 5px; padding: 0.28rem 0.45rem; color: var(--text); font-size: 0.76rem; font-family: 'DM Sans', sans-serif; outline: none; }
+    .pos-select:focus { border-color: var(--accent); }
+    .pos-modal-footer { padding: 1rem 1.6rem 1.4rem; border-top: 1px solid var(--border-dim); display: flex; gap: 0.75rem; justify-content: flex-end; }
   </style>
 </head>
 <body>
@@ -253,8 +332,55 @@
 
   <!-- ── SCHEDULE ── -->
   <div class="section-panel" id="section-schedule">
-    <div class="page-header"><h1>Schedule</h1><p>Manage delivery windows</p></div>
-    <div class="empty-state"><div class="empty-icon">📅</div>Schedule builder coming soon.</div>
+    <div class="page-header">
+      <div style="display:flex;align-items:baseline;gap:1rem;flex-wrap:wrap">
+        <h1 style="margin-bottom:0">Schedule</h1>
+        <span class="sched-week-status sched-status-draft" id="sched-status-badge">Draft</span>
+      </div>
+      <p>Assign teams to roles for the week. Select a team from the pool, then click a role slot to assign.</p>
+    </div>
+
+    <!-- Week Navigation -->
+    <div class="sched-week-nav">
+      <button class="sched-week-btn" onclick="schedChangeWeek(-1)">← Prev Week</button>
+      <span class="sched-week-label" id="sched-week-label">—</span>
+      <button class="sched-week-btn" onclick="schedChangeWeek(1)">Next Week →</button>
+      <button class="sched-week-btn" onclick="schedWeekOffset=0;schedLoadWeek()" style="margin-left:auto">This Week</button>
+    </div>
+
+    <!-- Rotation Suggestion Banner -->
+    <div class="sched-suggest-banner" id="sched-suggest-banner" style="display:none">
+      <div class="sched-suggest-text">
+        <strong>Suggested rotation ready</strong> — based on last week's assignments. Review and confirm, or adjust manually.
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="schedApplySuggestion()">Apply Suggestion →</button>
+    </div>
+
+    <!-- Unassigned Pool -->
+    <div class="sched-pool">
+      <div class="sched-pool-title">Unassigned Teams — select a team, then click a role slot to assign</div>
+      <div class="sched-pool-teams" id="sched-pool-teams">
+        <span style="color:var(--gray);font-size:0.82rem">Loading…</span>
+      </div>
+    </div>
+
+    <!-- Periods Grid -->
+    <div class="sched-periods-grid" id="sched-periods-grid">
+      <!-- populated by JS -->
+    </div>
+
+    <!-- Confirm Bar -->
+    <div class="sched-confirm-bar">
+      <div class="sched-confirm-text" id="sched-confirm-text">Assign all teams to publish this week's schedule.</div>
+      <div style="display:flex;gap:0.6rem">
+        <button class="btn btn-ghost btn-sm" onclick="schedClearWeek()">Clear Week</button>
+        <button class="btn btn-primary btn-sm" id="sched-confirm-btn" onclick="schedConfirmWeek()">✓ Confirm & Publish</button>
+      </div>
+    </div>
+    <div class="sched-msg" id="sched-msg"></div>
+    <div style="margin-top:0.6rem">
+      <button onclick="schedBackfillPositions()" style="background:none;border:none;color:var(--gray);font-size:0.76rem;cursor:pointer;font-family:'DM Sans',sans-serif;text-decoration:underline">Re-run auto-assign positions for this week</button>
+    </div>
   </div>
 
   <!-- ── STAFF ── -->
@@ -279,7 +405,7 @@
   </div>
 
   <!-- ── SCORE RUBRIC ── -->
-  <div class="section-panel" id="section-rubric">
+  <div class="section-panel" id="section-scores">
     <div class="page-header"><h1>Score Rubric</h1><p>Manage scoring categories for staff evaluation</p></div>
     <div class="section-header">
       <div class="section-title">Rubric Categories</div>
@@ -332,13 +458,7 @@
       <table>
         <thead>
           <tr>
-            <th>Customer</th>
-            <th>Plan</th>
-            <th>Status</th>
-            <th>Next Billing</th>
-            <th>Drinks/Wk</th>
-            <th>Started</th>
-            <th>Actions</th>
+            <th>Customer</th><th>Plan</th><th>Status</th><th>Next Billing</th><th>Drinks/Wk</th><th>Started</th><th>Actions</th>
           </tr>
         </thead>
         <tbody id="sub-tbody"><tr class="loading-row"><td colspan="7">Loading…</td></tr></tbody>
@@ -372,13 +492,7 @@
       <table>
         <thead>
           <tr>
-            <th>Name</th>
-            <th>Price / Wk</th>
-            <th>Drinks / Wk</th>
-            <th>Modifiers</th>
-            <th>Active</th>
-            <th>Subscribers</th>
-            <th>Actions</th>
+            <th>Name</th><th>Price / Wk</th><th>Drinks / Wk</th><th>Modifiers</th><th>Active</th><th>Subscribers</th><th>Actions</th>
           </tr>
         </thead>
         <tbody id="plans-tbody"><tr class="loading-row"><td colspan="7">Loading…</td></tr></tbody>
@@ -482,6 +596,24 @@
   </div>
 </div>
 
+<!-- Position Assignment Modal (Schedule) -->
+<div class="modal-overlay" id="sched-pos-modal">
+  <div class="pos-modal-inner">
+    <div class="pos-modal-header">
+      <div>
+        <div class="pos-modal-title" id="sched-pos-modal-title">Assign Positions</div>
+        <div style="font-size:0.76rem;color:var(--gray);margin-top:0.15rem" id="sched-pos-modal-sub"></div>
+      </div>
+      <button class="modal-close" onclick="schedClosePosModal()">✕</button>
+    </div>
+    <div class="pos-modal-body" id="sched-pos-modal-body"></div>
+    <div class="pos-modal-footer">
+      <button class="btn btn-ghost" onclick="schedClosePosModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="schedSavePositions()">Save Positions</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = 'YOUR_SUPABASE_URL';
 const SUPABASE_ANON = 'YOUR_SUPABASE_ANON_KEY';
@@ -497,13 +629,14 @@ let editingPlanId = null;
 let editingRubricId = null;
 let adminScoreWeekOffset = 0;
 
-// ── Auth ───────────────────────────────────────────────────────────────────
+// ════════════════════════════════════
+// Auth
+// ════════════════════════════════════
 async function init() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { window.location.href = 'login.html'; return; }
   currentUser = session.user;
 
-  // Verify admin role
   const { data: student } = await sb.from('students').select('role,first_name,last_name').eq('id', currentUser.id).single();
   if (!student || !['admin','manager'].includes(student.role)) {
     alert('Access denied.'); await sb.auth.signOut(); window.location.href = 'login.html'; return;
@@ -511,7 +644,6 @@ async function init() {
 
   document.getElementById('admin-name').textContent = `${student.first_name} ${student.last_name}`;
   document.getElementById('admin-email').textContent = currentUser.email;
-
   document.getElementById('dash-date').textContent = new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
 
   await loadDashboard();
@@ -521,28 +653,32 @@ async function init() {
 
 async function signOut() { await sb.auth.signOut(); window.location.href = 'login.html'; }
 
-// ── Navigation ─────────────────────────────────────────────────────────────
+// ════════════════════════════════════
+// Navigation
+// ════════════════════════════════════
 function showSection(id) {
   document.querySelectorAll('.section-panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('section-' + id)?.classList.add('active');
   document.getElementById('nav-' + id)?.classList.add('active');
 
-  // Lazy-load section data
   const loaders = {
     orders: loadOrders,
     staff: loadStaff,
-    rubric: loadRubric,
+    scores: loadRubric,
     'manager-scores': () => loadAdminScores(0),
     subscriptions: loadSubscriptions,
     customers: loadCustomers,
     plans: loadPlans,
     dashboard: loadDashboard,
+    schedule: schedInit,
   };
   if (loaders[id]) loaders[id]();
 }
 
-// ── Dashboard ──────────────────────────────────────────────────────────────
+// ════════════════════════════════════
+// Dashboard
+// ════════════════════════════════════
 async function loadDashboard() {
   const today = new Date().toISOString().slice(0,10);
   const [{ data: ordersToday }, { data: subscribers }, { data: pending }, { data: recentOrders }] = await Promise.all([
@@ -570,7 +706,9 @@ async function loadDashboard() {
     </tr>`).join('');
 }
 
-// ── Orders ─────────────────────────────────────────────────────────────────
+// ════════════════════════════════════
+// Orders
+// ════════════════════════════════════
 async function loadOrders() {
   const { data } = await sb.from('orders').select('*').order('created_at', { ascending: false }).limit(200);
   allOrders = data || [];
@@ -623,7 +761,9 @@ async function loadOrdersBadge() {
   if (count > 0) { badge.textContent = count; badge.style.display = 'inline-block'; }
 }
 
-// ── Staff / Approvals ──────────────────────────────────────────────────────
+// ════════════════════════════════════
+// Staff / Approvals
+// ════════════════════════════════════
 async function loadStaff() {
   const [{ data: pending }, { data: active }] = await Promise.all([
     sb.from('students').select('*').is('role', null).order('created_at'),
@@ -687,7 +827,9 @@ async function loadPendingBadge() {
   if (count > 0) { badge.textContent = count; badge.style.display = 'inline-block'; } else { badge.style.display = 'none'; }
 }
 
-// ── Rubric ─────────────────────────────────────────────────────────────────
+// ════════════════════════════════════
+// Rubric
+// ════════════════════════════════════
 async function loadRubric() {
   const { data } = await sb.from('score_rubric').select('*').order('sort_order');
   allRubric = data || [];
@@ -755,7 +897,9 @@ async function deleteRubricCategory(id) {
   loadRubric();
 }
 
-// ── Manager Scores ─────────────────────────────────────────────────────────
+// ════════════════════════════════════
+// Manager Scores
+// ════════════════════════════════════
 async function loadAdminScores(offsetDelta) {
   if (offsetDelta !== undefined) adminScoreWeekOffset += offsetDelta;
   const now = new Date();
@@ -812,14 +956,15 @@ async function loadAdminScores(offsetDelta) {
   </table></div>`;
 }
 
-// ── Subscriptions ──────────────────────────────────────────────────────────
+// ════════════════════════════════════
+// Subscriptions
+// ════════════════════════════════════
 async function loadSubscriptions() {
   const { data } = await sb.from('subscriptions')
     .select('*, plans(name,price_cents,drinks_per_week), students(first_name,last_name,email)')
     .order('created_at', { ascending: false });
   allSubscriptions = data || [];
 
-  // Stats
   const active    = allSubscriptions.filter(s => s.status === 'active').length;
   const paused    = allSubscriptions.filter(s => s.status === 'paused').length;
   const cancelled = allSubscriptions.filter(s => s.status === 'cancelled').length;
@@ -830,7 +975,6 @@ async function loadSubscriptions() {
   document.getElementById('sub-stat-cancelled').textContent = cancelled;
   document.getElementById('sub-stat-mrr').textContent       = '$' + (mrr / 100).toFixed(2);
 
-  // Populate plan filter
   const planFilter = document.getElementById('sub-plan-filter');
   const planNames = [...new Set(allSubscriptions.map(s => s.plans?.name).filter(Boolean))];
   planFilter.innerHTML = '<option value="">All Plans</option>' + planNames.map(n => `<option value="${n}">${n}</option>`).join('');
@@ -880,48 +1024,36 @@ function renderSubscriptions(list) {
 function openSubActionModal(id, status, name) {
   document.getElementById('sub-modal-title').textContent = `Manage: ${name}`;
   document.getElementById('sub-modal-body').textContent = `Current status: ${status}`;
-
   const actions = document.getElementById('sub-modal-actions');
   actions.innerHTML = '';
-
   const cancel = document.createElement('button');
-  cancel.className = 'btn btn-ghost';
-  cancel.textContent = 'Close';
+  cancel.className = 'btn btn-ghost'; cancel.textContent = 'Close';
   cancel.onclick = () => closeModal('sub-action-modal');
   actions.appendChild(cancel);
-
   if (status === 'active') {
     const pauseBtn = document.createElement('button');
-    pauseBtn.className = 'btn btn-ghost';
-    pauseBtn.textContent = 'Pause Subscription';
+    pauseBtn.className = 'btn btn-ghost'; pauseBtn.textContent = 'Pause Subscription';
     pauseBtn.onclick = () => updateSubStatus(id, 'paused');
     actions.appendChild(pauseBtn);
-
     const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'btn btn-danger';
-    cancelBtn.textContent = 'Cancel Subscription';
+    cancelBtn.className = 'btn btn-danger'; cancelBtn.textContent = 'Cancel Subscription';
     cancelBtn.onclick = () => updateSubStatus(id, 'cancelled');
     actions.appendChild(cancelBtn);
   } else if (status === 'paused') {
     const resumeBtn = document.createElement('button');
-    resumeBtn.className = 'btn btn-success';
-    resumeBtn.textContent = 'Resume Subscription';
+    resumeBtn.className = 'btn btn-success'; resumeBtn.textContent = 'Resume Subscription';
     resumeBtn.onclick = () => updateSubStatus(id, 'active');
     actions.appendChild(resumeBtn);
-
     const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'btn btn-danger';
-    cancelBtn.textContent = 'Cancel Subscription';
+    cancelBtn.className = 'btn btn-danger'; cancelBtn.textContent = 'Cancel Subscription';
     cancelBtn.onclick = () => updateSubStatus(id, 'cancelled');
     actions.appendChild(cancelBtn);
   } else if (status === 'cancelled') {
     const reactivateBtn = document.createElement('button');
-    reactivateBtn.className = 'btn btn-success';
-    reactivateBtn.textContent = 'Reactivate';
+    reactivateBtn.className = 'btn btn-success'; reactivateBtn.textContent = 'Reactivate';
     reactivateBtn.onclick = () => updateSubStatus(id, 'active');
     actions.appendChild(reactivateBtn);
   }
-
   document.getElementById('sub-action-modal').classList.add('open');
 }
 
@@ -931,7 +1063,9 @@ async function updateSubStatus(id, newStatus) {
   loadSubscriptions();
 }
 
-// ── Customers ──────────────────────────────────────────────────────────────
+// ════════════════════════════════════
+// Customers
+// ════════════════════════════════════
 async function loadCustomers() {
   const { data } = await sb.from('profiles').select('*').order('created_at', { ascending: false }).limit(300);
   const tbody = document.getElementById('customers-tbody');
@@ -946,18 +1080,15 @@ async function loadCustomers() {
     </tr>`).join('');
 }
 
-// ── Plan Manager ───────────────────────────────────────────────────────────
+// ════════════════════════════════════
+// Plan Manager
+// ════════════════════════════════════
 async function loadPlans() {
   const { data: plans } = await sb.from('plans').select('*').order('sort_order');
   allPlans = plans || [];
-
-  // Get subscriber counts per plan
-  const { data: subCounts } = await sb.from('subscriptions')
-    .select('plan_id')
-    .eq('status', 'active');
+  const { data: subCounts } = await sb.from('subscriptions').select('plan_id').eq('status', 'active');
   const countByPlan = {};
   (subCounts||[]).forEach(s => { countByPlan[s.plan_id] = (countByPlan[s.plan_id]||0) + 1; });
-
   renderPlanCards(allPlans, countByPlan);
   renderPlansTable(allPlans, countByPlan);
 }
@@ -1010,12 +1141,8 @@ function renderPlansTable(plans, countByPlan) {
 function openAddPlanModal() {
   editingPlanId = null;
   document.getElementById('plan-modal-title').textContent = 'New Plan';
-  document.getElementById('plan-name').value = '';
-  document.getElementById('plan-price').value = '';
-  document.getElementById('plan-drinks').value = '';
+  ['plan-name','plan-price','plan-drinks','plan-desc','plan-modifiers'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('plan-sort').value = allPlans.length + 1;
-  document.getElementById('plan-desc').value = '';
-  document.getElementById('plan-modifiers').value = '';
   document.getElementById('plan-active').checked = true;
   document.getElementById('plan-modal').classList.add('open');
 }
@@ -1036,32 +1163,21 @@ function openEditPlanModal(id) {
 }
 
 async function savePlan() {
-  const name     = document.getElementById('plan-name').value.trim();
-  const price    = parseFloat(document.getElementById('plan-price').value);
-  const drinks   = parseInt(document.getElementById('plan-drinks').value);
-  const sort     = parseInt(document.getElementById('plan-sort').value) || 1;
-  const desc     = document.getElementById('plan-desc').value.trim();
-  const mods     = document.getElementById('plan-modifiers').value.trim();
-  const active   = document.getElementById('plan-active').checked;
-
+  const name   = document.getElementById('plan-name').value.trim();
+  const price  = parseFloat(document.getElementById('plan-price').value);
+  const drinks = parseInt(document.getElementById('plan-drinks').value);
+  const sort   = parseInt(document.getElementById('plan-sort').value) || 1;
+  const desc   = document.getElementById('plan-desc').value.trim();
+  const mods   = document.getElementById('plan-modifiers').value.trim();
+  const active = document.getElementById('plan-active').checked;
   if (!name) { alert('Plan name is required.'); return; }
   if (isNaN(price) || price < 0) { alert('Enter a valid price.'); return; }
   if (isNaN(drinks) || drinks < 1) { alert('Enter a valid drinks per week.'); return; }
-
-  const payload = {
-    name, price_cents: Math.round(price * 100), drinks_per_week: drinks,
-    sort_order: sort, description: desc, allowed_modifiers: mods, active,
-  };
-
+  const payload = { name, price_cents: Math.round(price * 100), drinks_per_week: drinks, sort_order: sort, description: desc, allowed_modifiers: mods, active };
   const btn = document.getElementById('plan-save-btn');
   btn.disabled = true; btn.textContent = 'Saving…';
-
-  if (editingPlanId) {
-    await sb.from('plans').update(payload).eq('id', editingPlanId);
-  } else {
-    await sb.from('plans').insert(payload);
-  }
-
+  if (editingPlanId) { await sb.from('plans').update(payload).eq('id', editingPlanId); }
+  else { await sb.from('plans').insert(payload); }
   btn.disabled = false; btn.textContent = 'Save Plan';
   closeModal('plan-modal');
   loadPlans();
@@ -1069,31 +1185,394 @@ async function savePlan() {
 
 async function deletePlan(id) {
   const { count } = await sb.from('subscriptions').select('id', { count:'exact', head:true }).eq('plan_id', id).eq('status','active');
-  if (count > 0) { alert(`Cannot delete — this plan has ${count} active subscriber(s). Cancel or move them first.`); return; }
+  if (count > 0) { alert(`Cannot delete — this plan has ${count} active subscriber(s).`); return; }
   if (!confirm('Delete this plan?')) return;
   await sb.from('plans').delete().eq('id', id);
   loadPlans();
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+// ════════════════════════════════════
+// SCHEDULE
+// ════════════════════════════════════
+const SCHED_ROLES = [
+  { key:'birdhouse', label:'Birdhouse', icon:'🏠', days:'M–F',       hasPositions:true  },
+  { key:'mathews',   label:'Mathews',   icon:'🏫', days:'M/W/F',     hasPositions:true  },
+  { key:'menu',      label:'Menu Prep', icon:'📋', days:'In Class',  hasPositions:false },
+  { key:'inclass',   label:'In Class',  icon:'📚', days:'All week',  hasPositions:false },
+];
+const BIRDHOUSE_POSITIONS = ['cashier','barista','stocker','custodian'];
+const MATHEWS_POSITIONS   = ['deliverer','barista','stocker','custodian'];
+const POSITION_LABELS     = { cashier:'Cashier', barista:'Barista', stocker:'Stocker', custodian:'Custodian', deliverer:'Deliverer' };
+
+let schedWeekOffset  = 0;
+let schedTeams       = [];
+let schedAssignments = {};
+let schedSelected    = null;
+let schedPosData     = null;
+let schedInitialized = false;
+
+async function schedInit() {
+  if (!schedInitialized) {
+    await schedLoadTeams();
+    schedInitialized = true;
+  }
+  await schedLoadWeek();
+}
+
+function schedGetMonday(offset = 0) {
+  const today = new Date();
+  const day = today.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() + diff + (offset * 7));
+  monday.setHours(0,0,0,0);
+  return monday;
+}
+
+function schedFmtDate(d) { return d.toISOString().split('T')[0]; }
+function schedAddDays(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
+
+async function schedLoadTeams() {
+  const { data } = await sb.from('teams').select('*,students(id,first_name,last_name)').order('name');
+  schedTeams = data || [];
+}
+
+async function schedLoadWeek() {
+  const monday = schedGetMonday(schedWeekOffset);
+  const friday = schedAddDays(monday, 4);
+  document.getElementById('sched-week-label').textContent =
+    `Week of ${monday.toLocaleDateString('en-US',{month:'short',day:'numeric'})} – ${friday.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`;
+
+  const { data: rows } = await sb.from('weekly_assignments').select('*').eq('week_start', schedFmtDate(monday));
+  schedAssignments = {};
+  const allConfirmed = rows?.length > 0 && rows.every(r => r.confirmed);
+  (rows||[]).forEach(r => { schedAssignments[r.team_id] = { ...r }; });
+
+  const badge = document.getElementById('sched-status-badge');
+  if (allConfirmed && rows?.length > 0) {
+    badge.textContent = 'Published'; badge.className = 'sched-week-status sched-status-published';
+  } else {
+    badge.textContent = 'Draft'; badge.className = 'sched-week-status sched-status-draft';
+  }
+
+  document.getElementById('sched-suggest-banner').style.display =
+    Object.keys(schedAssignments).length === 0 ? 'flex' : 'none';
+
+  schedRenderPool();
+  schedRenderPeriods();
+}
+
+function schedGetTeamRole(teamId) {
+  return schedAssignments[teamId]?.role || null;
+}
+
+function schedRenderPool() {
+  const pool = document.getElementById('sched-pool-teams');
+  const unassigned = schedTeams.filter(t => !schedGetTeamRole(t.id));
+  if (!unassigned.length) {
+    pool.innerHTML = '<span style="color:#4cd07d;font-size:0.82rem">✓ All teams assigned for this week</span>';
+    return;
+  }
+  pool.innerHTML = unassigned.map(t => `
+    <div class="sched-pool-chip ${schedSelected?.id === t.id ? 'selected' : ''}"
+      style="background:${t.color}18;color:${t.color};border-color:${t.color}33"
+      onclick="schedSelectTeam('${t.id}')">
+      ${t.name}
+      <span style="font-size:0.65rem;opacity:0.6;margin-left:0.25rem">${t.period === '1st Hour' ? '1st' : '6th'}</span>
+    </div>`).join('');
+}
+
+function schedSelectTeam(teamId) {
+  schedSelected = schedSelected?.id === teamId ? null : schedTeams.find(t => t.id === teamId);
+  schedRenderPool();
+}
+
+function schedRenderPeriods() {
+  const grid = document.getElementById('sched-periods-grid');
+  grid.innerHTML = ['1st Hour','6th Hour'].map(period => {
+    const periodTeams = schedTeams.filter(t => t.period === period);
+    const titleClass = period === '1st Hour' ? 'first' : 'sixth';
+    return `<div class="sched-period-section">
+      <div class="sched-period-header">
+        <div class="sched-period-title ${titleClass}">${period}</div>
+        <div style="font-size:0.72rem;color:var(--gray)">${periodTeams.length} team${periodTeams.length !== 1 ? 's' : ''}</div>
+      </div>
+      <div class="sched-roles-grid">
+        ${SCHED_ROLES.map(role => `
+          <div class="sched-role-col">
+            <div class="sched-role-header">
+              <span class="sched-role-icon">${role.icon}</span>
+              <div class="sched-role-name">${role.label}</div>
+              <div class="sched-role-days">${role.days}</div>
+            </div>
+            <div class="sched-role-body">
+              ${schedRenderRoleBody(period, role, periodTeams)}
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function schedRenderRoleBody(period, role, periodTeams) {
+  const assigned = periodTeams.filter(t => schedGetTeamRole(t.id) === role.key);
+  let html = assigned.map(t => `
+    <div class="sched-team-card" style="background:${t.color}12;border-color:${t.color}25">
+      <button class="sched-remove-btn" onclick="schedUnassign('${t.id}',event)">✕</button>
+      <div class="sched-team-card-name" style="color:${t.color}">${t.name}</div>
+      <div class="sched-team-card-meta">
+        ${(t.students||[]).length} students
+        ${role.hasPositions ? `<span class="sched-team-card-pos" onclick="schedOpenPosModal('${t.id}','${role.key}',event)">· Set positions</span>` : ''}
+      </div>
+    </div>`).join('');
+
+  const menuTaken = role.key === 'menu' && schedTeams.some(t => schedGetTeamRole(t.id) === 'menu');
+  html += `<div class="sched-drop-zone" onclick="schedAssignToRole('${period}','${role.key}')">
+    ${menuTaken ? '<span style="color:var(--gray);font-size:0.68rem">1 team max</span>' : '+ Assign'}
+  </div>`;
+  return html;
+}
+
+function schedAssignToRole(period, roleKey) {
+  if (!schedSelected) { alert('Select a team from the pool above first.'); return; }
+  if (schedSelected.period !== period) {
+    alert(`${schedSelected.name} is a ${schedSelected.period} team — assign it to the ${schedSelected.period} column.`); return;
+  }
+  if (roleKey === 'menu' && schedTeams.some(t => schedGetTeamRole(t.id) === 'menu')) {
+    alert('Only one team per week can be on Menu Prep.'); return;
+  }
+  const monday = schedGetMonday(schedWeekOffset);
+  schedAssignments[schedSelected.id] = {
+    team_id: schedSelected.id, week_start: schedFmtDate(monday), role: roleKey, confirmed: false, _local: true
+  };
+  schedSelected = null;
+  schedRenderPool();
+  schedRenderPeriods();
+}
+
+function schedUnassign(teamId, e) {
+  e.stopPropagation();
+  delete schedAssignments[teamId];
+  if (schedSelected?.id === teamId) schedSelected = null;
+  schedRenderPool();
+  schedRenderPeriods();
+}
+
+function schedApplySuggestion() {
+  const cycleMap = { birdhouse:'mathews', mathews:'menu', menu:'inclass', inclass:'birdhouse', null:'birdhouse' };
+  const monday = schedGetMonday(schedWeekOffset);
+  schedTeams.forEach(t => {
+    const nextRole = cycleMap[t.last_role || null] || 'birdhouse';
+    schedAssignments[t.id] = { team_id:t.id, week_start:schedFmtDate(monday), role:nextRole, confirmed:false, _local:true };
+  });
+  document.getElementById('sched-suggest-banner').style.display = 'none';
+  schedRenderPool();
+  schedRenderPeriods();
+}
+
+// ── Position Modal ──
+async function schedOpenPosModal(teamId, roleKey, e) {
+  e?.stopPropagation();
+  const team = schedTeams.find(t => t.id === teamId);
+  if (!team) return;
+  const students = team.students || [];
+  if (!students.length) { alert('No students assigned to this team yet.'); return; }
+  const monday = schedGetMonday(schedWeekOffset);
+
+  let workingDays = [];
+  if (roleKey === 'birdhouse') workingDays = [0,1,2,3,4].map(i => ({ date: schedAddDays(monday,i), name: ['Monday','Tuesday','Wednesday','Thursday','Friday'][i] }));
+  if (roleKey === 'mathews')   workingDays = [0,2,4].map(i => ({ date: schedAddDays(monday,i), name: ['Monday','Wednesday','Friday'][i] }));
+
+  const { data: existing } = await sb.from('daily_positions').select('*')
+    .in('shift_date', workingDays.map(d => schedFmtDate(d.date)))
+    .in('student_id', students.map(s => s.id));
+  const posMap = {};
+  (existing||[]).forEach(p => { posMap[`${p.student_id}_${p.shift_date}`] = p.position; });
+
+  const posSet = roleKey === 'mathews' ? MATHEWS_POSITIONS : BIRDHOUSE_POSITIONS;
+
+  if (!existing?.length) {
+    const numStudents = students.length;
+    function buildDayRoles(posArr, count) {
+      const roles = [...posArr];
+      const overflow = [posArr[1], posArr[0], posArr[2], posArr[3]||posArr[2]];
+      let oi = 0;
+      while (roles.length < count) { roles.push(overflow[oi++ % overflow.length]); }
+      return roles;
+    }
+    const dayRoles = buildDayRoles(posSet, numStudents);
+    workingDays.forEach((d, di) => {
+      const dateStr = schedFmtDate(d.date);
+      const rotated = [...dayRoles.slice(di % numStudents), ...dayRoles.slice(0, di % numStudents)];
+      students.forEach((s, si) => { posMap[`${s.id}_${dateStr}`] = rotated[si % rotated.length]; });
+    });
+  }
+
+  schedPosData = { teamId, roleKey, team, students, workingDays, posMap, posSet };
+  document.getElementById('sched-pos-modal-title').textContent = `${team.name} — Positions`;
+  document.getElementById('sched-pos-modal-sub').textContent = `${SCHED_ROLES.find(r=>r.key===roleKey)?.label} · ${team.period}`;
+  document.getElementById('sched-pos-modal-body').innerHTML = schedBuildPosBody();
+  document.getElementById('sched-pos-modal').classList.add('open');
+}
+
+function schedBuildPosBody() {
+  const { students, workingDays, posMap, posSet } = schedPosData;
+  return workingDays.map(d => {
+    const dateStr = schedFmtDate(d.date);
+    return `<div class="pos-day">
+      <div class="pos-day-header">
+        <span class="pos-day-name">${d.name}</span>
+        <span class="pos-day-date">${d.date.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
+      </div>
+      <div class="pos-students-grid">
+        ${students.map(s => `
+          <div class="pos-row">
+            <span class="pos-student-name">${s.first_name} ${s.last_name}</span>
+            <select class="pos-select" id="sched_pos_${s.id}_${dateStr}">
+              ${posSet.map(p => `<option value="${p}" ${posMap[`${s.id}_${dateStr}`]===p?'selected':''}>${POSITION_LABELS[p]}</option>`).join('')}
+            </select>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function schedSavePositions() {
+  const { teamId, students, workingDays } = schedPosData;
+  const rows = [];
+  workingDays.forEach(d => {
+    const dateStr = schedFmtDate(d.date);
+    const assignmentId = Object.values(schedAssignments).find(a => a.team_id === teamId)?.id || null;
+    students.forEach(s => {
+      const pos = document.getElementById(`sched_pos_${s.id}_${dateStr}`)?.value;
+      if (pos) rows.push({ assignment_id: assignmentId, student_id: s.id, shift_date: dateStr, position: pos });
+    });
+  });
+  await sb.from('daily_positions').upsert(rows, { onConflict: 'student_id,shift_date' });
+  schedClosePosModal();
+  schedShowMsg('✓ Positions saved!', 'success');
+}
+
+function schedClosePosModal() { document.getElementById('sched-pos-modal').classList.remove('open'); }
+
+async function schedAutoAssignPositions(teamId, roleKey, monday) {
+  const team = schedTeams.find(t => t.id === teamId);
+  if (!team) return;
+  const students = team.students || [];
+  if (!students.length) return;
+
+  let workingDays = [];
+  if (roleKey === 'birdhouse') workingDays = [0,1,2,3,4].map(i => ({ date: schedAddDays(monday,i) }));
+  if (roleKey === 'mathews')   workingDays = [0,2,4].map(i => ({ date: schedAddDays(monday,i) }));
+  if (!workingDays.length) return;
+
+  const { data: existing } = await sb.from('daily_positions').select('id')
+    .in('shift_date', workingDays.map(d => schedFmtDate(d.date)))
+    .in('student_id', students.map(s => s.id));
+  if (existing?.length) return;
+
+  const posSet = roleKey === 'mathews' ? MATHEWS_POSITIONS : BIRDHOUSE_POSITIONS;
+  const numStudents = students.length;
+  function buildDayRoles(posArr, count) {
+    const roles = [...posArr];
+    const overflow = [posArr[1], posArr[0], posArr[2], posArr[3]||posArr[2]];
+    let oi = 0;
+    while (roles.length < count) { roles.push(overflow[oi++ % overflow.length]); }
+    return roles;
+  }
+  const dayRoles = buildDayRoles(posSet, numStudents);
+  const rows = [];
+  workingDays.forEach((d, di) => {
+    const dateStr = schedFmtDate(d.date);
+    const rotated = [...dayRoles.slice(di % numStudents), ...dayRoles.slice(0, di % numStudents)];
+    students.forEach((s, si) => {
+      rows.push({ student_id: s.id, shift_date: dateStr, position: rotated[si % rotated.length], assignment_id: null });
+    });
+  });
+  if (rows.length) await sb.from('daily_positions').upsert(rows, { onConflict: 'student_id,shift_date' });
+}
+
+async function schedConfirmWeek() {
+  const monday = schedGetMonday(schedWeekOffset);
+  const unassigned = schedTeams.filter(t => !schedGetTeamRole(t.id));
+  if (unassigned.length) {
+    if (!confirm(`${unassigned.map(t=>t.name).join(', ')} ${unassigned.length===1?'is':'are'} not assigned. Publish anyway?`)) return;
+  }
+  const btn = document.getElementById('sched-confirm-btn');
+  btn.disabled = true; btn.textContent = 'Publishing…';
+
+  const rows = Object.values(schedAssignments).map(a => ({
+    team_id: a.team_id, week_start: schedFmtDate(monday), role: a.role, confirmed: true
+  }));
+  const { error } = await sb.from('weekly_assignments').upsert(rows, { onConflict: 'team_id,week_start' });
+
+  if (!error) {
+    btn.textContent = 'Assigning positions…';
+    const posTeams = Object.values(schedAssignments).filter(a => a.role === 'birdhouse' || a.role === 'mathews');
+    await Promise.all(posTeams.map(a => schedAutoAssignPositions(a.team_id, a.role, monday)));
+    await Promise.all(Object.values(schedAssignments).map(a =>
+      sb.from('teams').update({ last_role: a.role, last_role_week: schedFmtDate(monday) }).eq('id', a.team_id)
+    ));
+    document.getElementById('sched-status-badge').textContent = 'Published';
+    document.getElementById('sched-status-badge').className = 'sched-week-status sched-status-published';
+    schedShowMsg(`✓ Schedule published! Positions auto-assigned for ${posTeams.length} team${posTeams.length!==1?'s':''}.`, 'success');
+    await schedLoadTeams();
+  } else {
+    schedShowMsg('Error publishing schedule. Please try again.', 'error');
+  }
+  btn.disabled = false; btn.textContent = '✓ Confirm & Publish';
+}
+
+async function schedBackfillPositions() {
+  const monday = schedGetMonday(schedWeekOffset);
+  const weekDates = [0,1,2,3,4].map(i => schedFmtDate(schedAddDays(monday,i)));
+  const allStudentIds = schedTeams.flatMap(t => (t.students||[]).map(s => s.id));
+  if (allStudentIds.length) {
+    await sb.from('daily_positions').delete()
+      .in('shift_date', weekDates)
+      .in('student_id', allStudentIds);
+  }
+  const posTeams = Object.values(schedAssignments).filter(a => a.role === 'birdhouse' || a.role === 'mathews');
+  await Promise.all(posTeams.map(a => schedAutoAssignPositions(a.team_id, a.role, monday)));
+  schedShowMsg(`✓ Positions re-assigned for ${posTeams.length} team(s).`, 'success');
+}
+
+async function schedClearWeek() {
+  if (!confirm('Clear all assignments for this week?')) return;
+  const monday = schedGetMonday(schedWeekOffset);
+  await sb.from('weekly_assignments').delete().eq('week_start', schedFmtDate(monday));
+  schedAssignments = {};
+  schedSelected = null;
+  await schedLoadTeams();
+  schedRenderPool();
+  schedRenderPeriods();
+}
+
+function schedChangeWeek(dir) { schedWeekOffset += dir; schedLoadWeek(); }
+
+function schedShowMsg(text, type) {
+  const m = document.getElementById('sched-msg');
+  m.textContent = text; m.className = `sched-msg ${type}`;
+  setTimeout(() => { m.className = 'sched-msg'; }, 4000);
+}
+
+// ════════════════════════════════════
+// Helpers
+// ════════════════════════════════════
 function statusPill(s) {
   const map = { pending:'pill-yellow', in_progress:'pill-blue', ready:'pill-green', delivered:'pill-gray' };
   return `<span class="pill ${map[s]||'pill-gray'}">${(s||'').replace('_',' ')}</span>`;
 }
-
 function subStatusPill(s) {
   const map = { active:'pill-green', paused:'pill-yellow', cancelled:'pill-red', past_due:'pill-red' };
   return `<span class="pill ${map[s]||'pill-gray'}">${(s||'').replace('_',' ')}</span>`;
 }
-
 function rolePill(r) {
   const map = { admin:'pill-blue', manager:'pill-yellow', student:'pill-green' };
   return `<span class="pill ${map[r]||'pill-gray'}">${r||'—'}</span>`;
 }
-
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
-// Close modals on overlay click
 document.querySelectorAll('.modal-overlay').forEach(overlay => {
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
 });
