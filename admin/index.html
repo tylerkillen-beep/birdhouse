@@ -510,7 +510,7 @@
 
     <div class="section-header">
       <div class="section-title">Live Menu Items</div>
-      <button class="btn btn-primary btn-sm" onclick="openAddMenuItemModal()">+ New Menu Item</button>
+      <div style="display:flex;gap:0.6rem"><button class="btn btn-ghost btn-sm" onclick="syncSquareMenu()">⟳ Sync Square Catalog</button><button class="btn btn-primary btn-sm" onclick="openAddMenuItemModal()">+ New Menu Item</button></div>
     </div>
     <div class="table-wrap">
       <table>
@@ -778,8 +778,8 @@ async function loadDashboard() {
   const startDate = new Date();
   const endDate = new Date(startDate);
   endDate.setDate(endDate.getDate() + 1);
-  const dayStart = startDate.toISOString().slice(0, 10);
-  const dayEnd = endDate.toISOString().slice(0, 10);
+  const dayStart = startDate.toISOString().slice(0, 10) + 'T00:00:00Z';
+  const dayEnd = endDate.toISOString().slice(0, 10) + 'T00:00:00Z';
   const [{ data: ordersToday }, { data: subscribers }, { data: pending }, { data: recentOrders }] = await Promise.all([
     sb.from('orders').select('id,total_cents').gte('created_at', dayStart).lt('created_at', dayEnd),
     sb.from('subscriptions').select('id').eq('status','active'),
@@ -1295,6 +1295,37 @@ async function deletePlan(id) {
 // ════════════════════════════════════
 async function loadMenuSection() {
   await Promise.all([loadMenuItems(), loadMenuSubmissions()]);
+}
+
+async function syncSquareMenu() {
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { alert('Please sign in again.'); return; }
+
+    // Canonical backend endpoint is sync-catalog.
+    // Do not switch this to sync-square-menu unless that function is explicitly deployed and intended.
+    const res = await fetch('https://ljukrhneikqbabcmcpet.supabase.co/functions/v1/sync-catalog', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': 'sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({}),
+    });
+
+    const out = await res.json();
+    if (!res.ok || !out.success) {
+      throw new Error(out.error || 'Sync failed');
+    }
+
+    const updated = out.updated ?? out.summary?.updated ?? 0;
+    const inserted = out.inserted ?? out.summary?.newItems ?? 0;
+    alert(`Square sync complete. ${updated} updated, ${inserted} inserted.`);
+    await loadMenuItems();
+  } catch (err) {
+    alert(err.message || 'Unable to sync from Square.');
+  }
 }
 
 async function loadMenuItems() {
