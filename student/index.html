@@ -118,7 +118,7 @@
       const { error } = await sb.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: 'https://tylerkillen-beep.github.io/birdhouse/student/index.html',
+          redirectTo: `${window.location.origin}/student/index.html`,
           queryParams: { hd: 'nixaschools.net' }
         }
       });
