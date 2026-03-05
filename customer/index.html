@@ -131,13 +131,20 @@
       return `${window.location.origin}/customer/index.html`;
     }
 
+
+    function getPostLoginDestination() {
+      const next = new URLSearchParams(window.location.search).get('next');
+      if (next === 'order') return 'order.html';
+      return 'dashboard.html';
+    }
+
     if (window.location.hostname.endsWith('github.io')) {
       const m = document.getElementById('login-msg');
       m.textContent = 'Login is configured for the Vercel app domain. If you were redirected to github.io, update Supabase Auth Site URL + Redirect URLs to your Vercel domain.';
       m.className = 'msg error';
     }
 
-    sb.auth.getSession().then(({data})=>{ if(data.session) window.location.href='dashboard.html'; });
+    sb.auth.getSession().then(({data})=>{ if(data.session) window.location.href=getPostLoginDestination(); });
 
     function showTab(tab, el) {
       document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
@@ -174,7 +181,7 @@
           m.className = 'msg error';
           return;
         }
-        window.location.href = 'dashboard.html';
+        window.location.href = getPostLoginDestination();
       }
     });
 
@@ -184,7 +191,7 @@
       if(error){
         const m=document.getElementById('login-msg'); m.textContent=error.message; m.className='msg error';
         btn.disabled=false; btn.textContent='Sign In →';
-      } else { window.location.href='dashboard.html'; }
+      } else { window.location.href=getPostLoginDestination(); }
     }
 
     async function handleSignup() {

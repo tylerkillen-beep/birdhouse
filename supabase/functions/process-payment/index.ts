@@ -29,16 +29,47 @@ function fail(message: string, status = 400) {
   });
 }
 
+
+function getBearerToken(req: Request) {
+  const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) return null;
+  return authHeader.slice(7).trim();
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
   try {
     const { sourceId, cartItems, userId, customerInfo } = await req.json();
 
+    // ── Validate auth ──────────────────────────────────────────────────────
+    const accessToken = getBearerToken(req);
+    if (!accessToken) return fail("Authentication required", 401);
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser(accessToken);
+
+    if (authError || !user) {
+      return fail("Invalid or expired session. Please sign in again.", 401);
+    }
+
+    const isAnonymousUser = (user as { is_anonymous?: boolean }).is_anonymous === true;
+    if (isAnonymousUser) {
+      return fail("Please sign in before placing an order.", 401);
+    }
+
     // ── Validate inputs ────────────────────────────────────────────────────
     if (!sourceId) throw new Error("Missing payment token");
     if (!cartItems?.length) throw new Error("Cart is empty");
     if (!userId) throw new Error("User not authenticated");
+    if (user.id !== userId) return fail("User mismatch", 403);
     if (!customerInfo?.room) throw new Error("Delivery room is required");
 
     // ── Calculate total ────────────────────────────────────────────────────
@@ -91,11 +122,6 @@ serve(async (req) => {
     const squarePaymentId: string = squareData.payment.id;
 
     // ── Insert order into Supabase ─────────────────────────────────────────
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
     const totalAmount = items.reduce((s, i) => s + i.price * i.quantity, 0);
     const pointsEarned = items.reduce((s, i) => s + i.quantity, 0);
 
