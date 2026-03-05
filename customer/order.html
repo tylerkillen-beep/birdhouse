@@ -216,7 +216,7 @@
       </div>
       <div class="btn-row">
         <button class="btn-ghost" onclick="goToStep(1)">← Back</button>
-        <button class="btn-primary" onclick="goToStep(3)">Review & Pay →</button>
+        <button class="btn-primary" onclick="proceedToPayment()">Review & Pay →</button>
       </div>
     </div>
 
@@ -656,8 +656,16 @@
   }
 
   // ── Navigation ────────────────────────────────────────────────────────────
+  function proceedToPayment() {
+    if (!currentUser) {
+      window.location.href = 'index.html?next=order';
+      return;
+    }
+    goToStep(3);
+  }
+
   async function goToStep(step) {
-    if (step > 1 && !currentUser) {
+    if (step === 3 && !currentUser) {
       window.location.href = 'index.html?next=order';
       return;
     }
