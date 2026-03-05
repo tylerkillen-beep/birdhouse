@@ -124,6 +124,18 @@
 
   <script>
     const sb = supabase.createClient('https://ljukrhneikqbabcmcpet.supabase.co','sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn');
+
+    function getCustomerOAuthRedirectUrl() {
+      // Send OAuth back to this login page first, then route to dashboard after validation.
+      return `${window.location.origin}/customer/index.html`;
+    }
+
+    if (window.location.hostname.endsWith('github.io')) {
+      const m = document.getElementById('login-msg');
+      m.textContent = 'Login is configured for the Vercel app domain. If you were redirected to github.io, update Supabase Auth Site URL + Redirect URLs to your Vercel domain.';
+      m.className = 'msg error';
+    }
+
     sb.auth.getSession().then(({data})=>{ if(data.session) window.location.href='dashboard.html'; });
 
     function showTab(tab, el) {
@@ -139,7 +151,7 @@
       const { error } = await sb.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/customer/dashboard.html`,
+          redirectTo: getCustomerOAuthRedirectUrl(),
           queryParams: { hd: 'nixaschools.net' }
         }
       });
