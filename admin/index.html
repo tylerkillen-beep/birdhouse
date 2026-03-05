@@ -496,10 +496,10 @@
       <table>
         <thead>
           <tr>
-            <th>Name</th><th>Price / Mo</th><th>Drinks / Wk</th><th>Free Modifiers</th><th>Early Access</th><th>Active</th><th>Subscribers</th><th>Actions</th>
+            <th>Name</th><th>Price / Mo</th><th>Drinks / Wk</th><th>Cookies / Wk</th><th>Free Modifiers</th><th>Early Access</th><th>Active</th><th>Subscribers</th><th>Actions</th>
           </tr>
         </thead>
-        <tbody id="plans-tbody"><tr class="loading-row"><td colspan="8">Loading…</td></tr></tbody>
+        <tbody id="plans-tbody"><tr class="loading-row"><td colspan="9">Loading…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -629,8 +629,19 @@
         <select class="form-input" id="plan-free-mods">
           <option value="0">0 (none)</option>
           <option value="1">1 free modifier</option>
+          <option value="2">2 free modifiers</option>
+          <option value="3">3 free modifiers</option>
+          <option value="4">4 free modifiers</option>
+          <option value="5">5 free modifiers</option>
+          <option value="6">6 free modifiers</option>
+          <option value="7">7 free modifiers</option>
+          <option value="8">8 free modifiers</option>
           <option value="-1">Unlimited (all free)</option>
         </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Cookies per Week</label>
+        <input class="form-input" id="plan-cookies" type="number" min="0" step="1" placeholder="0" />
       </div>
       <div class="form-group" style="display:flex;align-items:center;gap:0.6rem;padding-top:1.9rem">
         <input type="checkbox" id="plan-early-access" style="width:16px;height:16px;accent-color:var(--accent)" />
@@ -1220,7 +1231,7 @@ function renderPlansLoadError(error) {
     grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">⚠️</div>${hint}<div style="font-size:0.8rem;color:var(--gray);margin-top:0.4rem">${message}</div></div>`;
   }
   if (tbody) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#ff6b6b;padding:1.25rem">${hint}<br><span style="color:var(--gray)">${message}</span></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:#ff6b6b;padding:1.25rem">${hint}<br><span style="color:var(--gray)">${message}</span></td></tr>`;
   }
 }
 
@@ -1244,7 +1255,7 @@ function renderPlanCards(plans, countByPlan) {
       </div>
       <div class="plan-card-detail">🥤 ${p.drinks_per_week} drink${p.drinks_per_week !== 1 ? 's' : ''} per week</div>
       <div class="plan-card-detail" style="margin-top:0.3rem;color:var(--gray)">${p.description||''}</div>
-      <div class="plan-card-modifiers"><span class="modifier-tag">Free Modifiers: ${freeModsLabel}</span>${p.early_access ? '<span class="modifier-tag">Early Access</span>' : ''}</div>
+      <div class="plan-card-modifiers"><span class="modifier-tag">Cookies: ${p.cookies_per_week || 0}/wk</span><span class="modifier-tag">Free Modifiers: ${freeModsLabel}</span>${p.early_access ? '<span class="modifier-tag">Early Access</span>' : ''}</div>
       <div class="plan-card-detail" style="margin-top:0.75rem;color:var(--gray)">${countByPlan[p.id]||0} active subscriber${(countByPlan[p.id]||0) !== 1 ? 's' : ''}</div>
       <button class="btn btn-ghost btn-sm plan-edit-btn" onclick="openEditPlanModal('${p.id}')">Edit</button>
     </div>`;
@@ -1253,13 +1264,14 @@ function renderPlanCards(plans, countByPlan) {
 
 function renderPlansTable(plans, countByPlan) {
   const tbody = document.getElementById('plans-tbody');
-  if (!plans.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--gray);padding:2rem">No plans yet.</td></tr>'; return; }
+  if (!plans.length) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--gray);padding:2rem">No plans yet.</td></tr>'; return; }
   tbody.innerHTML = plans.map(p => {
     const freeModsLabel = p.free_modifier_count === -1 ? 'Unlimited' : String(p.free_modifier_count || 0);
     return `<tr>
       <td style="font-weight:500">${p.name}</td>
       <td>$${(p.price_cents/100).toFixed(2)}</td>
       <td style="text-align:center">${p.drinks_per_week}</td>
+      <td style="text-align:center">${p.cookies_per_week || 0}</td>
       <td style="text-align:center">${freeModsLabel}</td>
       <td>${p.early_access ? '<span class="pill pill-green">Yes</span>' : '<span class="pill pill-gray">No</span>'}</td>
       <td>${p.active ? '<span class="pill pill-green">Active</span>' : '<span class="pill pill-gray">Inactive</span>'}</td>
@@ -1275,7 +1287,7 @@ function renderPlansTable(plans, countByPlan) {
 function openAddPlanModal() {
   editingPlanId = null;
   document.getElementById('plan-modal-title').textContent = 'New Plan';
-  ['plan-name','plan-price','plan-drinks','plan-desc'].forEach(id => document.getElementById(id).value = '');
+  ['plan-name','plan-price','plan-drinks','plan-desc','plan-cookies'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('plan-free-mods').value = '0';
   document.getElementById('plan-early-access').checked = false;
   document.getElementById('plan-sort').value = allPlans.length + 1;
@@ -1294,6 +1306,7 @@ function openEditPlanModal(id) {
   document.getElementById('plan-sort').value = p.sort_order;
   document.getElementById('plan-desc').value = p.description || '';
   document.getElementById('plan-free-mods').value = String(p.free_modifier_count ?? 0);
+  document.getElementById('plan-cookies').value = String(p.cookies_per_week ?? 0);
   document.getElementById('plan-early-access').checked = !!p.early_access;
   document.getElementById('plan-active').checked = p.active;
   document.getElementById('plan-modal').classList.add('open');
@@ -1305,19 +1318,33 @@ async function savePlan() {
   const drinks = parseInt(document.getElementById('plan-drinks').value);
   const sort   = parseInt(document.getElementById('plan-sort').value) || 1;
   const desc   = document.getElementById('plan-desc').value.trim();
+  const cookies = parseInt(document.getElementById('plan-cookies').value || '0', 10);
   const freeMods = parseInt(document.getElementById('plan-free-mods').value, 10);
   const earlyAccess = document.getElementById('plan-early-access').checked;
   const active = document.getElementById('plan-active').checked;
   if (!name) { alert('Plan name is required.'); return; }
   if (isNaN(price) || price < 0) { alert('Enter a valid price.'); return; }
   if (isNaN(drinks) || drinks < 1) { alert('Enter a valid drinks per week.'); return; }
-  if (![0,1,-1].includes(freeMods)) { alert('Free modifiers must be 0, 1, or unlimited.'); return; }
-  const payload = { name, price_cents: Math.round(price * 100), drinks_per_week: drinks, sort_order: sort, description: desc, free_modifier_count: freeMods, early_access: earlyAccess, active };
+  if (isNaN(cookies) || cookies < 0) { alert('Enter a valid cookies per week value.'); return; }
+  if (!(freeMods === -1 || (freeMods >= 0 && freeMods <= 8))) { alert('Free modifiers must be between 0 and 8, or unlimited.'); return; }
+  const payload = { name, price_cents: Math.round(price * 100), drinks_per_week: drinks, sort_order: sort, description: desc, cookies_per_week: cookies, free_modifier_count: freeMods, early_access: earlyAccess, active };
   const btn = document.getElementById('plan-save-btn');
   btn.disabled = true; btn.textContent = 'Saving…';
-  if (editingPlanId) { await sb.from('subscription_plans').update(payload).eq('id', editingPlanId); }
-  else { await sb.from('subscription_plans').insert(payload); }
+  let op;
+  if (editingPlanId) op = sb.from('subscription_plans').update(payload).eq('id', editingPlanId);
+  else op = sb.from('subscription_plans').insert(payload);
+
+  let { error } = await op;
+  if (error && /cookies_per_week/i.test(error.message || '')) {
+    const fallback = { ...payload };
+    delete fallback.cookies_per_week;
+    if (editingPlanId) ({ error } = await sb.from('subscription_plans').update(fallback).eq('id', editingPlanId));
+    else ({ error } = await sb.from('subscription_plans').insert(fallback));
+    if (!error) alert('Saved, but cookies/week was not persisted because the cookies_per_week column is missing in subscription_plans.');
+  }
+
   btn.disabled = false; btn.textContent = 'Save Plan';
+  if (error) { alert(error.message || 'Unable to save plan.'); return; }
   closeModal('plan-modal');
   loadPlans();
 }
