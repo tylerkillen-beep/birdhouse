@@ -172,7 +172,10 @@
     .sched-periods-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.5rem; }
     @media (max-width: 1100px) { .sched-periods-grid { grid-template-columns: 1fr; } }
     .sched-period-section { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
-    .sched-period-header { padding: 0.8rem 1.2rem; border-bottom: 1px solid var(--border-dim); display: flex; align-items: center; justify-content: space-between; }
+    .sched-period-header { padding: 0.8rem 1.2rem; border-bottom: 1px solid var(--border-dim); display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; flex-wrap: wrap; }
+    .sched-period-controls { display: flex; align-items: center; gap: 0.6rem; margin-left: auto; }
+    .sched-day-select { background: #0d0d0d; border: 1px solid var(--border-dim); border-radius: 6px; color: var(--gray-mid); font-size: 0.74rem; padding: 0.3rem 0.55rem; font-family: 'DM Sans', sans-serif; }
+    .sched-day-select:focus { outline: none; border-color: var(--accent); color: var(--text); }
     .sched-period-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.2rem; letter-spacing: 0.05em; }
     .sched-period-title.first { color: #f0a044; }
     .sched-period-title.sixth { color: #5dade2; }
@@ -1628,6 +1631,8 @@ let schedAssignments = {};
 let schedSelected    = null;
 let schedPosData     = null;
 let schedPositionSummary = {};
+let schedWeekDays = [];
+let schedDayFilterByPeriod = { '1st Hour': null, '6th Hour': null };
 let schedInitialized = false;
 
 async function schedInit() {
@@ -1662,6 +1667,19 @@ async function schedLoadWeek() {
   document.getElementById('sched-week-label').textContent =
     `Week of ${monday.toLocaleDateString('en-US',{month:'short',day:'numeric'})} – ${friday.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`;
 
+  schedWeekDays = [0,1,2,3,4].map(i => {
+    const d = schedAddDays(monday, i);
+    return {
+      date: d,
+      dateStr: schedFmtDate(d),
+      name: d.toLocaleDateString('en-US',{ weekday:'long' }),
+      short: d.toLocaleDateString('en-US',{ weekday:'short', month:'short', day:'numeric' }),
+    };
+  });
+  const defaultDay = schedWeekDays[0]?.dateStr || null;
+  if (!schedWeekDays.some(d => d.dateStr === schedDayFilterByPeriod['1st Hour'])) schedDayFilterByPeriod['1st Hour'] = defaultDay;
+  if (!schedWeekDays.some(d => d.dateStr === schedDayFilterByPeriod['6th Hour'])) schedDayFilterByPeriod['6th Hour'] = defaultDay;
+
   const { data: rows } = await sb.from('weekly_assignments').select('*').eq('week_start', schedFmtDate(monday));
   schedAssignments = {};
   const allConfirmed = rows?.length > 0 && rows.every(r => r.confirmed);
@@ -1693,11 +1711,10 @@ async function schedLoadPositionSummary(monday) {
     .gte('shift_date', schedFmtDate(monday))
     .lte('shift_date', schedFmtDate(friday));
 
-  const byStudent = {};
+  const byStudentDate = {};
   (rows || []).forEach(r => {
-    if (!r?.student_id || !r?.position) return;
-    if (!byStudent[r.student_id]) byStudent[r.student_id] = {};
-    byStudent[r.student_id][r.position] = (byStudent[r.student_id][r.position] || 0) + 1;
+    if (!r?.student_id || !r?.position || !r?.shift_date) return;
+    byStudentDate[`${r.student_id}_${r.shift_date}`] = r.position;
   });
 
   const summary = {};
@@ -1705,21 +1722,13 @@ async function schedLoadPositionSummary(monday) {
     if (!a?.team_id) return;
     const team = schedTeams.find(t => t.id === a.team_id);
     if (!team) return;
-    const posSet = a.role === 'mathews' ? MATHEWS_POSITIONS : a.role === 'birdhouse' ? BIRDHOUSE_POSITIONS : null;
-    if (!posSet) return;
 
-    summary[team.id] = (team.students || []).map(student => {
-      const counts = byStudent[student.id] || {};
-      const best = posSet.reduce((acc, p) => {
-        const score = counts[p] || 0;
-        if (score > acc.score) return { key: p, score };
-        return acc;
-      }, { key: null, score: 0 });
-
-      return {
+    summary[team.id] = {};
+    schedWeekDays.forEach(day => {
+      summary[team.id][day.dateStr] = (team.students || []).map(student => ({
         studentName: `${student.first_name || ''} ${student.last_name || ''}`.trim(),
-        position: best.key ? POSITION_LABELS[best.key] : null
-      };
+        position: POSITION_LABELS[byStudentDate[`${student.id}_${day.dateStr}`]] || null,
+      }));
     });
   });
 
@@ -1752,10 +1761,16 @@ function schedRenderPeriods() {
   grid.innerHTML = ['1st Hour','6th Hour'].map(period => {
     const periodTeams = schedTeams.filter(t => t.period === period);
     const titleClass = period === '1st Hour' ? 'first' : 'sixth';
+    const selectedDay = schedDayFilterByPeriod[period] || schedWeekDays[0]?.dateStr;
     return `<div class="sched-period-section">
       <div class="sched-period-header">
         <div class="sched-period-title ${titleClass}">${period}</div>
-        <div style="font-size:0.72rem;color:var(--gray)">${periodTeams.length} team${periodTeams.length !== 1 ? 's' : ''}</div>
+        <div class="sched-period-controls">
+          <div style="font-size:0.72rem;color:var(--gray)">${periodTeams.length} team${periodTeams.length !== 1 ? 's' : ''}</div>
+          <select class="sched-day-select" onchange="schedSetPeriodDay('${period}', this.value)">
+            ${schedWeekDays.map(day => `<option value="${day.dateStr}" ${selectedDay===day.dateStr?'selected':''}>${day.short}</option>`).join('')}
+          </select>
+        </div>
       </div>
       <div class="sched-roles-grid">
         ${SCHED_ROLES.map(role => `
@@ -1774,9 +1789,25 @@ function schedRenderPeriods() {
   }).join('');
 }
 
-function schedRenderTeamPositionSummary(teamId) {
-  const rows = schedPositionSummary[teamId] || [];
+function schedSetPeriodDay(period, dateStr) {
+  schedDayFilterByPeriod[period] = dateStr;
+  schedRenderPeriods();
+}
+
+function schedRoleActiveOnDate(roleKey, dateStr) {
+  if (!dateStr) return false;
+  const day = new Date(`${dateStr}T00:00:00`).getDay();
+  if (roleKey === 'birdhouse') return day >= 1 && day <= 5;
+  if (roleKey === 'mathews') return [1,3,5].includes(day);
+  return true;
+}
+
+function schedRenderTeamPositionSummary(teamId, roleKey, selectedDate) {
+  const rows = schedPositionSummary[teamId]?.[selectedDate] || [];
   if (!rows.length) return '';
+  if (!schedRoleActiveOnDate(roleKey, selectedDate)) {
+    return '<div class="sched-team-position-empty">Not scheduled for this day.</div>';
+  }
 
   const hasAnyPosition = rows.some(r => !!r.position);
   if (!hasAnyPosition) return '<div class="sched-team-position-empty">Set positions to show student roles.</div>';
@@ -1789,6 +1820,7 @@ function schedRenderTeamPositionSummary(teamId) {
 }
 
 function schedRenderRoleBody(period, role, periodTeams) {
+  const selectedDate = schedDayFilterByPeriod[period] || schedWeekDays[0]?.dateStr;
   const assigned = periodTeams.filter(t => schedGetTeamRole(t.id) === role.key);
   let html = assigned.map(t => `
     <div class="sched-team-card" style="background:${t.color}12;border-color:${t.color}25">
@@ -1798,7 +1830,7 @@ function schedRenderRoleBody(period, role, periodTeams) {
         ${(t.students||[]).length} students
         ${role.hasPositions ? `<span class="sched-team-card-pos" onclick="schedOpenPosModal('${t.id}','${role.key}',event)">· Set positions</span>` : ''}
       </div>
-      ${role.hasPositions ? schedRenderTeamPositionSummary(t.id) : ''}
+      ${role.hasPositions ? schedRenderTeamPositionSummary(t.id, role.key, selectedDate) : ''}
     </div>`).join('');
 
   const menuTaken = role.key === 'menu' && schedTeams.some(t => schedGetTeamRole(t.id) === 'menu');
