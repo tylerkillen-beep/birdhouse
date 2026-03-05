@@ -587,6 +587,11 @@
 
   // ── Payment ───────────────────────────────────────────────────────────────
   async function submitPayment() {
+    if (!currentUser || !sessionToken) {
+      window.location.href = 'index.html?next=order';
+      return;
+    }
+
     const btn   = document.getElementById('pay-btn');
     const errEl = document.getElementById('pay-error');
     errEl.style.display = 'none';
