@@ -99,17 +99,25 @@
   <script>
     const sb = supabase.createClient('https://ljukrhneikqbabcmcpet.supabase.co','sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn');
     const ADMIN_TEAM_HUB_EMAIL = 'tylerkillen@nixaschools.net';
+    const MANAGER_EMAILS = ['juliestaats@nixaschools.net'];
 
-    function getPostLoginPath(user) {
+    function getRoleForEmail(email) {
+      const normalized = (email || '').toLowerCase();
+      if (MANAGER_EMAILS.includes(normalized)) return 'manager';
+      return null;
+    }
+
+    function getPostLoginPath(user, role) {
       const email = (user?.email || '').toLowerCase();
       if (email === ADMIN_TEAM_HUB_EMAIL) return '../admin/index.html';
+      if (role === 'manager') return '../manager/index.html';
       return 'dashboard.html';
     }
 
     sb.auth.getSession().then(({data})=>{
       if(data.session){
         const r=data.session.user.user_metadata?.role;
-        if(r==='student'||r==='admin') window.location.href=getPostLoginPath(data.session.user);
+        if(r==='student'||r==='admin'||r==='manager') window.location.href=getPostLoginPath(data.session.user, r);
       }
     });
     async function handleGoogleLogin() {
@@ -152,16 +160,22 @@
 
         // Check if they have an approved role in the students table
         const { data: student } = await sb.from('students').select('role').eq('id', session.user.id).single();
-        const role = student?.role;
+        let role = student?.role;
+        const forcedRole = getRoleForEmail(session.user.email);
 
-        if (role !== 'student' && role !== 'admin') {
+        if (forcedRole && role !== forcedRole) {
+          await sb.from('students').update({ role: forcedRole }).eq('id', session.user.id);
+          role = forcedRole;
+        }
+
+        if (role !== 'student' && role !== 'admin' && role !== 'manager') {
           await sb.auth.signOut();
           const m = document.getElementById('login-msg');
           m.textContent = 'Your account is pending approval. Contact your instructor.';
           m.className = 'msg error';
           return;
         }
-        window.location.href = getPostLoginPath(session.user);
+        window.location.href = getPostLoginPath(session.user, role);
       }
     });
 
@@ -169,13 +183,14 @@
       const btn=event.target; btn.disabled=true; btn.textContent='Signing in...';
       const {data,error} = await sb.auth.signInWithPassword({email:document.getElementById('email').value,password:document.getElementById('password').value});
       if(error){const m=document.getElementById('login-msg');m.textContent=error.message;m.className='msg error';btn.disabled=false;btn.textContent='Sign In to Team Hub →';return;}
-      const role=data.user.user_metadata?.role;
-      if(role!=='student'&&role!=='admin'){
+      const { data: student } = await sb.from('students').select('role').eq('id', data.user.id).single();
+      const role = student?.role || data.user.user_metadata?.role;
+      if(role!=='student'&&role!=='admin'&&role!=='manager'){
         await sb.auth.signOut();
         const m=document.getElementById('login-msg');m.textContent='This account does not have student staff access.';m.className='msg error';
         btn.disabled=false;btn.textContent='Sign In to Team Hub →';return;
       }
-      window.location.href=getPostLoginPath(data.user);
+      window.location.href=getPostLoginPath(data.user, role);
     }
   </script>
 </body>
