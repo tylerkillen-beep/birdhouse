@@ -496,10 +496,10 @@
       <table>
         <thead>
           <tr>
-            <th>Name</th><th>Price / Wk</th><th>Drinks / Wk</th><th>Modifiers</th><th>Active</th><th>Subscribers</th><th>Actions</th>
+            <th>Name</th><th>Price / Mo</th><th>Drinks / Wk</th><th>Free Modifiers</th><th>Early Access</th><th>Active</th><th>Subscribers</th><th>Actions</th>
           </tr>
         </thead>
-        <tbody id="plans-tbody"><tr class="loading-row"><td colspan="7">Loading…</td></tr></tbody>
+        <tbody id="plans-tbody"><tr class="loading-row"><td colspan="8">Loading…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -607,7 +607,7 @@
         <input class="form-input" id="plan-name" placeholder="e.g. Daily Brew" />
       </div>
       <div class="form-group">
-        <label class="form-label">Price per Week ($)</label>
+        <label class="form-label">Price per Month ($)</label>
         <input class="form-input" id="plan-price" type="number" step="0.01" placeholder="0.00" />
       </div>
       <div class="form-group">
@@ -623,9 +623,19 @@
       <label class="form-label">Description</label>
       <textarea class="form-input" id="plan-desc" rows="2" placeholder="Short description shown to students…" style="resize:vertical"></textarea>
     </div>
-    <div class="form-group">
-      <label class="form-label">Allowed Modifiers (comma-separated)</label>
-      <input class="form-input" id="plan-modifiers" placeholder="e.g. Syrup, Oat Milk, Extra Shot" />
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
+      <div class="form-group">
+        <label class="form-label">Free Modifiers per Drink</label>
+        <select class="form-input" id="plan-free-mods">
+          <option value="0">0 (none)</option>
+          <option value="1">1 free modifier</option>
+          <option value="-1">Unlimited (all free)</option>
+        </select>
+      </div>
+      <div class="form-group" style="display:flex;align-items:center;gap:0.6rem;padding-top:1.9rem">
+        <input type="checkbox" id="plan-early-access" style="width:16px;height:16px;accent-color:var(--accent)" />
+        <label for="plan-early-access" class="form-label" style="margin:0;cursor:pointer">Early access perk</label>
+      </div>
     </div>
     <div class="form-group" style="display:flex;align-items:center;gap:0.6rem">
       <input type="checkbox" id="plan-active" style="width:16px;height:16px;accent-color:var(--accent)" />
@@ -1059,14 +1069,14 @@ async function loadAdminScores(offsetDelta) {
 // ════════════════════════════════════
 async function loadSubscriptions() {
   const { data } = await sb.from('subscriptions')
-    .select('*, plans(name,price_cents,drinks_per_week), students(first_name,last_name,email)')
+    .select('*, subscription_plans(name,price_cents,drinks_per_week), students(first_name,last_name,email)')
     .order('created_at', { ascending: false });
   allSubscriptions = data || [];
 
   const active    = allSubscriptions.filter(s => s.status === 'active').length;
   const paused    = allSubscriptions.filter(s => s.status === 'paused').length;
   const cancelled = allSubscriptions.filter(s => s.status === 'cancelled').length;
-  const mrr = allSubscriptions.filter(s => s.status === 'active').reduce((sum, s) => sum + (s.plans?.price_cents || 0), 0);
+  const mrr = allSubscriptions.filter(s => s.status === 'active').reduce((sum, s) => sum + (s.subscription_plans?.price_cents || 0), 0);
 
   document.getElementById('sub-stat-active').textContent    = active;
   document.getElementById('sub-stat-paused').textContent    = paused;
@@ -1074,7 +1084,7 @@ async function loadSubscriptions() {
   document.getElementById('sub-stat-mrr').textContent       = '$' + (mrr / 100).toFixed(2);
 
   const planFilter = document.getElementById('sub-plan-filter');
-  const planNames = [...new Set(allSubscriptions.map(s => s.plans?.name).filter(Boolean))];
+  const planNames = [...new Set(allSubscriptions.map(s => s.subscription_plans?.name).filter(Boolean))];
   planFilter.innerHTML = '<option value="">All Plans</option>' + planNames.map(n => `<option value="${n}">${n}</option>`).join('');
 
   renderSubscriptions(allSubscriptions);
@@ -1087,7 +1097,7 @@ function filterSubscriptions() {
   let list = allSubscriptions;
   if (q)  list = list.filter(s => (`${s.students?.first_name} ${s.students?.last_name} ${s.students?.email}`).toLowerCase().includes(q));
   if (st) list = list.filter(s => s.status === st);
-  if (pl) list = list.filter(s => s.plans?.name === pl);
+  if (pl) list = list.filter(s => s.subscription_plans?.name === pl);
   renderSubscriptions(list);
 }
 
@@ -1107,10 +1117,10 @@ function renderSubscriptions(list) {
         <div style="font-weight:500">${name}</div>
         <div style="font-size:0.75rem;color:var(--gray)">${email}</div>
       </td>
-      <td>${s.plans?.name || '—'}</td>
+      <td>${s.subscription_plans?.name || '—'}</td>
       <td>${subStatusPill(s.status)}</td>
       <td style="color:var(--gray-mid)">${nextBilling}</td>
-      <td style="text-align:center">${s.plans?.drinks_per_week ?? '—'}</td>
+      <td style="text-align:center">${s.subscription_plans?.drinks_per_week ?? '—'}</td>
       <td style="color:var(--gray-mid);font-size:0.81rem">${started}</td>
       <td>
         <button class="btn btn-ghost btn-sm" onclick="openSubActionModal('${s.id}', '${s.status}', '${name}')">Manage</button>
@@ -1182,7 +1192,7 @@ async function loadCustomers() {
 // Plan Manager
 // ════════════════════════════════════
 async function loadPlans() {
-  const { data: plans, error: plansError } = await sb.from('plans').select('*').order('sort_order');
+  const { data: plans, error: plansError } = await sb.from('subscription_plans').select('*').order('sort_order');
   if (plansError) {
     renderPlansLoadError(plansError);
     return;
@@ -1202,15 +1212,15 @@ async function loadPlans() {
 function renderPlansLoadError(error) {
   const message = error?.message || 'Unable to load plans.';
   const hint = /42P01|not found|relation/i.test(message)
-    ? 'The "plans" table is missing in Supabase. Run the setup SQL package, then reload this page.'
-    : 'Check Supabase RLS/policies for plans and subscriptions.';
+    ? 'The "subscription_plans" table is missing in Supabase. Ensure migrations include subscription plans, then reload this page.'
+    : 'Check Supabase RLS/policies for subscription_plans and subscriptions.';
   const grid = document.getElementById('plan-cards-grid');
   const tbody = document.getElementById('plans-tbody');
   if (grid) {
     grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">⚠️</div>${hint}<div style="font-size:0.8rem;color:var(--gray);margin-top:0.4rem">${message}</div></div>`;
   }
   if (tbody) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#ff6b6b;padding:1.25rem">${hint}<br><span style="color:var(--gray)">${message}</span></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#ff6b6b;padding:1.25rem">${hint}<br><span style="color:var(--gray)">${message}</span></td></tr>`;
   }
 }
 
@@ -1221,39 +1231,42 @@ function renderPlanCards(plans, countByPlan) {
     return;
   }
   grid.innerHTML = plans.map(p => {
-    const mods = p.allowed_modifiers ? p.allowed_modifiers.split(',').map(m => m.trim()).filter(Boolean) : [];
-    return `<div class="plan-card">
+    const freeModsLabel = p.free_modifier_count === -1
+      ? 'Unlimited'
+      : `${p.free_modifier_count || 0}`;
+        return `<div class="plan-card">
       <div class="plan-card-header">
         <div>
           <div class="plan-card-name">${p.name}</div>
-          <div class="plan-card-price">$${(p.price_cents/100).toFixed(2)}<span> / week</span></div>
+          <div class="plan-card-price">$${(p.price_cents/100).toFixed(2)}<span> / month</span></div>
         </div>
         ${p.active ? '<span class="pill pill-green">Active</span>' : '<span class="pill pill-gray">Inactive</span>'}
       </div>
       <div class="plan-card-detail">🥤 ${p.drinks_per_week} drink${p.drinks_per_week !== 1 ? 's' : ''} per week</div>
       <div class="plan-card-detail" style="margin-top:0.3rem;color:var(--gray)">${p.description||''}</div>
-      ${mods.length ? `<div class="plan-card-modifiers">${mods.map(m=>`<span class="modifier-tag">${m}</span>`).join('')}</div>` : ''}
+      <div class="plan-card-modifiers"><span class="modifier-tag">Free Modifiers: ${freeModsLabel}</span>${p.early_access ? '<span class="modifier-tag">Early Access</span>' : ''}</div>
       <div class="plan-card-detail" style="margin-top:0.75rem;color:var(--gray)">${countByPlan[p.id]||0} active subscriber${(countByPlan[p.id]||0) !== 1 ? 's' : ''}</div>
-      <button class="btn btn-ghost btn-sm plan-edit-btn" onclick="openEditPlanModal(${p.id})">Edit</button>
+      <button class="btn btn-ghost btn-sm plan-edit-btn" onclick="openEditPlanModal('${p.id}')">Edit</button>
     </div>`;
   }).join('');
 }
 
 function renderPlansTable(plans, countByPlan) {
   const tbody = document.getElementById('plans-tbody');
-  if (!plans.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gray);padding:2rem">No plans yet.</td></tr>'; return; }
+  if (!plans.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--gray);padding:2rem">No plans yet.</td></tr>'; return; }
   tbody.innerHTML = plans.map(p => {
-    const mods = p.allowed_modifiers ? p.allowed_modifiers.split(',').map(m=>m.trim()).filter(Boolean) : [];
+    const freeModsLabel = p.free_modifier_count === -1 ? 'Unlimited' : String(p.free_modifier_count || 0);
     return `<tr>
       <td style="font-weight:500">${p.name}</td>
       <td>$${(p.price_cents/100).toFixed(2)}</td>
       <td style="text-align:center">${p.drinks_per_week}</td>
-      <td>${mods.length ? mods.map(m=>`<span class="modifier-tag">${m}</span>`).join('') : '<span style="color:var(--gray)">—</span>'}</td>
+      <td style="text-align:center">${freeModsLabel}</td>
+      <td>${p.early_access ? '<span class="pill pill-green">Yes</span>' : '<span class="pill pill-gray">No</span>'}</td>
       <td>${p.active ? '<span class="pill pill-green">Active</span>' : '<span class="pill pill-gray">Inactive</span>'}</td>
       <td style="text-align:center;color:var(--gray-mid)">${countByPlan[p.id]||0}</td>
       <td>
-        <button class="btn btn-ghost btn-sm" onclick="openEditPlanModal(${p.id})">Edit</button>
-        <button class="btn btn-danger btn-sm" style="margin-left:0.4rem" onclick="deletePlan(${p.id})">Delete</button>
+        <button class="btn btn-ghost btn-sm" onclick="openEditPlanModal('${p.id}')">Edit</button>
+        <button class="btn btn-danger btn-sm" style="margin-left:0.4rem" onclick="deletePlan('${p.id}')">Delete</button>
       </td>
     </tr>`;
   }).join('');
@@ -1262,7 +1275,9 @@ function renderPlansTable(plans, countByPlan) {
 function openAddPlanModal() {
   editingPlanId = null;
   document.getElementById('plan-modal-title').textContent = 'New Plan';
-  ['plan-name','plan-price','plan-drinks','plan-desc','plan-modifiers'].forEach(id => document.getElementById(id).value = '');
+  ['plan-name','plan-price','plan-drinks','plan-desc'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('plan-free-mods').value = '0';
+  document.getElementById('plan-early-access').checked = false;
   document.getElementById('plan-sort').value = allPlans.length + 1;
   document.getElementById('plan-active').checked = true;
   document.getElementById('plan-modal').classList.add('open');
@@ -1278,7 +1293,8 @@ function openEditPlanModal(id) {
   document.getElementById('plan-drinks').value = p.drinks_per_week;
   document.getElementById('plan-sort').value = p.sort_order;
   document.getElementById('plan-desc').value = p.description || '';
-  document.getElementById('plan-modifiers').value = p.allowed_modifiers || '';
+  document.getElementById('plan-free-mods').value = String(p.free_modifier_count ?? 0);
+  document.getElementById('plan-early-access').checked = !!p.early_access;
   document.getElementById('plan-active').checked = p.active;
   document.getElementById('plan-modal').classList.add('open');
 }
@@ -1289,16 +1305,18 @@ async function savePlan() {
   const drinks = parseInt(document.getElementById('plan-drinks').value);
   const sort   = parseInt(document.getElementById('plan-sort').value) || 1;
   const desc   = document.getElementById('plan-desc').value.trim();
-  const mods   = document.getElementById('plan-modifiers').value.trim();
+  const freeMods = parseInt(document.getElementById('plan-free-mods').value, 10);
+  const earlyAccess = document.getElementById('plan-early-access').checked;
   const active = document.getElementById('plan-active').checked;
   if (!name) { alert('Plan name is required.'); return; }
   if (isNaN(price) || price < 0) { alert('Enter a valid price.'); return; }
   if (isNaN(drinks) || drinks < 1) { alert('Enter a valid drinks per week.'); return; }
-  const payload = { name, price_cents: Math.round(price * 100), drinks_per_week: drinks, sort_order: sort, description: desc, allowed_modifiers: mods, active };
+  if (![0,1,-1].includes(freeMods)) { alert('Free modifiers must be 0, 1, or unlimited.'); return; }
+  const payload = { name, price_cents: Math.round(price * 100), drinks_per_week: drinks, sort_order: sort, description: desc, free_modifier_count: freeMods, early_access: earlyAccess, active };
   const btn = document.getElementById('plan-save-btn');
   btn.disabled = true; btn.textContent = 'Saving…';
-  if (editingPlanId) { await sb.from('plans').update(payload).eq('id', editingPlanId); }
-  else { await sb.from('plans').insert(payload); }
+  if (editingPlanId) { await sb.from('subscription_plans').update(payload).eq('id', editingPlanId); }
+  else { await sb.from('subscription_plans').insert(payload); }
   btn.disabled = false; btn.textContent = 'Save Plan';
   closeModal('plan-modal');
   loadPlans();
@@ -1308,7 +1326,7 @@ async function deletePlan(id) {
   const { count } = await sb.from('subscriptions').select('id', { count:'exact', head:true }).eq('plan_id', id).eq('status','active');
   if (count > 0) { alert(`Cannot delete — this plan has ${count} active subscriber(s).`); return; }
   if (!confirm('Delete this plan?')) return;
-  await sb.from('plans').delete().eq('id', id);
+  await sb.from('subscription_plans').delete().eq('id', id);
   loadPlans();
 }
 
