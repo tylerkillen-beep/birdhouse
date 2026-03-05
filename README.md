@@ -55,6 +55,7 @@ Student accounts **cannot self-register** (by design). You (the admin) create th
 In Supabase → **Authentication → URL Configuration**:
 1. Set **Site URL** to your production Vercel URL (or custom domain).
 2. Add these **Redirect URLs**:
+   - `https://<your-project>.vercel.app/customer/index.html`
    - `https://<your-project>.vercel.app/customer/dashboard.html`
    - `https://<your-project>.vercel.app/student/index.html`
 3. If you connect a custom domain, add matching redirect URLs for that domain too.
