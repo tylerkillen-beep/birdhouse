@@ -176,10 +176,15 @@ const sb=supabase.createClient('https://ljukrhneikqbabcmcpet.supabase.co','sb_pu
 let currentUser=null,allInventory=[],allOrders=[],allStudents=[],rubric=[];
 let invFilter='all',orderFilter='all',scoreWeekOffset=0,schedWeekOffset=0;
 
+async function getEffectiveRole(user){
+  const {data: student}=await sb.from('students').select('role').eq('id', user.id).maybeSingle();
+  return student?.role || user.user_metadata?.role;
+}
+
 async function init(){
   const {data:{session}}=await sb.auth.getSession();
   if(!session){showLogin();return;}
-  const role=session.user.user_metadata?.role;
+  const role=await getEffectiveRole(session.user);
   if(role!=='manager'&&role!=='admin'){showLogin('Access denied — manager accounts only.');await sb.auth.signOut();return;}
   currentUser=session.user;showApp();
 }
@@ -206,7 +211,7 @@ async function doLogin(){
   const m=document.getElementById('login-msg');
   const {data,error}=await sb.auth.signInWithPassword({email,password:pw});
   if(error){m.textContent=error.message;m.className='msg error';m.style.display='block';return;}
-  const role=data.user.user_metadata?.role;
+  const role=await getEffectiveRole(data.user);
   if(role!=='manager'&&role!=='admin'){m.textContent='Access denied.';m.className='msg error';m.style.display='block';await sb.auth.signOut();return;}
   currentUser=data.user;showApp();
 }
