@@ -300,7 +300,7 @@
   // ── Init ──────────────────────────────────────────────────────────────────
   async function init() {
     const { data: { session } } = await sb.auth.getSession();
-    if (!session) { window.location.href = 'index.html'; return; }
+    if (!session) { const err = new Error('No active session'); err.name = 'AuthSessionMissingError'; throw err; }
     currentUser  = session.user;
     sessionToken = session.access_token;
     const meta = currentUser.user_metadata;
@@ -395,6 +395,11 @@
 
   // ── Modifier Modal ────────────────────────────────────────────────────────
   function openModModal(itemId, temp) {
+    if (!currentUser) {
+      window.location.href = 'index.html?next=order';
+      return;
+    }
+
     const item = menuItems.find(i => i.id === itemId);
     if (!item) return;
 
@@ -647,6 +652,11 @@
 
   // ── Navigation ────────────────────────────────────────────────────────────
   async function goToStep(step) {
+    if (step > 1 && !currentUser) {
+      window.location.href = 'index.html?next=order';
+      return;
+    }
+
     if (step === 2) renderCartReview();
     if (step === 3) {
       const room = document.getElementById('delivery-room').value.trim();
@@ -677,7 +687,22 @@
   });
 
   async function signOut() { await sb.auth.signOut(); window.location.href = 'index.html'; }
-  init();
+
+  async function initGuestMode() {
+    currentUser = null;
+    sessionToken = null;
+    document.getElementById('user-display-name').textContent = 'Guest';
+    document.getElementById('user-points-badge').textContent = 'Sign in to place orders';
+    await Promise.all([loadMenu(), loadDeliveryTimes()]);
+  }
+
+  init().catch(async (err) => {
+    if (err?.name === 'AuthSessionMissingError') {
+      await initGuestMode();
+      return;
+    }
+    throw err;
+  });
 </script>
 </body>
 </html>
