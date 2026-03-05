@@ -1330,28 +1330,26 @@ async function savePlan() {
   const payload = { name, price_cents: Math.round(price * 100), drinks_per_week: drinks, sort_order: sort, description: desc, cookies_per_week: cookies, free_modifier_count: freeMods, early_access: earlyAccess, active };
   const btn = document.getElementById('plan-save-btn');
   btn.disabled = true; btn.textContent = 'Saving…';
-  let result;
+  let error;
   if (editingPlanId) {
-    result = await sb.from('subscription_plans').update(payload).eq('id', editingPlanId).select('id, cookies_per_week').maybeSingle();
+    ({ error } = await sb.from('subscription_plans').update(payload).eq('id', editingPlanId));
   } else {
-    result = await sb.from('subscription_plans').insert(payload).select('id, cookies_per_week').maybeSingle();
+    ({ error } = await sb.from('subscription_plans').insert(payload));
   }
 
-  let { data, error } = result;
   if (error && /cookies_per_week/i.test(error.message || '')) {
     const fallback = { ...payload };
     delete fallback.cookies_per_week;
     if (editingPlanId) {
-      ({ data, error } = await sb.from('subscription_plans').update(fallback).eq('id', editingPlanId).select('id').maybeSingle());
+      ({ error } = await sb.from('subscription_plans').update(fallback).eq('id', editingPlanId));
     } else {
-      ({ data, error } = await sb.from('subscription_plans').insert(fallback).select('id').maybeSingle());
+      ({ error } = await sb.from('subscription_plans').insert(fallback));
     }
     if (!error) alert('Saved, but cookies/week was not persisted because the cookies_per_week column is missing in subscription_plans.');
   }
 
   btn.disabled = false; btn.textContent = 'Save Plan';
   if (error) { alert(error.message || 'Unable to save plan.'); return; }
-  if (!data?.id) { alert('Plan was not updated. Please confirm your admin permissions and try again.'); return; }
 
   closeModal('plan-modal');
   await loadPlans();
