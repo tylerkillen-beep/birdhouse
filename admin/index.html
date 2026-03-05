@@ -193,6 +193,11 @@
     .sched-team-card-meta { font-size: 0.66rem; color: var(--gray); margin-top: 0.15rem; }
     .sched-team-card-pos { font-size: 0.66rem; color: var(--accent); cursor: pointer; margin-left: 0.3rem; }
     .sched-team-card-pos:hover { text-decoration: underline; }
+    .sched-team-position-list { margin-top: 0.45rem; display: grid; gap: 0.3rem; }
+    .sched-team-position-item { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; background: rgba(255,255,255,0.035); border: 1px solid var(--border-dim); border-radius: 6px; padding: 0.3rem 0.45rem; }
+    .sched-team-position-student { font-size: 0.68rem; color: var(--gray-mid); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sched-team-position-role { font-size: 0.62rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent); }
+    .sched-team-position-empty { margin-top: 0.45rem; font-size: 0.64rem; color: var(--gray); }
     .sched-remove-btn { position: absolute; top: 0.3rem; right: 0.3rem; background: none; border: none; color: rgba(255,255,255,0.2); cursor: pointer; font-size: 0.72rem; transition: color 0.15s; padding: 0; line-height: 1; }
     .sched-remove-btn:hover { color: var(--danger); }
     .sched-drop-zone { border: 2px dashed rgba(255,255,255,0.07); border-radius: 7px; padding: 0.55rem; text-align: center; font-size: 0.7rem; color: rgba(255,255,255,0.18); cursor: pointer; transition: all 0.15s; min-height: 40px; display: flex; align-items: center; justify-content: center; }
@@ -1622,6 +1627,7 @@ let schedTeams       = [];
 let schedAssignments = {};
 let schedSelected    = null;
 let schedPosData     = null;
+let schedPositionSummary = {};
 let schedInitialized = false;
 
 async function schedInit() {
@@ -1671,12 +1677,53 @@ async function schedLoadWeek() {
   document.getElementById('sched-suggest-banner').style.display =
     Object.keys(schedAssignments).length === 0 ? 'flex' : 'none';
 
+  await schedLoadPositionSummary(monday);
   schedRenderPool();
   schedRenderPeriods();
 }
 
 function schedGetTeamRole(teamId) {
   return schedAssignments[teamId]?.role || null;
+}
+
+async function schedLoadPositionSummary(monday) {
+  const friday = schedAddDays(monday, 4);
+  const { data: rows } = await sb.from('daily_positions')
+    .select('student_id,position,shift_date')
+    .gte('shift_date', schedFmtDate(monday))
+    .lte('shift_date', schedFmtDate(friday));
+
+  const byStudent = {};
+  (rows || []).forEach(r => {
+    if (!r?.student_id || !r?.position) return;
+    if (!byStudent[r.student_id]) byStudent[r.student_id] = {};
+    byStudent[r.student_id][r.position] = (byStudent[r.student_id][r.position] || 0) + 1;
+  });
+
+  const summary = {};
+  Object.values(schedAssignments).forEach(a => {
+    if (!a?.team_id) return;
+    const team = schedTeams.find(t => t.id === a.team_id);
+    if (!team) return;
+    const posSet = a.role === 'mathews' ? MATHEWS_POSITIONS : a.role === 'birdhouse' ? BIRDHOUSE_POSITIONS : null;
+    if (!posSet) return;
+
+    summary[team.id] = (team.students || []).map(student => {
+      const counts = byStudent[student.id] || {};
+      const best = posSet.reduce((acc, p) => {
+        const score = counts[p] || 0;
+        if (score > acc.score) return { key: p, score };
+        return acc;
+      }, { key: null, score: 0 });
+
+      return {
+        studentName: `${student.first_name || ''} ${student.last_name || ''}`.trim(),
+        position: best.key ? POSITION_LABELS[best.key] : null
+      };
+    });
+  });
+
+  schedPositionSummary = summary;
 }
 
 function schedRenderPool() {
@@ -1727,6 +1774,20 @@ function schedRenderPeriods() {
   }).join('');
 }
 
+function schedRenderTeamPositionSummary(teamId) {
+  const rows = schedPositionSummary[teamId] || [];
+  if (!rows.length) return '';
+
+  const hasAnyPosition = rows.some(r => !!r.position);
+  if (!hasAnyPosition) return '<div class="sched-team-position-empty">Set positions to show student roles.</div>';
+
+  return `<div class="sched-team-position-list">${rows.map(r => `
+    <div class="sched-team-position-item">
+      <span class="sched-team-position-student">${r.studentName || 'Student'}</span>
+      <span class="sched-team-position-role">${r.position || '—'}</span>
+    </div>`).join('')}</div>`;
+}
+
 function schedRenderRoleBody(period, role, periodTeams) {
   const assigned = periodTeams.filter(t => schedGetTeamRole(t.id) === role.key);
   let html = assigned.map(t => `
@@ -1737,6 +1798,7 @@ function schedRenderRoleBody(period, role, periodTeams) {
         ${(t.students||[]).length} students
         ${role.hasPositions ? `<span class="sched-team-card-pos" onclick="schedOpenPosModal('${t.id}','${role.key}',event)">· Set positions</span>` : ''}
       </div>
+      ${role.hasPositions ? schedRenderTeamPositionSummary(t.id) : ''}
     </div>`).join('');
 
   const menuTaken = role.key === 'menu' && schedTeams.some(t => schedGetTeamRole(t.id) === 'menu');
@@ -1862,6 +1924,8 @@ async function schedSavePositions() {
     });
   });
   await sb.from('daily_positions').upsert(rows, { onConflict: 'student_id,shift_date' });
+  await schedLoadPositionSummary(schedGetMonday(schedWeekOffset));
+  schedRenderPeriods();
   schedClosePosModal();
   schedShowMsg('✓ Positions saved!', 'success');
 }
