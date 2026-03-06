@@ -75,20 +75,35 @@ serve(async (req) => {
     if (!squareToken) return json({ success: false, error: "Missing SQUARE_ACCESS_TOKEN secret" }, 500);
 
     const squareBaseUrl = getSquareBaseUrl();
-    const sqRes = await fetch(`${squareBaseUrl}/v2/catalog/list?types=ITEM,ITEM_VARIATION,CATEGORY`, {
-      headers: {
-        "Authorization": `Bearer ${squareToken}`,
-        "Square-Version": "2024-01-18",
-        "Content-Type": "application/json",
-      },
-    });
+    const squareHeaders = {
+      "Authorization": `Bearer ${squareToken}`,
+      "Square-Version": "2024-01-18",
+      "Content-Type": "application/json",
+    };
 
-    const sqBody = await sqRes.json();
-    if (!sqRes.ok || sqBody?.errors?.length) {
-      return json({ success: false, error: sqBody?.errors?.[0]?.detail || "Square API error" }, 400);
-    }
+    const objects: SquareObject[] = [];
+    let cursor: string | undefined;
 
-    const objects: SquareObject[] = sqBody.objects || [];
+    // Square catalog/list is paginated. Pull every page so we don't miss ITEM records
+    // that might not appear in the first page.
+    do {
+      const params = new URLSearchParams({
+        types: "ITEM,ITEM_VARIATION,CATEGORY",
+      });
+      if (cursor) params.set("cursor", cursor);
+
+      const sqRes = await fetch(`${squareBaseUrl}/v2/catalog/list?${params.toString()}`, {
+        headers: squareHeaders,
+      });
+
+      const sqBody = await sqRes.json();
+      if (!sqRes.ok || sqBody?.errors?.length) {
+        return json({ success: false, error: sqBody?.errors?.[0]?.detail || "Square API error" }, 400);
+      }
+
+      objects.push(...(sqBody.objects || []));
+      cursor = sqBody.cursor || undefined;
+    } while (cursor);
     const categories = new Map<string, string>();
     const variations = new Map<string, number>();
 
