@@ -8,6 +8,12 @@ const CORS = {
 
 const JSON_HEADERS = { ...CORS, "Content-Type": "application/json" };
 
+function getSquareBaseUrl() {
+  const env = (Deno.env.get("SQUARE_ENV") || "production").toLowerCase();
+  if (env === "sandbox") return "https://connect.squareupsandbox.com";
+  return "https://connect.squareup.com";
+}
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS });
 }
@@ -68,7 +74,8 @@ serve(async (req) => {
     const squareToken = Deno.env.get("SQUARE_ACCESS_TOKEN");
     if (!squareToken) return json({ success: false, error: "Missing SQUARE_ACCESS_TOKEN secret" }, 500);
 
-    const sqRes = await fetch("https://connect.squareupsandbox.com/v2/catalog/list?types=ITEM,ITEM_VARIATION,CATEGORY", {
+    const squareBaseUrl = getSquareBaseUrl();
+    const sqRes = await fetch(`${squareBaseUrl}/v2/catalog/list?types=ITEM,ITEM_VARIATION,CATEGORY`, {
       headers: {
         "Authorization": `Bearer ${squareToken}`,
         "Square-Version": "2024-01-18",
