@@ -1666,7 +1666,7 @@ async function syncSquareMenu() {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) { alert('Please sign in again.'); return; }
 
-    const endpoint = 'https://ljukrhneikqbabcmcpet.supabase.co/functions/v1/sync-square-menu';
+    const endpoint = 'https://ljukrhneikqbabcmcpet.supabase.co/functions/v1/sync-catalog';
     const res = await fetch(endpoint, {
       method: 'POST',
       headers: {
@@ -1679,8 +1679,10 @@ async function syncSquareMenu() {
 
     const out = await res.json().catch(() => ({}));
     if (!res.ok || !out.success) {
-      throw new Error(out?.error || 'Sync failed (sync-square-menu)');
+      throw new Error(out?.error || 'Sync failed (sync-catalog)');
     }
+
+    if (!out) throw (lastError || new Error('Unable to reach sync function.'));
 
     const updated = out.updated ?? out.summary?.updated ?? 0;
     const inserted = out.inserted ?? out.summary?.newItems ?? 0;
