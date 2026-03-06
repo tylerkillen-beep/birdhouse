@@ -136,6 +136,21 @@
     .modifier-tag { display: inline-block; background: rgba(200,169,110,0.1); border: 1px solid rgba(200,169,110,0.2); color: var(--accent); font-size: 0.68rem; padding: 0.15rem 0.5rem; border-radius: 4px; margin: 0.15rem; }
     .plan-edit-btn { position: absolute; bottom: 1.2rem; right: 1.2rem; }
 
+
+    /* ── Staff team board ── */
+    .staff-team-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; }
+    .staff-team-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .staff-team-head { display:flex; align-items:center; justify-content:space-between; gap:0.75rem; padding:0.9rem 1rem; border-bottom:1px solid var(--border-dim); }
+    .staff-team-name { font-family:'Bebas Neue', sans-serif; letter-spacing:0.05em; font-size:1.1rem; }
+    .staff-team-meta { font-size:0.7rem; color:var(--gray); text-transform:uppercase; letter-spacing:0.08em; }
+    .staff-team-actions { display:flex; gap:0.4rem; }
+    .staff-student-list { padding:0.3rem 1rem 1rem; display:grid; gap:0.5rem; }
+    .staff-student-row { border:1px solid var(--border-dim); border-radius:8px; padding:0.55rem 0.65rem; background:#0d0d0d; }
+    .staff-student-name { font-size:0.82rem; font-weight:600; }
+    .staff-student-email { font-size:0.7rem; color:var(--gray); margin-top:0.05rem; }
+    .staff-student-status { font-size:0.72rem; color:var(--gray-mid); margin-top:0.3rem; }
+    .staff-student-controls { display:flex; gap:0.4rem; margin-top:0.45rem; }
+
     /* ── Empty state ── */
     .empty-state { text-align: center; padding: 3rem; color: var(--gray); background: var(--card); border: 1px solid var(--border); border-radius: 12px; }
     .empty-state .empty-icon { font-size: 2rem; margin-bottom: 0.75rem; }
@@ -408,13 +423,11 @@
         <tbody id="pending-tbody"><tr class="loading-row"><td colspan="4">Loading…</td></tr></tbody>
       </table>
     </div>
-    <div class="section-header"><div class="section-title">Active Staff</div></div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Team</th><th>Actions</th></tr></thead>
-        <tbody id="staff-tbody"><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
-      </table>
+    <div class="section-header">
+      <div class="section-title">Students by Team</div>
+      <button class="btn btn-primary btn-sm" onclick="openStaffTeamModal()">+ Add Team</button>
     </div>
+    <div id="staff-team-board" class="staff-team-grid"><div class="empty-state">Loading teams…</div></div>
   </div>
 
   <!-- ── SCORE RUBRIC ── -->
@@ -670,6 +683,56 @@
   </div>
 </div>
 
+<!-- Staff Team Modal -->
+<div class="modal-overlay" id="staff-team-modal">
+  <div class="modal" style="max-width:460px">
+    <button class="modal-close" onclick="closeModal('staff-team-modal')">✕</button>
+    <div class="modal-title" id="staff-team-modal-title">Add Team</div>
+    <div class="form-group">
+      <label class="form-label">Team Name</label>
+      <input class="form-input" id="staff-team-name" placeholder="e.g. Team A" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Period</label>
+      <select class="form-input" id="staff-team-period">
+        <option value="1st Hour">1st Hour</option>
+        <option value="6th Hour">6th Hour</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Color</label>
+      <input class="form-input" id="staff-team-color" value="#cc0000" />
+    </div>
+    <div id="staff-team-msg" style="font-size:0.76rem;color:var(--danger);display:none"></div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('staff-team-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveStaffTeam()">Save Team</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- Staff Student Modal -->
+<div class="modal-overlay" id="staff-student-modal">
+  <div class="modal" style="max-width:460px">
+    <button class="modal-close" onclick="closeModal('staff-student-modal')">✕</button>
+    <div class="modal-title">Edit Student</div>
+    <div style="font-size:0.82rem;color:var(--gray-mid);margin-bottom:1rem" id="staff-student-modal-name"></div>
+    <div class="form-group">
+      <label class="form-label">Role</label>
+      <select class="form-input" id="staff-student-role"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Team</label>
+      <select class="form-input" id="staff-student-team"></select>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('staff-student-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveStaffStudentEdit()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <!-- Add/Edit Rubric Category Modal -->
 <div class="modal-overlay" id="rubric-modal">
   <div class="modal">
@@ -732,6 +795,7 @@ const OWNER_ADMIN_EMAIL = 'tylerkillen@nixaschools.net';
 let currentUser = null;
 let allOrders = [];
 let allStaff = [];
+let staffTeams = [];
 let allSubscriptions = [];
 let allPlans = [];
 let allRubric = [];
@@ -740,6 +804,8 @@ let allMenuSubmissions = [];
 let editingPlanId = null;
 let editingMenuItemId = null;
 let editingRubricId = null;
+let editingStaffTeamId = null;
+let editingStaffStudentId = null;
 let adminScoreWeekOffset = 0;
 
 const MENU_CATEGORY_CONFIG = [
@@ -944,10 +1010,12 @@ async function loadOrdersBadge() {
 // Staff / Approvals
 // ════════════════════════════════════
 async function loadStaff() {
-  const [{ data: pending }, { data: active }] = await Promise.all([
+  const [{ data: pending }, { data: active }, { data: teams }] = await Promise.all([
     sb.from('students').select('*').is('role', null).order('created_at'),
     sb.from('students').select('*,teams(name)').not('role', 'is', null).order('last_name'),
+    sb.from('teams').select('id,name,period,color').order('name'),
   ]);
+  staffTeams = teams || [];
   allStaff = [...(pending||[]), ...(active||[])];
 
   const pendingTbody = document.getElementById('pending-tbody');
@@ -969,18 +1037,175 @@ async function loadStaff() {
       </tr>`).join('');
   }
 
-  const staffTbody = document.getElementById('staff-tbody');
-  if (!active?.length) { staffTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray);padding:1.5rem">No active staff.</td></tr>'; return; }
-  staffTbody.innerHTML = active.map(s => `
-    <tr>
-      <td>${s.first_name} ${s.last_name}</td>
-      <td style="color:var(--gray-mid)">${s.email||'—'}</td>
-      <td>${rolePill(s.role)}</td>
-      <td style="color:var(--gray-mid)">${s.teams?.name || '—'}</td>
-      <td>
-        <button class="btn btn-ghost btn-sm" onclick="removeStaff('${s.id}')">Remove</button>
-      </td>
-    </tr>`).join('');
+  const board = document.getElementById('staff-team-board');
+  if (!active?.length) {
+    board.innerHTML = '<div class="empty-state">No students or staff assigned yet.</div>';
+    return;
+  }
+  board.innerHTML = renderStaffTeamBoard(active);
+}
+
+function renderStaffTeamBoard(active) {
+  const byTeam = new Map();
+  active.forEach(s => {
+    const key = s.team_id || '__none__';
+    if (!byTeam.has(key)) byTeam.set(key, []);
+    byTeam.get(key).push(s);
+  });
+
+  const cards = staffTeams.map(team => {
+    const students = byTeam.get(team.id) || [];
+    return `
+      <div class="staff-team-card">
+        <div class="staff-team-head" style="border-top:3px solid ${team.color || '#c8a96e'}">
+          <div>
+            <div class="staff-team-name">${team.name}</div>
+            <div class="staff-team-meta">${team.period || 'No period'} · ${students.length} member${students.length!==1?'s':''}</div>
+          </div>
+          <div class="staff-team-actions">
+            <button class="btn btn-ghost btn-sm" onclick="openStaffTeamModal('${team.id}')">Edit</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteStaffTeam('${team.id}')">Delete</button>
+          </div>
+        </div>
+        <div class="staff-student-list">
+          ${students.length ? students.map(renderStaffStudentRow).join('') : '<div style="color:var(--gray);font-size:0.78rem">No students assigned.</div>'}
+        </div>
+      </div>`;
+  });
+
+  const unassigned = byTeam.get('__none__') || [];
+  if (unassigned.length) {
+    cards.push(`
+      <div class="staff-team-card">
+        <div class="staff-team-head" style="border-top:3px solid #444">
+          <div>
+            <div class="staff-team-name">Unassigned</div>
+            <div class="staff-team-meta">${unassigned.length} member${unassigned.length!==1?'s':''}</div>
+          </div>
+        </div>
+        <div class="staff-student-list">${unassigned.map(renderStaffStudentRow).join('')}</div>
+      </div>`);
+  }
+
+  return cards.join('') || '<div class="empty-state">No teams yet. Add a team to get started.</div>';
+}
+
+function renderStaffStudentRow(s) {
+  const team = staffTeams.find(t => t.id === s.team_id);
+  return `<div class="staff-student-row">
+    <div class="staff-student-name">${s.first_name} ${s.last_name}</div>
+    <div class="staff-student-email">${s.email || '—'}</div>
+    <div class="staff-student-status">Role: ${s.role || '—'} · Team: ${team?.name || 'No Team'}</div>
+    <div class="staff-student-controls">
+      <button class="btn btn-ghost btn-sm" onclick="openStaffStudentModal('${s.id}')">Edit</button>
+      <button class="btn btn-danger btn-sm" onclick="removeStaff('${s.id}')">Remove</button>
+    </div>
+  </div>`;
+}
+
+function renderStaffRoleOptions(currentRole) {
+  return ['student', 'manager', 'admin']
+    .map(role => `<option value="${role}" ${currentRole===role?'selected':''}>${role[0].toUpperCase()+role.slice(1)}</option>`)
+    .join('');
+}
+
+function renderStaffTeamOptions(currentTeamId) {
+  const options = ['<option value="">No Team</option>'];
+  staffTeams.forEach(team => {
+    options.push(`<option value="${team.id}" ${currentTeamId===team.id?'selected':''}>${team.name} (${team.period||'—'})</option>`);
+  });
+  return options.join('');
+}
+
+function openStaffStudentModal(id) {
+  const student = allStaff.find(s => s.id === id);
+  if (!student) return;
+  editingStaffStudentId = id;
+  document.getElementById('staff-student-modal-name').textContent = `${student.first_name} ${student.last_name}`;
+  const roleSelect = document.getElementById('staff-student-role');
+  const teamSelect = document.getElementById('staff-student-team');
+  roleSelect.innerHTML = renderStaffRoleOptions(student.role);
+  teamSelect.innerHTML = renderStaffTeamOptions(student.team_id);
+  document.getElementById('staff-student-modal').classList.add('open');
+}
+
+async function saveStaffStudentEdit() {
+  if (!editingStaffStudentId) return;
+  const role = document.getElementById('staff-student-role')?.value || 'student';
+  const teamId = document.getElementById('staff-student-team')?.value || null;
+  const team = staffTeams.find(t => t.id === teamId);
+  const payload = { role, team_id: teamId, period: team?.period || null };
+  const { error } = await sb.from('students').update(payload).eq('id', editingStaffStudentId);
+  if (error) {
+    alert(`Unable to update staff record: ${error.message}`);
+    return;
+  }
+  closeModal('staff-student-modal');
+  editingStaffStudentId = null;
+  await loadStaff();
+}
+
+function openStaffTeamModal(teamId = null) {
+  editingStaffTeamId = teamId;
+  const team = staffTeams.find(t => t.id === teamId);
+  document.getElementById('staff-team-modal-title').textContent = team ? 'Edit Team' : 'Add Team';
+  document.getElementById('staff-team-name').value = team?.name || '';
+  document.getElementById('staff-team-period').value = team?.period || '1st Hour';
+  document.getElementById('staff-team-color').value = team?.color || '#cc0000';
+  const msg = document.getElementById('staff-team-msg');
+  msg.style.display = 'none';
+  msg.textContent = '';
+  document.getElementById('staff-team-modal').classList.add('open');
+}
+
+async function saveStaffTeam() {
+  const name = document.getElementById('staff-team-name').value.trim();
+  const period = document.getElementById('staff-team-period').value;
+  const color = document.getElementById('staff-team-color').value || '#cc0000';
+  const msg = document.getElementById('staff-team-msg');
+  if (!name) {
+    msg.textContent = 'Team name is required.';
+    msg.style.display = 'block';
+    return;
+  }
+
+  const payload = { name, period, color };
+  const { error } = editingStaffTeamId
+    ? await sb.from('teams').update(payload).eq('id', editingStaffTeamId)
+    : await sb.from('teams').insert(payload);
+
+  if (error) {
+    msg.textContent = error.message;
+    msg.style.display = 'block';
+    return;
+  }
+
+  if (editingStaffTeamId) {
+    await sb.from('students').update({ period }).eq('team_id', editingStaffTeamId);
+  }
+
+  closeModal('staff-team-modal');
+  await loadStaff();
+}
+
+async function deleteStaffTeam(teamId) {
+  const team = staffTeams.find(t => t.id === teamId);
+  if (!team) return;
+  const assigned = allStaff.filter(s => s.team_id === teamId).length;
+  const msg = assigned
+    ? `Delete ${team.name}? ${assigned} student(s) will be moved to No Team.`
+    : `Delete ${team.name}?`;
+  if (!confirm(msg)) return;
+
+  if (assigned) {
+    await sb.from('students').update({ team_id: null, period: null }).eq('team_id', teamId);
+  }
+  const { error } = await sb.from('teams').delete().eq('id', teamId);
+  if (error) {
+    alert(`Unable to delete team: ${error.message}`);
+    return;
+  }
+  await loadStaff();
 }
 
 async function approveStaff(id) {
