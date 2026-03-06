@@ -1682,6 +1682,8 @@ async function syncSquareMenu() {
       throw new Error(out?.error || 'Sync failed (sync-catalog)');
     }
 
+    if (!out) throw (lastError || new Error('Unable to reach sync function.'));
+
     const updated = out.updated ?? out.summary?.updated ?? 0;
     const inserted = out.inserted ?? out.summary?.newItems ?? 0;
     const totalSquareItems = out.totalSquareItems ?? out.summary?.totalSquareItems;
