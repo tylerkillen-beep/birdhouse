@@ -1710,6 +1710,10 @@ async function syncSquareMenu() {
       unchangedHint += ` Example error: ${sampleErrors[0]}`;
     }
 
+    if (noChanges && !lookupErrors && !insertErrors && !updateErrors && !sampleErrors.length) {
+      unchangedHint += ' No error details were returned by sync-square-menu—check sync-square-menu logs in Supabase for this run.';
+    }
+
     alert(`Square sync complete via sync-square-menu. ${updated} updated, ${inserted} inserted${details}.${unchangedHint}`);
     await loadMenuItems();
   } catch (err) {
