@@ -1169,6 +1169,33 @@ async function deleteStaffTeam(teamId) {
   await loadStaff();
 }
 
+function renderStaffRoleOptions(currentRole) {
+  return ['student', 'manager', 'admin']
+    .map(role => `<option value="${role}" ${currentRole===role?'selected':''}>${role[0].toUpperCase()+role.slice(1)}</option>`)
+    .join('');
+}
+
+function renderStaffTeamOptions(currentTeamId) {
+  const options = ['<option value="">No Team</option>'];
+  staffTeams.forEach(team => {
+    options.push(`<option value="${team.id}" ${currentTeamId===team.id?'selected':''}>${team.name} (${team.period||'—'})</option>`);
+  });
+  return options.join('');
+}
+
+async function saveStaffControls(id) {
+  const role = document.getElementById(`staff-role-${id}`)?.value || 'student';
+  const teamId = document.getElementById(`staff-team-${id}`)?.value || null;
+  const team = staffTeams.find(t => t.id === teamId);
+  const payload = { role, team_id: teamId, period: team?.period || null };
+  const { error } = await sb.from('students').update(payload).eq('id', id);
+  if (error) {
+    alert(`Unable to update staff record: ${error.message}`);
+    return;
+  }
+  await loadStaff();
+}
+
 async function approveStaff(id) {
   await sb.from('students').update({ role: 'student' }).eq('id', id);
   loadStaff(); loadPendingBadge();
