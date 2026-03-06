@@ -1686,7 +1686,29 @@ async function syncSquareMenu() {
     const inserted = out.inserted ?? out.summary?.newItems ?? 0;
     const totalSquareItems = out.totalSquareItems ?? out.summary?.totalSquareItems;
     const details = totalSquareItems != null ? ` (${totalSquareItems} Square items scanned)` : '';
-    alert(`Square sync complete via sync-square-menu. ${updated} updated, ${inserted} inserted${details}.`);
+
+    const lookupErrors = out.lookupErrors ?? out.summary?.lookupErrors ?? 0;
+    const insertErrors = out.insertErrors ?? out.summary?.insertErrors ?? 0;
+    const updateErrors = out.updateErrors ?? out.summary?.updateErrors ?? 0;
+    const sampleErrors = Array.isArray(out.sampleErrors) ? out.sampleErrors : (Array.isArray(out.summary?.sampleErrors) ? out.summary.sampleErrors : []);
+
+    const noChanges = updated === 0 && inserted === 0;
+    let unchangedHint = '';
+    if (noChanges) {
+      const errorCounts = [];
+      if (lookupErrors) errorCounts.push(`${lookupErrors} lookup errors`);
+      if (insertErrors) errorCounts.push(`${insertErrors} insert errors`);
+      if (updateErrors) errorCounts.push(`${updateErrors} update errors`);
+      const errorHint = errorCounts.length ? ` (${errorCounts.join(', ')})` : '';
+      unchangedHint = ` No menu items were changed${errorHint}.`;
+    }
+
+    if (sampleErrors.length) {
+      console.error('sync-square-menu sample errors:', sampleErrors);
+      unchangedHint += ` Example error: ${sampleErrors[0]}`;
+    }
+
+    alert(`Square sync complete via sync-square-menu. ${updated} updated, ${inserted} inserted${details}.${unchangedHint}`);
     await loadMenuItems();
   } catch (err) {
     alert(err.message || 'Unable to sync from Square.');
