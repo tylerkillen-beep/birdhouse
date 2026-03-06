@@ -1,9 +1,9 @@
 // Supabase Edge Function: process-payment
-// Handles Square production payments for multi-item Birdhouse orders.
+// Handles Square payments for multi-item Birdhouse orders.
 //
 // Required Supabase secrets (set via: supabase secrets set KEY=value):
-//   SQUARE_ACCESS_TOKEN  — production access token from Square Developer Dashboard
-//   SQUARE_LOCATION_ID   — your Square production location ID
+//   SQUARE_ACCESS_TOKEN  — access token from Square Developer Dashboard (matches environment)
+//   SQUARE_LOCATION_ID   — your Square location ID (matches environment)
 //
 // The function receives the Square card token from the frontend, charges the
 // card for the full cart total, then records the order in the `orders` table.
@@ -17,6 +17,12 @@ const CORS = {
 };
 
 const JSON_HEADERS = { ...CORS, "Content-Type": "application/json" };
+
+function getSquareBaseUrl() {
+  const env = (Deno.env.get("SQUARE_ENV") || "production").toLowerCase();
+  if (env === "sandbox") return "https://connect.squareupsandbox.com";
+  return "https://connect.squareup.com";
+}
 
 function ok(body: unknown) {
   return new Response(JSON.stringify(body), { headers: JSON_HEADERS });
@@ -88,7 +94,7 @@ serve(async (req) => {
 
     if (totalCents <= 0) throw new Error("Order total must be greater than zero");
 
-    // ── Charge via Square production ──────────────────────────────────────────
+    // ── Charge via Square API ───────────────────────────────────────────
     const squareToken = Deno.env.get("SQUARE_ACCESS_TOKEN");
     const locationId = Deno.env.get("SQUARE_LOCATION_ID");
 
@@ -96,7 +102,8 @@ serve(async (req) => {
       throw new Error("Square credentials not configured — contact admin");
     }
 
-    const squareRes = await fetch("https://connect.squareup.com/v2/payments", {
+    const squareBaseUrl = getSquareBaseUrl();
+    const squareRes = await fetch(`${squareBaseUrl}/v2/payments`, {
       method: "POST",
       headers: {
         "Square-Version": "2024-01-18",
