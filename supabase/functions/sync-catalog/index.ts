@@ -26,7 +26,7 @@ type SquareObject = {
     name?: string;
     description?: string;
     category_id?: string;
-    variations?: Array<{ id: string }>;
+    variations?: Array<{ id: string; item_variation_data?: { price_money?: { amount?: number } } }>;
   };
   category_data?: {
     name?: string;
@@ -130,9 +130,12 @@ serve(async (req) => {
     const sampleErrors: string[] = [];
 
     for (const item of items) {
-      const firstVarId = item.item_data?.variations?.[0]?.id;
+      const firstVar = item.item_data?.variations?.[0];
+      const firstVarId = firstVar?.id;
       if (!firstVarId) skippedNoVariation += 1;
-      const priceCents = firstVarId ? (variations.get(firstVarId) || 0) : 0;
+      const priceCents = firstVar?.item_variation_data?.price_money?.amount
+        ?? (firstVarId ? variations.get(firstVarId) : undefined)
+        ?? 0;
 
       const payload = {
         name: item.item_data?.name || "Untitled",
