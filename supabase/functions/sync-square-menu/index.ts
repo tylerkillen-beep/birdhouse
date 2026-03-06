@@ -40,9 +40,16 @@ serve(async (req) => {
   if (req.method !== "POST") return json({ success: false, error: "Method not allowed" }, 405);
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const anon = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const anon = Deno.env.get("SUPABASE_ANON_KEY");
+    const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!supabaseUrl || !anon || !service) {
+      return json({
+        success: false,
+        error: "Missing required Supabase environment variables",
+      }, 500);
+    }
 
     const authHeader = req.headers.get("Authorization") || "";
 
@@ -115,9 +122,15 @@ serve(async (req) => {
     const items = objects.filter((o) => o.type === "ITEM" && o.item_data?.name);
     let inserted = 0;
     let updated = 0;
+    let skippedNoVariation = 0;
+    let lookupErrors = 0;
+    let insertErrors = 0;
+    let updateErrors = 0;
+    const sampleErrors: string[] = [];
 
     for (const item of items) {
       const firstVarId = item.item_data?.variations?.[0]?.id;
+      if (!firstVarId) skippedNoVariation += 1;
       const priceCents = firstVarId ? (variations.get(firstVarId) || 0) : 0;
 
       const payload = {
@@ -132,15 +145,26 @@ serve(async (req) => {
         square_item_id: item.id,
       };
 
-      const { data: existing } = await serviceClient
+      const { data: existing, error: existingErr } = await serviceClient
         .from("menu_items")
         .select("id")
         .eq("square_item_id", item.id)
         .maybeSingle();
 
+      if (existingErr) {
+        lookupErrors += 1;
+        if (sampleErrors.length < 8) sampleErrors.push(`lookup ${item.id}: ${existingErr.message}`);
+        continue;
+      }
+
       if (existing?.id) {
         const { error } = await serviceClient.from("menu_items").update(payload).eq("id", existing.id);
-        if (!error) updated += 1;
+        if (!error) {
+          updated += 1;
+        } else {
+          updateErrors += 1;
+          if (sampleErrors.length < 8) sampleErrors.push(`update ${item.id}: ${error.message}`);
+        }
       } else {
         const { data: maxSortRow } = await serviceClient
           .from("menu_items")
@@ -150,11 +174,30 @@ serve(async (req) => {
           .maybeSingle();
         const sort_order = (maxSortRow?.sort_order || 0) + 1;
         const { error } = await serviceClient.from("menu_items").insert({ ...payload, sort_order, square_modifier_list_ids: [] });
-        if (!error) inserted += 1;
+        if (!error) {
+          inserted += 1;
+        } else {
+          insertErrors += 1;
+          if (sampleErrors.length < 8) sampleErrors.push(`insert ${item.id}: ${error.message}`);
+        }
       }
     }
 
-    return json({ success: true, totalSquareItems: items.length, inserted, updated });
+    const diagnostics = {
+      scannedSquareObjects: objects.length,
+      totalSquareItems: items.length,
+      attemptedWrites: items.length,
+      inserted,
+      updated,
+      skippedNoVariation,
+      lookupErrors,
+      insertErrors,
+      updateErrors,
+      sampleErrors,
+    };
+
+    console.log("sync-square-menu diagnostics", diagnostics);
+    return json({ success: true, ...diagnostics });
   } catch (e) {
     console.error("sync-square-menu error", e);
     return json({ success: false, error: e instanceof Error ? e.message : "Unexpected error" }, 500);
