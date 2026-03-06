@@ -1706,11 +1706,11 @@ async function syncSquareMenu() {
     }
 
     if (sampleErrors.length) {
-      console.error('sync-catalog sample errors:', sampleErrors);
+      console.error('sync-square-menu sample errors:', sampleErrors);
       unchangedHint += ` Example error: ${sampleErrors[0]}`;
     }
 
-    alert(`Square sync complete via sync-catalog. ${updated} updated, ${inserted} inserted${details}.${unchangedHint}`);
+    alert(`Square sync complete via sync-square-menu. ${updated} updated, ${inserted} inserted${details}.${unchangedHint}`);
     await loadMenuItems();
   } catch (err) {
     alert(err.message || 'Unable to sync from Square.');
