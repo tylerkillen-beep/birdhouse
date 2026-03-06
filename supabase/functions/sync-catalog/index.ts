@@ -31,8 +31,9 @@ type SquareRaw = Record<string, any>;
  *   2. item_variation_data.location_overrides[matching location].price_money.amount
  *   3. 0
  */
-function extractPriceCents(varObj: SquareRaw, locationId: string | undefined): number {
-  const ivd = varObj?.item_variation_data ?? varObj?.itemVariationData;
+function extractPriceCents(varObj: SquareRaw | null | undefined, locationId: string | undefined): number {
+  if (!varObj) return 0;
+  const ivd = varObj.item_variation_data ?? varObj.itemVariationData;
   if (!ivd) return 0;
 
   const base = ivd.price_money?.amount ?? ivd.priceMoney?.amount;
@@ -267,7 +268,7 @@ serve(async (req) => {
       totalSquareItems: items.length,
       menuFilterApplied,
       menuFilteredItemCount,
-      availableMenus: [...menuItemIds.keys()],
+      availableMenus: Array.from(menuItemIds.keys()),
       locationId: locationId ?? null,
       sampleVariationPricePath,
       attemptedWrites: items.length,
