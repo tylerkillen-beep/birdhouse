@@ -1,9 +1,9 @@
 // Supabase Edge Function: process-payment
-// Handles Square sandbox payments for multi-item Birdhouse orders.
+// Handles Square production payments for multi-item Birdhouse orders.
 //
 // Required Supabase secrets (set via: supabase secrets set KEY=value):
-//   SQUARE_ACCESS_TOKEN  — sandbox access token from Square Developer Dashboard
-//   SQUARE_LOCATION_ID   — your Square sandbox location ID
+//   SQUARE_ACCESS_TOKEN  — production access token from Square Developer Dashboard
+//   SQUARE_LOCATION_ID   — your Square production location ID
 //
 // The function receives the Square card token from the frontend, charges the
 // card for the full cart total, then records the order in the `orders` table.
@@ -88,7 +88,7 @@ serve(async (req) => {
 
     if (totalCents <= 0) throw new Error("Order total must be greater than zero");
 
-    // ── Charge via Square sandbox ──────────────────────────────────────────
+    // ── Charge via Square production ──────────────────────────────────────────
     const squareToken = Deno.env.get("SQUARE_ACCESS_TOKEN");
     const locationId = Deno.env.get("SQUARE_LOCATION_ID");
 
@@ -96,7 +96,7 @@ serve(async (req) => {
       throw new Error("Square credentials not configured — contact admin");
     }
 
-    const squareRes = await fetch("https://connect.squareupsandbox.com/v2/payments", {
+    const squareRes = await fetch("https://connect.squareup.com/v2/payments", {
       method: "POST",
       headers: {
         "Square-Version": "2024-01-18",
