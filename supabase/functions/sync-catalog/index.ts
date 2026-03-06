@@ -154,7 +154,6 @@ serve(async (req) => {
         category: categories.get(item.item_data?.category_id || "") || "Coffee",
         base_price_cents: priceCents,
         base_price: (priceCents / 100).toFixed(2),
-        available: true,
         is_hot: true,
         is_iced: false,
         square_item_id: item.id,
@@ -190,7 +189,7 @@ serve(async (req) => {
         const sort_order = (maxSortRow?.sort_order || 0) + 1;
         const { error } = await serviceClient
           .from("menu_items")
-          .insert({ ...payload, sort_order, square_modifier_list_ids: [] });
+          .insert({ ...payload, sort_order, square_modifier_list_ids: [], available: false });
         if (!error) {
           inserted += 1;
         } else {
