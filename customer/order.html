@@ -24,6 +24,8 @@
     .user-card { background:rgba(204,0,0,0.08); border:1px solid var(--border); border-radius:10px; padding:1rem; margin-bottom:1.75rem; }
     .user-name { font-size:0.9rem; color:var(--white); font-weight:500; }
     .user-points { font-size:0.72rem; color:var(--red-bright); margin-top:0.25rem; }
+    .guest-signin-btn { margin-top:0.35rem; padding:0; border:none; background:none; color:var(--red-bright); font-size:0.8rem; font-family:'DM Sans',sans-serif; text-align:left; cursor:pointer; }
+    .guest-signin-btn:hover { color:#ff4d4d; text-decoration:underline; }
     nav { flex:1; }
     .nav-item { display:flex; align-items:center; gap:0.7rem; padding:0.7rem 0.9rem; border-radius:7px; color:var(--gray); font-size:0.85rem; text-decoration:none; cursor:pointer; transition:all 0.2s; margin-bottom:0.2rem; border:1px solid transparent; }
     .nav-item:hover { color:var(--white); background:rgba(255,255,255,0.04); }
@@ -151,6 +153,7 @@
     <div class="user-card">
       <div class="user-name" id="user-display-name">Loading...</div>
       <div class="user-points" id="user-points-badge">0 points</div>
+      <button class="guest-signin-btn" id="guest-signin-btn" onclick="redirectToSignIn()" style="display:none">Sign in to place orders</button>
     </div>
     <nav>
       <a class="nav-item" href="dashboard.html">📊 Overview</a>
@@ -306,6 +309,7 @@
     const meta = currentUser.user_metadata;
     document.getElementById('user-display-name').textContent = (meta.first_name || 'Eagle') + ' ' + (meta.last_name || '');
     document.getElementById('user-points-badge').textContent = (meta.loyalty_points || 0) + ' points';
+    document.getElementById('guest-signin-btn').style.display = 'none';
     if (meta.room) document.getElementById('delivery-room').value = meta.room;
     await Promise.all([loadMenu(), loadDeliveryTimes()]);
   }
@@ -721,11 +725,16 @@
 
   async function signOut() { await sb.auth.signOut(); window.location.href = 'index.html'; }
 
+  function redirectToSignIn() {
+    window.location.href = 'index.html?next=order';
+  }
+
   async function initGuestMode() {
     currentUser = null;
     sessionToken = null;
     document.getElementById('user-display-name').textContent = 'Guest';
-    document.getElementById('user-points-badge').textContent = 'Sign in to place orders';
+    document.getElementById('user-points-badge').textContent = 'Guest mode';
+    document.getElementById('guest-signin-btn').style.display = 'inline-block';
     await Promise.all([loadMenu(), loadDeliveryTimes()]);
   }
 
