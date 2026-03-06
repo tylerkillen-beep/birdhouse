@@ -19,22 +19,38 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS });
 }
 
-type SquareObject = {
-  id: string;
-  type: string;
-  item_data?: {
-    name?: string;
-    description?: string;
-    category_id?: string;
-    variations?: Array<{ id: string; item_variation_data?: { price_money?: { amount?: number } } }>;
-  };
-  category_data?: {
-    name?: string;
-  };
-  item_variation_data?: {
-    price_money?: { amount?: number };
-  };
-};
+// Use `any` for the raw Square objects so we don't accidentally drop fields
+// that the type definition doesn't know about (e.g. location_overrides on
+// item_variation_data, or menu_data on MENU objects).
+// deno-lint-ignore no-explicit-any
+type SquareRaw = Record<string, any>;
+
+/** Return the best price in cents for a variation object.
+ *  Checks (in order):
+ *   1. item_variation_data.price_money.amount  (base price)
+ *   2. item_variation_data.location_overrides[matching location].price_money.amount
+ *   3. 0
+ */
+function extractPriceCents(varObj: SquareRaw, locationId: string | undefined): number {
+  const ivd = varObj?.item_variation_data ?? varObj?.itemVariationData;
+  if (!ivd) return 0;
+
+  const base = ivd.price_money?.amount ?? ivd.priceMoney?.amount;
+  if (base != null && base > 0) return base;
+
+  // Fall back to location-specific override
+  if (locationId) {
+    const overrides: SquareRaw[] = ivd.location_overrides ?? ivd.locationOverrides ?? [];
+    for (const ov of overrides) {
+      if (ov.location_id === locationId || ov.locationId === locationId) {
+        const ovPrice = ov.price_money?.amount ?? ov.priceMoney?.amount;
+        if (ovPrice != null && ovPrice > 0) return ovPrice;
+      }
+    }
+  }
+
+  return 0;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
@@ -82,6 +98,9 @@ serve(async (req) => {
     const squareToken = Deno.env.get("SQUARE_ACCESS_TOKEN");
     if (!squareToken) return json({ success: false, error: "Missing SQUARE_ACCESS_TOKEN secret" }, 500);
 
+    const locationId = Deno.env.get("SQUARE_LOCATION_ID") || undefined;
+    const menuName = (Deno.env.get("SQUARE_MENU_NAME") || "").trim();
+
     const squareBaseUrl = getSquareBaseUrl();
     const squareHeaders = {
       "Authorization": `Bearer ${squareToken}`,
@@ -89,13 +108,13 @@ serve(async (req) => {
       "Content-Type": "application/json",
     };
 
-    const objects: SquareObject[] = [];
+    const objects: SquareRaw[] = [];
     let cursor: string | undefined;
 
-    // Square catalog/list is paginated — pull every page so we don't miss any ITEM records.
+    // Paginated fetch — include MENU so we can filter by menu name
     do {
       const params = new URLSearchParams({
-        types: "ITEM,ITEM_VARIATION,CATEGORY",
+        types: "ITEM,ITEM_VARIATION,CATEGORY,MENU",
       });
       if (cursor) params.set("cursor", cursor);
 
@@ -112,15 +131,63 @@ serve(async (req) => {
       cursor = sqBody.cursor || undefined;
     } while (cursor);
 
+    // Build lookup maps
     const categories = new Map<string, string>();
-    const variations = new Map<string, number>();
+    const variationObjects = new Map<string, SquareRaw>(); // variation id → full object
 
     for (const o of objects) {
-      if (o.type === "CATEGORY") categories.set(o.id, o.category_data?.name || "Coffee");
-      if (o.type === "ITEM_VARIATION") variations.set(o.id, o.item_variation_data?.price_money?.amount || 0);
+      if (o.type === "CATEGORY") {
+        categories.set(o.id, o.category_data?.name || "Coffee");
+      }
+      if (o.type === "ITEM_VARIATION") {
+        variationObjects.set(o.id, o);
+      }
     }
 
-    const items = objects.filter((o) => o.type === "ITEM" && o.item_data?.name);
+    // Build menu → item ID set map from MENU catalog objects
+    const menuItemIds = new Map<string, Set<string>>(); // menu name (lower) → item ids
+    for (const o of objects) {
+      if (o.type !== "MENU") continue;
+      const name: string = o.menu_data?.name ?? o.menuData?.name ?? "";
+      if (!name) continue;
+      const ids = new Set<string>();
+      const sections: SquareRaw[] = o.menu_data?.sections ?? o.menuData?.sections ?? [];
+      for (const sec of sections) {
+        const entries: SquareRaw[] = sec.items ?? sec.catalog_items ?? [];
+        for (const entry of entries) {
+          const id = entry.item_id ?? entry.itemId ?? entry.catalog_item_id;
+          if (id) ids.add(id);
+        }
+      }
+      menuItemIds.set(name.toLowerCase(), ids);
+    }
+
+    // All catalog ITEM objects with a name
+    let items: SquareRaw[] = objects.filter((o) => o.type === "ITEM" && o.item_data?.name);
+
+    // Filter to a specific menu if SQUARE_MENU_NAME is set
+    let menuFilterApplied = false;
+    let menuFilteredItemCount = items.length;
+    if (menuName) {
+      const targetIds = menuItemIds.get(menuName.toLowerCase());
+      if (targetIds && targetIds.size > 0) {
+        items = items.filter((i) => targetIds.has(i.id));
+        menuFilterApplied = true;
+        menuFilteredItemCount = items.length;
+      }
+      // If no matching MENU object found, fall through and sync everything
+    }
+
+    // Sample raw variation for price diagnostics (returned in response)
+    const sampleVariationRaw = objects.find((o) => o.type === "ITEM_VARIATION") ?? null;
+    const sampleVariationPricePath = sampleVariationRaw
+      ? {
+          id: sampleVariationRaw.id,
+          price_money: sampleVariationRaw.item_variation_data?.price_money,
+          location_overrides: (sampleVariationRaw.item_variation_data?.location_overrides ?? []).slice(0, 2),
+        }
+      : null;
+
     let inserted = 0;
     let updated = 0;
     let skippedNoVariation = 0;
@@ -130,12 +197,18 @@ serve(async (req) => {
     const sampleErrors: string[] = [];
 
     for (const item of items) {
-      const firstVar = item.item_data?.variations?.[0];
-      const firstVarId = firstVar?.id;
-      if (!firstVarId) skippedNoVariation += 1;
-      const priceCents = firstVar?.item_variation_data?.price_money?.amount
-        ?? (firstVarId ? variations.get(firstVarId) : undefined)
-        ?? 0;
+      const embeddedVariations: SquareRaw[] = item.item_data?.variations ?? [];
+      const firstEmbedded = embeddedVariations[0] ?? null;
+      const firstVarId: string | undefined = firstEmbedded?.id;
+
+      if (!firstVarId) {
+        skippedNoVariation += 1;
+      }
+
+      // Prefer the top-level ITEM_VARIATION object (has location_overrides);
+      // fall back to the embedded variation stub inside item_data
+      const varObj = (firstVarId && variationObjects.get(firstVarId)) ?? firstEmbedded;
+      const priceCents = extractPriceCents(varObj, locationId);
 
       const payload = {
         name: item.item_data?.name || "Untitled",
@@ -192,6 +265,11 @@ serve(async (req) => {
     const diagnostics = {
       scannedSquareObjects: objects.length,
       totalSquareItems: items.length,
+      menuFilterApplied,
+      menuFilteredItemCount,
+      availableMenus: [...menuItemIds.keys()],
+      locationId: locationId ?? null,
+      sampleVariationPricePath,
       attemptedWrites: items.length,
       inserted,
       updated,
