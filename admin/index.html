@@ -1666,38 +1666,20 @@ async function syncSquareMenu() {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) { alert('Please sign in again.'); return; }
 
-    const endpoints = [
-      'https://ljukrhneikqbabcmcpet.supabase.co/functions/v1/sync-catalog',
-      'https://ljukrhneikqbabcmcpet.supabase.co/functions/v1/sync-square-menu',
-    ];
+    const endpoint = 'https://ljukrhneikqbabcmcpet.supabase.co/functions/v1/sync-catalog';
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': 'sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({}),
+    });
 
-    let out = null;
-    let usedEndpoint = '';
-    let lastError = null;
-
-    for (const endpoint of endpoints) {
-      try {
-        const res = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': 'sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({}),
-        });
-
-        const payload = await res.json().catch(() => ({}));
-        if (!res.ok || !payload.success) {
-          throw new Error(payload?.error || `Sync failed (${endpoint.split('/').pop()})`);
-        }
-
-        out = payload;
-        usedEndpoint = endpoint;
-        break;
-      } catch (endpointError) {
-        lastError = endpointError;
-      }
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok || !out.success) {
+      throw new Error(out?.error || 'Sync failed (sync-catalog)');
     }
 
     if (!out) throw (lastError || new Error('Unable to reach sync function.'));
@@ -1706,8 +1688,9 @@ async function syncSquareMenu() {
     const inserted = out.inserted ?? out.summary?.newItems ?? 0;
     const totalSquareItems = out.totalSquareItems ?? out.summary?.totalSquareItems;
     const details = totalSquareItems != null ? ` (${totalSquareItems} Square items scanned)` : '';
-    const functionName = usedEndpoint.split('/').pop();
-    alert(`Square sync complete via ${functionName}. ${updated} updated, ${inserted} inserted${details}.`);
+    const noChanges = updated === 0 && inserted === 0;
+    const unchangedHint = noChanges ? ' No menu items were changed—check the function logs if you expected new items.' : '';
+    alert(`Square sync complete via sync-catalog. ${updated} updated, ${inserted} inserted${details}.${unchangedHint}`);
     await loadMenuItems();
   } catch (err) {
     alert(err.message || 'Unable to sync from Square.');
