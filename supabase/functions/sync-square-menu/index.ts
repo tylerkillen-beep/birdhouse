@@ -68,7 +68,7 @@ serve(async (req) => {
     const squareToken = Deno.env.get("SQUARE_ACCESS_TOKEN");
     if (!squareToken) return json({ success: false, error: "Missing SQUARE_ACCESS_TOKEN secret" }, 500);
 
-    const sqRes = await fetch("https://connect.squareupsandbox.com/v2/catalog/list?types=ITEM,ITEM_VARIATION,CATEGORY", {
+    const sqRes = await fetch("https://connect.squareup.com/v2/catalog/list?types=ITEM,ITEM_VARIATION,CATEGORY", {
       headers: {
         "Authorization": `Bearer ${squareToken}`,
         "Square-Version": "2024-01-18",
