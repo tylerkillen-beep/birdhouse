@@ -13,9 +13,7 @@ Use this package when you want to push app code to GitHub.
 - Admin Menu button label updated to **"Sync Square Catalog"**.
 - Admin menu sync now calls your existing Supabase function endpoint:
   - `https://ljukrhneikqbabcmcpet.supabase.co/functions/v1/sync-catalog`
-- Clarification: `sync-catalog` is the endpoint currently used by the admin UI. The repo file
-  `supabase/functions/sync-square-menu/index.ts` is a separate/new function implementation and
-  is **not** required for the UI-only sync button wiring.
+- Clarification: `sync-catalog` is the endpoint currently deployed and used by the admin UI.
 - Sync success message supports either response shape:
   - `updated` + `inserted`
   - or `summary.updated` + `summary.newItems`
@@ -37,13 +35,9 @@ Run these migration files in order:
 3. `supabase/migrations/20260306_create_plans_table_and_staff_subscriptions_policy.sql` (adds missing `plans` table + plan/subscription policies)
 
 ### Edge Function updates (Supabase Edge Functions)
-If you want Square sync backend logic from repo, use file:
-- `supabase/functions/sync-square-menu/index.ts`
+Use `sync-catalog` as the only supported Square sync function for this project.
 
-If your project already has a working `sync-catalog` function in Supabase, keep using that as
-your canonical function and treat `sync-square-menu` as optional unless you intentionally migrate.
-
-You can copy/paste function code into Supabase Edge Function editor (or deploy through your normal process).
+You can manage `sync-catalog` directly in Supabase Edge Functions as needed.
 
 ---
 
