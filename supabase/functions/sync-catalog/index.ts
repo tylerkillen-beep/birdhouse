@@ -92,8 +92,7 @@ serve(async (req) => {
     const objects: SquareObject[] = [];
     let cursor: string | undefined;
 
-    // Square catalog/list is paginated. Pull every page so we don't miss ITEM records
-    // that might not appear in the first page.
+    // Square catalog/list is paginated — pull every page so we don't miss any ITEM records.
     do {
       const params = new URLSearchParams({
         types: "ITEM,ITEM_VARIATION,CATEGORY",
@@ -112,6 +111,7 @@ serve(async (req) => {
       objects.push(...(sqBody.objects || []));
       cursor = sqBody.cursor || undefined;
     } while (cursor);
+
     const categories = new Map<string, string>();
     const variations = new Map<string, number>();
 
@@ -174,7 +174,9 @@ serve(async (req) => {
           .limit(1)
           .maybeSingle();
         const sort_order = (maxSortRow?.sort_order || 0) + 1;
-        const { error } = await serviceClient.from("menu_items").insert({ ...payload, sort_order, square_modifier_list_ids: [] });
+        const { error } = await serviceClient
+          .from("menu_items")
+          .insert({ ...payload, sort_order, square_modifier_list_ids: [] });
         if (!error) {
           inserted += 1;
         } else {
@@ -197,10 +199,10 @@ serve(async (req) => {
       sampleErrors,
     };
 
-    console.log("sync-square-menu diagnostics", diagnostics);
+    console.log("sync-catalog diagnostics", diagnostics);
     return json({ success: true, ...diagnostics });
   } catch (e) {
-    console.error("sync-square-menu error", e);
+    console.error("sync-catalog error", e);
     return json({ success: false, error: e instanceof Error ? e.message : "Unexpected error" }, 500);
   }
 });
