@@ -1666,27 +1666,37 @@ async function syncSquareMenu() {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) { alert('Please sign in again.'); return; }
 
-    // Canonical backend endpoint is sync-catalog.
-    // Do not switch this to sync-square-menu unless that function is explicitly deployed and intended.
-    const res = await fetch('https://ljukrhneikqbabcmcpet.supabase.co/functions/v1/sync-catalog', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': 'sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn',
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({}),
-    });
+    const base = 'https://ljukrhneikqbabcmcpet.supabase.co/functions/v1';
+    const endpoints = ['sync-square-menu', 'sync-catalog'];
+    let lastError = null;
 
-    const out = await res.json();
-    if (!res.ok || !out.success) {
-      throw new Error(out.error || 'Sync failed');
+    for (const endpoint of endpoints) {
+      const res = await fetch(`${base}/${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': 'sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({}),
+      });
+
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok || !out.success) {
+        lastError = out?.error || `Sync failed (${endpoint})`;
+        continue;
+      }
+
+      const updated = out.updated ?? out.summary?.updated ?? 0;
+      const inserted = out.inserted ?? out.summary?.newItems ?? 0;
+      const totalSquareItems = out.totalSquareItems ?? out.summary?.totalSquareItems;
+      const details = totalSquareItems != null ? ` (${totalSquareItems} Square items scanned)` : '';
+      alert(`Square sync complete via ${endpoint}. ${updated} updated, ${inserted} inserted${details}.`);
+      await loadMenuItems();
+      return;
     }
 
-    const updated = out.updated ?? out.summary?.updated ?? 0;
-    const inserted = out.inserted ?? out.summary?.newItems ?? 0;
-    alert(`Square sync complete. ${updated} updated, ${inserted} inserted.`);
-    await loadMenuItems();
+    throw new Error(lastError || 'Unable to sync from Square.');
   } catch (err) {
     alert(err.message || 'Unable to sync from Square.');
   }
