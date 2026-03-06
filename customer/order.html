@@ -357,27 +357,47 @@
 
     menuItems = items;
 
-    const hotItems  = items.filter(i => i.is_hot !== false && i.is_iced !== true);
-    const icedItems = items.filter(i => i.is_iced === true);
-    const bothItems = items.filter(i => i.is_hot !== false && i.is_iced === true);
+    function normalizeCategory(label) {
+      return String(label || '').trim().toLowerCase();
+    }
+
+    function getDisplayCategory(item) {
+      const normalized = normalizeCategory(item.category);
+      if (normalized.includes('special')) return 'specials';
+      if (normalized.includes('soda') || normalized.includes('tea') || normalized.includes('energy') || normalized.includes('refresher')) return 'soda_tea';
+      if (normalized.includes('food') || normalized.includes('pastry') || normalized.includes('snack')) return 'food';
+      return 'coffee';
+    }
+
+    const sections = [
+      { key: 'specials', title: 'Specials', icon: '✨' },
+      { key: 'coffee',   title: 'Coffee', icon: '☕' },
+      { key: 'soda_tea', title: 'Soda & Tea', icon: '🥤' },
+      { key: 'food',     title: 'Food', icon: '🍽️' },
+    ];
+
+    const bySection = {
+      specials: [],
+      coffee: [],
+      soda_tea: [],
+      food: [],
+    };
+
+    items.forEach(item => {
+      bySection[getDisplayCategory(item)].push(item);
+    });
 
     let html = '';
-    if (hotItems.length || bothItems.length) {
+    sections.forEach(section => {
+      const sectionItems = bySection[section.key] || [];
+      if (!sectionItems.length) return;
       html += `<div class="menu-section-header">
-        <span style="font-size:1.3rem">☕</span>
-        <span class="menu-section-title">Hot Drinks</span>
-        <span class="size-pill pill-hot">12 oz</span>
+        <span style="font-size:1.3rem">${section.icon}</span>
+        <span class="menu-section-title">${section.title}</span>
       </div>
-      <div class="menu-grid">${[...hotItems, ...bothItems].map(i => menuCard(i, 'hot')).join('')}</div>`;
-    }
-    if (icedItems.length || bothItems.length) {
-      html += `<div class="menu-section-header">
-        <span style="font-size:1.3rem">🧊</span>
-        <span class="menu-section-title">Iced Drinks</span>
-        <span class="size-pill pill-iced">16 oz</span>
-      </div>
-      <div class="menu-grid">${[...icedItems, ...bothItems].map(i => menuCard(i, 'iced')).join('')}</div>`;
-    }
+      <div class="menu-grid">${sectionItems.map(i => menuCard(i, i.is_iced === true && i.is_hot === false ? 'iced' : 'hot')).join('')}</div>`;
+    });
+
     container.innerHTML = html || '<div class="no-menu">No items available.</div>';
   }
 
