@@ -530,9 +530,9 @@
     <div class="table-wrap">
       <table>
         <thead>
-          <tr><th>Name</th><th>Category</th><th>Temp</th><th>Price</th><th>Availability</th><th>Square</th><th>Actions</th></tr>
+          <tr><th>Name</th><th>Category</th><th>Temp</th><th>Price</th><th>Availability</th><th>Actions</th></tr>
         </thead>
-        <tbody id="menu-items-tbody"><tr class="loading-row"><td colspan="7">Loading menu items…</td></tr></tbody>
+        <tbody id="menu-items-tbody"><tr class="loading-row"><td colspan="6">Loading menu items…</td></tr></tbody>
       </table>
     </div>
 
@@ -585,10 +585,6 @@
       <div class="form-group">
         <label class="form-label">Sort Order</label>
         <input class="form-input" id="menu-item-sort" type="number" placeholder="1" />
-      </div>
-      <div class="form-group">
-        <label class="form-label">Square Item ID (optional)</label>
-        <input class="form-input" id="menu-item-square-id" placeholder="SQUARE_CATALOG_ITEM_ID" />
       </div>
       <div class="form-group">
         <label class="form-label">Square Modifier List IDs (comma-separated)</label>
@@ -763,14 +759,12 @@ function getMenuCategoryConfig(value) {
 }
 
 function getMenuCategoryKey(value) {
-  return getMenuCategoryConfig(value)?.key || 'other';
+  return getMenuCategoryConfig(value)?.key || 'coffee';
 }
 
 function getMenuCategoryLabel(value) {
   const config = getMenuCategoryConfig(value);
-  if (config) return config.label;
-  const raw = String(value || '').trim();
-  return raw || 'Other';
+  return config?.label || 'Coffee';
 }
 
 function populateMenuCategoryControls(items = []) {
@@ -779,18 +773,9 @@ function populateMenuCategoryControls(items = []) {
   if (!modalSelect || !filterSelect) return;
 
   const knownLabels = MENU_CATEGORY_CONFIG.map(c => c.label);
-  const extraLabels = Array.from(new Set((items || [])
-    .map(i => String(i.category || '').trim())
-    .filter(Boolean)
-    .filter(v => !knownLabels.includes(v))))
-    .sort((a, b) => a.localeCompare(b));
 
   const modalCurrent = modalSelect.value;
-  modalSelect.innerHTML = [
-    ...knownLabels,
-    ...extraLabels,
-    'Other',
-  ].map(label => `<option value="${label}">${label}</option>`).join('');
+  modalSelect.innerHTML = knownLabels.map(label => `<option value="${label}">${label}</option>`).join('');
   modalSelect.value = modalCurrent && Array.from(modalSelect.options).some(o => o.value === modalCurrent)
     ? modalCurrent
     : 'Coffee';
@@ -799,7 +784,6 @@ function populateMenuCategoryControls(items = []) {
   const filterOptions = [
     { value:'', label:'All Categories' },
     ...MENU_CATEGORY_CONFIG.map(c => ({ value:c.key, label:c.label })),
-    { value:'other', label:'Other' },
   ];
   filterSelect.innerHTML = filterOptions.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
   filterSelect.value = Array.from(filterSelect.options).some(o => o.value === filterCurrent)
@@ -1479,20 +1463,20 @@ async function syncSquareMenu() {
 
 async function loadMenuItems() {
   const tbody = document.getElementById('menu-items-tbody');
-  tbody.innerHTML = '<tr class="loading-row"><td colspan="7">Loading menu items…</td></tr>';
+  tbody.innerHTML = '<tr class="loading-row"><td colspan="6">Loading menu items…</td></tr>';
   const { data, error } = await sb.from('menu_items').select('*').order('sort_order');
   if (error) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#ff6b6b;padding:1.25rem">${error.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#ff6b6b;padding:1.25rem">${error.message}</td></tr>`;
     return;
   }
   allMenuItems = data || [];
   populateMenuCategoryControls(allMenuItems);
   if (!allMenuItems.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gray);padding:1.5rem">No menu items yet.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--gray);padding:1.5rem">No menu items yet.</td></tr>';
     return;
   }
   const categoryFilter = document.getElementById('menu-category-filter')?.value || '';
-  const categorySortOrder = [...MENU_CATEGORY_CONFIG.map(c => c.key), 'other'];
+  const categorySortOrder = [...MENU_CATEGORY_CONFIG.map(c => c.key)];
   const list = [...allMenuItems]
     .filter(item => !categoryFilter || getMenuCategoryKey(item.category) === categoryFilter)
     .sort((a, b) => {
@@ -1504,7 +1488,7 @@ async function loadMenuItems() {
     });
 
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gray);padding:1.5rem">No menu items in this category yet.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--gray);padding:1.5rem">No menu items in this category yet.</td></tr>';
     return;
   }
 
@@ -1512,7 +1496,6 @@ async function loadMenuItems() {
     const temp = `${item.is_hot !== false ? '☕' : ''}${item.is_iced ? '🧊' : ''}` || '—';
     const priceCents = item.base_price_cents ?? Math.round((parseFloat(item.base_price) || 0) * 100);
     const price = `$${(priceCents / 100).toFixed(2)}`;
-    const square = item.square_item_id || '—';
     const categoryLabel = getMenuCategoryLabel(item.category);
     return `<tr>
       <td><strong>${item.name || '—'}</strong><div style="font-size:0.72rem;color:var(--gray)">${item.description || ''}</div></td>
@@ -1520,7 +1503,6 @@ async function loadMenuItems() {
       <td>${temp}</td>
       <td>${price}</td>
       <td>${item.available ? '<span style="color:#27ae60">Available</span>' : '<span style="color:var(--gray)">Hidden</span>'}</td>
-      <td style="font-size:0.75rem;color:var(--gray)">${square}</td>
       <td>
         <button class="btn btn-ghost btn-sm" onclick="editMenuItem('${item.id}')">Edit</button>
         <button class="btn btn-success btn-sm" onclick="toggleMenuItemAvailability('${item.id}', ${item.available ? 'false' : 'true'})">${item.available ? 'Hide' : 'Show'}</button>
@@ -1548,7 +1530,6 @@ function menuItemPayloadFromForm() {
     is_iced: document.getElementById('menu-item-iced').checked,
     available: document.getElementById('menu-item-available').checked,
     sort_order: parseInt(document.getElementById('menu-item-sort').value || '1', 10) || 1,
-    square_item_id: document.getElementById('menu-item-square-id').value.trim() || null,
     square_modifier_list_ids: parseModifierListIds(document.getElementById('menu-item-mod-list-ids').value),
     base_price: price.toFixed(2),
     base_price_cents: Math.round(price * 100),
@@ -1565,7 +1546,6 @@ function resetMenuItemModal() {
   document.getElementById('menu-item-category').value = 'Coffee';
   document.getElementById('menu-item-price').value = '';
   document.getElementById('menu-item-sort').value = '1';
-  document.getElementById('menu-item-square-id').value = '';
   document.getElementById('menu-item-mod-list-ids').value = '';
   document.getElementById('menu-item-hot').checked = true;
   document.getElementById('menu-item-iced').checked = false;
@@ -1587,17 +1567,9 @@ function editMenuItem(id) {
   document.getElementById('menu-item-name').value = item.name || '';
   document.getElementById('menu-item-description').value = item.description || '';
   const categoryInput = document.getElementById('menu-item-category');
-  const categoryValue = item.category || getMenuCategoryLabel(item.category) || 'Coffee';
-  if (!Array.from(categoryInput.options).some(opt => opt.value === categoryValue)) {
-    const extra = document.createElement('option');
-    extra.value = categoryValue;
-    extra.textContent = categoryValue;
-    categoryInput.appendChild(extra);
-  }
-  categoryInput.value = categoryValue;
+  categoryInput.value = getMenuCategoryLabel(item.category);
   document.getElementById('menu-item-price').value = ((item.base_price_cents ?? Math.round((parseFloat(item.base_price) || 0) * 100)) / 100).toFixed(2);
   document.getElementById('menu-item-sort').value = item.sort_order || 1;
-  document.getElementById('menu-item-square-id').value = item.square_item_id || '';
   document.getElementById('menu-item-mod-list-ids').value = (item.square_modifier_list_ids || []).join(', ');
   document.getElementById('menu-item-hot').checked = item.is_hot !== false;
   document.getElementById('menu-item-iced').checked = item.is_iced === true;
