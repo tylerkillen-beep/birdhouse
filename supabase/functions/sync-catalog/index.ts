@@ -89,19 +89,33 @@ serve(async (req) => {
       "Content-Type": "application/json",
     };
 
+    const locationId = Deno.env.get("SQUARE_LOCATION_ID");
+
     const objects: SquareObject[] = [];
     let cursor: string | undefined;
 
-    // Square catalog/list is paginated — pull every page so we don't miss any ITEM records.
+    // Use catalog/search to filter by location when SQUARE_LOCATION_ID is set,
+    // otherwise fall back to catalog/list (pulls entire account catalog).
     do {
-      const params = new URLSearchParams({
-        types: "ITEM,ITEM_VARIATION,CATEGORY",
-      });
-      if (cursor) params.set("cursor", cursor);
-
-      const sqRes = await fetch(`${squareBaseUrl}/v2/catalog/list?${params.toString()}`, {
-        headers: squareHeaders,
-      });
+      let sqRes: Response;
+      if (locationId) {
+        const searchBody: Record<string, unknown> = {
+          object_types: ["ITEM", "ITEM_VARIATION", "CATEGORY"],
+          query: { location_query: { location_ids: [locationId] } },
+        };
+        if (cursor) searchBody.cursor = cursor;
+        sqRes = await fetch(`${squareBaseUrl}/v2/catalog/search`, {
+          method: "POST",
+          headers: squareHeaders,
+          body: JSON.stringify(searchBody),
+        });
+      } else {
+        const params = new URLSearchParams({ types: "ITEM,ITEM_VARIATION,CATEGORY" });
+        if (cursor) params.set("cursor", cursor);
+        sqRes = await fetch(`${squareBaseUrl}/v2/catalog/list?${params.toString()}`, {
+          headers: squareHeaders,
+        });
+      }
 
       const sqBody = await sqRes.json();
       if (!sqRes.ok || sqBody?.errors?.length) {
@@ -187,6 +201,7 @@ serve(async (req) => {
     }
 
     const diagnostics = {
+      locationId: locationId || "none (full catalog)",
       scannedSquareObjects: objects.length,
       totalSquareItems: items.length,
       attemptedWrites: items.length,
