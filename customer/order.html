@@ -216,7 +216,7 @@
       </div>
       <div class="btn-row">
         <button class="btn-ghost" onclick="goToStep(1)">← Back</button>
-        <button class="btn-primary" onclick="proceedToPayment()">Review & Pay →</button>
+        <button class="btn-primary" id="btn-step2-continue" onclick="proceedToPayment()">Review & Pay →</button>
       </div>
     </div>
 
@@ -301,12 +301,15 @@
   async function init() {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) { const err = new Error('No active session'); err.name = 'AuthSessionMissingError'; throw err; }
+    if (session.user?.is_anonymous) { const err = new Error('Anonymous session cannot checkout'); err.name = 'AuthSessionMissingError'; throw err; }
     currentUser  = session.user;
     sessionToken = session.access_token;
     const meta = currentUser.user_metadata;
     document.getElementById('user-display-name').textContent = (meta.first_name || 'Eagle') + ' ' + (meta.last_name || '');
     document.getElementById('user-points-badge').textContent = (meta.loyalty_points || 0) + ' points';
     if (meta.room) document.getElementById('delivery-room').value = meta.room;
+    const continueBtn = document.getElementById('btn-step2-continue');
+    if (continueBtn) continueBtn.textContent = 'Review & Pay →';
     await Promise.all([loadMenu(), loadDeliveryTimes()]);
   }
 
@@ -414,11 +417,9 @@
   }
 
   // ── Modifier Modal ────────────────────────────────────────────────────────
-  function openModModal(itemId, temp) {
-    if (!currentUser) {
-      window.location.href = 'index.html?next=order';
-      return;
-    }
+  async function openModModal(itemId, temp) {
+    const session = await requireAuthAndRedirect();
+    if (!session) return;
 
     const item = menuItems.find(i => i.id === itemId);
     if (!item) return;
@@ -607,10 +608,8 @@
 
   // ── Payment ───────────────────────────────────────────────────────────────
   async function submitPayment() {
-    if (!currentUser || !sessionToken) {
-      window.location.href = 'index.html?next=order';
-      return;
-    }
+    const session = await requireAuthAndRedirect();
+    if (!session) return;
 
     const btn   = document.getElementById('pay-btn');
     const errEl = document.getElementById('pay-error');
@@ -676,18 +675,28 @@
   }
 
   // ── Navigation ────────────────────────────────────────────────────────────
-  function proceedToPayment() {
-    if (!currentUser) {
+  async function requireAuthAndRedirect() {
+    const { data: { session } } = await sb.auth.getSession();
+    const isSignedInUser = !!session && !session.user?.is_anonymous;
+    if (!isSignedInUser) {
       window.location.href = 'index.html?next=order';
-      return;
+      return null;
     }
-    goToStep(3);
+    currentUser = session.user;
+    sessionToken = session.access_token;
+    return session;
+  }
+
+  async function proceedToPayment() {
+    const session = await requireAuthAndRedirect();
+    if (!session) return;
+    await goToStep(3);
   }
 
   async function goToStep(step) {
-    if (step === 3 && !currentUser) {
-      window.location.href = 'index.html?next=order';
-      return;
+    if (step === 3) {
+      const session = await requireAuthAndRedirect();
+      if (!session) return;
     }
 
     if (step === 2) renderCartReview();
@@ -726,6 +735,8 @@
     sessionToken = null;
     document.getElementById('user-display-name').textContent = 'Guest';
     document.getElementById('user-points-badge').textContent = 'Sign in to place orders';
+    const continueBtn = document.getElementById('btn-step2-continue');
+    if (continueBtn) continueBtn.textContent = 'Sign In to Continue →';
     await Promise.all([loadMenu(), loadDeliveryTimes()]);
   }
 
