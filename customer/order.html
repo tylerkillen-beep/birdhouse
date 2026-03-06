@@ -22,10 +22,11 @@
     .sidebar { background:#0d0000; border-right:1px solid var(--border); padding:1.75rem 1.25rem; position:sticky; top:0; height:100vh; display:flex; flex-direction:column; }
     .sidebar-logo img { height:38px; filter:drop-shadow(0 0 8px rgba(204,0,0,0.5)); margin-bottom:2rem; }
     .user-card { background:rgba(204,0,0,0.08); border:1px solid var(--border); border-radius:10px; padding:1rem; margin-bottom:1.75rem; }
+    .user-card.guest-clickable { cursor:pointer; transition:border-color 0.2s, background 0.2s; }
+    .user-card.guest-clickable:hover { border-color:rgba(204,0,0,0.42); background:rgba(204,0,0,0.12); }
     .user-name { font-size:0.9rem; color:var(--white); font-weight:500; }
     .user-points { font-size:0.72rem; color:var(--red-bright); margin-top:0.25rem; }
-    .guest-signin-btn { margin-top:0.35rem; padding:0; border:none; background:none; color:var(--red-bright); font-size:0.8rem; font-family:'DM Sans',sans-serif; text-align:left; cursor:pointer; }
-    .guest-signin-btn:hover { color:#ff4d4d; text-decoration:underline; }
+    .guest-signin-cta { margin-top:0.35rem; color:var(--red-bright); font-size:0.8rem; }
     nav { flex:1; }
     .nav-item { display:flex; align-items:center; gap:0.7rem; padding:0.7rem 0.9rem; border-radius:7px; color:var(--gray); font-size:0.85rem; text-decoration:none; cursor:pointer; transition:all 0.2s; margin-bottom:0.2rem; border:1px solid transparent; }
     .nav-item:hover { color:var(--white); background:rgba(255,255,255,0.04); }
@@ -150,10 +151,10 @@
 <div class="layout">
   <aside class="sidebar">
     <div class="sidebar-logo"><img src="../logo.png" alt="The Birdhouse" /></div>
-    <div class="user-card">
+    <div class="user-card" id="user-card">
       <div class="user-name" id="user-display-name">Loading...</div>
       <div class="user-points" id="user-points-badge">0 points</div>
-      <button class="guest-signin-btn" id="guest-signin-btn" onclick="redirectToSignIn()" style="display:none">Sign in to place orders</button>
+      <div class="guest-signin-cta" id="guest-signin-cta" style="display:none">Sign in to place orders</div>
     </div>
     <nav>
       <a class="nav-item" href="dashboard.html">📊 Overview</a>
@@ -309,7 +310,11 @@
     const meta = currentUser.user_metadata;
     document.getElementById('user-display-name').textContent = (meta.first_name || 'Eagle') + ' ' + (meta.last_name || '');
     document.getElementById('user-points-badge').textContent = (meta.loyalty_points || 0) + ' points';
-    document.getElementById('guest-signin-btn').style.display = 'none';
+    const userCard = document.getElementById('user-card');
+    document.getElementById('user-points-badge').style.display = 'block';
+    document.getElementById('guest-signin-cta').style.display = 'none';
+    userCard.classList.remove('guest-clickable');
+    userCard.onclick = null;
     if (meta.room) document.getElementById('delivery-room').value = meta.room;
     await Promise.all([loadMenu(), loadDeliveryTimes()]);
   }
@@ -733,8 +738,12 @@
     currentUser = null;
     sessionToken = null;
     document.getElementById('user-display-name').textContent = 'Guest';
-    document.getElementById('user-points-badge').textContent = 'Guest mode';
-    document.getElementById('guest-signin-btn').style.display = 'inline-block';
+    const userCard = document.getElementById('user-card');
+    document.getElementById('user-points-badge').textContent = '';
+    document.getElementById('user-points-badge').style.display = 'none';
+    document.getElementById('guest-signin-cta').style.display = 'block';
+    userCard.classList.add('guest-clickable');
+    userCard.onclick = redirectToSignIn;
     await Promise.all([loadMenu(), loadDeliveryTimes()]);
   }
 
