@@ -148,8 +148,8 @@
     .staff-student-row { border:1px solid var(--border-dim); border-radius:8px; padding:0.55rem 0.65rem; background:#0d0d0d; }
     .staff-student-name { font-size:0.82rem; font-weight:600; }
     .staff-student-email { font-size:0.7rem; color:var(--gray); margin-top:0.05rem; }
-    .staff-student-controls { display:grid; grid-template-columns: 1fr 1fr auto; gap:0.4rem; margin-top:0.45rem; }
-    .staff-student-controls select { background:#101010; border:1px solid var(--border); border-radius:6px; padding:0.3rem 0.45rem; color:var(--text); font-size:0.74rem; font-family:'DM Sans',sans-serif; }
+    .staff-student-status { font-size:0.72rem; color:var(--gray-mid); margin-top:0.3rem; }
+    .staff-student-controls { display:flex; gap:0.4rem; margin-top:0.45rem; }
 
     /* ── Empty state ── */
     .empty-state { text-align: center; padding: 3rem; color: var(--gray); background: var(--card); border: 1px solid var(--border); border-radius: 12px; }
@@ -711,6 +711,28 @@
   </div>
 </div>
 
+
+<!-- Staff Student Modal -->
+<div class="modal-overlay" id="staff-student-modal">
+  <div class="modal" style="max-width:460px">
+    <button class="modal-close" onclick="closeModal('staff-student-modal')">✕</button>
+    <div class="modal-title">Edit Student</div>
+    <div style="font-size:0.82rem;color:var(--gray-mid);margin-bottom:1rem" id="staff-student-modal-name"></div>
+    <div class="form-group">
+      <label class="form-label">Role</label>
+      <select class="form-input" id="staff-student-role"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Team</label>
+      <select class="form-input" id="staff-student-team"></select>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('staff-student-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveStaffStudentEdit()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <!-- Add/Edit Rubric Category Modal -->
 <div class="modal-overlay" id="rubric-modal">
   <div class="modal">
@@ -783,6 +805,7 @@ let editingPlanId = null;
 let editingMenuItemId = null;
 let editingRubricId = null;
 let editingStaffTeamId = null;
+let editingStaffStudentId = null;
 let adminScoreWeekOffset = 0;
 
 const MENU_CATEGORY_CONFIG = [
@@ -1068,13 +1091,14 @@ function renderStaffTeamBoard(active) {
 }
 
 function renderStaffStudentRow(s) {
+  const team = staffTeams.find(t => t.id === s.team_id);
   return `<div class="staff-student-row">
     <div class="staff-student-name">${s.first_name} ${s.last_name}</div>
     <div class="staff-student-email">${s.email || '—'}</div>
+    <div class="staff-student-status">Role: ${s.role || '—'} · Team: ${team?.name || 'No Team'}</div>
     <div class="staff-student-controls">
-      <select id="staff-role-${s.id}">${renderStaffRoleOptions(s.role)}</select>
-      <select id="staff-team-${s.id}">${renderStaffTeamOptions(s.team_id)}</select>
-      <button class="btn btn-primary btn-sm" onclick="saveStaffControls('${s.id}')">Save</button>
+      <button class="btn btn-ghost btn-sm" onclick="openStaffStudentModal('${s.id}')">Edit</button>
+      <button class="btn btn-danger btn-sm" onclick="removeStaff('${s.id}')">Remove</button>
     </div>
   </div>`;
 }
@@ -1093,16 +1117,31 @@ function renderStaffTeamOptions(currentTeamId) {
   return options.join('');
 }
 
-async function saveStaffControls(id) {
-  const role = document.getElementById(`staff-role-${id}`)?.value || 'student';
-  const teamId = document.getElementById(`staff-team-${id}`)?.value || null;
+function openStaffStudentModal(id) {
+  const student = allStaff.find(s => s.id === id);
+  if (!student) return;
+  editingStaffStudentId = id;
+  document.getElementById('staff-student-modal-name').textContent = `${student.first_name} ${student.last_name}`;
+  const roleSelect = document.getElementById('staff-student-role');
+  const teamSelect = document.getElementById('staff-student-team');
+  roleSelect.innerHTML = renderStaffRoleOptions(student.role);
+  teamSelect.innerHTML = renderStaffTeamOptions(student.team_id);
+  document.getElementById('staff-student-modal').classList.add('open');
+}
+
+async function saveStaffStudentEdit() {
+  if (!editingStaffStudentId) return;
+  const role = document.getElementById('staff-student-role')?.value || 'student';
+  const teamId = document.getElementById('staff-student-team')?.value || null;
   const team = staffTeams.find(t => t.id === teamId);
   const payload = { role, team_id: teamId, period: team?.period || null };
-  const { error } = await sb.from('students').update(payload).eq('id', id);
+  const { error } = await sb.from('students').update(payload).eq('id', editingStaffStudentId);
   if (error) {
     alert(`Unable to update staff record: ${error.message}`);
     return;
   }
+  closeModal('staff-student-modal');
+  editingStaffStudentId = null;
   await loadStaff();
 }
 
@@ -1164,33 +1203,6 @@ async function deleteStaffTeam(teamId) {
   const { error } = await sb.from('teams').delete().eq('id', teamId);
   if (error) {
     alert(`Unable to delete team: ${error.message}`);
-    return;
-  }
-  await loadStaff();
-}
-
-function renderStaffRoleOptions(currentRole) {
-  return ['student', 'manager', 'admin']
-    .map(role => `<option value="${role}" ${currentRole===role?'selected':''}>${role[0].toUpperCase()+role.slice(1)}</option>`)
-    .join('');
-}
-
-function renderStaffTeamOptions(currentTeamId) {
-  const options = ['<option value="">No Team</option>'];
-  staffTeams.forEach(team => {
-    options.push(`<option value="${team.id}" ${currentTeamId===team.id?'selected':''}>${team.name} (${team.period||'—'})</option>`);
-  });
-  return options.join('');
-}
-
-async function saveStaffControls(id) {
-  const role = document.getElementById(`staff-role-${id}`)?.value || 'student';
-  const teamId = document.getElementById(`staff-team-${id}`)?.value || null;
-  const team = staffTeams.find(t => t.id === teamId);
-  const payload = { role, team_id: teamId, period: team?.period || null };
-  const { error } = await sb.from('students').update(payload).eq('id', id);
-  if (error) {
-    alert(`Unable to update staff record: ${error.message}`);
     return;
   }
   await loadStaff();
