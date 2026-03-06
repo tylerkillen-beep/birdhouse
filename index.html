@@ -102,28 +102,27 @@
   filter: saturate(0.6) brightness(1.1);
 }
 
-    .cup-logo-wrap {
-      position: absolute;
-      top: 62%; left: 50%;
-      transform: translate(-50%, -50%);
-      display: flex; align-items: center; justify-content: center;
-      z-index: 3;
-    }
+.cup-logo-wrap {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+}
 
-    .glow-core { position: absolute; width: 330px; height: 330px; border-radius: 50%; background: radial-gradient(circle, rgba(204,0,0,0.5) 0%, rgba(204,0,0,0.18) 50%, transparent 72%); animation: flash 1.8s ease-in-out infinite; }
-    .glow-ring-1 { position: absolute; width: 450px; height: 450px; border-radius: 50%; border: 2px solid rgba(204,0,0,0.6); animation: flash 1.8s ease-in-out infinite; animation-delay: 0.2s; }
-    .glow-ring-2 { position: absolute; width: 600px; height: 600px; border-radius: 50%; border: 1.5px solid rgba(204,0,0,0.3); animation: flash 1.8s ease-in-out infinite; animation-delay: 0.4s; }
-    .glow-ring-3 { position: absolute; width: 765px; height: 765px; border-radius: 50%; border: 1px solid rgba(204,0,0,0.12); animation: flash 1.8s ease-in-out infinite; animation-delay: 0.6s; }
-    @keyframes flash { 0%,100%{transform:scale(0.9);opacity:0.35} 50%{transform:scale(1.07);opacity:1} }
+.glow-core { position: absolute; width: 350px; height: 350px; border-radius: 50%; background: radial-gradient(circle, rgba(204,0,0,0.35) 0%, rgba(204,0,0,0.15) 40%, transparent 70%); filter: blur(22px); animation: pulse-core 3s ease-in-out infinite; }
+@keyframes pulse-core { 0%,100%{transform:scale(0.95);opacity:0.7} 50%{transform:scale(1.08);opacity:1} }
 
-    .spin-ring { position: absolute; border-radius: 50%; border: 1px solid rgba(204,0,0,0.07); animation: spin linear infinite; }
-    .spin-ring-1 { width: 510px; height: 510px; animation-duration: 28s; }
-    .spin-ring-2 { width: 780px; height: 780px; animation-duration: 45s; animation-direction: reverse; border-color: rgba(204,0,0,0.04); }
-    @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+.glow-ring-1 { position: absolute; width: 450px; height: 450px; border-radius: 50%; border: 2px solid rgba(204,0,0,0.5); animation: flash 1.8s ease-in-out infinite; }
+.glow-ring-2 { position: absolute; width: 600px; height: 600px; border-radius: 50%; border: 1.5px solid rgba(204,0,0,0.3); animation: flash 1.8s ease-in-out infinite; animation-delay: 0.4s; }
+.glow-ring-3 { position: absolute; width: 765px; height: 765px; border-radius: 50%; border: 1px solid rgba(204,0,0,0.12); animation: flash 1.8s ease-in-out infinite; animation-delay: 0.6s; }
+@keyframes flash { 0%,100%{transform:scale(0.9);opacity:0.35} 50%{transform:scale(1.07);opacity:1} }
 
-    .cup-logo { position: relative; z-index: 4; animation: logo-float 5s ease-in-out infinite; }
-    .cup-logo img { width: clamp(210px, 18vw, 300px); filter: drop-shadow(0 0 22px rgba(204,0,0,1)) drop-shadow(0 0 55px rgba(204,0,0,0.65)) brightness(1.2); }
-    @keyframes logo-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+.spin-ring { position: absolute; border-radius: 50%; border: 1px solid rgba(204,0,0,0.07); animation: spin linear infinite; }
+.spin-ring-1 { width: 510px; height: 510px; animation-duration: 28s; }
+.spin-ring-2 { width: 780px; height: 780px; animation-duration: 45s; animation-direction: reverse; border-color: rgba(204,0,0,0.04); }
+@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+
+.cup-logo { position: relative; z-index: 4; animation: logo-float 5s ease-in-out infinite; }
+.cup-logo img { width: clamp(210px, 18vw, 300px); filter: drop-shadow(0 0 22px rgba(204,0,0,1)) drop-shadow(0 0 55px rgba(204,0,0,0.65)) brightness(1.2); }
+@keyframes logo-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
 
     /* Fade-up animations */
     .fade-up { opacity: 0; transform: translateY(20px); animation: fadeUp 0.7s ease forwards; }
@@ -133,7 +132,6 @@
     .fade-up:nth-child(4) { animation-delay: 0.55s; }
     .fade-up:nth-child(5) { animation-delay: 0.65s; }
     @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
-
 
     @media (max-width: 1200px) {
       .hero-left { padding: 3.5rem 2.5rem 3.5rem 3rem; }
