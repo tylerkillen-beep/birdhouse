@@ -107,11 +107,11 @@
       <div class="admin-warning">
         🔒 This area is for the business owner only. Student staff should use the Team Hub instead.
       </div>
-      <button class="btn-google" id="login-btn" onclick="handleLogin()">
+      <button class="btn-google" id="login-btn" onclick="handleLogin(this)">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2045c0-.6382-.0573-1.2518-.1636-1.8409H9v3.4818h4.8436c-.2086 1.125-.8432 2.0782-1.7963 2.7159v2.2586h2.9086c1.7027-1.5672 2.6836-3.8741 2.6836-6.6154z"/><path fill="#34A853" d="M9 18c2.43 0 4.4673-.8068 5.956-2.1804l-2.9086-2.2586c-.8068.54-1.8382.8591-3.0474.8591-2.3441 0-4.3282-1.5841-5.0363-3.7127H.9577v2.3327C2.4382 15.9832 5.4818 18 9 18z"/><path fill="#FBBC05" d="M3.9637 10.7073c-.18-.54-.2823-1.1168-.2823-1.7073s.1023-1.1673.2823-1.7073V4.9599H.9577C.3477 6.1745 0 7.55 0 9s.3477 2.8255.9577 4.0401l3.006-2.3328z"/><path fill="#EA4335" d="M9 3.5795c1.3214 0 2.5077.4541 3.4405 1.345l2.5809-2.5809C13.4632.8905 11.4268 0 9 0 5.4818 0 2.4382 2.0168.9573 4.9591l3.0063 2.3323C4.6718 5.1627 6.6559 3.5795 9 3.5795z"/></svg>
         Continue with Google
       </button>
-      <div class="msg" id="login-msg"></div>
+      <div class="msg" id="login-msg" aria-live="polite"></div>
     </div>
     <a class="back-link" href="../index.html">← Back to home</a>
   </div>
@@ -125,11 +125,13 @@
     }
 
 
-    async function handleLogin() {
-      const btn = document.getElementById('login-btn');
+    async function handleLogin(btnEl) {
+      const btn = btnEl || document.getElementById('login-btn');
       const msg = document.getElementById('login-msg');
+      const originalLabel = btn.dataset.originalLabel || btn.textContent.trim();
+      btn.dataset.originalLabel = originalLabel;
       btn.disabled = true;
-      btn.innerHTML = btn.innerHTML.replace('Continue with Google', 'Redirecting...');
+      btn.lastChild.textContent = ' Redirecting...';
       msg.style.display = 'none';
 
       const { error } = await sb.auth.signInWithOAuth({
@@ -143,7 +145,7 @@
       if(error) {
         msg.textContent = error.message; msg.className = 'msg error';
         btn.disabled = false;
-        btn.innerHTML = btn.innerHTML.replace('Redirecting...', 'Continue with Google');
+        btn.lastChild.textContent = ` ${originalLabel}`;
         return;
       }
     }
