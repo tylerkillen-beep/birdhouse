@@ -89,12 +89,24 @@ serve(async (req) => {
       "Content-Type": "application/json",
     };
 
-    const locationId = Deno.env.get("SQUARE_LOCATION_ID");
+    // Use SQUARE_LOCATION_ID if set; otherwise, look up the "Birdhouse" location
+    // by name via the Square Locations API so we only sync that location's items.
+    let locationId = Deno.env.get("SQUARE_LOCATION_ID");
+    if (!locationId) {
+      const locRes = await fetch(`${squareBaseUrl}/v2/locations`, { headers: squareHeaders });
+      if (locRes.ok) {
+        const locBody = await locRes.json();
+        const match = (locBody.locations ?? []).find(
+          (l: { id: string; name?: string }) => l.name?.toLowerCase().includes("birdhouse"),
+        );
+        if (match) locationId = match.id;
+      }
+    }
 
     const objects: SquareObject[] = [];
     let cursor: string | undefined;
 
-    // Use catalog/search to filter by location when SQUARE_LOCATION_ID is set,
+    // Use catalog/search to filter by location when a location ID is available,
     // otherwise fall back to catalog/list (pulls entire account catalog).
     do {
       let sqRes: Response;
