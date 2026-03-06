@@ -60,6 +60,11 @@ serve(async (req) => {
       return fail("Invalid or expired session. Please sign in again.", 401);
     }
 
+    const isAnonymousUser = (user as { is_anonymous?: boolean }).is_anonymous === true;
+    if (isAnonymousUser) {
+      return fail("Please sign in before placing an order.", 401);
+    }
+
     // ── Validate inputs ────────────────────────────────────────────────────
     if (!sourceId) throw new Error("Missing payment token");
     if (!cartItems?.length) throw new Error("Cart is empty");
