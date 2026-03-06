@@ -732,6 +732,7 @@ const OWNER_ADMIN_EMAIL = 'tylerkillen@nixaschools.net';
 let currentUser = null;
 let allOrders = [];
 let allStaff = [];
+let staffTeams = [];
 let allSubscriptions = [];
 let allPlans = [];
 let allRubric = [];
@@ -944,10 +945,12 @@ async function loadOrdersBadge() {
 // Staff / Approvals
 // ════════════════════════════════════
 async function loadStaff() {
-  const [{ data: pending }, { data: active }] = await Promise.all([
+  const [{ data: pending }, { data: active }, { data: teams }] = await Promise.all([
     sb.from('students').select('*').is('role', null).order('created_at'),
     sb.from('students').select('*,teams(name)').not('role', 'is', null).order('last_name'),
+    sb.from('teams').select('id,name,period').order('name'),
   ]);
+  staffTeams = teams || [];
   allStaff = [...(pending||[]), ...(active||[])];
 
   const pendingTbody = document.getElementById('pending-tbody');
@@ -975,12 +978,48 @@ async function loadStaff() {
     <tr>
       <td>${s.first_name} ${s.last_name}</td>
       <td style="color:var(--gray-mid)">${s.email||'—'}</td>
-      <td>${rolePill(s.role)}</td>
-      <td style="color:var(--gray-mid)">${s.teams?.name || '—'}</td>
       <td>
+        <select id="staff-role-${s.id}" style="background:#0d0d0d;border:1px solid var(--border);border-radius:6px;padding:0.3rem 0.5rem;color:var(--text);font-size:0.76rem;cursor:pointer">
+          ${renderStaffRoleOptions(s.role)}
+        </select>
+      </td>
+      <td>
+        <select id="staff-team-${s.id}" style="background:#0d0d0d;border:1px solid var(--border);border-radius:6px;padding:0.3rem 0.5rem;color:var(--text);font-size:0.76rem;cursor:pointer;min-width:170px">
+          ${renderStaffTeamOptions(s.team_id)}
+        </select>
+      </td>
+      <td>
+        <button class="btn btn-primary btn-sm" onclick="saveStaffControls('${s.id}')">Save</button>
         <button class="btn btn-ghost btn-sm" onclick="removeStaff('${s.id}')">Remove</button>
       </td>
     </tr>`).join('');
+}
+
+function renderStaffRoleOptions(currentRole) {
+  return ['student', 'manager', 'admin']
+    .map(role => `<option value="${role}" ${currentRole===role?'selected':''}>${role[0].toUpperCase()+role.slice(1)}</option>`)
+    .join('');
+}
+
+function renderStaffTeamOptions(currentTeamId) {
+  const options = ['<option value="">No Team</option>'];
+  staffTeams.forEach(team => {
+    options.push(`<option value="${team.id}" ${currentTeamId===team.id?'selected':''}>${team.name} (${team.period||'—'})</option>`);
+  });
+  return options.join('');
+}
+
+async function saveStaffControls(id) {
+  const role = document.getElementById(`staff-role-${id}`)?.value || 'student';
+  const teamId = document.getElementById(`staff-team-${id}`)?.value || null;
+  const team = staffTeams.find(t => t.id === teamId);
+  const payload = { role, team_id: teamId, period: team?.period || null };
+  const { error } = await sb.from('students').update(payload).eq('id', id);
+  if (error) {
+    alert(`Unable to update staff record: ${error.message}`);
+    return;
+  }
+  await loadStaff();
 }
 
 async function approveStaff(id) {
