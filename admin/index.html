@@ -519,7 +519,13 @@
 
     <div class="section-header">
       <div class="section-title">Live Menu Items</div>
-      <div style="display:flex;gap:0.6rem"><button class="btn btn-ghost btn-sm" onclick="syncSquareMenu()">⟳ Sync Square Catalog</button><button class="btn btn-primary btn-sm" onclick="openAddMenuItemModal()">+ New Menu Item</button></div>
+      <div style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap">
+        <select class="form-input" id="menu-category-filter" style="min-width:180px;padding:0.55rem 0.65rem" onchange="loadMenuItems()">
+          <option value="">All Categories</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="syncSquareMenu()">⟳ Sync Square Catalog</button>
+        <button class="btn btn-primary btn-sm" onclick="openAddMenuItemModal()">+ New Menu Item</button>
+      </div>
     </div>
     <div class="table-wrap">
       <table>
@@ -570,7 +576,7 @@
       </div>
       <div class="form-group">
         <label class="form-label">Category</label>
-        <input class="form-input" id="menu-item-category" placeholder="Coffee" />
+        <select class="form-input" id="menu-item-category"></select>
       </div>
       <div class="form-group">
         <label class="form-label">Price ($)</label>
@@ -739,6 +745,67 @@ let editingPlanId = null;
 let editingMenuItemId = null;
 let editingRubricId = null;
 let adminScoreWeekOffset = 0;
+
+const MENU_CATEGORY_CONFIG = [
+  { key:'specials', label:'Specials', keywords:['special'] },
+  { key:'coffee', label:'Coffee', keywords:['coffee', 'espresso', 'latte', 'mocha', 'americano', 'cappuccino'] },
+  { key:'soda_tea', label:'Soda & Tea', keywords:['soda', 'tea', 'energy', 'refresher'] },
+  { key:'food', label:'Food', keywords:['food', 'pastry', 'snack', 'cookie', 'muffin'] },
+];
+
+function normalizeMenuCategory(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function getMenuCategoryConfig(value) {
+  const normalized = normalizeMenuCategory(value);
+  return MENU_CATEGORY_CONFIG.find(c => c.keywords.some(k => normalized.includes(k))) || null;
+}
+
+function getMenuCategoryKey(value) {
+  return getMenuCategoryConfig(value)?.key || 'other';
+}
+
+function getMenuCategoryLabel(value) {
+  const config = getMenuCategoryConfig(value);
+  if (config) return config.label;
+  const raw = String(value || '').trim();
+  return raw || 'Other';
+}
+
+function populateMenuCategoryControls(items = []) {
+  const modalSelect = document.getElementById('menu-item-category');
+  const filterSelect = document.getElementById('menu-category-filter');
+  if (!modalSelect || !filterSelect) return;
+
+  const knownLabels = MENU_CATEGORY_CONFIG.map(c => c.label);
+  const extraLabels = Array.from(new Set((items || [])
+    .map(i => String(i.category || '').trim())
+    .filter(Boolean)
+    .filter(v => !knownLabels.includes(v))))
+    .sort((a, b) => a.localeCompare(b));
+
+  const modalCurrent = modalSelect.value;
+  modalSelect.innerHTML = [
+    ...knownLabels,
+    ...extraLabels,
+    'Other',
+  ].map(label => `<option value="${label}">${label}</option>`).join('');
+  modalSelect.value = modalCurrent && Array.from(modalSelect.options).some(o => o.value === modalCurrent)
+    ? modalCurrent
+    : 'Coffee';
+
+  const filterCurrent = filterSelect.value;
+  const filterOptions = [
+    { value:'', label:'All Categories' },
+    ...MENU_CATEGORY_CONFIG.map(c => ({ value:c.key, label:c.label })),
+    { value:'other', label:'Other' },
+  ];
+  filterSelect.innerHTML = filterOptions.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+  filterSelect.value = Array.from(filterSelect.options).some(o => o.value === filterCurrent)
+    ? filterCurrent
+    : '';
+}
 
 // ════════════════════════════════════
 // Auth
@@ -1419,18 +1486,37 @@ async function loadMenuItems() {
     return;
   }
   allMenuItems = data || [];
+  populateMenuCategoryControls(allMenuItems);
   if (!allMenuItems.length) {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gray);padding:1.5rem">No menu items yet.</td></tr>';
     return;
   }
-  tbody.innerHTML = allMenuItems.map(item => {
+  const categoryFilter = document.getElementById('menu-category-filter')?.value || '';
+  const categorySortOrder = [...MENU_CATEGORY_CONFIG.map(c => c.key), 'other'];
+  const list = [...allMenuItems]
+    .filter(item => !categoryFilter || getMenuCategoryKey(item.category) === categoryFilter)
+    .sort((a, b) => {
+      const categoryDiff = categorySortOrder.indexOf(getMenuCategoryKey(a.category)) - categorySortOrder.indexOf(getMenuCategoryKey(b.category));
+      if (categoryDiff !== 0) return categoryDiff;
+      const sortDiff = (a.sort_order || 0) - (b.sort_order || 0);
+      if (sortDiff !== 0) return sortDiff;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gray);padding:1.5rem">No menu items in this category yet.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = list.map(item => {
     const temp = `${item.is_hot !== false ? '☕' : ''}${item.is_iced ? '🧊' : ''}` || '—';
     const priceCents = item.base_price_cents ?? Math.round((parseFloat(item.base_price) || 0) * 100);
     const price = `$${(priceCents / 100).toFixed(2)}`;
     const square = item.square_item_id || '—';
+    const categoryLabel = getMenuCategoryLabel(item.category);
     return `<tr>
       <td><strong>${item.name || '—'}</strong><div style="font-size:0.72rem;color:var(--gray)">${item.description || ''}</div></td>
-      <td>${item.category || '—'}</td>
+      <td>${categoryLabel}</td>
       <td>${temp}</td>
       <td>${price}</td>
       <td>${item.available ? '<span style="color:#27ae60">Available</span>' : '<span style="color:var(--gray)">Hidden</span>'}</td>
@@ -1451,12 +1537,13 @@ function parseModifierListIds(raw) {
 function menuItemPayloadFromForm() {
   const name = document.getElementById('menu-item-name').value.trim();
   const price = parseFloat(document.getElementById('menu-item-price').value || '0');
+  const category = document.getElementById('menu-item-category').value.trim();
   if (!name) throw new Error('Menu item name is required.');
   if (isNaN(price) || price < 0) throw new Error('Enter a valid non-negative price.');
   return {
     name,
     description: document.getElementById('menu-item-description').value.trim(),
-    category: document.getElementById('menu-item-category').value.trim() || 'Coffee',
+    category: category || 'Coffee',
     is_hot: document.getElementById('menu-item-hot').checked,
     is_iced: document.getElementById('menu-item-iced').checked,
     available: document.getElementById('menu-item-available').checked,
@@ -1470,6 +1557,7 @@ function menuItemPayloadFromForm() {
 
 function resetMenuItemModal() {
   editingMenuItemId = null;
+  populateMenuCategoryControls(allMenuItems);
   document.getElementById('menu-item-modal-title').textContent = 'New Menu Item';
   document.getElementById('menu-item-save-btn').textContent = 'Save Item';
   document.getElementById('menu-item-name').value = '';
@@ -1492,12 +1580,21 @@ function openAddMenuItemModal() {
 function editMenuItem(id) {
   const item = allMenuItems.find(i => i.id === id);
   if (!item) return;
+  populateMenuCategoryControls(allMenuItems);
   editingMenuItemId = id;
   document.getElementById('menu-item-modal-title').textContent = 'Edit Menu Item';
   document.getElementById('menu-item-save-btn').textContent = 'Save Changes';
   document.getElementById('menu-item-name').value = item.name || '';
   document.getElementById('menu-item-description').value = item.description || '';
-  document.getElementById('menu-item-category').value = item.category || 'Coffee';
+  const categoryInput = document.getElementById('menu-item-category');
+  const categoryValue = item.category || getMenuCategoryLabel(item.category) || 'Coffee';
+  if (!Array.from(categoryInput.options).some(opt => opt.value === categoryValue)) {
+    const extra = document.createElement('option');
+    extra.value = categoryValue;
+    extra.textContent = categoryValue;
+    categoryInput.appendChild(extra);
+  }
+  categoryInput.value = categoryValue;
   document.getElementById('menu-item-price').value = ((item.base_price_cents ?? Math.round((parseFloat(item.base_price) || 0) * 100)) / 100).toFixed(2);
   document.getElementById('menu-item-sort').value = item.sort_order || 1;
   document.getElementById('menu-item-square-id').value = item.square_item_id || '';
