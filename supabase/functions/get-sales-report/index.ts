@@ -1,6 +1,8 @@
 // Supabase Edge Function: get-sales-report
-// Fetches sales data directly from Square Orders API for reporting.
-// No data is stored locally — all results come live from Square.
+// Fetches sales data from Square Payments API + Supabase orders table.
+//
+// Square Payments API provides accurate revenue totals (source of truth).
+// Supabase orders table (cart_items JSONB) provides the per-item breakdown.
 //
 // Required Supabase secrets:
 //   SQUARE_ACCESS_TOKEN  — access token from Square Developer Dashboard
@@ -30,18 +32,18 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS });
 }
 
-interface SquareLineItem {
-  name?: string;
-  quantity?: string;
-  gross_sales_money?: { amount: number; currency: string };
-}
-
-interface SquareOrder {
+interface SquarePayment {
   id: string;
   created_at: string;
-  state: string;
-  total_money?: { amount: number; currency: string };
-  line_items?: SquareLineItem[];
+  status: string;
+  amount_money?: { amount: number; currency: string };
+}
+
+interface CartItem {
+  name: string;
+  quantity: number;
+  price: number;
+  temp?: string;
 }
 
 serve(async (req) => {
@@ -66,7 +68,6 @@ serve(async (req) => {
     const { data: { user }, error: userErr } = await userClient.auth.getUser();
     if (userErr || !user) return json({ success: false, error: "Unauthorized" }, 401);
 
-    // Allow owner email or any authenticated student
     const email = (user.email || "").toLowerCase();
     const serviceClient = createClient(supabaseUrl, service);
 
@@ -77,7 +78,7 @@ serve(async (req) => {
         .select("role")
         .eq("id", user.id)
         .single();
-      allowed = !!student; // any row in students table = staff member
+      allowed = !!student;
     }
 
     if (!allowed) return json({ success: false, error: "Forbidden — staff access only" }, 403);
@@ -97,66 +98,75 @@ serve(async (req) => {
       return json({ success: false, error: "Square credentials not configured — contact admin" }, 500);
     }
 
-    // ── Fetch orders from Square (paginated) ──────────────────────────────────
+    // ── Fetch payments from Square Payments API (paginated) ───────────────────
+    // Uses /v2/payments since process-payment creates payments directly (not orders).
     const squareBaseUrl = getSquareBaseUrl();
     const squareHeaders = {
       "Authorization": `Bearer ${squareToken}`,
       "Square-Version": "2024-01-18",
-      "Content-Type": "application/json",
     };
 
-    const allOrders: SquareOrder[] = [];
+    const allPayments: SquarePayment[] = [];
     let cursor: string | undefined;
 
     do {
-      const searchBody: Record<string, unknown> = {
-        location_ids: [locationId],
-        query: {
-          filter: {
-            date_time_filter: {
-              created_at: { start_at: startDate, end_at: endDate },
-            },
-            state_filter: { states: ["COMPLETED"] },
-          },
-          sort: { sort_field: "CREATED_AT", sort_order: "ASC" },
-        },
-        limit: 500,
-      };
-      if (cursor) searchBody.cursor = cursor;
+      const params = new URLSearchParams({
+        begin_time: startDate,
+        end_time: endDate,
+        location_id: locationId,
+        limit: "100",
+        sort_order: "ASC",
+      });
+      if (cursor) params.set("cursor", cursor);
 
-      const sqRes = await fetch(`${squareBaseUrl}/v2/orders/search`, {
-        method: "POST",
+      const sqRes = await fetch(`${squareBaseUrl}/v2/payments?${params.toString()}`, {
         headers: squareHeaders,
-        body: JSON.stringify(searchBody),
       });
 
       const sqBody = await sqRes.json();
+
       if (!sqRes.ok || sqBody?.errors?.length) {
-        return json({ success: false, error: sqBody?.errors?.[0]?.detail || "Square API error" }, 400);
+        const errDetail = sqBody?.errors?.[0]?.detail || sqBody?.errors?.[0]?.code || JSON.stringify(sqBody);
+        return json({ success: false, error: `Square API error: ${errDetail}` }, 400);
       }
 
-      allOrders.push(...(sqBody.orders || []));
+      const payments: SquarePayment[] = sqBody.payments || [];
+      // Only count completed payments
+      allPayments.push(...payments.filter(p => p.status === "COMPLETED"));
       cursor = sqBody.cursor || undefined;
     } while (cursor);
 
-    // ── Aggregate ─────────────────────────────────────────────────────────────
+    // ── Aggregate revenue from Square payments ────────────────────────────────
     let totalRevenueCents = 0;
-    const itemMap: Record<string, { quantity: number; revenueCents: number }> = {};
     const dailyMap: Record<string, { revenueCents: number; orderCount: number }> = {};
 
-    for (const order of allOrders) {
-      const orderTotal = order.total_money?.amount ?? 0;
-      totalRevenueCents += orderTotal;
+    for (const payment of allPayments) {
+      const amount = payment.amount_money?.amount ?? 0;
+      totalRevenueCents += amount;
 
-      const day = order.created_at.slice(0, 10); // YYYY-MM-DD
+      const day = payment.created_at.slice(0, 10); // YYYY-MM-DD
       if (!dailyMap[day]) dailyMap[day] = { revenueCents: 0, orderCount: 0 };
-      dailyMap[day].revenueCents += orderTotal;
+      dailyMap[day].revenueCents += amount;
       dailyMap[day].orderCount += 1;
+    }
 
-      for (const item of order.line_items ?? []) {
+    // ── Fetch item breakdown from Supabase orders table ───────────────────────
+    // cart_items JSONB has the per-item detail that Square Payments API doesn't provide.
+    const { data: orders } = await serviceClient
+      .from("orders")
+      .select("cart_items, total_amount, created_at")
+      .gte("created_at", startDate)
+      .lte("created_at", endDate)
+      .eq("status", "paid");
+
+    const itemMap: Record<string, { quantity: number; revenueCents: number }> = {};
+
+    for (const order of orders || []) {
+      const items: CartItem[] = Array.isArray(order.cart_items) ? order.cart_items : [];
+      for (const item of items) {
         const name = item.name || "Unknown Item";
-        const qty = parseInt(item.quantity ?? "1", 10);
-        const rev = item.gross_sales_money?.amount ?? 0;
+        const qty = Number(item.quantity) || 1;
+        const rev = Math.round((item.price || 0) * qty * 100);
         if (!itemMap[name]) itemMap[name] = { quantity: 0, revenueCents: 0 };
         itemMap[name].quantity += qty;
         itemMap[name].revenueCents += rev;
@@ -172,7 +182,7 @@ serve(async (req) => {
       .map(([date, d]) => ({ date, revenueCents: d.revenueCents, orderCount: d.orderCount }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
-    const orderCount = allOrders.length;
+    const orderCount = allPayments.length;
     const avgOrderValueCents = orderCount > 0 ? Math.round(totalRevenueCents / orderCount) : 0;
 
     return json({
