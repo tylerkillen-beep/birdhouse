@@ -1392,19 +1392,16 @@ function openStaffTeamModal(teamId = null) {
   document.getElementById('staff-team-period').value = team?.period || '1st Hour';
   document.getElementById('staff-team-color').value = team?.color || '#cc0000';
 
-  // Populate product dropdown from already-loaded menu items (or fetch if empty)
+  // Populate product dropdown — prefer already-loaded list, else fetch all items
   const productSelect = document.getElementById('staff-team-product');
-  const items = allMenuItems.length ? allMenuItems : [];
-  const fetchAndPopulate = async () => {
-    let list = items;
-    if (!list.length) {
-      const { data } = await sb.from('menu_items').select('id,name').eq('available', true).order('name');
-      list = data || [];
-    }
+  productSelect.innerHTML = '<option value="">Loading…</option>';
+  (async () => {
+    const list = allMenuItems.length
+      ? allMenuItems
+      : (await sb.from('menu_items').select('id,name').order('name')).data || [];
     productSelect.innerHTML = '<option value="">— None —</option>' +
       list.map(i => `<option value="${i.name}"${team?.product_name === i.name ? ' selected' : ''}>${i.name}</option>`).join('');
-  };
-  fetchAndPopulate();
+  })();
 
   const costDollars = team?.cost_cents ? (team.cost_cents / 100).toFixed(2) : '';
   document.getElementById('staff-team-cost').value = costDollars;
