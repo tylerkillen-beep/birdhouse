@@ -676,9 +676,9 @@
 
     <!-- Top items table -->
     <div class="section-header"><div class="section-title">Top Items</div></div>
-    <div class="table-wrap">
+    <div class="table-wrap" style="max-height:420px;overflow-y:auto;">
       <table>
-        <thead><tr><th>#</th><th>Item</th><th>Units Sold</th><th>Revenue</th></tr></thead>
+        <thead style="position:sticky;top:0;z-index:1;"><tr><th>#</th><th>Item</th><th>Units Sold</th><th>Revenue</th></tr></thead>
         <tbody id="report-items-tbody"><tr class="loading-row"><td colspan="4" style="text-align:center;color:var(--text-muted)">Select a range to load report</td></tr></tbody>
       </table>
     </div>
