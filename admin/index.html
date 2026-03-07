@@ -923,9 +923,8 @@
     </div>
     <div class="form-group">
       <label class="form-label">Assigned Product</label>
-      <select class="form-input" id="staff-team-product">
-        <option value="">— None —</option>
-      </select>
+      <input class="form-input" id="staff-team-product" list="staff-team-product-list" placeholder="e.g. Iced Vanilla Latte" autocomplete="off" />
+      <datalist id="staff-team-product-list"></datalist>
     </div>
     <div class="form-group">
       <label class="form-label">Cost to Make ($)</label>
@@ -1255,7 +1254,6 @@ async function loadStaff() {
     sb.from('menu_items').select('id,name').order('name'),
   ]);
   staffTeams = teams || [];
-  console.log('[loadStaff] menuForStaff result:', menuForStaff);
   if (!allMenuItems.length && menuForStaff?.length) allMenuItems = menuForStaff;
   allStaff = [...(pending||[]), ...(active||[])];
 
@@ -1395,10 +1393,10 @@ function openStaffTeamModal(teamId = null) {
   document.getElementById('staff-team-period').value = team?.period || '1st Hour';
   document.getElementById('staff-team-color').value = team?.color || '#cc0000';
 
-  // Populate product dropdown — prefer already-loaded list, else fetch all items
-  const productSelect = document.getElementById('staff-team-product');
-  productSelect.innerHTML = '<option value="">— None —</option>' +
-    allMenuItems.map(i => `<option value="${i.name}"${team?.product_name === i.name ? ' selected' : ''}>${i.name}</option>`).join('');
+  // Set current product value and populate datalist suggestions if available
+  document.getElementById('staff-team-product').value = team?.product_name || '';
+  document.getElementById('staff-team-product-list').innerHTML =
+    allMenuItems.map(i => `<option value="${i.name}"></option>`).join('');
 
   const costDollars = team?.cost_cents ? (team.cost_cents / 100).toFixed(2) : '';
   document.getElementById('staff-team-cost').value = costDollars;
