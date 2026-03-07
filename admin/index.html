@@ -1248,12 +1248,14 @@ async function loadOrdersBadge() {
 // Staff / Approvals
 // ════════════════════════════════════
 async function loadStaff() {
-  const [{ data: pending }, { data: active }, { data: teams }] = await Promise.all([
+  const [{ data: pending }, { data: active }, { data: teams }, { data: menuForStaff }] = await Promise.all([
     sb.from('students').select('*').is('role', null).order('created_at'),
     sb.from('students').select('*,teams(name)').not('role', 'is', null).order('last_name'),
     sb.from('teams').select('id,name,period,color,product_name,cost_cents').order('name'),
+    sb.from('menu_items').select('id,name').order('name'),
   ]);
   staffTeams = teams || [];
+  if (!allMenuItems.length && menuForStaff?.length) allMenuItems = menuForStaff;
   allStaff = [...(pending||[]), ...(active||[])];
 
   const pendingTbody = document.getElementById('pending-tbody');
@@ -1394,14 +1396,8 @@ function openStaffTeamModal(teamId = null) {
 
   // Populate product dropdown — prefer already-loaded list, else fetch all items
   const productSelect = document.getElementById('staff-team-product');
-  productSelect.innerHTML = '<option value="">Loading…</option>';
-  (async () => {
-    const list = allMenuItems.length
-      ? allMenuItems
-      : (await sb.from('menu_items').select('id,name').order('name')).data || [];
-    productSelect.innerHTML = '<option value="">— None —</option>' +
-      list.map(i => `<option value="${i.name}"${team?.product_name === i.name ? ' selected' : ''}>${i.name}</option>`).join('');
-  })();
+  productSelect.innerHTML = '<option value="">— None —</option>' +
+    allMenuItems.map(i => `<option value="${i.name}"${team?.product_name === i.name ? ' selected' : ''}>${i.name}</option>`).join('');
 
   const costDollars = team?.cost_cents ? (team.cost_cents / 100).toFixed(2) : '';
   document.getElementById('staff-team-cost').value = costDollars;
