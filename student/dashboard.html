@@ -331,20 +331,43 @@
     <div id="section-sales" style="display:none">
       <div class="page-eyebrow">Analytics</div>
       <h1 class="page-title">Sales Data</h1>
+
+      <!-- Date range selector -->
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:1.5rem;align-items:center">
+        <button class="inv-cat-btn active" id="srng-today" onclick="setStudentReportRange('today',this)">Today</button>
+        <button class="inv-cat-btn" id="srng-week" onclick="setStudentReportRange('week',this)">This Week</button>
+        <button class="inv-cat-btn" id="srng-month" onclick="setStudentReportRange('month',this)">This Month</button>
+        <button class="inv-cat-btn" id="srng-custom" onclick="setStudentReportRange('custom',this)">Custom</button>
+        <div id="srng-custom-inputs" style="display:none;gap:0.4rem;align-items:center;flex-wrap:wrap">
+          <input type="date" id="srng-start" style="background:var(--card);border:1px solid var(--border-dim);color:var(--white);border-radius:7px;padding:0.35rem 0.6rem;font-size:0.82rem" />
+          <span style="color:var(--gray)">to</span>
+          <input type="date" id="srng-end" style="background:var(--card);border:1px solid var(--border-dim);color:var(--white);border-radius:7px;padding:0.35rem 0.6rem;font-size:0.82rem" />
+          <button class="inv-cat-btn active" onclick="runStudentSalesReport()">Run</button>
+        </div>
+        <span id="srng-label" style="margin-left:0.25rem;font-size:0.75rem;color:var(--gray)"></span>
+      </div>
+
+      <!-- Summary stats -->
       <div class="stats-grid" style="margin-bottom:1.5rem">
-        <div class="stat-card"><div class="stat-label">All Time Orders</div><div class="stat-value" id="sales-total">—</div></div>
-        <div class="stat-card"><div class="stat-label">This Week</div><div class="stat-value" id="sales-week">—</div></div>
-        <div class="stat-card"><div class="stat-label">Top Item</div><div class="stat-value" style="font-size:1.3rem" id="sales-top">—</div></div>
+        <div class="stat-card"><div class="stat-label">Revenue</div><div class="stat-value" id="srpt-revenue">—</div></div>
+        <div class="stat-card"><div class="stat-label">Orders</div><div class="stat-value" id="srpt-orders">—</div></div>
+        <div class="stat-card"><div class="stat-label">Avg Order</div><div class="stat-value" id="srpt-avg">—</div></div>
       </div>
+
+      <!-- Bar chart -->
       <div class="section">
-        <div class="section-title">Orders This Week</div>
-        <div class="sales-chart" id="sales-chart"></div>
+        <div class="section-title">Revenue by Day</div>
+        <div id="srpt-chart" class="sales-chart" style="align-items:flex-end;gap:0.4rem;overflow-x:auto">
+          <span style="color:var(--gray);font-size:0.82rem;align-self:center;margin:auto">Loading…</span>
+        </div>
       </div>
+
+      <!-- Top items -->
       <div class="section">
-        <div class="section-title">Recent Orders</div>
+        <div class="section-title">Top Items</div>
         <div class="table-wrap">
-          <table><thead><tr><th>Customer</th><th>Drink</th><th>Room</th><th>Date</th></tr></thead>
-          <tbody id="sales-orders-body"><tr><td colspan="4" style="text-align:center;color:var(--gray);padding:2rem">No orders yet.</td></tr></tbody></table>
+          <table><thead><tr><th>#</th><th>Item</th><th>Units Sold</th><th>Revenue</th></tr></thead>
+          <tbody id="srpt-items"><tr><td colspan="4" style="text-align:center;color:var(--gray);padding:1.5rem">Loading…</td></tr></tbody></table>
         </div>
       </div>
     </div>
@@ -508,7 +531,7 @@
     document.getElementById('user-display-name').textContent = firstName+' '+lastName;
     document.getElementById('greeting-name').textContent = firstName;
     document.getElementById('user-role-badge').textContent = role==='admin'?'Admin':'Student Staff';
-    loadSchedule(); loadInventory(); loadSales(); loadOrders();
+    loadSchedule(); loadInventory(); loadOrders();
     const today=new Date(); const monday=new Date(today);
     monday.setDate(today.getDate()-(today.getDay()===0?6:today.getDay()-1));
     document.getElementById('summary-week').value=monday.toISOString().split('T')[0];
@@ -522,6 +545,11 @@
     allOrders = data || [];
     updatePendingBadge();
     renderOrders(currentOrderFilter);
+    // Update overview "This Week's Orders" stat
+    const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+    const weekCount = allOrders.filter(o => new Date(o.created_at) > weekAgo).length;
+    const el = document.getElementById('stat-week-orders');
+    if (el) el.textContent = weekCount;
   }
 
   function updatePendingBadge() {
@@ -897,23 +925,101 @@
     }).join('');
   }
 
-  async function loadSales() {
-    const {data:orders} = await sb.from('orders').select('*').order('created_at',{ascending:false});
-    if(!orders||!orders.length){['sales-total','sales-week','stat-week-orders'].forEach(id=>document.getElementById(id).textContent='0');return;}
-    const weekAgo=new Date(); weekAgo.setDate(weekAgo.getDate()-7);
-    const thisWeek=orders.filter(o=>new Date(o.created_at)>weekAgo);
-    document.getElementById('sales-total').textContent=orders.length;
-    document.getElementById('sales-week').textContent=thisWeek.length;
-    document.getElementById('stat-week-orders').textContent=thisWeek.length;
-    const counts={}; orders.forEach(o=>{counts[o.drink_name]=(counts[o.drink_name]||0)+1;});
-    const top=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
-    document.getElementById('sales-top').textContent=top?top[0]:'—';
-    const chart=document.getElementById('sales-chart');
-    const today=new Date(); const ws=new Date(today); ws.setDate(today.getDate()-(today.getDay()===0?6:today.getDay()-1));
-    const dayCounts=DAYS.map((_,i)=>{const d=new Date(ws);d.setDate(ws.getDate()+i);return orders.filter(o=>new Date(o.created_at).toDateString()===d.toDateString()).length;});
-    const maxVal=Math.max(...dayCounts,1);
-    chart.innerHTML=DAYS.map((day,i)=>`<div class="bar-wrap"><div class="bar" style="height:${Math.round(dayCounts[i]/maxVal*100)}%" title="${dayCounts[i]} orders"></div><div class="bar-label">${day.slice(0,3)}<br>${dayCounts[i]}</div></div>`).join('');
-    document.getElementById('sales-orders-body').innerHTML=orders.slice(0,20).map(o=>`<tr><td>${o.customer_name||'Customer'}</td><td>${o.drink_name}</td><td>${o.room||'—'}</td><td style="color:var(--gray)">${new Date(o.created_at).toLocaleDateString()}</td></tr>`).join('');
+  // ── Sales Report (Square) ──────────────────────────────────────────────────
+  const SRPT_FN_URL = 'https://ljukrhneikqbabcmcpet.supabase.co/functions/v1/get-sales-report';
+  const SRPT_ANON_KEY = 'sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn';
+  let srptRange = 'today';
+  let srptInitialized = false;
+
+  function initStudentSalesReport() {
+    if (!srptInitialized) {
+      srptInitialized = true;
+      setStudentReportRange('today', document.getElementById('srng-today'));
+    }
+  }
+
+  function setStudentReportRange(range, btn) {
+    srptRange = range;
+    document.querySelectorAll('[id^="srng-"]:not(#srng-custom-inputs):not(#srng-start):not(#srng-end):not(#srng-label)').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const ci = document.getElementById('srng-custom-inputs');
+    if (range === 'custom') { ci.style.display = 'flex'; return; }
+    ci.style.display = 'none';
+    runStudentSalesReport();
+  }
+
+  function getStudentReportDates() {
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const toISO = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    if (srptRange === 'today') {
+      const s = new Date(now); s.setHours(0,0,0,0);
+      const e = new Date(now); e.setHours(23,59,59,999);
+      return { startDate: s.toISOString(), endDate: e.toISOString(), label: 'Today' };
+    }
+    if (srptRange === 'week') {
+      const s = new Date(now);
+      const dow = s.getDay(); s.setDate(s.getDate() + (dow===0 ? -6 : 1-dow)); s.setHours(0,0,0,0);
+      const e = new Date(now); e.setHours(23,59,59,999);
+      return { startDate: s.toISOString(), endDate: e.toISOString(), label: `Week of ${toISO(s)}` };
+    }
+    if (srptRange === 'month') {
+      const s = new Date(now.getFullYear(), now.getMonth(), 1);
+      const e = new Date(now); e.setHours(23,59,59,999);
+      return { startDate: s.toISOString(), endDate: e.toISOString(), label: `${now.toLocaleString('default',{month:'long'})} ${now.getFullYear()}` };
+    }
+    if (srptRange === 'custom') {
+      const sv = document.getElementById('srng-start').value;
+      const ev = document.getElementById('srng-end').value;
+      if (!sv || !ev) { alert('Please select both a start and end date.'); return null; }
+      return { startDate: new Date(sv+'T00:00:00').toISOString(), endDate: new Date(ev+'T23:59:59').toISOString(), label: `${sv} — ${ev}` };
+    }
+    return null;
+  }
+
+  async function runStudentSalesReport() {
+    const range = getStudentReportDates();
+    if (!range) return;
+    document.getElementById('srng-label').textContent = range.label;
+    ['srpt-revenue','srpt-orders','srpt-avg'].forEach(id => document.getElementById(id).textContent = '…');
+    document.getElementById('srpt-chart').innerHTML = '<span style="color:var(--gray);font-size:0.82rem;align-self:center;margin:auto">Loading…</span>';
+    document.getElementById('srpt-items').innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--gray);padding:1.5rem">Loading…</td></tr>';
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) { alert('Session expired. Please sign in again.'); return; }
+      const res = await fetch(SRPT_FN_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SRPT_ANON_KEY, 'Authorization': `Bearer ${session.access_token}` },
+        body: JSON.stringify({ startDate: range.startDate, endDate: range.endDate }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok || !d.success) throw new Error(d.error || 'Report failed');
+      document.getElementById('srpt-revenue').textContent = `$${parseFloat(d.totalRevenue).toFixed(2)}`;
+      document.getElementById('srpt-orders').textContent = d.orderCount;
+      document.getElementById('srpt-avg').textContent = `$${parseFloat(d.avgOrderValue).toFixed(2)}`;
+      // Chart
+      const chart = document.getElementById('srpt-chart');
+      if (!d.dailyBreakdown?.length) {
+        chart.innerHTML = '<span style="color:var(--gray);font-size:0.82rem;align-self:center;margin:auto">No orders in this period</span>';
+      } else {
+        const maxR = Math.max(...d.dailyBreakdown.map(x => x.revenueCents), 1);
+        chart.innerHTML = d.dailyBreakdown.map(x => {
+          const pct = Math.round(x.revenueCents / maxR * 100);
+          const lbl = new Date(x.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+          const rev = `$${(x.revenueCents/100).toFixed(2)}`;
+          return `<div class="bar-wrap"><div class="bar" style="height:${Math.max(pct,2)}%" title="${x.orderCount} orders · ${rev}"></div><div class="bar-label">${lbl}<br>${x.orderCount}</div></div>`;
+        }).join('');
+      }
+      // Top items
+      document.getElementById('srpt-items').innerHTML = d.topItems?.length
+        ? d.topItems.map((item,i) => `<tr><td style="color:var(--gray)">${i+1}</td><td>${item.name}</td><td>${item.quantity}</td><td>$${(item.revenueCents/100).toFixed(2)}</td></tr>`).join('')
+        : '<tr><td colspan="4" style="text-align:center;color:var(--gray);padding:1.5rem">No items sold in this period</td></tr>';
+    } catch(err) {
+      console.error('Student sales report error:', err);
+      ['srpt-revenue','srpt-orders','srpt-avg'].forEach(id => document.getElementById(id).textContent = '—');
+      document.getElementById('srpt-chart').innerHTML = `<span style="color:#e57373;font-size:0.82rem;align-self:center;margin:auto">Error: ${err.message}</span>`;
+      document.getElementById('srpt-items').innerHTML = `<tr><td colspan="4" style="text-align:center;color:#e57373;padding:1.5rem">${err.message}</td></tr>`;
+    }
   }
 
   async function submitSummary() {
@@ -1092,6 +1198,7 @@
     if(name==='orders')loadOrders();
     if(name==='schedule')loadSchedule();
     if(name==='inventory')loadInventory();
+    if(name==='sales')initStudentSalesReport();
   }
 
   async function signOut() { await sb.auth.signOut(); window.location.href='index.html'; }

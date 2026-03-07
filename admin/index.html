@@ -326,6 +326,11 @@
     <span class="nav-icon">🎓</span> Customers
   </div>
 
+  <div class="nav-section">Financials</div>
+  <div class="nav-item" onclick="showSection('sales-report')" id="nav-sales-report">
+    <span class="nav-icon">💰</span> Sales Report
+  </div>
+
   <div class="sidebar-bottom">
     <div class="admin-badge">
       <strong id="admin-name">Admin</strong>
@@ -630,6 +635,51 @@
           <tr><th>Submitted</th><th>Student</th><th>Type</th><th>Proposed Item</th><th>Details</th><th>Status</th><th>Actions</th></tr>
         </thead>
         <tbody id="menu-submissions-tbody"><tr class="loading-row"><td colspan="7">Loading suggestions…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── SALES REPORT ── -->
+  <div class="section-panel" id="section-sales-report">
+    <div class="page-header">
+      <h1>Sales Report</h1>
+      <p>Live data pulled directly from Square</p>
+    </div>
+
+    <!-- Date range selector -->
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.5rem;align-items:center">
+      <button class="btn btn-ghost btn-sm report-range-btn active" id="range-btn-today" onclick="setReportRange('today',this)">Today</button>
+      <button class="btn btn-ghost btn-sm report-range-btn" id="range-btn-week" onclick="setReportRange('week',this)">This Week</button>
+      <button class="btn btn-ghost btn-sm report-range-btn" id="range-btn-month" onclick="setReportRange('month',this)">This Month</button>
+      <button class="btn btn-ghost btn-sm report-range-btn" id="range-btn-custom" onclick="setReportRange('custom',this)">Custom</button>
+      <div id="report-custom-inputs" style="display:none;display:none;gap:0.5rem;align-items:center;flex-wrap:wrap">
+        <input type="date" id="report-start-date" class="form-input" style="padding:0.4rem 0.6rem;font-size:0.85rem" />
+        <span style="color:var(--text-muted)">to</span>
+        <input type="date" id="report-end-date" class="form-input" style="padding:0.4rem 0.6rem;font-size:0.85rem" />
+        <button class="btn btn-primary btn-sm" onclick="runSalesReport()">Run Report</button>
+      </div>
+      <span id="report-range-label" style="margin-left:0.5rem;font-size:0.8rem;color:var(--text-muted)"></span>
+    </div>
+
+    <!-- Summary stats -->
+    <div class="stats-row" id="report-stats" style="margin-bottom:1.5rem">
+      <div class="stat-card"><div class="stat-label">Total Revenue</div><div class="stat-value accent" id="report-revenue">—</div></div>
+      <div class="stat-card"><div class="stat-label">Orders</div><div class="stat-value accent" id="report-orders">—</div></div>
+      <div class="stat-card"><div class="stat-label">Avg Order Value</div><div class="stat-value" id="report-avg">—</div></div>
+    </div>
+
+    <!-- Daily bar chart -->
+    <div class="section-header"><div class="section-title">Revenue by Day</div></div>
+    <div id="report-chart-wrap" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.25rem 1.25rem 0.5rem;margin-bottom:1.5rem;min-height:140px;display:flex;align-items:flex-end;gap:0.5rem;overflow-x:auto">
+      <span style="color:var(--text-muted);font-size:0.85rem;align-self:center;margin:auto">Select a range to load report</span>
+    </div>
+
+    <!-- Top items table -->
+    <div class="section-header"><div class="section-title">Top Items</div></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Item</th><th>Units Sold</th><th>Revenue</th></tr></thead>
+        <tbody id="report-items-tbody"><tr class="loading-row"><td colspan="4" style="text-align:center;color:var(--text-muted)">Select a range to load report</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -1032,6 +1082,7 @@ function showSection(id) {
     dashboard: loadDashboard,
     schedule: schedInit,
     inventory: loadInventory,
+    'sales-report': initSalesReport,
   };
   if (loaders[id]) loaders[id]();
 }
@@ -2748,6 +2799,145 @@ async function loadInvLog() {
 }
 
 init();
+
+// ════════════════════════════════════
+// Sales Report (Square)
+// ════════════════════════════════════
+const REPORT_FN_URL = 'https://ljukrhneikqbabcmcpet.supabase.co/functions/v1/get-sales-report';
+const REPORT_ANON_KEY = 'sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn';
+
+let currentReportRange = 'today';
+
+function initSalesReport() {
+  // Only auto-run on first open; subsequent opens keep last results
+  if (document.getElementById('report-revenue').textContent === '—') {
+    setReportRange('today', document.getElementById('range-btn-today'));
+  }
+}
+
+function setReportRange(range, btn) {
+  currentReportRange = range;
+  document.querySelectorAll('.report-range-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const customInputs = document.getElementById('report-custom-inputs');
+  if (range === 'custom') {
+    customInputs.style.display = 'flex';
+    return; // wait for user to hit "Run Report"
+  }
+  customInputs.style.display = 'none';
+  runSalesReport();
+}
+
+function getReportDateRange() {
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const toISO = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+
+  if (currentReportRange === 'today') {
+    const start = new Date(now); start.setHours(0, 0, 0, 0);
+    const end   = new Date(now); end.setHours(23, 59, 59, 999);
+    return { startDate: start.toISOString(), endDate: end.toISOString(), label: 'Today' };
+  }
+  if (currentReportRange === 'week') {
+    const start = new Date(now);
+    const dayOfWeek = start.getDay(); // 0=Sun
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // back to Monday
+    start.setDate(start.getDate() + diff);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(now); end.setHours(23, 59, 59, 999);
+    return { startDate: start.toISOString(), endDate: end.toISOString(), label: `Week of ${toISO(start)}` };
+  }
+  if (currentReportRange === 'month') {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end   = new Date(now); end.setHours(23, 59, 59, 999);
+    return { startDate: start.toISOString(), endDate: end.toISOString(), label: `${now.toLocaleString('default',{month:'long'})} ${now.getFullYear()}` };
+  }
+  if (currentReportRange === 'custom') {
+    const s = document.getElementById('report-start-date').value;
+    const e = document.getElementById('report-end-date').value;
+    if (!s || !e) { alert('Please select both a start and end date.'); return null; }
+    return { startDate: new Date(s + 'T00:00:00').toISOString(), endDate: new Date(e + 'T23:59:59').toISOString(), label: `${s} — ${e}` };
+  }
+  return null;
+}
+
+async function runSalesReport() {
+  const range = getReportDateRange();
+  if (!range) return;
+
+  document.getElementById('report-range-label').textContent = range.label;
+  document.getElementById('report-revenue').textContent = '…';
+  document.getElementById('report-orders').textContent = '…';
+  document.getElementById('report-avg').textContent = '…';
+  document.getElementById('report-chart-wrap').innerHTML = '<span style="color:var(--text-muted);font-size:0.85rem;align-self:center;margin:auto">Loading…</span>';
+  document.getElementById('report-items-tbody').innerHTML = '<tr class="loading-row"><td colspan="4">Loading…</td></tr>';
+
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { alert('Session expired. Please sign in again.'); return; }
+
+    const res = await fetch(REPORT_FN_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': REPORT_ANON_KEY,
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ startDate: range.startDate, endDate: range.endDate }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.success) throw new Error(data.error || 'Report failed');
+
+    renderSalesReport(data);
+  } catch (err) {
+    console.error('Sales report error:', err);
+    document.getElementById('report-revenue').textContent = 'Error';
+    document.getElementById('report-orders').textContent = '—';
+    document.getElementById('report-avg').textContent = '—';
+    document.getElementById('report-chart-wrap').innerHTML = `<span style="color:#e57373;font-size:0.85rem;align-self:center;margin:auto">Error: ${err.message}</span>`;
+    document.getElementById('report-items-tbody').innerHTML = `<tr><td colspan="4" style="text-align:center;color:#e57373;padding:1.5rem">${err.message}</td></tr>`;
+  }
+}
+
+function renderSalesReport(data) {
+  document.getElementById('report-revenue').textContent = `$${parseFloat(data.totalRevenue).toFixed(2)}`;
+  document.getElementById('report-orders').textContent = data.orderCount.toLocaleString();
+  document.getElementById('report-avg').textContent = `$${parseFloat(data.avgOrderValue).toFixed(2)}`;
+
+  // Bar chart
+  const chartWrap = document.getElementById('report-chart-wrap');
+  if (!data.dailyBreakdown?.length) {
+    chartWrap.innerHTML = '<span style="color:var(--text-muted);font-size:0.85rem;align-self:center;margin:auto">No orders in this period</span>';
+  } else {
+    const maxRev = Math.max(...data.dailyBreakdown.map(d => d.revenueCents), 1);
+    chartWrap.innerHTML = data.dailyBreakdown.map(d => {
+      const pct = Math.round(d.revenueCents / maxRev * 100);
+      const label = new Date(d.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const rev = `$${(d.revenueCents / 100).toFixed(2)}`;
+      return `<div style="display:flex;flex-direction:column;align-items:center;gap:0.3rem;flex:1;min-width:40px">
+        <div style="font-size:0.65rem;color:var(--text-muted)">${rev}</div>
+        <div style="width:100%;background:var(--accent);border-radius:4px 4px 0 0;height:${Math.max(pct, 2)}px;max-height:120px;transition:height 0.3s" title="${d.orderCount} orders · ${rev}"></div>
+        <div style="font-size:0.65rem;color:var(--text-muted);text-align:center;white-space:nowrap">${label}<br>${d.orderCount}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Top items table
+  const tbody = document.getElementById('report-items-tbody');
+  if (!data.topItems?.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:1.5rem">No items sold in this period</td></tr>';
+  } else {
+    tbody.innerHTML = data.topItems.map((item, i) => `
+      <tr>
+        <td style="color:var(--text-muted)">${i + 1}</td>
+        <td>${item.name}</td>
+        <td>${item.quantity}</td>
+        <td>$${(item.revenueCents / 100).toFixed(2)}</td>
+      </tr>`).join('');
+  }
+}
 </script>
 </body>
 </html>
