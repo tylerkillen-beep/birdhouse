@@ -330,6 +330,9 @@
   <div class="nav-item" onclick="showSection('sales-report')" id="nav-sales-report">
     <span class="nav-icon">💰</span> Sales Report
   </div>
+  <div class="nav-item" onclick="showSection('product-performance')" id="nav-product-performance">
+    <span class="nav-icon">📈</span> Product Performance
+  </div>
 
   <div class="sidebar-bottom">
     <div class="admin-badge">
@@ -684,6 +687,55 @@
     </div>
   </div>
 
+  <!-- ── PRODUCT PERFORMANCE ── -->
+  <div class="section-panel" id="section-product-performance">
+    <div class="page-header">
+      <h1>Product Performance</h1>
+      <p>Compare how each team's product is performing</p>
+    </div>
+
+    <!-- Date range selector -->
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.5rem;align-items:center">
+      <button class="btn btn-ghost btn-sm pp-range-btn active" id="pp-range-btn-week" onclick="setPPRange('week',this)">This Week</button>
+      <button class="btn btn-ghost btn-sm pp-range-btn" id="pp-range-btn-month" onclick="setPPRange('month',this)">This Month</button>
+      <button class="btn btn-ghost btn-sm pp-range-btn" id="pp-range-btn-custom" onclick="setPPRange('custom',this)">Custom</button>
+      <div id="pp-custom-inputs" style="display:none;gap:0.5rem;align-items:center;flex-wrap:wrap">
+        <input type="date" id="pp-start-date" class="form-input" style="padding:0.4rem 0.6rem;font-size:0.85rem" />
+        <span style="color:var(--text-muted)">to</span>
+        <input type="date" id="pp-end-date" class="form-input" style="padding:0.4rem 0.6rem;font-size:0.85rem" />
+        <button class="btn btn-primary btn-sm" onclick="runProductPerformance()">Run</button>
+      </div>
+      <span id="pp-range-label" style="margin-left:0.5rem;font-size:0.8rem;color:var(--text-muted)"></span>
+    </div>
+
+    <!-- Summary cards -->
+    <div class="stats-row" id="pp-stats" style="margin-bottom:1.5rem">
+      <div class="stat-card"><div class="stat-label">Total Revenue</div><div class="stat-value accent" id="pp-total-revenue">—</div></div>
+      <div class="stat-card"><div class="stat-label">Total Profit</div><div class="stat-value accent" id="pp-total-profit">—</div></div>
+      <div class="stat-card"><div class="stat-label">Avg Margin</div><div class="stat-value" id="pp-avg-margin">—</div></div>
+    </div>
+
+    <!-- Per-product comparison table -->
+    <div class="section-header"><div class="section-title">Team Product Breakdown</div></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Team</th>
+          <th>Product</th>
+          <th>Period</th>
+          <th>Units Sold</th>
+          <th>Revenue</th>
+          <th>COGS</th>
+          <th>Profit</th>
+          <th>Margin</th>
+        </tr></thead>
+        <tbody id="pp-tbody">
+          <tr class="loading-row"><td colspan="8" style="text-align:center;color:var(--text-muted)">Select a range to load report</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
 </main>
 
 <!-- ══════════════ MODALS ══════════════ -->
@@ -868,6 +920,16 @@
     <div class="form-group">
       <label class="form-label">Color</label>
       <input class="form-input" id="staff-team-color" value="#cc0000" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Assigned Product</label>
+      <select class="form-input" id="staff-team-product">
+        <option value="">— None —</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Cost to Make ($)</label>
+      <input class="form-input" id="staff-team-cost" type="number" step="0.01" min="0" placeholder="e.g. 1.25" />
     </div>
     <div id="staff-team-msg" style="font-size:0.76rem;color:var(--danger);display:none"></div>
     <div class="form-actions">
@@ -1083,6 +1145,7 @@ function showSection(id) {
     schedule: schedInit,
     inventory: loadInventory,
     'sales-report': initSalesReport,
+    'product-performance': initProductPerformance,
   };
   if (loaders[id]) loaders[id]();
 }
@@ -1188,7 +1251,7 @@ async function loadStaff() {
   const [{ data: pending }, { data: active }, { data: teams }] = await Promise.all([
     sb.from('students').select('*').is('role', null).order('created_at'),
     sb.from('students').select('*,teams(name)').not('role', 'is', null).order('last_name'),
-    sb.from('teams').select('id,name,period,color').order('name'),
+    sb.from('teams').select('id,name,period,color,product_name,cost_cents').order('name'),
   ]);
   staffTeams = teams || [];
   allStaff = [...(pending||[]), ...(active||[])];
@@ -1236,6 +1299,7 @@ function renderStaffTeamBoard(active) {
           <div>
             <div class="staff-team-name">${team.name}</div>
             <div class="staff-team-meta">${team.period || 'No period'} · ${students.length} member${students.length!==1?'s':''}</div>
+            ${team.product_name ? `<div class="staff-team-meta" style="margin-top:0.15rem">Product: <span style="color:var(--accent)">${team.product_name}</span>${team.cost_cents ? ` · Cost: $${(team.cost_cents/100).toFixed(2)}` : ''}</div>` : ''}
           </div>
           <div class="staff-team-actions">
             <button class="btn btn-ghost btn-sm" onclick="openStaffTeamModal('${team.id}')">Edit</button>
@@ -1327,6 +1391,24 @@ function openStaffTeamModal(teamId = null) {
   document.getElementById('staff-team-name').value = team?.name || '';
   document.getElementById('staff-team-period').value = team?.period || '1st Hour';
   document.getElementById('staff-team-color').value = team?.color || '#cc0000';
+
+  // Populate product dropdown from already-loaded menu items (or fetch if empty)
+  const productSelect = document.getElementById('staff-team-product');
+  const items = allMenuItems.length ? allMenuItems : [];
+  const fetchAndPopulate = async () => {
+    let list = items;
+    if (!list.length) {
+      const { data } = await sb.from('menu_items').select('id,name').eq('available', true).order('name');
+      list = data || [];
+    }
+    productSelect.innerHTML = '<option value="">— None —</option>' +
+      list.map(i => `<option value="${i.name}"${team?.product_name === i.name ? ' selected' : ''}>${i.name}</option>`).join('');
+  };
+  fetchAndPopulate();
+
+  const costDollars = team?.cost_cents ? (team.cost_cents / 100).toFixed(2) : '';
+  document.getElementById('staff-team-cost').value = costDollars;
+
   const msg = document.getElementById('staff-team-msg');
   msg.style.display = 'none';
   msg.textContent = '';
@@ -1344,7 +1426,10 @@ async function saveStaffTeam() {
     return;
   }
 
-  const payload = { name, period, color };
+  const productName = document.getElementById('staff-team-product').value || null;
+  const costRaw = parseFloat(document.getElementById('staff-team-cost').value || '0');
+  const costCents = isNaN(costRaw) ? 0 : Math.round(costRaw * 100);
+  const payload = { name, period, color, product_name: productName, cost_cents: costCents };
   const { error } = editingStaffTeamId
     ? await sb.from('teams').update(payload).eq('id', editingStaffTeamId)
     : await sb.from('teams').insert(payload);
@@ -2946,6 +3031,149 @@ function renderSalesReport(data) {
         <td>${item.quantity}</td>
         <td>$${(item.revenueCents / 100).toFixed(2)}</td>
       </tr>`).join('');
+  }
+}
+
+// ════════════════════════════════════
+// Product Performance
+// ════════════════════════════════════
+let currentPPRange = 'week';
+
+function initProductPerformance() {
+  if (document.getElementById('pp-total-revenue').textContent === '—') {
+    setPPRange('week', document.getElementById('pp-range-btn-week'));
+  }
+}
+
+function setPPRange(range, btn) {
+  currentPPRange = range;
+  document.querySelectorAll('.pp-range-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const customInputs = document.getElementById('pp-custom-inputs');
+  if (range === 'custom') {
+    customInputs.style.display = 'flex';
+    return;
+  }
+  customInputs.style.display = 'none';
+  runProductPerformance();
+}
+
+function getPPDateRange() {
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const toISO = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  if (currentPPRange === 'week') {
+    const start = new Date(now);
+    const diff = start.getDay() === 0 ? -6 : 1 - start.getDay();
+    start.setDate(start.getDate() + diff);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(now); end.setHours(23, 59, 59, 999);
+    return { startDate: start.toISOString(), endDate: end.toISOString(), label: `Week of ${toISO(start)}` };
+  }
+  if (currentPPRange === 'month') {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now); end.setHours(23, 59, 59, 999);
+    return { startDate: start.toISOString(), endDate: end.toISOString(), label: `${now.toLocaleString('default',{month:'long'})} ${now.getFullYear()}` };
+  }
+  if (currentPPRange === 'custom') {
+    const s = document.getElementById('pp-start-date').value;
+    const e = document.getElementById('pp-end-date').value;
+    if (!s || !e) { alert('Please select both a start and end date.'); return null; }
+    return { startDate: new Date(s + 'T00:00:00').toISOString(), endDate: new Date(e + 'T23:59:59').toISOString(), label: `${s} — ${e}` };
+  }
+  return null;
+}
+
+async function runProductPerformance() {
+  const range = getPPDateRange();
+  if (!range) return;
+
+  document.getElementById('pp-range-label').textContent = range.label;
+  document.getElementById('pp-total-revenue').textContent = '…';
+  document.getElementById('pp-total-profit').textContent = '…';
+  document.getElementById('pp-avg-margin').textContent = '…';
+  document.getElementById('pp-tbody').innerHTML = '<tr class="loading-row"><td colspan="8">Loading…</td></tr>';
+
+  try {
+    // Load teams with product assignments
+    const { data: teams } = await sb.from('teams').select('id,name,period,product_name,cost_cents').order('name');
+    const assignedTeams = (teams || []).filter(t => t.product_name);
+
+    if (!assignedTeams.length) {
+      document.getElementById('pp-tbody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:1.5rem">No teams have a product assigned yet. Edit teams in Staff to assign products.</td></tr>';
+      ['pp-total-revenue','pp-total-profit','pp-avg-margin'].forEach(id => document.getElementById(id).textContent = '—');
+      return;
+    }
+
+    // Fetch sales report
+    let { data: { session } } = await sb.auth.getSession();
+    if (session?.expires_at && Date.now() / 1000 >= session.expires_at - 30) {
+      const { data: refreshed } = await sb.auth.refreshSession();
+      session = refreshed?.session ?? null;
+    }
+    if (!session) { alert('Session expired. Please sign in again.'); window.location.href = 'login.html'; return; }
+
+    const res = await fetch(REPORT_FN_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': REPORT_ANON_KEY,
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ startDate: range.startDate, endDate: range.endDate }),
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || `HTTP ${res.status}`);
+
+    // Build a lookup: item name → sales data
+    const salesByName = {};
+    for (const item of data.topItems || []) {
+      salesByName[item.name.toLowerCase()] = item;
+    }
+
+    // Build rows for each team that has a product
+    let totalRevCents = 0;
+    let totalProfitCents = 0;
+    let marginCount = 0;
+    let marginSum = 0;
+
+    const rows = assignedTeams.map(team => {
+      const sales = salesByName[team.product_name.toLowerCase()];
+      const units = sales?.quantity ?? 0;
+      const revCents = sales?.revenueCents ?? 0;
+      const cogsCents = (team.cost_cents ?? 0) * units;
+      const profitCents = revCents - cogsCents;
+      const margin = revCents > 0 ? (profitCents / revCents * 100) : null;
+
+      totalRevCents += revCents;
+      totalProfitCents += profitCents;
+      if (margin !== null) { marginSum += margin; marginCount++; }
+
+      const profitColor = profitCents >= 0 ? 'color:#27ae60' : 'color:#e57373';
+      const marginStr = margin !== null ? `${margin.toFixed(1)}%` : '—';
+      const marginColor = margin !== null && margin >= 0 ? 'color:#27ae60' : 'color:#e57373';
+
+      return `<tr>
+        <td><strong>${team.name}</strong></td>
+        <td>${team.product_name}</td>
+        <td style="color:var(--gray-mid)">${team.period || '—'}</td>
+        <td>${units.toLocaleString()}</td>
+        <td>$${(revCents / 100).toFixed(2)}</td>
+        <td style="color:var(--gray-mid)">$${(cogsCents / 100).toFixed(2)}</td>
+        <td style="${profitColor}">$${(profitCents / 100).toFixed(2)}</td>
+        <td style="${marginColor}">${marginStr}</td>
+      </tr>`;
+    });
+
+    document.getElementById('pp-tbody').innerHTML = rows.join('');
+    document.getElementById('pp-total-revenue').textContent = `$${(totalRevCents / 100).toFixed(2)}`;
+    document.getElementById('pp-total-profit').textContent = `$${(totalProfitCents / 100).toFixed(2)}`;
+    document.getElementById('pp-avg-margin').textContent = marginCount > 0 ? `${(marginSum / marginCount).toFixed(1)}%` : '—';
+  } catch (err) {
+    console.error('Product performance error:', err);
+    document.getElementById('pp-tbody').innerHTML = `<tr><td colspan="8" style="text-align:center;color:#e57373;padding:1.5rem">${err.message}</td></tr>`;
+    ['pp-total-revenue','pp-total-profit','pp-avg-margin'].forEach(id => document.getElementById(id).textContent = 'Error');
   }
 }
 </script>
