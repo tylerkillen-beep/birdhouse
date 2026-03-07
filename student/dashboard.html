@@ -511,7 +511,7 @@
 </div>
 
 <script>
-  const sb = supabase.createClient('https://ljukrhneikqbabcmcpet.supabase.co','sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn');
+  const sb = supabase.createClient('https://ljukrhneikqbabcmcpet.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqdWtyaG5laWtxYmFiY21jcGV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyODg1MjEsImV4cCI6MjA4Nzg2NDUyMX0.UbtB_-syG9a9vLcJp04w_k2F3XP2tMScYtB4sez3j78');
   const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
   let currentUser = null;
 
@@ -985,8 +985,12 @@
     document.getElementById('srpt-chart').innerHTML = '<span style="color:var(--gray);font-size:0.82rem;align-self:center;margin:auto">Loading…</span>';
     document.getElementById('srpt-items').innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--gray);padding:1.5rem">Loading…</td></tr>';
     try {
-      const { data: { session } } = await sb.auth.getSession();
-      if (!session) { alert('Session expired. Please sign in again.'); return; }
+      let { data: { session } } = await sb.auth.getSession();
+      if (session?.expires_at && Date.now() / 1000 >= session.expires_at - 30) {
+        const { data: refreshed } = await sb.auth.refreshSession();
+        session = refreshed?.session ?? null;
+      }
+      if (!session) { alert('Session expired. Please sign in again.'); window.location.href = '/student/index.html'; return; }
       const res = await fetch(SRPT_FN_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'apikey': SRPT_ANON_KEY, 'Authorization': `Bearer ${session.access_token}` },
