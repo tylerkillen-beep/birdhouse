@@ -22,6 +22,8 @@ function json(body: unknown, status = 200) {
 type SquareObject = {
   id: string;
   type: string;
+  present_at_all_locations?: boolean;
+  present_at_location_ids?: string[];
   item_data?: {
     name?: string;
     description?: string;
@@ -82,6 +84,9 @@ serve(async (req) => {
     const squareToken = Deno.env.get("SQUARE_ACCESS_TOKEN");
     if (!squareToken) return json({ success: false, error: "Missing SQUARE_ACCESS_TOKEN secret" }, 500);
 
+    const squareLocationId = Deno.env.get("SQUARE_LOCATION_ID");
+    if (!squareLocationId) return json({ success: false, error: "Missing SQUARE_LOCATION_ID secret" }, 500);
+
     const squareBaseUrl = getSquareBaseUrl();
     const squareHeaders = {
       "Authorization": `Bearer ${squareToken}`,
@@ -120,7 +125,11 @@ serve(async (req) => {
       if (o.type === "ITEM_VARIATION") variations.set(o.id, o.item_variation_data?.price_money?.amount || 0);
     }
 
-    const items = objects.filter((o) => o.type === "ITEM" && o.item_data?.name);
+    const items = objects.filter((o) =>
+      o.type === "ITEM" &&
+      o.item_data?.name &&
+      (o.present_at_all_locations || o.present_at_location_ids?.includes(squareLocationId))
+    );
     let inserted = 0;
     let updated = 0;
     let skippedNoVariation = 0;
