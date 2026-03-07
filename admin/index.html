@@ -244,6 +244,34 @@
     .pos-select { background: #0d0d0d; border: 1px solid var(--border-dim); border-radius: 5px; padding: 0.28rem 0.45rem; color: var(--text); font-size: 0.76rem; font-family: 'DM Sans', sans-serif; outline: none; }
     .pos-select:focus { border-color: var(--accent); }
     .pos-modal-footer { padding: 1rem 1.6rem 1.4rem; border-top: 1px solid var(--border-dim); display: flex; gap: 0.75rem; justify-content: flex-end; }
+
+    /* ── Inventory Section ── */
+    .inv-cat-btn { background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 7px; padding: 0.4rem 0.9rem; font-size: 0.78rem; color: var(--gray-mid); cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.15s; }
+    .inv-cat-btn:hover { color: var(--text); border-color: var(--gray); }
+    .inv-cat-btn.active { background: rgba(200,169,110,0.1); color: var(--accent); border-color: rgba(200,169,110,0.3); }
+    .inv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.85rem; }
+    .inv-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.1rem 1.25rem; transition: border-color 0.2s; }
+    .inv-card:hover { border-color: var(--gray); }
+    .inv-card.low { border-color: rgba(230,126,34,0.35); background: rgba(230,126,34,0.04); }
+    .inv-card.out { border-color: rgba(192,57,43,0.35); background: rgba(192,57,43,0.04); }
+    .inv-item-name { font-weight: 500; font-size: 0.92rem; margin-bottom: 0.2rem; }
+    .inv-item-cat { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gray); margin-bottom: 0.75rem; }
+    .inv-qty-row { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem; }
+    .inv-qty-input { width: 80px; padding: 0.45rem 0.6rem; border: 1px solid var(--border); border-radius: 6px; background: #0d0d0d; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.88rem; outline: none; transition: border-color 0.15s; }
+    .inv-qty-input:focus { border-color: var(--accent); }
+    .inv-unit { font-size: 0.8rem; color: var(--gray-mid); }
+    .inv-par { font-size: 0.72rem; color: var(--gray); margin-bottom: 0.75rem; }
+    .inv-par span { color: var(--gray-mid); }
+    .inv-status { font-size: 0.7rem; padding: 0.2rem 0.6rem; border-radius: 20px; display: inline-block; font-weight: 500; }
+    .inv-status.ok { background: rgba(39,174,96,0.12); color: #4cd07d; border: 1px solid rgba(39,174,96,0.2); }
+    .inv-status.low { background: rgba(230,126,34,0.12); color: #f0a044; border: 1px solid rgba(230,126,34,0.2); }
+    .inv-status.out { background: rgba(192,57,43,0.12); color: #e05a4a; border: 1px solid rgba(192,57,43,0.2); }
+    .inv-actions { display: flex; gap: 0.4rem; margin-top: 0.75rem; }
+    .inv-log-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 0.75rem 1.25rem; border-bottom: 1px solid var(--border-dim); font-size: 0.82rem; gap: 1rem; }
+    .inv-log-row:last-child { border-bottom: none; }
+    .inv-log-pos { color: #4cd07d; font-weight: 500; }
+    .inv-log-neg { color: #e05a4a; font-weight: 500; }
+    .inv-log-meta { font-size: 0.7rem; color: var(--gray); margin-top: 0.15rem; }
   </style>
 </head>
 <body class="auth-pending">
@@ -266,6 +294,10 @@
   </div>
   <div class="nav-item" onclick="showSection('schedule')" id="nav-schedule">
     <span class="nav-icon">📅</span> Schedule
+  </div>
+  <div class="nav-item" onclick="showSection('inventory')" id="nav-inventory">
+    <span class="nav-icon">📦</span> Inventory
+    <span class="nav-badge" id="badge-inventory" style="display:none"></span>
   </div>
 
   <div class="nav-section">Staff & Teams</div>
@@ -526,6 +558,47 @@
     </div>
   </div>
 
+  <!-- ── INVENTORY ── -->
+  <div class="section-panel" id="section-inventory">
+    <div class="page-header">
+      <h1>Inventory</h1>
+      <p>View, update, and manage all stock items.</p>
+    </div>
+
+    <!-- Low stock alert banner -->
+    <div id="inv-low-banner" style="display:none;background:rgba(230,126,34,0.08);border:1px solid rgba(230,126,34,0.25);border-radius:10px;padding:0.85rem 1.25rem;margin-bottom:1.25rem;font-size:0.85rem;color:#f0a044">
+      ⚠️ <span id="inv-low-banner-text"></span>
+    </div>
+
+    <!-- Header with add button -->
+    <div class="section-header">
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap" id="inv-cat-tabs">
+        <button class="inv-cat-btn active" onclick="filterInvCat('all',this)">All</button>
+        <button class="inv-cat-btn" onclick="filterInvCat('cold_drinks',this)">🧊 Cold Drinks</button>
+        <button class="inv-cat-btn" onclick="filterInvCat('hot_drinks',this)">☕ Hot Drinks</button>
+        <button class="inv-cat-btn" onclick="filterInvCat('flavors',this)">🍬 Flavors</button>
+        <button class="inv-cat-btn" onclick="filterInvCat('supplies',this)">📦 Supplies</button>
+        <button class="inv-cat-btn" onclick="filterInvCat('baked_goods',this)">🍪 Baked Goods</button>
+        <button class="inv-cat-btn" onclick="filterInvCat('low',this)" id="inv-low-tab">🔴 Low Stock</button>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="openAddInvItemModal()">+ Add Item</button>
+    </div>
+
+    <!-- Inventory grid -->
+    <div id="inv-grid"></div>
+
+    <!-- Change log toggle -->
+    <div style="margin-top:2rem">
+      <button onclick="toggleInvLog()" style="background:none;border:none;color:var(--gray-mid);font-size:0.82rem;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:0.4rem">
+        <span id="inv-log-toggle-icon">▶</span> View Change Log
+      </button>
+      <div id="inv-log-panel" style="display:none;margin-top:1rem;background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+        <div style="padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim);font-size:0.68rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray)">Recent Changes</div>
+        <div id="inv-log-body" style="max-height:320px;overflow-y:auto"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- ── MENU ── -->
   <div class="section-panel" id="section-menu">
     <div class="page-header"><h1>Menu Management</h1><p>Directly manage live menu items and review student staff suggestions.</p></div>
@@ -616,6 +689,51 @@
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal('menu-item-modal')">Cancel</button>
       <button class="btn btn-primary" id="menu-item-save-btn" onclick="saveMenuItem()">Save Item</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Inventory Item Modal -->
+<div class="modal-overlay" id="inv-item-modal">
+  <div class="modal" style="max-width:520px">
+    <button class="modal-close" onclick="closeModal('inv-item-modal')">✕</button>
+    <div class="modal-title" id="inv-item-modal-title">Add Inventory Item</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="form-label">Item Name</label>
+        <input class="form-input" id="inv-item-name" placeholder="e.g. Oat Milk" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Category</label>
+        <select class="form-input" id="inv-item-category">
+          <option value="cold_drinks">Cold Drinks</option>
+          <option value="hot_drinks">Hot Drinks</option>
+          <option value="flavors">Flavors & Syrups</option>
+          <option value="supplies">Supplies</option>
+          <option value="baked_goods">Baked Goods</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Unit</label>
+        <input class="form-input" id="inv-item-unit" placeholder="e.g. gallons, oz, bags" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Current Quantity</label>
+        <input class="form-input" id="inv-item-qty" type="number" min="0" step="0.5" placeholder="0" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Par Level</label>
+        <input class="form-input" id="inv-item-par" type="number" min="0" step="0.5" placeholder="1" />
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="form-label">Notes <span style="color:var(--gray);font-weight:400;text-transform:none">(optional)</span></label>
+        <input class="form-input" id="inv-item-notes" placeholder="Storage location, supplier, etc." />
+      </div>
+    </div>
+    <div id="inv-item-modal-msg" style="font-size:0.78rem;color:var(--danger);margin-top:0.5rem;display:none"></div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('inv-item-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveInvItemModal()">Save Item</button>
     </div>
   </div>
 </div>
@@ -915,6 +1033,7 @@ function showSection(id) {
     menu: loadMenuSection,
     dashboard: loadDashboard,
     schedule: schedInit,
+    inventory: loadInventory,
   };
   if (loaders[id]) loaders[id]();
 }
@@ -2426,6 +2545,209 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 document.querySelectorAll('.modal-overlay').forEach(overlay => {
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
 });
+
+// ════════════════════════════════════
+// Inventory
+// ════════════════════════════════════
+let allInventory = [], currentInvFilter = 'all', editingInvItemId = null, invLogVisible = false;
+
+const INV_CAT_LABELS = {
+  cold_drinks: '🧊 Cold Drinks',
+  hot_drinks:  '☕ Hot Drinks',
+  flavors:     '🍬 Flavors & Syrups',
+  supplies:    '📦 Supplies',
+  baked_goods: '🍪 Baked Goods',
+};
+
+async function loadInventory() {
+  const { data } = await sb.from('inventory').select('*').order('category').order('name');
+  allInventory = data || [];
+
+  // Low stock banner
+  const lowItems = allInventory.filter(i => i.quantity <= i.par_level);
+  const banner = document.getElementById('inv-low-banner');
+  if (lowItems.length) {
+    banner.style.display = 'block';
+    document.getElementById('inv-low-banner-text').textContent =
+      `${lowItems.length} item${lowItems.length !== 1 ? 's' : ''} need restocking: ${lowItems.map(i => i.name).join(', ')}`;
+  } else {
+    banner.style.display = 'none';
+  }
+
+  // Low stock tab badge
+  const lowTab = document.getElementById('inv-low-tab');
+  if (lowTab) {
+    lowTab.innerHTML = lowItems.length
+      ? `🔴 Low Stock <span style="background:var(--danger);color:#fff;font-size:0.6rem;padding:0.1rem 0.4rem;border-radius:10px;margin-left:0.3rem">${lowItems.length}</span>`
+      : '🔴 Low Stock';
+  }
+
+  // Sidebar badge
+  const badge = document.getElementById('badge-inventory');
+  if (badge) {
+    if (lowItems.length) { badge.textContent = lowItems.length; badge.style.display = ''; }
+    else { badge.style.display = 'none'; }
+  }
+
+  renderInvGrid();
+}
+
+function filterInvCat(cat, btn) {
+  currentInvFilter = cat;
+  document.querySelectorAll('.inv-cat-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderInvGrid();
+}
+
+function renderInvGrid() {
+  const grid = document.getElementById('inv-grid');
+  let items = allInventory;
+  if (currentInvFilter === 'low') items = allInventory.filter(i => i.quantity <= i.par_level);
+  else if (currentInvFilter !== 'all') items = allInventory.filter(i => i.category === currentInvFilter);
+
+  if (!items.length) {
+    grid.innerHTML = '<div class="empty-state"><div class="empty-icon">📦</div>No items in this category.</div>';
+    return;
+  }
+
+  grid.innerHTML = '<div class="inv-grid">' + items.map(item => {
+    const pct = item.par_level > 0 ? Math.min(item.quantity / item.par_level, 1) : 1;
+    const status = item.quantity === 0 ? 'out' : item.quantity <= item.par_level ? 'low' : 'ok';
+    const statusLabel = { ok: 'In Stock', low: 'Low Stock', out: 'Out of Stock' };
+    const barColor = status === 'ok' ? '#27ae60' : status === 'low' ? '#e67e22' : '#c0392b';
+    return `<div class="inv-card ${status}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.5rem">
+        <div>
+          <div class="inv-item-name">${item.name}</div>
+          <div class="inv-item-cat">${INV_CAT_LABELS[item.category] || item.category}</div>
+        </div>
+        <span class="inv-status ${status}">${statusLabel[status]}</span>
+      </div>
+      <div style="background:rgba(255,255,255,0.06);border-radius:4px;height:4px;margin-bottom:0.85rem;overflow:hidden">
+        <div style="height:100%;width:${Math.round(pct * 100)}%;background:${barColor};border-radius:4px;transition:width 0.4s"></div>
+      </div>
+      <div class="inv-qty-row">
+        <input class="inv-qty-input" type="number" id="inv-qty-${item.id}" value="${item.quantity}" min="0" step="0.5" />
+        <span class="inv-unit">${item.unit}</span>
+      </div>
+      <div class="inv-par">
+        Par level:
+        <input type="number" id="inv-par-${item.id}" value="${item.par_level}" min="0" step="0.5"
+          style="width:55px;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--gray-mid);font-size:0.72rem;font-family:'DM Sans',sans-serif;outline:none;padding:0 0.2rem" />
+        ${item.unit}
+      </div>
+      ${item.notes ? `<div style="font-size:0.72rem;color:var(--gray);margin-bottom:0.5rem">📝 ${item.notes}</div>` : ''}
+      <div class="inv-actions">
+        <button class="btn btn-primary btn-sm" style="flex:1" onclick="saveInvItem('${item.id}','${item.name.replace(/'/g,"\\'")}',${item.quantity})">Save Count</button>
+        <button class="btn btn-ghost btn-sm" onclick="openEditInvItemModal('${item.id}')">✏️ Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteInvItem('${item.id}','${item.name.replace(/'/g,"\\'")}')">🗑</button>
+      </div>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+async function saveInvItem(id, name, prevQty) {
+  const newQty = parseFloat(document.getElementById('inv-qty-' + id).value) || 0;
+  const newPar = parseFloat(document.getElementById('inv-par-' + id).value) || 0;
+  const change = newQty - prevQty;
+  const changeType = change > 0 ? 'restock' : change < 0 ? 'usage' : 'count';
+  const changedByName = document.getElementById('admin-name').textContent || 'Admin';
+
+  await sb.from('inventory').update({ quantity: newQty, par_level: newPar, updated_at: new Date().toISOString() }).eq('id', id);
+  await sb.from('inventory_log').insert({
+    inventory_id: id, item_name: name,
+    previous_quantity: prevQty, new_quantity: newQty, change_amount: change,
+    change_type: changeType, changed_by_id: currentUser.id, changed_by_name: changedByName,
+  });
+  loadInventory();
+}
+
+function openAddInvItemModal() {
+  editingInvItemId = null;
+  document.getElementById('inv-item-modal-title').textContent = 'Add Inventory Item';
+  document.getElementById('inv-item-name').value = '';
+  document.getElementById('inv-item-category').value = 'cold_drinks';
+  document.getElementById('inv-item-qty').value = '0';
+  document.getElementById('inv-item-unit').value = 'units';
+  document.getElementById('inv-item-par').value = '1';
+  document.getElementById('inv-item-notes').value = '';
+  document.getElementById('inv-item-modal-msg').style.display = 'none';
+  document.getElementById('inv-item-modal').classList.add('open');
+}
+
+function openEditInvItemModal(id) {
+  const item = allInventory.find(i => i.id === id);
+  if (!item) return;
+  editingInvItemId = id;
+  document.getElementById('inv-item-modal-title').textContent = 'Edit Item';
+  document.getElementById('inv-item-name').value = item.name;
+  document.getElementById('inv-item-category').value = item.category;
+  document.getElementById('inv-item-qty').value = item.quantity;
+  document.getElementById('inv-item-unit').value = item.unit;
+  document.getElementById('inv-item-par').value = item.par_level;
+  document.getElementById('inv-item-notes').value = item.notes || '';
+  document.getElementById('inv-item-modal-msg').style.display = 'none';
+  document.getElementById('inv-item-modal').classList.add('open');
+}
+
+async function saveInvItemModal() {
+  const name = document.getElementById('inv-item-name').value.trim();
+  const category = document.getElementById('inv-item-category').value;
+  const qty = parseFloat(document.getElementById('inv-item-qty').value) || 0;
+  const unit = document.getElementById('inv-item-unit').value.trim() || 'units';
+  const par = parseFloat(document.getElementById('inv-item-par').value) || 0;
+  const notes = document.getElementById('inv-item-notes').value.trim();
+  const msgEl = document.getElementById('inv-item-modal-msg');
+
+  if (!name) { msgEl.textContent = 'Item name is required.'; msgEl.style.display = 'block'; return; }
+
+  const payload = { name, category, quantity: qty, unit, par_level: par, notes, updated_at: new Date().toISOString() };
+  const { error } = editingInvItemId
+    ? await sb.from('inventory').update(payload).eq('id', editingInvItemId)
+    : await sb.from('inventory').insert({ ...payload, created_by: currentUser.id });
+
+  if (error) { msgEl.textContent = 'Error: ' + error.message; msgEl.style.display = 'block'; }
+  else { closeModal('inv-item-modal'); loadInventory(); }
+}
+
+async function deleteInvItem(id, name) {
+  if (!confirm(`Delete "${name}" from inventory? This cannot be undone.`)) return;
+  await sb.from('inventory_log').delete().eq('inventory_id', id);
+  await sb.from('inventory').delete().eq('id', id);
+  loadInventory();
+}
+
+async function toggleInvLog() {
+  invLogVisible = !invLogVisible;
+  document.getElementById('inv-log-panel').style.display = invLogVisible ? 'block' : 'none';
+  document.getElementById('inv-log-toggle-icon').textContent = invLogVisible ? '▼' : '▶';
+  if (invLogVisible) loadInvLog();
+}
+
+async function loadInvLog() {
+  const { data } = await sb.from('inventory_log').select('*').order('created_at', { ascending: false }).limit(50);
+  const body = document.getElementById('inv-log-body');
+  if (!data || !data.length) {
+    body.innerHTML = '<div style="color:var(--gray);font-size:0.82rem;padding:1.25rem">No changes logged yet.</div>';
+    return;
+  }
+  const typeLabel = { restock: 'Restocked', usage: 'Used', adjustment: 'Adjusted', count: 'Count update' };
+  body.innerHTML = data.map(row => {
+    const change = row.change_amount;
+    const sign = change > 0 ? '+' : '';
+    const cls = change > 0 ? 'inv-log-pos' : change < 0 ? 'inv-log-neg' : '';
+    return `<div class="inv-log-row">
+      <div>
+        <div style="font-weight:500">${row.item_name}</div>
+        <div class="inv-log-meta">${typeLabel[row.change_type] || row.change_type} · by ${row.changed_by_name || 'Unknown'}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="${cls}">${sign}${change} → ${row.new_quantity}</div>
+        <div class="inv-log-meta">${new Date(row.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
 
 init();
 </script>
