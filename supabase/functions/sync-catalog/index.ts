@@ -211,16 +211,40 @@ serve(async (req) => {
       }
     }
 
+    // Delete any menu items with a square_item_id not in the location's item set
+    const validSquareIds = items.map((o) => o.id);
+    let deleted = 0;
+    let deleteErrors = 0;
+    if (validSquareIds.length > 0) {
+      const { data: toDelete } = await serviceClient
+        .from("menu_items")
+        .select("id, square_item_id")
+        .not("square_item_id", "is", null)
+        .not("square_item_id", "in", `(${validSquareIds.join(",")})`);
+
+      for (const row of toDelete || []) {
+        const { error } = await serviceClient.from("menu_items").delete().eq("id", row.id);
+        if (!error) {
+          deleted += 1;
+        } else {
+          deleteErrors += 1;
+          if (sampleErrors.length < 8) sampleErrors.push(`delete ${row.square_item_id}: ${error.message}`);
+        }
+      }
+    }
+
     const diagnostics = {
       scannedSquareObjects: locationItems.length,
       totalSquareItems: items.length,
       attemptedWrites: items.length,
       inserted,
       updated,
+      deleted,
       skippedNoVariation,
       lookupErrors,
       insertErrors,
       updateErrors,
+      deleteErrors,
       sampleErrors,
     };
 
