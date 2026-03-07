@@ -175,8 +175,7 @@ serve(async (req) => {
 
     const topItems = Object.entries(itemMap)
       .map(([name, d]) => ({ name, quantity: d.quantity, revenueCents: d.revenueCents }))
-      .sort((a, b) => b.quantity - a.quantity)
-      .slice(0, 20);
+      .sort((a, b) => b.quantity - a.quantity);
 
     const dailyBreakdown = Object.entries(dailyMap)
       .map(([date, d]) => ({ date, revenueCents: d.revenueCents, orderCount: d.orderCount }))
