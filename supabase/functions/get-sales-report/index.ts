@@ -1,8 +1,10 @@
 // Supabase Edge Function: get-sales-report
-// Fetches sales data from Square Payments API + Supabase orders table.
+// Fetches sales data from Square Payments API + Square Orders API + Supabase orders table.
 //
-// Square Payments API provides accurate revenue totals (source of truth).
-// Supabase orders table (cart_items JSONB) provides the per-item breakdown.
+// Revenue source of truth: Square Payments API (/v2/payments)
+// Item detail — Square POS/Online sales: Square Orders API (/v2/orders/search) line_items
+// Item detail — In-app sales: Supabase orders.cart_items JSONB
+//   (In-app orders are bare Square payments with no Square Order record, so no double-counting)
 //
 // Required Supabase secrets:
 //   SQUARE_ACCESS_TOKEN  — access token from Square Developer Dashboard
@@ -39,11 +41,70 @@ interface SquarePayment {
   amount_money?: { amount: number; currency: string };
 }
 
+interface SquareLineItem {
+  name?: string;
+  quantity?: string;
+  total_money?: { amount: number; currency: string };
+  variation_name?: string;
+}
+
+interface SquareOrder {
+  id: string;
+  state: string;
+  created_at: string;
+  line_items?: SquareLineItem[];
+}
+
 interface CartItem {
   name: string;
   quantity: number;
   price: number;
   temp?: string;
+}
+
+async function fetchSquareOrders(
+  baseUrl: string,
+  headers: Record<string, string>,
+  locationId: string,
+  startDate: string,
+  endDate: string,
+): Promise<SquareOrder[]> {
+  const allOrders: SquareOrder[] = [];
+  let cursor: string | undefined;
+
+  do {
+    const body: Record<string, unknown> = {
+      location_ids: [locationId],
+      query: {
+        filter: {
+          date_time_filter: {
+            created_at: { start_at: startDate, end_at: endDate },
+          },
+          state_filter: { states: ["COMPLETED"] },
+        },
+      },
+      limit: 500,
+    };
+    if (cursor) body.cursor = cursor;
+
+    const res = await fetch(`${baseUrl}/v2/orders/search`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || data?.errors?.length) {
+      console.warn("Square Orders API error:", JSON.stringify(data?.errors?.[0] || data));
+      break;
+    }
+
+    allOrders.push(...(data.orders || []));
+    cursor = data.cursor || undefined;
+  } while (cursor);
+
+  return allOrders;
 }
 
 serve(async (req) => {
@@ -98,14 +159,13 @@ serve(async (req) => {
       return json({ success: false, error: "Square credentials not configured — contact admin" }, 500);
     }
 
-    // ── Fetch payments from Square Payments API (paginated) ───────────────────
-    // Uses /v2/payments since process-payment creates payments directly (not orders).
     const squareBaseUrl = getSquareBaseUrl();
     const squareHeaders = {
       "Authorization": `Bearer ${squareToken}`,
       "Square-Version": "2024-01-18",
     };
 
+    // ── Fetch payments from Square Payments API (revenue source of truth) ─────
     const allPayments: SquarePayment[] = [];
     let cursor: string | undefined;
 
@@ -131,7 +191,6 @@ serve(async (req) => {
       }
 
       const payments: SquarePayment[] = sqBody.payments || [];
-      // Only count completed payments
       allPayments.push(...payments.filter(p => p.status === "COMPLETED"));
       cursor = sqBody.cursor || undefined;
     } while (cursor);
@@ -150,16 +209,31 @@ serve(async (req) => {
       dailyMap[day].orderCount += 1;
     }
 
-    // ── Fetch item breakdown from Supabase orders table ───────────────────────
-    // cart_items JSONB has the per-item detail that Square Payments API doesn't provide.
+    // ── Fetch item detail from Square Orders API (POS/Online sales) ───────────
+    // Square Orders have full line_items. In-app orders are bare payments (no Order
+    // record in Square), so fetching both sources gives complete coverage without overlap.
+    const squareOrders = await fetchSquareOrders(squareBaseUrl, squareHeaders, locationId, startDate, endDate);
+
+    const itemMap: Record<string, { quantity: number; revenueCents: number }> = {};
+
+    for (const order of squareOrders) {
+      for (const lineItem of order.line_items || []) {
+        const name = lineItem.name || "Unknown Item";
+        const qty = parseInt(lineItem.quantity || "1", 10);
+        const rev = lineItem.total_money?.amount ?? 0;
+        if (!itemMap[name]) itemMap[name] = { quantity: 0, revenueCents: 0 };
+        itemMap[name].quantity += qty;
+        itemMap[name].revenueCents += rev;
+      }
+    }
+
+    // ── Fetch item detail from Supabase orders (in-app sales) ─────────────────
     const { data: orders } = await serviceClient
       .from("orders")
       .select("cart_items, total_amount, created_at")
       .gte("created_at", startDate)
       .lte("created_at", endDate)
       .eq("status", "paid");
-
-    const itemMap: Record<string, { quantity: number; revenueCents: number }> = {};
 
     for (const order of orders || []) {
       const items: CartItem[] = Array.isArray(order.cart_items) ? order.cart_items : [];
@@ -176,7 +250,7 @@ serve(async (req) => {
     const topItems = Object.entries(itemMap)
       .map(([name, d]) => ({ name, quantity: d.quantity, revenueCents: d.revenueCents }))
       .sort((a, b) => b.quantity - a.quantity)
-      .slice(0, 20);
+      .slice(0, 50);
 
     const dailyBreakdown = Object.entries(dailyMap)
       .map(([date, d]) => ({ date, revenueCents: d.revenueCents, orderCount: d.orderCount }))
@@ -193,6 +267,8 @@ serve(async (req) => {
       avgOrderValueCents,
       avgOrderValue: (avgOrderValueCents / 100).toFixed(2),
       topItems,
+      squareOrderCount: squareOrders.length,
+      appOrderCount: (orders || []).length,
       dailyBreakdown,
     });
   } catch (e) {
