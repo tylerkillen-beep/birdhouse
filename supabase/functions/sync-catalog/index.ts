@@ -24,6 +24,7 @@ type SquareObject = {
   type: string;
   present_at_all_locations?: boolean;
   present_at_location_ids?: string[];
+  absent_at_location_ids?: string[];
   item_data?: {
     name?: string;
     description?: string;
@@ -94,42 +95,57 @@ serve(async (req) => {
       "Content-Type": "application/json",
     };
 
-    const objects: SquareObject[] = [];
-    let cursor: string | undefined;
+    // Fetch all catalog objects (ITEM_VARIATION and CATEGORY) for price/category lookups
+    const allObjects: SquareObject[] = [];
+    let listCursor: string | undefined;
 
-    // Square catalog/list is paginated — pull every page so we don't miss any ITEM records.
     do {
-      const params = new URLSearchParams({
-        types: "ITEM,ITEM_VARIATION,CATEGORY",
-      });
-      if (cursor) params.set("cursor", cursor);
+      const params = new URLSearchParams({ types: "ITEM_VARIATION,CATEGORY" });
+      if (listCursor) params.set("cursor", listCursor);
 
       const sqRes = await fetch(`${squareBaseUrl}/v2/catalog/list?${params.toString()}`, {
         headers: squareHeaders,
       });
-
       const sqBody = await sqRes.json();
       if (!sqRes.ok || sqBody?.errors?.length) {
         return json({ success: false, error: sqBody?.errors?.[0]?.detail || "Square API error" }, 400);
       }
-
-      objects.push(...(sqBody.objects || []));
-      cursor = sqBody.cursor || undefined;
-    } while (cursor);
+      allObjects.push(...(sqBody.objects || []));
+      listCursor = sqBody.cursor || undefined;
+    } while (listCursor);
 
     const categories = new Map<string, string>();
     const variations = new Map<string, number>();
 
-    for (const o of objects) {
+    for (const o of allObjects) {
       if (o.type === "CATEGORY") categories.set(o.id, o.category_data?.name || "Coffee");
       if (o.type === "ITEM_VARIATION") variations.set(o.id, o.item_variation_data?.price_money?.amount || 0);
     }
 
-    const items = objects.filter((o) =>
-      o.type === "ITEM" &&
-      o.item_data?.name &&
-      (o.present_at_all_locations || o.present_at_location_ids?.includes(squareLocationId))
-    );
+    // Use SearchCatalogItems with enabled_location_ids to only fetch items for this location
+    const locationItems: SquareObject[] = [];
+    let searchCursor: string | undefined;
+
+    do {
+      const searchBody: Record<string, unknown> = {
+        enabled_location_ids: [squareLocationId],
+      };
+      if (searchCursor) searchBody.cursor = searchCursor;
+
+      const sqRes = await fetch(`${squareBaseUrl}/v2/catalog/search-catalog-items`, {
+        method: "POST",
+        headers: squareHeaders,
+        body: JSON.stringify(searchBody),
+      });
+      const sqBody = await sqRes.json();
+      if (!sqRes.ok || sqBody?.errors?.length) {
+        return json({ success: false, error: sqBody?.errors?.[0]?.detail || "Square search API error" }, 400);
+      }
+      locationItems.push(...(sqBody.items || []));
+      searchCursor = sqBody.cursor || undefined;
+    } while (searchCursor);
+
+    const items = locationItems.filter((o) => o.item_data?.name);
     let inserted = 0;
     let updated = 0;
     let skippedNoVariation = 0;
@@ -195,16 +211,40 @@ serve(async (req) => {
       }
     }
 
+    // Delete any menu items with a square_item_id not in the location's item set
+    const validSquareIds = items.map((o) => o.id);
+    let deleted = 0;
+    let deleteErrors = 0;
+    if (validSquareIds.length > 0) {
+      const { data: toDelete } = await serviceClient
+        .from("menu_items")
+        .select("id, square_item_id")
+        .not("square_item_id", "is", null)
+        .not("square_item_id", "in", `(${validSquareIds.join(",")})`);
+
+      for (const row of toDelete || []) {
+        const { error } = await serviceClient.from("menu_items").delete().eq("id", row.id);
+        if (!error) {
+          deleted += 1;
+        } else {
+          deleteErrors += 1;
+          if (sampleErrors.length < 8) sampleErrors.push(`delete ${row.square_item_id}: ${error.message}`);
+        }
+      }
+    }
+
     const diagnostics = {
-      scannedSquareObjects: objects.length,
+      scannedSquareObjects: locationItems.length,
       totalSquareItems: items.length,
       attemptedWrites: items.length,
       inserted,
       updated,
+      deleted,
       skippedNoVariation,
       lookupErrors,
       insertErrors,
       updateErrors,
+      deleteErrors,
       sampleErrors,
     };
 

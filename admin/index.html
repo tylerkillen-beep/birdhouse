@@ -1762,10 +1762,10 @@ async function loadMenuItems() {
       <td>${categoryLabel}</td>
       <td>${temp}</td>
       <td>${price}</td>
-      <td>${item.available ? '<span style="color:#27ae60">Available</span>' : '<span style="color:var(--gray)">Hidden</span>'}</td>
+      <td id="avail-status-${item.id}">${item.available ? '<span style="color:#27ae60">Available</span>' : '<span style="color:var(--gray)">Hidden</span>'}</td>
       <td>
         <button class="btn btn-ghost btn-sm" onclick="editMenuItem('${item.id}')">Edit</button>
-        <button class="btn btn-success btn-sm" onclick="toggleMenuItemAvailability('${item.id}', ${item.available ? 'false' : 'true'})">${item.available ? 'Hide' : 'Show'}</button>
+        <button id="avail-btn-${item.id}" class="btn btn-success btn-sm" onclick="toggleMenuItemAvailability('${item.id}', ${item.available ? 'false' : 'true'})">${item.available ? 'Hide' : 'Show'}</button>
         <button class="btn btn-danger btn-sm" onclick="deleteMenuItem('${item.id}')">Delete</button>
       </td>
     </tr>`;
@@ -1855,7 +1855,17 @@ async function saveMenuItem() {
 async function toggleMenuItemAvailability(id, nextVal) {
   const { error } = await sb.from('menu_items').update({ available: nextVal }).eq('id', id);
   if (error) { alert(error.message); return; }
-  await loadMenuItems();
+  const statusEl = document.getElementById(`avail-status-${id}`);
+  const btnEl = document.getElementById(`avail-btn-${id}`);
+  if (nextVal === 'true' || nextVal === true) {
+    statusEl.innerHTML = '<span style="color:#27ae60">Available</span>';
+    btnEl.textContent = 'Hide';
+    btnEl.onclick = () => toggleMenuItemAvailability(id, false);
+  } else {
+    statusEl.innerHTML = '<span style="color:var(--gray)">Hidden</span>';
+    btnEl.textContent = 'Show';
+    btnEl.onclick = () => toggleMenuItemAvailability(id, true);
+  }
 }
 
 async function deleteMenuItem(id) {
