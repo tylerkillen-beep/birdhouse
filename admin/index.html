@@ -1255,6 +1255,7 @@ async function loadStaff() {
     sb.from('menu_items').select('id,name').order('name'),
   ]);
   staffTeams = teams || [];
+  console.log('[loadStaff] menuForStaff result:', menuForStaff);
   if (!allMenuItems.length && menuForStaff?.length) allMenuItems = menuForStaff;
   allStaff = [...(pending||[]), ...(active||[])];
 
