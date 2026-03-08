@@ -79,19 +79,22 @@
     .no-drink-selected { background:var(--card); border:1.5px dashed rgba(204,0,0,0.2); border-radius:12px; padding:1.5rem; text-align:center; color:var(--gray); font-size:0.85rem; margin-bottom:1rem; }
 
     /* Menu grid (reused from order.html) */
-    .menu-section-header { display:flex; align-items:center; gap:0.75rem; margin:1.5rem 0 0.75rem; }
-    .menu-section-title { font-family:'Bebas Neue',sans-serif; font-size:1.3rem; letter-spacing:0.05em; }
-    .size-pill { font-size:0.62rem; padding:0.22rem 0.65rem; border-radius:20px; font-weight:500; letter-spacing:0.06em; }
+    .menu-section-header { display:flex; align-items:center; gap:0.6rem; margin:2rem 0 0.85rem; padding-bottom:0.65rem; border-bottom:1px solid var(--border-dim); }
+    .menu-section-header:first-child { margin-top:0; }
+    .menu-section-icon { width:26px; height:26px; display:flex; align-items:center; justify-content:center; background:rgba(204,0,0,0.1); border-radius:7px; font-size:0.9rem; flex-shrink:0; }
+    .menu-section-title { font-family:'Bebas Neue',sans-serif; font-size:1.2rem; letter-spacing:0.06em; }
+    .menu-section-pill { flex-shrink:0; }
+    .size-pill { font-size:0.6rem; padding:0.18rem 0.55rem; border-radius:20px; font-weight:600; letter-spacing:0.06em; white-space:nowrap; }
     .pill-hot  { background:rgba(255,100,0,0.1); color:#ff9944; border:1px solid rgba(255,100,0,0.25); }
     .pill-iced { background:rgba(80,160,255,0.1); color:#66aaff; border:1px solid rgba(80,160,255,0.25); }
-    .menu-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:0.65rem; margin-bottom:0.5rem; }
-    .menu-card { background:#1a1a1a; border:1.5px solid var(--border-dim); border-radius:10px; padding:1rem 1.1rem; transition:all 0.2s; }
-    .menu-card:hover { border-color:rgba(204,0,0,0.3); transform:translateY(-2px); }
-    .menu-card-name { font-weight:500; font-size:0.88rem; margin-bottom:0.15rem; }
-    .menu-card-desc { font-size:0.72rem; color:var(--gray); line-height:1.4; margin-bottom:0.4rem; }
-    .menu-card-price { font-size:0.78rem; color:var(--red-bright); font-weight:600; margin-bottom:0.65rem; }
-    .add-btn { width:100%; padding:0.45rem; background:rgba(204,0,0,0.12); border:1px solid var(--border); border-radius:7px; color:var(--red-bright); font-size:0.78rem; font-family:'DM Sans',sans-serif; cursor:pointer; transition:all 0.2s; font-weight:500; }
-    .add-btn:hover { background:rgba(204,0,0,0.22); }
+    .menu-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:0.7rem; margin-bottom:0.5rem; }
+    .menu-card { background:#1a1a1a; border:1.5px solid var(--border-dim); border-radius:12px; padding:1rem 1.1rem; transition:all 0.2s; display:flex; flex-direction:column; }
+    .menu-card:hover { border-color:rgba(204,0,0,0.35); transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,0.25), 0 0 0 1px rgba(204,0,0,0.08); }
+    .menu-card-name { font-weight:600; font-size:0.88rem; line-height:1.3; margin-bottom:0.3rem; }
+    .menu-card-desc { font-size:0.71rem; color:var(--gray); line-height:1.4; flex:1; padding-bottom:0.65rem; }
+    .menu-card-price { font-size:0.85rem; color:var(--red-bright); font-weight:700; margin-bottom:0.6rem; }
+    .add-btn { width:100%; padding:0.48rem 0.5rem; background:rgba(204,0,0,0.1); border:1px solid rgba(204,0,0,0.2); border-radius:7px; color:var(--red-bright); font-size:0.76rem; font-family:'DM Sans',sans-serif; cursor:pointer; transition:all 0.2s; font-weight:500; margin-top:auto; }
+    .add-btn:hover { background:rgba(204,0,0,0.22); border-color:rgba(204,0,0,0.35); }
 
     /* Delivery form */
     .delivery-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem; margin-bottom:1.5rem; }
@@ -164,6 +167,7 @@
       .plans-grid{grid-template-columns:1fr} .pay-layout{grid-template-columns:1fr}
       .delivery-grid{grid-template-columns:1fr}
     }
+    @media(max-width:600px) { .menu-grid{grid-template-columns:repeat(2,1fr);gap:0.55rem} .menu-card{padding:0.85rem} .menu-card-name{font-size:0.83rem} .main{padding:1rem 1rem 5rem} }
   </style>
 </head>
 <body>
@@ -481,18 +485,22 @@
 
     let html = '';
     if (hotItems.length || bothItems.length) {
+      const hotAll = [...hotItems,...bothItems];
       html += `<div class="menu-section-header">
-        <span>☕</span><span class="menu-section-title">Hot Drinks</span>
-        <span class="size-pill pill-hot">12 oz</span>
+        <span class="menu-section-icon">☕</span>
+        <span class="menu-section-title">Hot Drinks</span>
+        <span class="size-pill pill-hot" style="margin-left:auto">12 oz</span>
       </div>
-      <div class="menu-grid">${[...hotItems,...bothItems].map(i => menuCard(i,'hot',slotNum)).join('')}</div>`;
+      <div class="menu-grid">${hotAll.map(i => menuCard(i,'hot',slotNum)).join('')}</div>`;
     }
     if (icedItems.length || bothItems.length) {
+      const icedAll = [...icedItems,...bothItems];
       html += `<div class="menu-section-header">
-        <span>🧊</span><span class="menu-section-title">Iced Drinks</span>
-        <span class="size-pill pill-iced">16 oz</span>
+        <span class="menu-section-icon">🧊</span>
+        <span class="menu-section-title">Iced Drinks</span>
+        <span class="size-pill pill-iced" style="margin-left:auto">16 oz</span>
       </div>
-      <div class="menu-grid">${[...icedItems,...bothItems].map(i => menuCard(i,'iced',slotNum)).join('')}</div>`;
+      <div class="menu-grid">${icedAll.map(i => menuCard(i,'iced',slotNum)).join('')}</div>`;
     }
     container.innerHTML = html;
   }
@@ -508,6 +516,7 @@
       <button class="add-btn" onclick="openModModal('${item.id}','${temp}',${slotNum})">${btnLabel}</button>
     </div>`;
   }
+
 
   // ── Modifier Modal ────────────────────────────────────────────────────────
   function openModModal(itemId, temp, slotNum) {
