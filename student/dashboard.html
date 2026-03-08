@@ -352,6 +352,8 @@
         <div class="stat-card"><div class="stat-label">Revenue</div><div class="stat-value" id="srpt-revenue">—</div></div>
         <div class="stat-card"><div class="stat-label">Orders</div><div class="stat-value" id="srpt-orders">—</div></div>
         <div class="stat-card"><div class="stat-label">Avg Order</div><div class="stat-value" id="srpt-avg">—</div></div>
+        <div class="stat-card"><div class="stat-label">Discounts</div><div class="stat-value" id="srpt-discounts" style="color:#e57373">—</div></div>
+        <div class="stat-card"><div class="stat-label">Sq. Fees</div><div class="stat-value" id="srpt-fees" style="color:#e57373">—</div></div>
       </div>
 
       <!-- Bar chart -->
@@ -366,8 +368,8 @@
       <div class="section">
         <div class="section-title">Top Items</div>
         <div class="table-wrap">
-          <table><thead><tr><th>#</th><th>Item</th><th>Units Sold</th><th>Revenue</th></tr></thead>
-          <tbody id="srpt-items"><tr><td colspan="4" style="text-align:center;color:var(--gray);padding:1.5rem">Loading…</td></tr></tbody></table>
+          <table><thead><tr><th>#</th><th>Item</th><th>Units Sold</th><th>Revenue</th><th>Discounts</th><th>Sq. Fees</th></tr></thead>
+          <tbody id="srpt-items"><tr><td colspan="6" style="text-align:center;color:var(--gray);padding:1.5rem">Loading…</td></tr></tbody></table>
         </div>
       </div>
     </div>
@@ -981,9 +983,9 @@
     const range = getStudentReportDates();
     if (!range) return;
     document.getElementById('srng-label').textContent = range.label;
-    ['srpt-revenue','srpt-orders','srpt-avg'].forEach(id => document.getElementById(id).textContent = '…');
+    ['srpt-revenue','srpt-orders','srpt-avg','srpt-discounts','srpt-fees'].forEach(id => document.getElementById(id).textContent = '…');
     document.getElementById('srpt-chart').innerHTML = '<span style="color:var(--gray);font-size:0.82rem;align-self:center;margin:auto">Loading…</span>';
-    document.getElementById('srpt-items').innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--gray);padding:1.5rem">Loading…</td></tr>';
+    document.getElementById('srpt-items').innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--gray);padding:1.5rem">Loading…</td></tr>';
     try {
       let { data: { session } } = await sb.auth.getSession();
       if (session?.expires_at && Date.now() / 1000 >= session.expires_at - 30) {
@@ -1001,6 +1003,8 @@
       document.getElementById('srpt-revenue').textContent = `$${parseFloat(d.totalRevenue).toFixed(2)}`;
       document.getElementById('srpt-orders').textContent = d.orderCount;
       document.getElementById('srpt-avg').textContent = `$${parseFloat(d.avgOrderValue).toFixed(2)}`;
+      document.getElementById('srpt-discounts').textContent = `-$${parseFloat(d.totalDiscount || '0').toFixed(2)}`;
+      document.getElementById('srpt-fees').textContent = `-$${parseFloat(d.totalProcessingFee || '0').toFixed(2)}`;
       // Chart
       const chart = document.getElementById('srpt-chart');
       if (!d.dailyBreakdown?.length) {
@@ -1016,13 +1020,13 @@
       }
       // Top items
       document.getElementById('srpt-items').innerHTML = d.topItems?.length
-        ? d.topItems.map((item,i) => `<tr><td style="color:var(--gray)">${i+1}</td><td>${item.name}</td><td>${item.quantity}</td><td>$${(item.revenueCents/100).toFixed(2)}</td></tr>`).join('')
-        : '<tr><td colspan="4" style="text-align:center;color:var(--gray);padding:1.5rem">No items sold in this period</td></tr>';
+        ? d.topItems.map((item,i) => `<tr><td style="color:var(--gray)">${i+1}</td><td>${item.name}</td><td>${item.quantity}</td><td>$${(item.revenueCents/100).toFixed(2)}</td><td style="color:#e57373">${(item.discountCents||0)>0?`-$${(item.discountCents/100).toFixed(2)}`:'—'}</td><td style="color:#e57373">-$${((item.processingFeeCents||0)/100).toFixed(2)}</td></tr>`).join('')
+        : '<tr><td colspan="6" style="text-align:center;color:var(--gray);padding:1.5rem">No items sold in this period</td></tr>';
     } catch(err) {
       console.error('Student sales report error:', err);
-      ['srpt-revenue','srpt-orders','srpt-avg'].forEach(id => document.getElementById(id).textContent = '—');
+      ['srpt-revenue','srpt-orders','srpt-avg','srpt-discounts','srpt-fees'].forEach(id => document.getElementById(id).textContent = '—');
       document.getElementById('srpt-chart').innerHTML = `<span style="color:#e57373;font-size:0.82rem;align-self:center;margin:auto">Error: ${err.message}</span>`;
-      document.getElementById('srpt-items').innerHTML = `<tr><td colspan="4" style="text-align:center;color:#e57373;padding:1.5rem">${err.message}</td></tr>`;
+      document.getElementById('srpt-items').innerHTML = `<tr><td colspan="6" style="text-align:center;color:#e57373;padding:1.5rem">${err.message}</td></tr>`;
     }
   }
 
