@@ -333,6 +333,9 @@
   <div class="nav-item" onclick="showSection('product-performance')" id="nav-product-performance">
     <span class="nav-icon">📈</span> Product Performance
   </div>
+  <div class="nav-item" onclick="showSection('library-split')" id="nav-library-split">
+    <span class="nav-icon">📚</span> Library Split
+  </div>
 
   <div class="sidebar-bottom">
     <div class="admin-badge">
@@ -735,6 +738,116 @@
         </tr></thead>
         <tbody id="pp-tbody">
           <tr class="loading-row"><td colspan="10" style="text-align:center;color:var(--text-muted)">Select a range to load report</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── LIBRARY SPLIT ── -->
+  <div class="section-panel" id="section-library-split">
+    <div class="page-header">
+      <h1>Library Profit Split</h1>
+      <p>Library share of sales during 2nd, 3rd, 4th, STAR, 7th &amp; 8th Hours</p>
+    </div>
+
+    <!-- Date range selector -->
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.5rem;align-items:center">
+      <button class="btn btn-ghost btn-sm lib-range-btn active" id="lib-range-btn-today" onclick="setLibRange('today',this)">Today</button>
+      <button class="btn btn-ghost btn-sm lib-range-btn" id="lib-range-btn-week" onclick="setLibRange('week',this)">This Week</button>
+      <button class="btn btn-ghost btn-sm lib-range-btn" id="lib-range-btn-month" onclick="setLibRange('month',this)">This Month</button>
+      <button class="btn btn-ghost btn-sm lib-range-btn" id="lib-range-btn-custom" onclick="setLibRange('custom',this)">Custom</button>
+      <div id="lib-custom-inputs" style="display:none;gap:0.5rem;align-items:center;flex-wrap:wrap">
+        <input type="date" id="lib-start-date" class="form-input" style="padding:0.4rem 0.6rem;font-size:0.85rem" />
+        <span style="color:var(--text-muted)">to</span>
+        <input type="date" id="lib-end-date" class="form-input" style="padding:0.4rem 0.6rem;font-size:0.85rem" />
+        <button class="btn btn-primary btn-sm" onclick="runLibrarySplit()">Run Report</button>
+      </div>
+      <span id="lib-range-label" style="margin-left:0.5rem;font-size:0.8rem;color:var(--gray-mid)"></span>
+    </div>
+
+    <!-- Schedule split reference card -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.25rem 1.5rem;margin-bottom:1.5rem">
+      <div style="font-size:0.62rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--gray);margin-bottom:1rem">Library Hours (Time Split Basis)</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0.75rem 2rem">
+        <div>
+          <div style="font-size:0.72rem;color:var(--gray-mid);margin-bottom:0.4rem;text-transform:uppercase;letter-spacing:0.1em">Monday</div>
+          <table style="width:100%;min-width:0;border:none">
+            <tbody id="lib-sched-mon" style="font-size:0.8rem">
+              <tr><td style="color:var(--gray-mid);padding:0.2rem 0.5rem 0.2rem 0;border:none">2nd Hour</td><td style="padding:0.2rem 0;border:none">8:54 – 9:43</td><td style="padding:0.2rem 0 0.2rem 0.75rem;color:var(--accent);border:none">49 min</td></tr>
+              <tr><td style="color:var(--gray-mid);padding:0.2rem 0.5rem 0.2rem 0;border:none">3rd Hour</td><td style="padding:0.2rem 0;border:none">9:48 – 10:37</td><td style="padding:0.2rem 0 0.2rem 0.75rem;color:var(--accent);border:none">49 min</td></tr>
+              <tr><td style="color:var(--gray-mid);padding:0.2rem 0.5rem 0.2rem 0;border:none">4th Hour</td><td style="padding:0.2rem 0;border:none">10:42 – 11:31</td><td style="padding:0.2rem 0 0.2rem 0.75rem;color:var(--accent);border:none">49 min</td></tr>
+              <tr><td style="color:var(--gray-mid);padding:0.2rem 0.5rem 0.2rem 0;border:none;font-style:italic">STAR</td><td style="padding:0.2rem 0;border:none;color:var(--gray)">No STAR</td><td style="padding:0.2rem 0 0.2rem 0.75rem;color:var(--gray);border:none">0 min</td></tr>
+              <tr><td style="color:var(--gray-mid);padding:0.2rem 0.5rem 0.2rem 0;border:none">7th Hour</td><td style="padding:0.2rem 0;border:none">12:54 – 1:42</td><td style="padding:0.2rem 0 0.2rem 0.75rem;color:var(--accent);border:none">48 min</td></tr>
+              <tr><td style="color:var(--gray-mid);padding:0.2rem 0.5rem 0.2rem 0;border:none">8th Hour</td><td style="padding:0.2rem 0;border:none">1:47 – 2:35</td><td style="padding:0.2rem 0 0.2rem 0.75rem;color:var(--accent);border:none">48 min</td></tr>
+              <tr style="border-top:1px solid var(--border-dim)"><td colspan="2" style="color:var(--gray-mid);padding:0.35rem 0.5rem 0 0;border:none;font-size:0.75rem">Library / Total</td><td style="padding:0.35rem 0 0 0.75rem;border:none;font-weight:500">243 / 424 min</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <div style="font-size:0.72rem;color:var(--gray-mid);margin-bottom:0.4rem;text-transform:uppercase;letter-spacing:0.1em">Tuesday – Friday</div>
+          <table style="width:100%;min-width:0;border:none">
+            <tbody style="font-size:0.8rem">
+              <tr><td style="color:var(--gray-mid);padding:0.2rem 0.5rem 0.2rem 0;border:none">2nd Hour</td><td style="padding:0.2rem 0;border:none">8:23 – 9:11</td><td style="padding:0.2rem 0 0.2rem 0.75rem;color:var(--accent);border:none">48 min</td></tr>
+              <tr><td style="color:var(--gray-mid);padding:0.2rem 0.5rem 0.2rem 0;border:none">3rd Hour</td><td style="padding:0.2rem 0;border:none">9:16 – 10:04</td><td style="padding:0.2rem 0 0.2rem 0.75rem;color:var(--accent);border:none">48 min</td></tr>
+              <tr><td style="color:var(--gray-mid);padding:0.2rem 0.5rem 0.2rem 0;border:none">4th Hour</td><td style="padding:0.2rem 0;border:none">10:09 – 10:57</td><td style="padding:0.2rem 0 0.2rem 0.75rem;color:var(--accent);border:none">48 min</td></tr>
+              <tr><td style="color:var(--gray-mid);padding:0.2rem 0.5rem 0.2rem 0;border:none">STAR</td><td style="padding:0.2rem 0;border:none">11:07 – 11:32</td><td style="padding:0.2rem 0 0.2rem 0.75rem;color:var(--accent);border:none">25 min</td></tr>
+              <tr><td style="color:var(--gray-mid);padding:0.2rem 0.5rem 0.2rem 0;border:none">7th Hour</td><td style="padding:0.2rem 0;border:none">12:54 – 1:42</td><td style="padding:0.2rem 0 0.2rem 0.75rem;color:var(--accent);border:none">48 min</td></tr>
+              <tr><td style="color:var(--gray-mid);padding:0.2rem 0.5rem 0.2rem 0;border:none">8th Hour</td><td style="padding:0.2rem 0;border:none">1:47 – 2:35</td><td style="padding:0.2rem 0 0.2rem 0.75rem;color:var(--accent);border:none">48 min</td></tr>
+              <tr style="border-top:1px solid var(--border-dim)"><td colspan="2" style="color:var(--gray-mid);padding:0.35rem 0.5rem 0 0;border:none;font-size:0.75rem">Library / Total</td><td style="padding:0.35rem 0 0 0.75rem;border:none;font-weight:500">265 / 395 min</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div style="margin-top:1rem;padding-top:0.75rem;border-top:1px solid var(--border-dim);font-size:0.78rem;color:var(--gray-mid)">
+        Library's share is calculated proportionally: Library minutes ÷ Total Birdhouse operating minutes per day. Monday excludes STAR (57.3%). Tuesday–Friday includes STAR (67.1%). Full week average: <strong style="color:var(--text)">65.0%</strong>.
+      </div>
+    </div>
+
+    <!-- Summary stats -->
+    <div class="stats-row" id="lib-stats" style="margin-bottom:1.5rem">
+      <div class="stat-card">
+        <div class="stat-label">Total Birdhouse Gross</div>
+        <div class="stat-value" id="lib-total-gross">—</div>
+        <div class="stat-sub" id="lib-total-gross-sub"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Library Gross Sales</div>
+        <div class="stat-value accent" id="lib-gross">—</div>
+        <div class="stat-sub" id="lib-gross-sub"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Sq. Processing Fees</div>
+        <div class="stat-value" id="lib-fees" style="color:#e57373">—</div>
+        <div class="stat-sub" id="lib-fees-sub"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">COGS (65%)</div>
+        <div class="stat-value" id="lib-cogs" style="color:#e57373">—</div>
+        <div class="stat-sub" id="lib-cogs-sub">35% profit margin assumed</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Net to Library</div>
+        <div class="stat-value accent" id="lib-net">—</div>
+        <div class="stat-sub" id="lib-net-sub"></div>
+      </div>
+    </div>
+
+    <!-- Calculation breakdown table -->
+    <div class="section-header"><div class="section-title">Day-by-Day Breakdown</div></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Date</th>
+          <th>Day</th>
+          <th>Lib %</th>
+          <th>Total Gross</th>
+          <th>Library Gross</th>
+          <th>Sq. Fees</th>
+          <th>COGS</th>
+          <th>Net</th>
+        </tr></thead>
+        <tbody id="lib-tbody">
+          <tr class="loading-row"><td colspan="8" style="text-align:center;color:var(--text-muted)">Select a range to load report</td></tr>
         </tbody>
       </table>
     </div>
@@ -1150,6 +1263,7 @@ function showSection(id) {
     inventory: loadInventory,
     'sales-report': initSalesReport,
     'product-performance': initProductPerformance,
+    'library-split': initLibrarySplit,
   };
   if (loaders[id]) loaders[id]();
 }
@@ -3189,6 +3303,229 @@ async function runProductPerformance() {
     document.getElementById('pp-tbody').innerHTML = `<tr><td colspan="10" style="text-align:center;color:#e57373;padding:1.5rem">${err.message}</td></tr>`;
     ['pp-total-revenue','pp-total-profit','pp-avg-margin'].forEach(id => document.getElementById(id).textContent = 'Error');
   }
+}
+
+// ════════════════════════════════════
+// Library Profit Split
+// ════════════════════════════════════
+// Schedule-based time proportions (from Bell Schedule)
+// Monday    : Library 243 min / Total 424 min = 57.31%
+// Tue–Fri   : Library 265 min / Total 395 min = 67.09%
+const LIB_MINS_MON = 243, TOTAL_MINS_MON = 424;
+const LIB_MINS_TUEFRI = 265, TOTAL_MINS_TUEFRI = 395;
+const COGS_RATE = 0.65; // 35% profit margin → 65% COGS
+
+let currentLibRange = 'today';
+
+function initLibrarySplit() {
+  if (document.getElementById('lib-gross').textContent === '—') {
+    setLibRange('today', document.getElementById('lib-range-btn-today'));
+  }
+}
+
+function setLibRange(range, btn) {
+  currentLibRange = range;
+  document.querySelectorAll('.lib-range-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const customInputs = document.getElementById('lib-custom-inputs');
+  if (range === 'custom') { customInputs.style.display = 'flex'; return; }
+  customInputs.style.display = 'none';
+  runLibrarySplit();
+}
+
+function getLibDateRange() {
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const toISO = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  if (currentLibRange === 'today') {
+    const start = new Date(now); start.setHours(0, 0, 0, 0);
+    const end = new Date(now); end.setHours(23, 59, 59, 999);
+    return { startDate: start.toISOString(), endDate: end.toISOString(), label: 'Today', startISO: toISO(start), endISO: toISO(end) };
+  }
+  if (currentLibRange === 'week') {
+    const start = new Date(now);
+    const diff = start.getDay() === 0 ? -6 : 1 - start.getDay();
+    start.setDate(start.getDate() + diff); start.setHours(0, 0, 0, 0);
+    const end = new Date(now); end.setHours(23, 59, 59, 999);
+    return { startDate: start.toISOString(), endDate: end.toISOString(), label: `Week of ${toISO(start)}`, startISO: toISO(start), endISO: toISO(end) };
+  }
+  if (currentLibRange === 'month') {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now); end.setHours(23, 59, 59, 999);
+    return { startDate: start.toISOString(), endDate: end.toISOString(), label: `${now.toLocaleString('default',{month:'long'})} ${now.getFullYear()}`, startISO: toISO(start), endISO: toISO(end) };
+  }
+  if (currentLibRange === 'custom') {
+    const s = document.getElementById('lib-start-date').value;
+    const e = document.getElementById('lib-end-date').value;
+    if (!s || !e) { alert('Please select both a start and end date.'); return null; }
+    return { startDate: new Date(s + 'T00:00:00').toISOString(), endDate: new Date(e + 'T23:59:59').toISOString(), label: `${s} — ${e}`, startISO: s, endISO: e };
+  }
+  return null;
+}
+
+// Returns array of school-day dates (Mon–Fri) within the range
+function getSchoolDaysInRange(startISO, endISO) {
+  const days = [];
+  const cur = new Date(startISO + 'T12:00:00');
+  const end = new Date(endISO + 'T12:00:00');
+  while (cur <= end) {
+    const dow = cur.getDay(); // 0=Sun, 6=Sat
+    if (dow >= 1 && dow <= 5) {
+      const pad = n => String(n).padStart(2, '0');
+      days.push({
+        iso: `${cur.getFullYear()}-${pad(cur.getMonth()+1)}-${pad(cur.getDate())}`,
+        dow,
+        isMonday: dow === 1,
+      });
+    }
+    cur.setDate(cur.getDate() + 1);
+  }
+  return days;
+}
+
+// Library proportion for a given day-of-week
+function libPropForDay(isMonday) {
+  return isMonday
+    ? LIB_MINS_MON / TOTAL_MINS_MON
+    : LIB_MINS_TUEFRI / TOTAL_MINS_TUEFRI;
+}
+
+async function runLibrarySplit() {
+  const range = getLibDateRange();
+  if (!range) return;
+
+  document.getElementById('lib-range-label').textContent = range.label;
+  ['lib-total-gross','lib-gross','lib-fees','lib-cogs','lib-net'].forEach(id => {
+    document.getElementById(id).textContent = '…';
+  });
+  document.getElementById('lib-tbody').innerHTML = '<tr class="loading-row"><td colspan="8">Loading…</td></tr>';
+
+  try {
+    let { data: { session } } = await sb.auth.getSession();
+    if (session?.expires_at && Date.now() / 1000 >= session.expires_at - 30) {
+      const { data: refreshed } = await sb.auth.refreshSession();
+      session = refreshed?.session ?? null;
+    }
+    if (!session) { alert('Session expired. Please sign in again.'); window.location.href = 'login.html'; return; }
+
+    const res = await fetch(REPORT_FN_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': REPORT_ANON_KEY,
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ startDate: range.startDate, endDate: range.endDate }),
+    });
+
+    const rawText = await res.text();
+    let data = {};
+    try { data = JSON.parse(rawText); } catch (_) {}
+    if (!res.ok || !data.success) throw new Error(data.error || `HTTP ${res.status}: ${rawText.slice(0, 200)}`);
+
+    renderLibrarySplit(data, range);
+  } catch (err) {
+    console.error('Library split error:', err);
+    ['lib-total-gross','lib-gross','lib-fees','lib-cogs','lib-net'].forEach(id => {
+      document.getElementById(id).textContent = 'Error';
+    });
+    document.getElementById('lib-tbody').innerHTML = `<tr><td colspan="8" style="text-align:center;color:#e57373;padding:1.5rem">${err.message}</td></tr>`;
+  }
+}
+
+function renderLibrarySplit(data, range) {
+  const totalGrossCents = Math.round(parseFloat(data.totalRevenue) * 100);
+  const totalFeeCents   = Math.round(parseFloat(data.totalProcessingFee || '0') * 100);
+
+  // Build per-day breakdown using the daily revenue breakdown from Square
+  const schoolDays = getSchoolDaysInRange(range.startISO, range.endISO);
+
+  // Build a map from date ISO → revenue cents from the report's daily breakdown
+  const dailyRevMap = {};
+  const dailyFeeRate = totalGrossCents > 0 ? totalFeeCents / totalGrossCents : 0;
+  for (const d of (data.dailyBreakdown || [])) {
+    dailyRevMap[d.date] = d.revenueCents || 0;
+  }
+
+  // For days not in dailyBreakdown (no sales), revenue = 0
+  let libGrossCents = 0, libFeeCents = 0;
+
+  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const rows = schoolDays.map(day => {
+    const dayRevCents = dailyRevMap[day.iso] || 0;
+    const prop = libPropForDay(day.isMonday);
+    const propPct = (prop * 100).toFixed(1) + '%';
+    const dayLibGross = Math.round(dayRevCents * prop);
+    const dayLibFee   = Math.round(dayRevCents * dailyFeeRate * prop);
+    const dayLibCogs  = Math.round(dayLibGross * COGS_RATE);
+    const dayLibNet   = dayLibGross - dayLibFee - dayLibCogs;
+
+    libGrossCents += dayLibGross;
+    libFeeCents   += dayLibFee;
+
+    const fmt = c => `$${(c / 100).toFixed(2)}`;
+    const netColor = dayLibNet >= 0 ? 'color:#27ae60' : 'color:#e57373';
+    return `<tr>
+      <td style="color:var(--gray-mid);font-size:0.8rem">${day.iso}</td>
+      <td>${dayNames[day.dow]}</td>
+      <td style="color:var(--accent)">${propPct}</td>
+      <td>${fmt(dayRevCents)}</td>
+      <td><strong>${fmt(dayLibGross)}</strong></td>
+      <td style="color:#e57373">${dayLibFee > 0 ? '-' + fmt(dayLibFee) : '—'}</td>
+      <td style="color:#e57373">-${fmt(dayLibCogs)}</td>
+      <td style="${netColor}">${fmt(dayLibNet)}</td>
+    </tr>`;
+  });
+
+  const libCogsCents = Math.round(libGrossCents * COGS_RATE);
+  const libNetCents  = libGrossCents - libFeeCents - libCogsCents;
+  const fmt = c => `$${(c / 100).toFixed(2)}`;
+
+  // If there are no school days in range (e.g. weekend), show proportional fallback
+  if (!schoolDays.length) {
+    // Non-school-day range: use weekly average proportion (65%)
+    const fallbackProp = (LIB_MINS_MON + LIB_MINS_TUEFRI * 4) / (TOTAL_MINS_MON + TOTAL_MINS_TUEFRI * 4);
+    const fb = Math.round(totalGrossCents * fallbackProp);
+    const fbFee = Math.round(totalFeeCents * fallbackProp);
+    const fbCogs = Math.round(fb * COGS_RATE);
+    const fbNet = fb - fbFee - fbCogs;
+    document.getElementById('lib-total-gross').textContent = fmt(totalGrossCents);
+    document.getElementById('lib-gross').textContent = fmt(fb);
+    document.getElementById('lib-gross-sub').textContent = `${(fallbackProp*100).toFixed(1)}% of total (weekly avg)`;
+    document.getElementById('lib-fees').textContent = '-' + fmt(fbFee);
+    document.getElementById('lib-cogs').textContent = '-' + fmt(fbCogs);
+    document.getElementById('lib-net').textContent = fmt(fbNet);
+    document.getElementById('lib-net-sub').textContent = fbNet >= 0 ? 'Profit' : 'Loss';
+    document.getElementById('lib-tbody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--gray-mid);padding:1.5rem">No school days (Mon–Fri) in selected range. Showing weekly average split.</td></tr>';
+    return;
+  }
+
+  // Stats row
+  document.getElementById('lib-total-gross').textContent = fmt(totalGrossCents);
+  document.getElementById('lib-gross').textContent = fmt(libGrossCents);
+  document.getElementById('lib-gross-sub').textContent = `${((libGrossCents/Math.max(totalGrossCents,1))*100).toFixed(1)}% of total gross`;
+  document.getElementById('lib-fees').textContent = '-' + fmt(libFeeCents);
+  document.getElementById('lib-fees-sub').textContent = 'Prorated from total Square fees';
+  document.getElementById('lib-cogs').textContent = '-' + fmt(libCogsCents);
+  document.getElementById('lib-net').textContent = fmt(libNetCents);
+  const netColor = libNetCents >= 0 ? 'color:#27ae60' : 'color:#e57373';
+  document.getElementById('lib-net').style.color = libNetCents >= 0 ? 'var(--accent)' : '#e57373';
+  document.getElementById('lib-net-sub').textContent = libNetCents >= 0 ? 'Net profit for Library' : 'Net loss for Library';
+
+  // Add totals row
+  const totalsRow = `<tr style="border-top:2px solid var(--border);font-weight:600;background:rgba(200,169,110,0.04)">
+    <td colspan="2" style="color:var(--accent)">Totals</td>
+    <td style="color:var(--accent)">${((libGrossCents/Math.max(totalGrossCents,1))*100).toFixed(1)}%</td>
+    <td>${fmt(totalGrossCents)}</td>
+    <td><strong>${fmt(libGrossCents)}</strong></td>
+    <td style="color:#e57373">-${fmt(libFeeCents)}</td>
+    <td style="color:#e57373">-${fmt(libCogsCents)}</td>
+    <td style="${libNetCents >= 0 ? 'color:#27ae60' : 'color:#e57373'}">${fmt(libNetCents)}</td>
+  </tr>`;
+
+  document.getElementById('lib-tbody').innerHTML = rows.length
+    ? rows.join('') + totalsRow
+    : `<tr><td colspan="8" style="text-align:center;color:var(--gray-mid);padding:1.5rem">No sales in this period.</td></tr>`;
 }
 </script>
 </body>
