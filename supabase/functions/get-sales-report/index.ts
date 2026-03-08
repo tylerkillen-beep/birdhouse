@@ -39,12 +39,14 @@ interface SquarePayment {
   created_at: string;
   status: string;
   amount_money?: { amount: number; currency: string };
+  processing_fee?: Array<{ amount_money?: { amount: number; currency: string } }>;
 }
 
 interface SquareLineItem {
   name?: string;
   quantity?: string;
   total_money?: { amount: number; currency: string };
+  total_discount_money?: { amount: number; currency: string };
   variation_name?: string;
 }
 
@@ -197,11 +199,16 @@ serve(async (req) => {
 
     // ── Aggregate revenue from Square payments ────────────────────────────────
     let totalRevenueCents = 0;
+    let totalProcessingFeeCents = 0;
     const dailyMap: Record<string, { revenueCents: number; orderCount: number }> = {};
 
     for (const payment of allPayments) {
       const amount = payment.amount_money?.amount ?? 0;
       totalRevenueCents += amount;
+
+      for (const fee of payment.processing_fee || []) {
+        totalProcessingFeeCents += fee.amount_money?.amount ?? 0;
+      }
 
       const day = payment.created_at.slice(0, 10); // YYYY-MM-DD
       if (!dailyMap[day]) dailyMap[day] = { revenueCents: 0, orderCount: 0 };
@@ -214,16 +221,18 @@ serve(async (req) => {
     // record in Square), so fetching both sources gives complete coverage without overlap.
     const squareOrders = await fetchSquareOrders(squareBaseUrl, squareHeaders, locationId, startDate, endDate);
 
-    const itemMap: Record<string, { quantity: number; revenueCents: number }> = {};
+    const itemMap: Record<string, { quantity: number; revenueCents: number; discountCents: number }> = {};
 
     for (const order of squareOrders) {
       for (const lineItem of order.line_items || []) {
         const name = lineItem.name || "Unknown Item";
         const qty = parseInt(lineItem.quantity || "1", 10);
         const rev = lineItem.total_money?.amount ?? 0;
-        if (!itemMap[name]) itemMap[name] = { quantity: 0, revenueCents: 0 };
+        const disc = lineItem.total_discount_money?.amount ?? 0;
+        if (!itemMap[name]) itemMap[name] = { quantity: 0, revenueCents: 0, discountCents: 0 };
         itemMap[name].quantity += qty;
         itemMap[name].revenueCents += rev;
+        itemMap[name].discountCents += disc;
       }
     }
 
@@ -241,16 +250,25 @@ serve(async (req) => {
         const name = item.name || "Unknown Item";
         const qty = Number(item.quantity) || 1;
         const rev = Math.round((item.price || 0) * qty * 100);
-        if (!itemMap[name]) itemMap[name] = { quantity: 0, revenueCents: 0 };
+        if (!itemMap[name]) itemMap[name] = { quantity: 0, revenueCents: 0, discountCents: 0 };
         itemMap[name].quantity += qty;
         itemMap[name].revenueCents += rev;
+        // In-app orders don't carry discount data; discountCents stays 0
       }
     }
 
+    // Prorate processing fees to each item by its share of total revenue
     const topItems = Object.entries(itemMap)
-      .map(([name, d]) => ({ name, quantity: d.quantity, revenueCents: d.revenueCents }))
+      .map(([name, d]) => {
+        const processingFeeCents = totalRevenueCents > 0
+          ? Math.round(totalProcessingFeeCents * d.revenueCents / totalRevenueCents)
+          : 0;
+        return { name, quantity: d.quantity, revenueCents: d.revenueCents, discountCents: d.discountCents, processingFeeCents };
+      })
       .sort((a, b) => b.quantity - a.quantity)
       .slice(0, 50);
+
+    const totalDiscountCents = Object.values(itemMap).reduce((s, d) => s + d.discountCents, 0);
 
     const dailyBreakdown = Object.entries(dailyMap)
       .map(([date, d]) => ({ date, revenueCents: d.revenueCents, orderCount: d.orderCount }))
@@ -264,6 +282,10 @@ serve(async (req) => {
       orderCount,
       totalRevenueCents,
       totalRevenue: (totalRevenueCents / 100).toFixed(2),
+      totalDiscountCents,
+      totalDiscount: (totalDiscountCents / 100).toFixed(2),
+      totalProcessingFeeCents,
+      totalProcessingFee: (totalProcessingFeeCents / 100).toFixed(2),
       avgOrderValueCents,
       avgOrderValue: (avgOrderValueCents / 100).toFixed(2),
       topItems,

@@ -669,6 +669,8 @@
       <div class="stat-card"><div class="stat-label">Total Revenue</div><div class="stat-value accent" id="report-revenue">—</div></div>
       <div class="stat-card"><div class="stat-label">Orders</div><div class="stat-value accent" id="report-orders">—</div></div>
       <div class="stat-card"><div class="stat-label">Avg Order Value</div><div class="stat-value" id="report-avg">—</div></div>
+      <div class="stat-card"><div class="stat-label">Total Discounts</div><div class="stat-value" id="report-discounts" style="color:#e57373">—</div></div>
+      <div class="stat-card"><div class="stat-label">Sq. Processing Fees</div><div class="stat-value" id="report-fees" style="color:#e57373">—</div></div>
     </div>
 
     <!-- Daily bar chart -->
@@ -681,8 +683,8 @@
     <div class="section-header"><div class="section-title">Top Items</div></div>
     <div class="table-wrap" style="max-height:420px;overflow-y:auto;">
       <table>
-        <thead style="position:sticky;top:0;z-index:1;"><tr><th>#</th><th>Item</th><th>Units Sold</th><th>Revenue</th></tr></thead>
-        <tbody id="report-items-tbody"><tr class="loading-row"><td colspan="4" style="text-align:center;color:var(--text-muted)">Select a range to load report</td></tr></tbody>
+        <thead style="position:sticky;top:0;z-index:1;"><tr><th>#</th><th>Item</th><th>Units Sold</th><th>Revenue</th><th>Discounts</th><th>Sq. Fees</th></tr></thead>
+        <tbody id="report-items-tbody"><tr class="loading-row"><td colspan="6" style="text-align:center;color:var(--text-muted)">Select a range to load report</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -725,12 +727,14 @@
           <th>Period</th>
           <th>Units Sold</th>
           <th>Revenue</th>
+          <th>Discounts</th>
+          <th>Sq. Fees</th>
           <th>COGS</th>
           <th>Profit</th>
           <th>Margin</th>
         </tr></thead>
         <tbody id="pp-tbody">
-          <tr class="loading-row"><td colspan="8" style="text-align:center;color:var(--text-muted)">Select a range to load report</td></tr>
+          <tr class="loading-row"><td colspan="10" style="text-align:center;color:var(--text-muted)">Select a range to load report</td></tr>
         </tbody>
       </table>
     </div>
@@ -2991,8 +2995,10 @@ async function runSalesReport() {
     document.getElementById('report-revenue').textContent = 'Error';
     document.getElementById('report-orders').textContent = '—';
     document.getElementById('report-avg').textContent = '—';
+    document.getElementById('report-discounts').textContent = '—';
+    document.getElementById('report-fees').textContent = '—';
     document.getElementById('report-chart-wrap').innerHTML = `<span style="color:#e57373;font-size:0.85rem;align-self:center;margin:auto">Error: ${err.message}</span>`;
-    document.getElementById('report-items-tbody').innerHTML = `<tr><td colspan="4" style="text-align:center;color:#e57373;padding:1.5rem">${err.message}</td></tr>`;
+    document.getElementById('report-items-tbody').innerHTML = `<tr><td colspan="6" style="text-align:center;color:#e57373;padding:1.5rem">${err.message}</td></tr>`;
   }
 }
 
@@ -3000,6 +3006,8 @@ function renderSalesReport(data) {
   document.getElementById('report-revenue').textContent = `$${parseFloat(data.totalRevenue).toFixed(2)}`;
   document.getElementById('report-orders').textContent = data.orderCount.toLocaleString();
   document.getElementById('report-avg').textContent = `$${parseFloat(data.avgOrderValue).toFixed(2)}`;
+  document.getElementById('report-discounts').textContent = `-$${parseFloat(data.totalDiscount || '0').toFixed(2)}`;
+  document.getElementById('report-fees').textContent = `-$${parseFloat(data.totalProcessingFee || '0').toFixed(2)}`;
 
   // Bar chart
   const chartWrap = document.getElementById('report-chart-wrap');
@@ -3022,7 +3030,7 @@ function renderSalesReport(data) {
   // Top items table
   const tbody = document.getElementById('report-items-tbody');
   if (!data.topItems?.length) {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:1.5rem">No items sold in this period</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:1.5rem">No items sold in this period</td></tr>';
   } else {
     tbody.innerHTML = data.topItems.map((item, i) => `
       <tr>
@@ -3030,6 +3038,8 @@ function renderSalesReport(data) {
         <td>${item.name}</td>
         <td>${item.quantity}</td>
         <td>$${(item.revenueCents / 100).toFixed(2)}</td>
+        <td style="color:#e57373">${item.discountCents > 0 ? `-$${(item.discountCents / 100).toFixed(2)}` : '—'}</td>
+        <td style="color:#e57373">-$${((item.processingFeeCents || 0) / 100).toFixed(2)}</td>
       </tr>`).join('');
   }
 }
@@ -3100,7 +3110,7 @@ async function runProductPerformance() {
     const assignedTeams = (teams || []).filter(t => t.product_name);
 
     if (!assignedTeams.length) {
-      document.getElementById('pp-tbody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:1.5rem">No teams have a product assigned yet. Edit teams in Staff to assign products.</td></tr>';
+      document.getElementById('pp-tbody').innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:1.5rem">No teams have a product assigned yet. Edit teams in Staff to assign products.</td></tr>';
       ['pp-total-revenue','pp-total-profit','pp-avg-margin'].forEach(id => document.getElementById(id).textContent = '—');
       return;
     }
@@ -3142,6 +3152,8 @@ async function runProductPerformance() {
       const sales = salesByName[team.product_name.toLowerCase()];
       const units = sales?.quantity ?? 0;
       const revCents = sales?.revenueCents ?? 0;
+      const discCents = sales?.discountCents ?? 0;
+      const feeCents = sales?.processingFeeCents ?? 0;
       const cogsCents = (team.cost_cents ?? 0) * units;
       const profitCents = revCents - cogsCents;
       const margin = revCents > 0 ? (profitCents / revCents * 100) : null;
@@ -3160,6 +3172,8 @@ async function runProductPerformance() {
         <td style="color:var(--gray-mid)">${team.period || '—'}</td>
         <td>${units.toLocaleString()}</td>
         <td>$${(revCents / 100).toFixed(2)}</td>
+        <td style="color:#e57373">${discCents > 0 ? `-$${(discCents / 100).toFixed(2)}` : '—'}</td>
+        <td style="color:#e57373">-$${(feeCents / 100).toFixed(2)}</td>
         <td style="color:var(--gray-mid)">$${(cogsCents / 100).toFixed(2)}</td>
         <td style="${profitColor}">$${(profitCents / 100).toFixed(2)}</td>
         <td style="${marginColor}">${marginStr}</td>
@@ -3172,7 +3186,7 @@ async function runProductPerformance() {
     document.getElementById('pp-avg-margin').textContent = marginCount > 0 ? `${(marginSum / marginCount).toFixed(1)}%` : '—';
   } catch (err) {
     console.error('Product performance error:', err);
-    document.getElementById('pp-tbody').innerHTML = `<tr><td colspan="8" style="text-align:center;color:#e57373;padding:1.5rem">${err.message}</td></tr>`;
+    document.getElementById('pp-tbody').innerHTML = `<tr><td colspan="10" style="text-align:center;color:#e57373;padding:1.5rem">${err.message}</td></tr>`;
     ['pp-total-revenue','pp-total-profit','pp-avg-margin'].forEach(id => document.getElementById(id).textContent = 'Error');
   }
 }
