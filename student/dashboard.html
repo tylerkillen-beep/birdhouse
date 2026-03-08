@@ -7,6 +7,8 @@
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css" />
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -339,9 +341,7 @@
         <button class="inv-cat-btn" id="srng-month" onclick="setStudentReportRange('month',this)">This Month</button>
         <button class="inv-cat-btn" id="srng-custom" onclick="setStudentReportRange('custom',this)">Custom</button>
         <div id="srng-custom-inputs" style="display:none;gap:0.4rem;align-items:center;flex-wrap:wrap">
-          <input type="date" id="srng-start" style="background:var(--card);border:1px solid var(--border-dim);color:var(--white);border-radius:7px;padding:0.35rem 0.6rem;font-size:0.82rem" />
-          <span style="color:var(--gray)">to</span>
-          <input type="date" id="srng-end" style="background:var(--card);border:1px solid var(--border-dim);color:var(--white);border-radius:7px;padding:0.35rem 0.6rem;font-size:0.82rem" />
+          <input type="text" id="srng-date-range" placeholder="Select date range…" readonly style="background:var(--card);border:1px solid var(--border-dim);color:var(--white);border-radius:7px;padding:0.35rem 0.6rem;font-size:0.82rem;cursor:pointer;min-width:210px" />
           <button class="inv-cat-btn active" onclick="runStudentSalesReport()">Run</button>
         </div>
         <span id="srng-label" style="margin-left:0.25rem;font-size:0.75rem;color:var(--gray)"></span>
@@ -971,9 +971,11 @@
       return { startDate: s.toISOString(), endDate: e.toISOString(), label: `${now.toLocaleString('default',{month:'long'})} ${now.getFullYear()}` };
     }
     if (srptRange === 'custom') {
-      const sv = document.getElementById('srng-start').value;
-      const ev = document.getElementById('srng-end').value;
-      if (!sv || !ev) { alert('Please select both a start and end date.'); return null; }
+      const dates = window.fpSrng?.selectedDates || [];
+      if (dates.length < 2) { alert('Please select both a start and end date.'); return null; }
+      const pad = n => String(n).padStart(2, '0');
+      const fmtISO = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+      const sv = fmtISO(dates[0]), ev = fmtISO(dates[1]);
       return { startDate: new Date(sv+'T00:00:00').toISOString(), endDate: new Date(ev+'T23:59:59').toISOString(), label: `${sv} — ${ev}` };
     }
     return null;
@@ -1413,6 +1415,9 @@
     const lbl = document.getElementById(labelId);
     if(lbl) lbl.classList.toggle('checked', !!checked[key]);
   }
+
+  // ── Flatpickr calendar range picker ──
+  window.fpSrng = flatpickr('#srng-date-range', { mode: 'range', dateFormat: 'Y-m-d', maxDate: 'today', disableMobile: true });
 
   init();
 </script>

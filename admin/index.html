@@ -7,6 +7,8 @@
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css" />
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <style>
     :root {
       --bg: #0a0a0a;
@@ -658,10 +660,8 @@
       <button class="btn btn-ghost btn-sm report-range-btn" id="range-btn-week" onclick="setReportRange('week',this)">This Week</button>
       <button class="btn btn-ghost btn-sm report-range-btn" id="range-btn-month" onclick="setReportRange('month',this)">This Month</button>
       <button class="btn btn-ghost btn-sm report-range-btn" id="range-btn-custom" onclick="setReportRange('custom',this)">Custom</button>
-      <div id="report-custom-inputs" style="display:none;display:none;gap:0.5rem;align-items:center;flex-wrap:wrap">
-        <input type="date" id="report-start-date" class="form-input" style="padding:0.4rem 0.6rem;font-size:0.85rem" />
-        <span style="color:var(--text-muted)">to</span>
-        <input type="date" id="report-end-date" class="form-input" style="padding:0.4rem 0.6rem;font-size:0.85rem" />
+      <div id="report-custom-inputs" style="display:none;gap:0.5rem;align-items:center;flex-wrap:wrap">
+        <input type="text" id="report-date-range" class="form-input" placeholder="Select date range…" readonly style="padding:0.4rem 0.6rem;font-size:0.85rem;cursor:pointer;min-width:210px" />
         <button class="btn btn-primary btn-sm" onclick="runSalesReport()">Run Report</button>
       </div>
       <span id="report-range-label" style="margin-left:0.5rem;font-size:0.8rem;color:var(--text-muted)"></span>
@@ -705,9 +705,7 @@
       <button class="btn btn-ghost btn-sm pp-range-btn" id="pp-range-btn-month" onclick="setPPRange('month',this)">This Month</button>
       <button class="btn btn-ghost btn-sm pp-range-btn" id="pp-range-btn-custom" onclick="setPPRange('custom',this)">Custom</button>
       <div id="pp-custom-inputs" style="display:none;gap:0.5rem;align-items:center;flex-wrap:wrap">
-        <input type="date" id="pp-start-date" class="form-input" style="padding:0.4rem 0.6rem;font-size:0.85rem" />
-        <span style="color:var(--text-muted)">to</span>
-        <input type="date" id="pp-end-date" class="form-input" style="padding:0.4rem 0.6rem;font-size:0.85rem" />
+        <input type="text" id="pp-date-range" class="form-input" placeholder="Select date range…" readonly style="padding:0.4rem 0.6rem;font-size:0.85rem;cursor:pointer;min-width:210px" />
         <button class="btn btn-primary btn-sm" onclick="runProductPerformance()">Run</button>
       </div>
       <span id="pp-range-label" style="margin-left:0.5rem;font-size:0.8rem;color:var(--text-muted)"></span>
@@ -757,9 +755,7 @@
       <button class="btn btn-ghost btn-sm lib-range-btn" id="lib-range-btn-month" onclick="setLibRange('month',this)">This Month</button>
       <button class="btn btn-ghost btn-sm lib-range-btn" id="lib-range-btn-custom" onclick="setLibRange('custom',this)">Custom</button>
       <div id="lib-custom-inputs" style="display:none;gap:0.5rem;align-items:center;flex-wrap:wrap">
-        <input type="date" id="lib-start-date" class="form-input" style="padding:0.4rem 0.6rem;font-size:0.85rem" />
-        <span style="color:var(--text-muted)">to</span>
-        <input type="date" id="lib-end-date" class="form-input" style="padding:0.4rem 0.6rem;font-size:0.85rem" />
+        <input type="text" id="lib-date-range" class="form-input" placeholder="Select date range…" readonly style="padding:0.4rem 0.6rem;font-size:0.85rem;cursor:pointer;min-width:210px" />
         <button class="btn btn-primary btn-sm" onclick="runLibrarySplit()">Run Report</button>
       </div>
       <span id="lib-range-label" style="margin-left:0.5rem;font-size:0.8rem;color:var(--gray-mid)"></span>
@@ -3057,9 +3053,11 @@ function getReportDateRange() {
     return { startDate: start.toISOString(), endDate: end.toISOString(), label: `${now.toLocaleString('default',{month:'long'})} ${now.getFullYear()}` };
   }
   if (currentReportRange === 'custom') {
-    const s = document.getElementById('report-start-date').value;
-    const e = document.getElementById('report-end-date').value;
-    if (!s || !e) { alert('Please select both a start and end date.'); return null; }
+    const dates = window.fpReport?.selectedDates || [];
+    if (dates.length < 2) { alert('Please select both a start and end date.'); return null; }
+    const pad = n => String(n).padStart(2, '0');
+    const fmtISO = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    const s = fmtISO(dates[0]), e = fmtISO(dates[1]);
     return { startDate: new Date(s + 'T00:00:00').toISOString(), endDate: new Date(e + 'T23:59:59').toISOString(), label: `${s} — ${e}` };
   }
   return null;
@@ -3200,9 +3198,11 @@ function getPPDateRange() {
     return { startDate: start.toISOString(), endDate: end.toISOString(), label: `${now.toLocaleString('default',{month:'long'})} ${now.getFullYear()}` };
   }
   if (currentPPRange === 'custom') {
-    const s = document.getElementById('pp-start-date').value;
-    const e = document.getElementById('pp-end-date').value;
-    if (!s || !e) { alert('Please select both a start and end date.'); return null; }
+    const dates = window.fpPP?.selectedDates || [];
+    if (dates.length < 2) { alert('Please select both a start and end date.'); return null; }
+    const pad = n => String(n).padStart(2, '0');
+    const fmtISO = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    const s = fmtISO(dates[0]), e = fmtISO(dates[1]);
     return { startDate: new Date(s + 'T00:00:00').toISOString(), endDate: new Date(e + 'T23:59:59').toISOString(), label: `${s} — ${e}` };
   }
   return null;
@@ -3355,9 +3355,11 @@ function getLibDateRange() {
     return { startDate: start.toISOString(), endDate: end.toISOString(), label: `${now.toLocaleString('default',{month:'long'})} ${now.getFullYear()}`, startISO: toISO(start), endISO: toISO(end) };
   }
   if (currentLibRange === 'custom') {
-    const s = document.getElementById('lib-start-date').value;
-    const e = document.getElementById('lib-end-date').value;
-    if (!s || !e) { alert('Please select both a start and end date.'); return null; }
+    const dates = window.fpLib?.selectedDates || [];
+    if (dates.length < 2) { alert('Please select both a start and end date.'); return null; }
+    const pad = n => String(n).padStart(2, '0');
+    const fmtISO = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    const s = fmtISO(dates[0]), e = fmtISO(dates[1]);
     return { startDate: new Date(s + 'T00:00:00').toISOString(), endDate: new Date(e + 'T23:59:59').toISOString(), label: `${s} — ${e}`, startISO: s, endISO: e };
   }
   return null;
@@ -3527,6 +3529,12 @@ function renderLibrarySplit(data, range) {
     ? rows.join('') + totalsRow
     : `<tr><td colspan="8" style="text-align:center;color:var(--gray-mid);padding:1.5rem">No sales in this period.</td></tr>`;
 }
+
+// ── Flatpickr calendar range pickers ──
+const fpCommonOpts = { mode: 'range', dateFormat: 'Y-m-d', maxDate: 'today', disableMobile: true };
+window.fpReport = flatpickr('#report-date-range', fpCommonOpts);
+window.fpPP     = flatpickr('#pp-date-range',     fpCommonOpts);
+window.fpLib    = flatpickr('#lib-date-range',    fpCommonOpts);
 </script>
 </body>
 </html>
