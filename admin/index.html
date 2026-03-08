@@ -3155,7 +3155,7 @@ async function runProductPerformance() {
       const discCents = sales?.discountCents ?? 0;
       const feeCents = sales?.processingFeeCents ?? 0;
       const cogsCents = (team.cost_cents ?? 0) * units;
-      const profitCents = revCents - cogsCents;
+      const profitCents = revCents - feeCents - cogsCents;
       const margin = revCents > 0 ? (profitCents / revCents * 100) : null;
 
       totalRevCents += revCents;
