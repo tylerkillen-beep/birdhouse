@@ -297,6 +297,9 @@
     <span class="nav-icon">📦</span> Inventory
     <span class="nav-badge" id="badge-inventory" style="display:none"></span>
   </div>
+  <div class="nav-item" onclick="showSection('closed-days')" id="nav-closed-days">
+    <span class="nav-icon">🚫</span> Closed Days
+  </div>
 
   <div class="nav-section">Staff & Teams</div>
   <div class="nav-item" onclick="showSection('staff')" id="nav-staff">
@@ -542,6 +545,39 @@
       <table>
         <thead><tr><th>Name</th><th>Email</th><th>Points</th><th>Orders</th><th>Joined</th></tr></thead>
         <tbody id="customers-tbody"><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── CLOSED DAYS ── -->
+  <div class="section-panel" id="section-closed-days">
+    <div class="page-header">
+      <h1>Closed Days</h1>
+      <p>Block specific calendar dates so customers cannot place delivery orders for those days.</p>
+    </div>
+    <div class="section-header">
+      <div class="section-title">Add Closed Day</div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin-bottom:2rem;max-width:480px">
+      <div class="form-group" style="margin-bottom:1rem">
+        <label class="form-label">Date</label>
+        <input type="text" id="closed-day-date-input" class="form-input" placeholder="Select a date…" readonly style="cursor:pointer" />
+      </div>
+      <div class="form-group" style="margin-bottom:1rem">
+        <label class="form-label">Reason <span style="color:var(--gray);font-weight:300;text-transform:none;letter-spacing:0">(optional — shown to customers as a tooltip)</span></label>
+        <input type="text" id="closed-day-reason" class="form-input" placeholder="e.g. School holiday, Teacher workday…" />
+      </div>
+      <button class="btn btn-primary" onclick="addClosedDay()">+ Block This Day</button>
+      <div id="closed-day-msg" style="margin-top:0.75rem;font-size:0.82rem;display:none"></div>
+    </div>
+
+    <div class="section-header">
+      <div class="section-title">Upcoming Blocked Dates</div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Day</th><th>Reason</th><th>Added</th><th>Actions</th></tr></thead>
+        <tbody id="closed-days-tbody"><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -1260,6 +1296,7 @@ function showSection(id) {
     'sales-report': initSalesReport,
     'product-performance': initProductPerformance,
     'library-split': initLibrarySplit,
+    'closed-days': loadClosedDays,
   };
   if (loaders[id]) loaders[id]();
 }
@@ -3004,6 +3041,93 @@ init();
 // ════════════════════════════════════
 const REPORT_FN_URL = 'https://ljukrhneikqbabcmcpet.supabase.co/functions/v1/get-sales-report';
 const REPORT_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqdWtyaG5laWtxYmFiY21jcGV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyODg1MjEsImV4cCI6MjA4Nzg2NDUyMX0.UbtB_-syG9a9vLcJp04w_k2F3XP2tMScYtB4sez3j78';
+
+// ════════════════════════════════════
+// Closed Days
+// ════════════════════════════════════
+let closedDayPicker = null;
+
+function initClosedDayPicker() {
+  if (closedDayPicker) return;
+  closedDayPicker = flatpickr('#closed-day-date-input', {
+    minDate: 'today',
+    dateFormat: 'Y-m-d',
+    disableMobile: true,
+  });
+}
+
+async function loadClosedDays() {
+  initClosedDayPicker();
+  const tbody = document.getElementById('closed-days-tbody');
+  tbody.innerHTML = '<tr class="loading-row"><td colspan="5">Loading…</td></tr>';
+
+  const { data, error } = await sb
+    .from('blocked_dates')
+    .select('id,date,reason,created_at')
+    .order('date', { ascending: true });
+
+  if (error) {
+    tbody.innerHTML = `<tr><td colspan="5" style="color:var(--danger);padding:1.5rem">${error.message}</td></tr>`;
+    return;
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const rows = (data || []).filter(r => r.date >= today);
+
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray);padding:2rem">No upcoming blocked dates.</td></tr>';
+    return;
+  }
+
+  const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  tbody.innerHTML = rows.map(r => {
+    const d = new Date(r.date + 'T12:00:00'); // noon to avoid DST edge cases
+    const dayName = dayNames[d.getDay()];
+    const displayDate = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    const added = new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return `<tr>
+      <td>${displayDate}</td>
+      <td style="color:var(--gray-mid)">${dayName}</td>
+      <td>${r.reason || '<span style="color:var(--gray)">—</span>'}</td>
+      <td style="color:var(--gray-mid)">${added}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="removeClosedDay('${r.id}','${displayDate}')">Remove</button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function addClosedDay() {
+  const dateVal = document.getElementById('closed-day-date-input').value;
+  const reason  = document.getElementById('closed-day-reason').value.trim();
+  const msgEl   = document.getElementById('closed-day-msg');
+
+  if (!dateVal) { showClosedDayMsg('Please select a date.', 'error'); return; }
+
+  const { error } = await sb.from('blocked_dates').insert({ date: dateVal, reason: reason || null });
+  if (error) {
+    showClosedDayMsg(error.code === '23505' ? 'That date is already blocked.' : error.message, 'error');
+    return;
+  }
+
+  closedDayPicker.clear();
+  document.getElementById('closed-day-reason').value = '';
+  showClosedDayMsg('Date blocked successfully.', 'success');
+  loadClosedDays();
+}
+
+async function removeClosedDay(id, displayDate) {
+  if (!confirm(`Remove the block for ${displayDate}? Customers will be able to order for that day again.`)) return;
+  const { error } = await sb.from('blocked_dates').delete().eq('id', id);
+  if (error) { alert('Error removing date: ' + error.message); return; }
+  loadClosedDays();
+}
+
+function showClosedDayMsg(text, type) {
+  const el = document.getElementById('closed-day-msg');
+  el.textContent = text;
+  el.style.display = 'block';
+  el.style.color = type === 'error' ? 'var(--danger)' : 'var(--success)';
+  setTimeout(() => { el.style.display = 'none'; }, 4000);
+}
 
 let currentReportRange = 'today';
 

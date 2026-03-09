@@ -8,7 +8,20 @@
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://web.squarecdn.com/v1/square.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css" />
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <style>
+    /* Flatpickr overrides to match the site's red/dark palette */
+    .flatpickr-calendar { background: #141414; border: 1px solid rgba(204,0,0,0.25); border-radius: 10px; box-shadow: 0 8px 32px rgba(0,0,0,0.6); }
+    .flatpickr-day.selected, .flatpickr-day.selected:hover { background: #cc0000; border-color: #cc0000; }
+    .flatpickr-day:hover { background: rgba(204,0,0,0.18); border-color: transparent; }
+    .flatpickr-day.today { border-color: rgba(204,0,0,0.5); }
+    .flatpickr-day.disabled, .flatpickr-day.disabled:hover { color: #333; background: transparent; cursor: not-allowed; }
+    .flatpickr-months .flatpickr-month { color: #f0f0f0; }
+    .flatpickr-current-month { color: #f0f0f0; }
+    .flatpickr-weekday { color: #555; }
+    .flatpickr-prev-month, .flatpickr-next-month { color: #999 !important; fill: #999 !important; }
+    .fp-closed-label { display: block; font-size: 0.5rem; color: #cc0000; line-height: 1; margin-top: 1px; text-align: center; pointer-events: none; }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
       --black: #0a0a0a; --red: #cc0000; --red-bright: #ff1a1a;
@@ -202,19 +215,12 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label>Delivery Day</label>
-            <select id="delivery-day">
-              <option value="Today">Today</option>
-              <option value="Monday">Monday</option>
-              <option value="Tuesday">Tuesday</option>
-              <option value="Wednesday">Wednesday</option>
-              <option value="Thursday">Thursday</option>
-              <option value="Friday">Friday</option>
-            </select>
+            <label>Delivery Date</label>
+            <input type="text" id="delivery-date" placeholder="Select a date…" readonly style="cursor:pointer" />
           </div>
           <div class="form-group">
             <label>Preferred Time</label>
-            <select id="delivery-time"><option value="">Select a time...</option></select>
+            <select id="delivery-time"><option value="">Select a date first…</option></select>
           </div>
         </div>
         <div class="form-group">
@@ -303,6 +309,10 @@
   let menuItems = [], modifierListsMap = {}, cart = [], squareCard = null;
   let customerProfile = null; // { location, last_room }
   let customerType = 'student'; // 'student' | 'teacher' | 'mathews'
+  let allDeliveryTimes = [];
+  let blockedDatesSet = new Set();
+  let blockedReasonsMap = {};
+  let deliveryDatePicker = null;
 
   const TEACHER_DISCOUNT = 0.25; // 25% off for all @nixaschools.net accounts
 
@@ -352,7 +362,7 @@
     }
     if (profile?.last_room) document.getElementById('delivery-room').value = profile.last_room;
 
-    await Promise.all([loadMenu(), loadDeliveryTimes()]);
+    await Promise.all([loadMenu(), setupDeliveryPicker()]);
   }
 
   // ── Square SDK ────────────────────────────────────────────────────────────
@@ -659,6 +669,7 @@
       </div>`;
     }).join('');
     const room = document.getElementById('delivery-room').value;
+    const dateDisplay = document.getElementById('delivery-date').value;
     const time = document.getElementById('delivery-time').value;
     const total = cartTotal();
     const discountLine = isTeacher()
@@ -666,17 +677,103 @@
       : '';
     document.getElementById('pay-summary-lines').innerHTML = lines + discountLine + `
       <div class="summary-line"><span class="summary-key">Deliver to</span><span class="summary-val">${room || '—'}</span></div>
+      <div class="summary-line"><span class="summary-key">Date</span><span class="summary-val">${dateDisplay || '—'}</span></div>
       <div class="summary-line"><span class="summary-key">Time</span><span class="summary-val">${time || '—'}</span></div>
       <div class="summary-line"><span class="summary-key">Total</span><span class="summary-val">$${total.toFixed(2)}</span></div>`;
     document.getElementById('pay-btn-amount').textContent = `$${total.toFixed(2)}`;
   }
 
-  // ── Delivery Times ────────────────────────────────────────────────────────
-  async function loadDeliveryTimes() {
-    const { data } = await sb.from('store_config').select('value').eq('key', 'delivery_times').single();
-    const times = data?.value || ['7:30 AM','8:00 AM','8:30 AM','9:00 AM','10:00 AM','11:00 AM','12:00 PM'];
+  // ── Delivery Date + Time Picker ───────────────────────────────────────────
+  function parseTimeToMinutes(timeStr) {
+    const [time, period] = timeStr.split(' ');
+    let [hours, minutes] = time.split(':').map(Number);
+    if (period === 'PM' && hours !== 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+    return hours * 60 + minutes;
+  }
+
+  function updateAvailableTimes(selectedDate) {
     const sel = document.getElementById('delivery-time');
-    times.forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; sel.appendChild(o); });
+    const prevVal = sel.value;
+    sel.innerHTML = '<option value="">Select a time…</option>';
+
+    const now = new Date();
+    const isToday = selectedDate.toDateString() === now.toDateString();
+    const cutoffMinutes = now.getHours() * 60 + now.getMinutes() + 20;
+
+    let anyAdded = false;
+    allDeliveryTimes.forEach(t => {
+      if (isToday && parseTimeToMinutes(t) <= cutoffMinutes) return;
+      const opt = document.createElement('option');
+      opt.value = t;
+      opt.textContent = t;
+      sel.appendChild(opt);
+      anyAdded = true;
+    });
+
+    if (!anyAdded) {
+      sel.innerHTML = '<option value="">No times available — please pick another day</option>';
+    } else if (prevVal && sel.querySelector(`option[value="${CSS.escape(prevVal)}"]`)) {
+      sel.value = prevVal;
+    }
+  }
+
+  async function setupDeliveryPicker() {
+    // Load delivery times from store_config
+    const { data: timesData } = await sb.from('store_config').select('value').eq('key', 'delivery_times').single();
+    allDeliveryTimes = timesData?.value || [
+      '7:30 AM','8:00 AM','8:30 AM','9:00 AM','9:30 AM','10:00 AM',
+      '10:30 AM','11:00 AM','11:30 AM','12:00 PM','12:30 PM','1:00 PM','1:30 PM',
+    ];
+
+    // Load blocked dates
+    const { data: blockedData } = await sb.from('blocked_dates').select('date,reason');
+    blockedDatesSet = new Set((blockedData || []).map(b => b.date));
+    blockedReasonsMap = {};
+    (blockedData || []).forEach(b => { blockedReasonsMap[b.date] = b.reason; });
+
+    const isMathewsUser = customerType === 'mathews';
+    const maxDate = new Date();
+    maxDate.setDate(maxDate.getDate() + 7);
+
+    // Disable functions array: weekends always; Tue+Thu for Mathews
+    const disableFns = [
+      function(date) { return date.getDay() === 0 || date.getDay() === 6; }, // weekends
+    ];
+    if (isMathewsUser) {
+      disableFns.push(function(date) { return date.getDay() === 2 || date.getDay() === 4; });
+    }
+
+    deliveryDatePicker = flatpickr('#delivery-date', {
+      minDate: 'today',
+      maxDate: maxDate,
+      disable: [...disableFns, ...Array.from(blockedDatesSet)],
+      dateFormat: 'M j, Y',
+      disableMobile: true,
+      onDayCreate: function(_dObj, _dStr, _fp, dayElem) {
+        const d = dayElem.dateObj;
+        if (!d) return;
+        const dateStr = [
+          d.getFullYear(),
+          String(d.getMonth() + 1).padStart(2, '0'),
+          String(d.getDate()).padStart(2, '0'),
+        ].join('-');
+        if (blockedDatesSet.has(dateStr)) {
+          const label = document.createElement('span');
+          label.className = 'fp-closed-label';
+          label.textContent = 'Closed';
+          dayElem.appendChild(label);
+          if (blockedReasonsMap[dateStr]) dayElem.title = blockedReasonsMap[dateStr];
+        }
+      },
+      onChange: function(selectedDates) {
+        if (selectedDates[0]) {
+          updateAvailableTimes(selectedDates[0]);
+        } else {
+          document.getElementById('delivery-time').innerHTML = '<option value="">Select a date first…</option>';
+        }
+      },
+    });
   }
 
   // ── Payment ───────────────────────────────────────────────────────────────
@@ -724,7 +821,13 @@
           customerInfo: {
             customerName: (meta.first_name || '') + ' ' + (meta.last_name || ''),
             room:         document.getElementById('delivery-room').value,
-            deliveryDay:  document.getElementById('delivery-day').value,
+            deliveryDay:  document.getElementById('delivery-date').value,
+            deliveryDate: deliveryDatePicker?.selectedDates[0]
+              ? (() => {
+                  const d = deliveryDatePicker.selectedDates[0];
+                  return [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-');
+                })()
+              : null,
             deliveryTime: document.getElementById('delivery-time').value,
             notes:        document.getElementById('order-notes').value,
           },
@@ -774,8 +877,10 @@
     if (step === 2) renderCartReview();
     if (step === 3) {
       const room = document.getElementById('delivery-room').value.trim();
+      const date = document.getElementById('delivery-date').value;
       const time = document.getElementById('delivery-time').value;
       if (!room) { alert('Please enter your room or delivery location.'); return; }
+      if (!date) { alert('Please select a delivery date.'); return; }
       if (!time) { alert('Please select a delivery time.'); return; }
       renderPaySummary();
     }
@@ -816,7 +921,7 @@
     document.getElementById('guest-signin-cta').style.display = 'block';
     userCard.classList.add('guest-clickable');
     userCard.onclick = redirectToSignIn;
-    await Promise.all([loadMenu(), loadDeliveryTimes()]);
+    await Promise.all([loadMenu(), setupDeliveryPicker()]);
   }
 
   init().catch(async (err) => {
