@@ -166,6 +166,7 @@ serve(async (req) => {
         total_amount: totalAmount,
         room: customerInfo.room,
         delivery_day: customerInfo.deliveryDay,
+        delivery_date: customerInfo.deliveryDate || null,
         delivery_time: customerInfo.deliveryTime,
         special_instructions: customerInfo.notes || null,
         status: "paid",
