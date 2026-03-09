@@ -194,6 +194,7 @@
     <div id="section-subscription" style="display:none">
       <div class="page-eyebrow">Subscription</div>
       <h1 class="page-title">My Plan</h1>
+      <p style="color:var(--light-gray);font-size:0.88rem;margin-bottom:2rem" id="greeting-sub"></p>
       <div id="subscription-display"></div>
     </div>
 
@@ -201,6 +202,7 @@
     <div id="section-history" style="display:none">
       <div class="page-eyebrow">Your Orders</div>
       <h1 class="page-title">Order History</h1>
+      <p style="color:var(--light-gray);font-size:0.88rem;margin-bottom:2rem" id="greeting-history"></p>
       <div id="full-orders-list"><div class="no-orders">No orders yet.</div></div>
     </div>
 
@@ -208,6 +210,7 @@
     <div id="section-loyalty" style="display:none">
       <div class="page-eyebrow">Rewards</div>
       <h1 class="page-title">Loyalty Points</h1>
+      <p style="color:var(--light-gray);font-size:0.88rem;margin-bottom:2rem" id="greeting-loyalty"></p>
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-label">Current Points</div>
@@ -279,6 +282,10 @@
     const lastName       = meta.last_name  || profileParts.slice(1).join(' ') || '';
     document.getElementById('user-display-name').textContent = (firstName + ' ' + lastName).trim();
     document.getElementById('greeting-name').textContent     = firstName;
+    const helloText = 'Hello, ' + firstName + '.';
+    document.getElementById('greeting-sub').textContent      = helloText;
+    document.getElementById('greeting-history').textContent  = helloText;
+    document.getElementById('greeting-loyalty').textContent  = helloText;
 
     // Teacher/Mathews badge in sidebar
     if (customerType === 'teacher' || customerType === 'mathews') {

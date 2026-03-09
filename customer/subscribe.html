@@ -191,7 +191,8 @@
   <main class="main">
     <div class="page-eyebrow">Customer Portal</div>
     <h1 class="page-title">Start Your Subscription</h1>
-    <p class="page-sub">Pick a plan, customize your weekly drink, and save your card. We handle the rest.</p>
+    <p class="page-sub" id="page-greeting">Hello, Eagle.</p>
+    <p class="page-sub" style="margin-top:-1.5rem">Pick a plan, customize your weekly drink, and save your card. We handle the rest.</p>
 
     <div class="steps">
       <div class="step active" id="step-ind-1"><div class="step-num">1</div> Choose Plan</div>
@@ -417,6 +418,7 @@
 
     document.getElementById('user-display-name').textContent = (meta.first_name || 'Eagle') + ' ' + (meta.last_name || '');
     document.getElementById('user-points-badge').textContent = (meta.loyalty_points || 0) + ' points';
+    document.getElementById('page-greeting').textContent = 'Hello, ' + (meta.first_name || 'Eagle') + '.';
 
     // Show teacher badge
     if (isTeacher()) {

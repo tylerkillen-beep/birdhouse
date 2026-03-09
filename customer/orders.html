@@ -26,7 +26,8 @@
     .signout-btn:hover { color:var(--white); }
     .main { padding:2.5rem 3rem; position:relative; z-index:1; }
     .page-eyebrow { font-size:0.65rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--red); margin-bottom:0.3rem; }
-    .page-title { font-family:'Bebas Neue',sans-serif; font-size:2.5rem; letter-spacing:0.04em; margin-bottom:0.5rem; }
+    .page-title { font-family:'Bebas Neue',sans-serif; font-size:2.5rem; letter-spacing:0.04em; margin-bottom:0.3rem; }
+    .page-sub { color:var(--light-gray); font-size:0.88rem; margin-bottom:1.75rem; }
 
     /* Filter tabs */
     .filter-row { display:flex; gap:0.6rem; margin-bottom:1.75rem; flex-wrap:wrap; }
@@ -98,6 +99,7 @@
   <main class="main">
     <div class="page-eyebrow">Customer Portal</div>
     <h1 class="page-title">My Orders</h1>
+    <p class="page-sub" id="page-greeting">Hello, Eagle.</p>
 
     <div class="summary-row" id="summary-row"></div>
 
@@ -123,6 +125,7 @@
     const meta = currentUser.user_metadata;
     document.getElementById('user-display-name').textContent=(meta.first_name||'Eagle')+' '+(meta.last_name||'');
     document.getElementById('user-points-badge').textContent=(meta.loyalty_points||0)+' points';
+    document.getElementById('page-greeting').textContent='Hello, '+(meta.first_name||'Eagle')+'.';
     await loadOrders();
   }
 
