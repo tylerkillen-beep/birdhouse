@@ -376,6 +376,19 @@
   let currentUser = null, sessionToken = null;
   let plans = [], menuItems = [], modifierListsMap = {};
   let selectedPlan = null, squareCard = null;
+  let customerProfile = null;
+  let customerType = 'student'; // 'student' | 'teacher' | 'mathews'
+
+  const TEACHER_DISCOUNT = 0.25;
+
+  function getCustomerType(email, profile) {
+    if (email.endsWith('@nixaschools.net')) {
+      return profile?.location === 'mathews' ? 'mathews' : 'teacher';
+    }
+    return 'student';
+  }
+  function isTeacher() { return customerType === 'teacher' || customerType === 'mathews'; }
+  function discountedCents(cents) { return Math.round(cents * (1 - TEACHER_DISCOUNT)); }
 
   // Drink slots state — slot 1 always exists, slot 2 only for Eagle
   let drinkSlots = {
@@ -396,8 +409,32 @@
     currentUser  = session.user;
     sessionToken = session.access_token;
     const meta = currentUser.user_metadata;
+
+    // Load profile for customer type and location defaults
+    const { data: profile } = await sb.from('profiles').select('location, last_room').eq('id', currentUser.id).maybeSingle();
+    customerProfile = profile;
+    customerType    = getCustomerType(currentUser.email, profile);
+
     document.getElementById('user-display-name').textContent = (meta.first_name || 'Eagle') + ' ' + (meta.last_name || '');
     document.getElementById('user-points-badge').textContent = (meta.loyalty_points || 0) + ' points';
+
+    // Show teacher badge
+    if (isTeacher()) {
+      const badge = document.createElement('div');
+      badge.style.cssText = 'font-size:0.68rem;color:#f5c842;margin-top:0.3rem;letter-spacing:0.04em';
+      badge.textContent = customerType === 'mathews' ? '⭐ Mathews — 25% off' : '🍎 Teacher — 25% off';
+      document.getElementById('user-card').appendChild(badge);
+    }
+
+    // Prefill location from last_room
+    if (profile?.last_room) {
+      const locInputs = ['slot-1-location', 'slot-2-location'];
+      locInputs.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.placeholder = profile.last_room;
+      });
+    }
+
     await Promise.all([loadPlans(), loadMenu(), loadDeliveryTimes()]);
   }
 
@@ -416,7 +453,11 @@
     }
     grid.innerHTML = plans.map((p, i) => {
       const isFeatured = p.name === 'Regular';
-      const price = (p.price_cents / 100).toFixed(2);
+      const fullPrice      = (p.price_cents / 100).toFixed(2);
+      const discPrice      = (discountedCents(p.price_cents) / 100).toFixed(2);
+      const priceDisplay   = isTeacher()
+        ? `<span style="text-decoration:line-through;font-size:0.9rem;color:var(--gray)">$${fullPrice}</span> $${discPrice}<span style="color:#f5c842;font-size:0.7rem;margin-left:0.3rem">25% off</span>`
+        : `$${fullPrice}`;
       const modLabel = p.free_modifier_count === -1
         ? 'All modifiers free'
         : p.free_modifier_count === 1
@@ -430,7 +471,7 @@
       return `<div class="plan-card${isFeatured ? ' featured' : ''}" id="plan-card-${p.id}" onclick="selectPlan('${p.id}')">
         ${isFeatured ? '<div class="plan-badge">Most Popular</div>' : ''}
         <div class="plan-name">${p.name}</div>
-        <div class="plan-price">$${price}<span>/month</span></div>
+        <div class="plan-price">${priceDisplay}<span>/month</span></div>
         <div class="plan-desc">${p.description || ''}</div>
         <ul class="plan-features">
           <li>${drinksLabel}</li>
@@ -479,9 +520,21 @@
       return;
     }
 
-    const hotItems  = menuItems.filter(i => i.is_hot !== false && i.is_iced !== true);
-    const icedItems = menuItems.filter(i => i.is_iced === true);
-    const bothItems = menuItems.filter(i => i.is_hot !== false && i.is_iced === true);
+    // Filter by campus: Mathews teachers only see Mathews items; others see non-Mathews items.
+    const isMathews = customerType === 'mathews';
+    const filtered  = menuItems.filter(i => {
+      const cat = String(i.category || '').toLowerCase();
+      return isMathews ? cat.includes('mathews') : !cat.includes('mathews');
+    });
+
+    if (!filtered.length) {
+      container.innerHTML = '<div style="color:var(--gray);padding:1rem">No menu items available for your campus.</div>';
+      return;
+    }
+
+    const hotItems  = filtered.filter(i => i.is_hot !== false && i.is_iced !== true);
+    const icedItems = filtered.filter(i => i.is_iced === true);
+    const bothItems = filtered.filter(i => i.is_hot !== false && i.is_iced === true);
 
     let html = '';
     if (hotItems.length || bothItems.length) {
@@ -689,11 +742,19 @@
       lines += `<div class="summary-line"><span class="summary-key">Location 2</span><span class="summary-val">${document.getElementById('slot-2-location').value || '—'}</span></div>`;
     }
 
-    lines += `<div class="summary-line"><span class="summary-key">Billed monthly</span><span class="summary-val">$${price}/mo</span></div>`;
+    const finalPrice = isTeacher()
+      ? (discountedCents(selectedPlan.price_cents) / 100).toFixed(2)
+      : price;
+    const billingLine = isTeacher()
+      ? `<div class="summary-line"><span class="summary-key" style="color:#f5c842">🍎 Teacher Discount (25%)</span><span class="summary-val" style="color:#f5c842">−$${(parseFloat(price) - parseFloat(finalPrice)).toFixed(2)}</span></div>
+         <div class="summary-line"><span class="summary-key">Billed monthly</span><span class="summary-val">$${finalPrice}/mo</span></div>`
+      : `<div class="summary-line"><span class="summary-key">Billed monthly</span><span class="summary-val">$${price}/mo</span></div>`;
+
+    lines += billingLine;
 
     document.getElementById('pay-summary-lines').innerHTML = lines;
-    document.getElementById('billing-amount').textContent  = `$${price}`;
-    document.getElementById('subscribe-btn-amount').textContent = `$${price}`;
+    document.getElementById('billing-amount').textContent  = `$${finalPrice}`;
+    document.getElementById('subscribe-btn-amount').textContent = `$${finalPrice}`;
   }
 
   // ── Square SDK ────────────────────────────────────────────────────────────
@@ -765,6 +826,7 @@ const res = await fetch(`${SUPABASE_URL}/functions/v1/save-card`, {
           sourceId:     result.token,
           userId:       currentUser.id,
           planId:       selectedPlan.id,
+          discountPct:  isTeacher() ? 25 : 0,
           customerInfo: {
             firstName: meta.first_name || '',
             lastName:  meta.last_name  || '',
@@ -776,6 +838,11 @@ const res = await fetch(`${SUPABASE_URL}/functions/v1/save-card`, {
 
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Subscription failed');
+
+      // Write discount_pct to the subscription record if teacher
+      if (isTeacher() && data.subscriptionId) {
+        await sb.from('subscriptions').update({ discount_pct: 25 }).eq('id', data.subscriptionId);
+      }
 
       // Show success
       const nextDay = document.getElementById('slot-1-day').value;
@@ -790,7 +857,10 @@ const res = await fetch(`${SUPABASE_URL}/functions/v1/save-card`, {
       errEl.textContent = err.message;
       errEl.style.display = 'block';
       btn.disabled = false;
-      btn.innerHTML = `🔒 Start Subscription — <span id="subscribe-btn-amount">$${(selectedPlan.price_cents/100).toFixed(2)}</span>/mo`;
+      const resetPrice = isTeacher()
+        ? (discountedCents(selectedPlan.price_cents)/100).toFixed(2)
+        : (selectedPlan.price_cents/100).toFixed(2);
+      btn.innerHTML = `🔒 Start Subscription — <span id="subscribe-btn-amount">$${resetPrice}</span>/mo`;
     }
   }
 

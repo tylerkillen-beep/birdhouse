@@ -253,6 +253,14 @@
   let currentUser = null;
   let activeSubscription = null;
   let sessionToken = null;
+  let customerType = 'student'; // 'student' | 'teacher' | 'mathews'
+
+  function getCustomerType(email, profile) {
+    if (email.endsWith('@nixaschools.net')) {
+      return profile?.location === 'mathews' ? 'mathews' : 'teacher';
+    }
+    return 'student';
+  }
 
   // ── Init ──────────────────────────────────────────────────────────────────
   async function init() {
@@ -261,10 +269,22 @@
     currentUser  = session.user;
     sessionToken = session.access_token;
 
+    // Load profile for customer type
+    const { data: profile } = await sb.from('profiles').select('location').eq('id', currentUser.id).maybeSingle();
+    customerType = getCustomerType(currentUser.email, profile);
+
     const meta      = currentUser.user_metadata;
     const firstName = meta.first_name || 'Eagle';
     document.getElementById('user-display-name').textContent = firstName + ' ' + (meta.last_name || '');
     document.getElementById('greeting-name').textContent     = firstName;
+
+    // Teacher/Mathews badge in sidebar
+    if (customerType === 'teacher' || customerType === 'mathews') {
+      const badge = document.createElement('div');
+      badge.style.cssText = 'font-size:0.68rem;color:#f5c842;margin-top:0.3rem;letter-spacing:0.04em';
+      badge.textContent = customerType === 'mathews' ? '⭐ Mathews — 25% off' : '🍎 Teacher — 25% off';
+      document.getElementById('user-card').appendChild(badge);
+    }
 
     // Time-aware greeting
     const hour = new Date().getHours();
