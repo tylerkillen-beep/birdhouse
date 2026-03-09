@@ -1334,7 +1334,7 @@ async function loadDashboard() {
     <tr>
       <td style="color:var(--gray-mid)">${new Date(o.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</td>
       <td>${o.customer_name || '—'}</td>
-      <td>${o.item_name || '—'}</td>
+      <td>${o.item_name || (o.cart_items?.map(i => i.name).join(', ')) || '—'}</td>
       <td>$${(getOrderTotalCents(o)/100).toFixed(2)}</td>
       <td>${statusPill(o.status)}</td>
     </tr>`).join('');
@@ -1367,7 +1367,7 @@ function renderOrders(list) {
     <tr>
       <td style="color:var(--gray-mid);font-size:0.78rem">${new Date(o.created_at).toLocaleDateString()}</td>
       <td>${o.customer_name || '—'}</td>
-      <td>${o.item_name || '—'}</td>
+      <td>${o.item_name || (o.cart_items?.map(i => i.name).join(', ')) || '—'}</td>
       <td>${o.delivery_room || '—'}</td>
       <td>$${(getOrderTotalCents(o)/100).toFixed(2)}</td>
       <td>${statusPill(o.status)}</td>
