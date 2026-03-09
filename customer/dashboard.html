@@ -269,13 +269,15 @@
     currentUser  = session.user;
     sessionToken = session.access_token;
 
-    // Load profile for customer type
-    const { data: profile } = await sb.from('profiles').select('location').eq('id', currentUser.id).maybeSingle();
+    // Load profile for customer type and name fallback
+    const { data: profile } = await sb.from('profiles').select('location, full_name').eq('id', currentUser.id).maybeSingle();
     customerType = getCustomerType(currentUser.email, profile);
 
-    const meta      = currentUser.user_metadata;
-    const firstName = meta.first_name || 'Eagle';
-    document.getElementById('user-display-name').textContent = firstName + ' ' + (meta.last_name || '');
+    const meta           = currentUser.user_metadata;
+    const profileParts   = (profile?.full_name || '').trim().split(' ');
+    const firstName      = meta.first_name || profileParts[0] || 'Eagle';
+    const lastName       = meta.last_name  || profileParts.slice(1).join(' ') || '';
+    document.getElementById('user-display-name').textContent = (firstName + ' ' + lastName).trim();
     document.getElementById('greeting-name').textContent     = firstName;
 
     // Teacher/Mathews badge in sidebar
