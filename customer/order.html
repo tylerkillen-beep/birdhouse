@@ -340,8 +340,8 @@
     sessionToken = session.access_token;
     const meta = currentUser.user_metadata;
 
-    // Load profile for location + last_room
-    const { data: profile } = await sb.from('profiles').select('location, last_room').eq('id', currentUser.id).maybeSingle();
+    // Load profile for location + last_room + name fallback
+    const { data: profile } = await sb.from('profiles').select('location, last_room, full_name').eq('id', currentUser.id).maybeSingle();
     customerProfile = profile;
     customerType    = getCustomerType(currentUser.email, profile);
 
@@ -819,7 +819,7 @@
           cartItems,
           userId:    currentUser.id,
           customerInfo: {
-            customerName: (meta.first_name || '') + ' ' + (meta.last_name || ''),
+            customerName: ((meta.first_name || '') + ' ' + (meta.last_name || '')).trim() || customerProfile?.full_name || null,
             room:         document.getElementById('delivery-room').value,
             deliveryDay:  document.getElementById('delivery-date').value,
             deliveryDate: deliveryDatePicker?.selectedDates[0]
