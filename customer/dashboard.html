@@ -152,7 +152,7 @@
     <!-- ── Overview ─────────────────────────────────────────────────────── -->
     <div id="section-overview">
       <div class="page-eyebrow">Customer Portal</div>
-      <h1 class="page-title">Good <span id="greeting-time">morning</span>, <span id="greeting-name">Eagle</span>.</h1>
+      <h1 class="page-title">Hello, <span id="greeting-name">Eagle</span>.</h1>
 
       <div class="stats-grid">
         <div class="stat-card">
@@ -194,7 +194,6 @@
     <div id="section-subscription" style="display:none">
       <div class="page-eyebrow">Subscription</div>
       <h1 class="page-title">My Plan</h1>
-      <p style="color:var(--light-gray);font-size:0.88rem;margin-bottom:2rem" id="greeting-sub"></p>
       <div id="subscription-display"></div>
     </div>
 
@@ -202,7 +201,6 @@
     <div id="section-history" style="display:none">
       <div class="page-eyebrow">Your Orders</div>
       <h1 class="page-title">Order History</h1>
-      <p style="color:var(--light-gray);font-size:0.88rem;margin-bottom:2rem" id="greeting-history"></p>
       <div id="full-orders-list"><div class="no-orders">No orders yet.</div></div>
     </div>
 
@@ -210,7 +208,6 @@
     <div id="section-loyalty" style="display:none">
       <div class="page-eyebrow">Rewards</div>
       <h1 class="page-title">Loyalty Points</h1>
-      <p style="color:var(--light-gray);font-size:0.88rem;margin-bottom:2rem" id="greeting-loyalty"></p>
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-label">Current Points</div>
@@ -294,10 +291,6 @@
     const { firstName, lastName } = resolveCustomerName(currentUser, profile);
     document.getElementById('user-display-name').textContent = (firstName + ' ' + lastName).trim();
     document.getElementById('greeting-name').textContent     = firstName;
-    const helloText = 'Hello, ' + firstName + '.';
-    document.getElementById('greeting-sub').textContent      = helloText;
-    document.getElementById('greeting-history').textContent  = helloText;
-    document.getElementById('greeting-loyalty').textContent  = helloText;
 
     // Teacher/Mathews badge in sidebar
     if (customerType === 'teacher' || customerType === 'mathews') {
@@ -306,11 +299,6 @@
       badge.textContent = customerType === 'mathews' ? '⭐ Mathews — 25% off' : '🍎 Teacher — 25% off';
       document.getElementById('user-card').appendChild(badge);
     }
-
-    // Time-aware greeting
-    const hour = new Date().getHours();
-    document.getElementById('greeting-time').textContent =
-      hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
 
     // Points
     const points = meta.loyalty_points || 0;
