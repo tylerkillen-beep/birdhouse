@@ -99,7 +99,6 @@
   <main class="main">
     <div class="page-eyebrow">Customer Portal</div>
     <h1 class="page-title">My Orders</h1>
-    <p class="page-sub" id="page-greeting">Hello, Eagle.</p>
 
     <div class="summary-row" id="summary-row"></div>
 
@@ -142,7 +141,6 @@
     const { firstName, lastName } = resolveCustomerName(currentUser, profile);
     document.getElementById('user-display-name').textContent = (firstName + ' ' + lastName).trim();
     document.getElementById('user-points-badge').textContent = (meta.loyalty_points || 0) + ' points';
-    document.getElementById('page-greeting').textContent = 'Hello, ' + firstName + '.';
     await loadOrders();
   }
 

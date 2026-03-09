@@ -186,8 +186,7 @@
   <main class="main">
     <div class="page-eyebrow">Customer Portal</div>
     <h1 class="page-title">Place an Order</h1>
-    <p class="page-sub" id="page-greeting">Hello, Eagle.</p>
-    <p class="page-sub" style="margin-top:-1.5rem">Add drinks to your cart, then fill in delivery details and pay.</p>
+    <p class="page-sub">Add drinks to your cart, then fill in delivery details and pay.</p>
 
     <div class="steps">
       <div class="step active" id="step-ind-1"><div class="step-num">1</div> Build Cart</div>
@@ -365,7 +364,6 @@
     const { firstName, lastName } = resolveCustomerName(currentUser, profile);
     document.getElementById('user-display-name').textContent = (firstName + ' ' + lastName).trim();
     document.getElementById('user-points-badge').textContent = (meta.loyalty_points || 0) + ' points';
-    document.getElementById('page-greeting').textContent = 'Hello, ' + firstName + '.';
     const userCard = document.getElementById('user-card');
     document.getElementById('user-points-badge').style.display = 'block';
     document.getElementById('guest-signin-cta').style.display = 'none';
