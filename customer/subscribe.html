@@ -391,6 +391,21 @@
   function isTeacher() { return customerType === 'teacher' || customerType === 'mathews'; }
   function discountedCents(cents) { return Math.round(cents * (1 - TEACHER_DISCOUNT)); }
 
+
+  function resolveCustomerName(user, profile) {
+    const meta = user.user_metadata || {};
+    const firstName = meta.first_name || meta.given_name || '';
+    const lastName = meta.last_name || meta.family_name || '';
+    if (firstName) return { firstName, lastName };
+
+    const fullName = (meta.full_name || meta.name || profile?.full_name || '').trim();
+    if (fullName && !fullName.includes('@')) {
+      const parts = fullName.split(/\s+/);
+      return { firstName: parts[0], lastName: parts.slice(1).join(' ') };
+    }
+    return { firstName: 'Eagle', lastName: '' };
+  }
+
   // Drink slots state — slot 1 always exists, slot 2 only for Eagle
   let drinkSlots = {
     1: { drinkItemId: null, drinkName: null, drinkModifiers: [], baseCents: 0 },
@@ -409,16 +424,17 @@
     }
     currentUser  = session.user;
     sessionToken = session.access_token;
-    const meta = currentUser.user_metadata;
+    const meta = currentUser.user_metadata || {};
 
     // Load profile for customer type and location defaults
-    const { data: profile } = await sb.from('profiles').select('location, last_room').eq('id', currentUser.id).maybeSingle();
+    const { data: profile } = await sb.from('profiles').select('location, last_room, full_name').eq('id', currentUser.id).maybeSingle();
     customerProfile = profile;
     customerType    = getCustomerType(currentUser.email, profile);
 
-    document.getElementById('user-display-name').textContent = (meta.first_name || 'Eagle') + ' ' + (meta.last_name || '');
+    const { firstName, lastName } = resolveCustomerName(currentUser, profile);
+    document.getElementById('user-display-name').textContent = (firstName + ' ' + lastName).trim();
     document.getElementById('user-points-badge').textContent = (meta.loyalty_points || 0) + ' points';
-    document.getElementById('page-greeting').textContent = 'Hello, ' + (meta.first_name || 'Eagle') + '.';
+    document.getElementById('page-greeting').textContent = 'Hello, ' + firstName + '.';
 
     // Show teacher badge
     if (isTeacher()) {
@@ -788,7 +804,8 @@
       const result = await squareCard.tokenize();
       if (result.status !== 'OK') throw new Error(result.errors?.[0]?.message || 'Card tokenization failed');
 
-      const meta     = currentUser.user_metadata;
+      const meta     = currentUser.user_metadata || {};
+      const { firstName, lastName } = resolveCustomerName(currentUser, customerProfile);
       const isEagle  = selectedPlan?.drinks_per_week === 2;
 
       const slots = [
@@ -830,8 +847,8 @@ const res = await fetch(`${SUPABASE_URL}/functions/v1/save-card`, {
           planId:       selectedPlan.id,
           discountPct:  isTeacher() ? 25 : 0,
           customerInfo: {
-            firstName: meta.first_name || '',
-            lastName:  meta.last_name  || '',
+            firstName,
+            lastName,
             email:     currentUser.email,
           },
           drinkSlots: slots,

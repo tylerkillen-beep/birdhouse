@@ -330,6 +330,22 @@
 
   function isTeacher() { return customerType === 'teacher' || customerType === 'mathews'; }
 
+
+  function resolveCustomerName(user, profile) {
+    const meta = user.user_metadata || {};
+    const firstName = meta.first_name || meta.given_name || '';
+    const lastName = meta.last_name || meta.family_name || '';
+    if (firstName) return { firstName, lastName };
+
+    const fullName = (meta.full_name || meta.name || profile?.full_name || '').trim();
+    if (fullName && !fullName.includes('@')) {
+      const parts = fullName.split(/\s+/);
+      return { firstName: parts[0], lastName: parts.slice(1).join(' ') };
+    }
+    return { firstName: 'Eagle', lastName: '' };
+  }
+
+
   // Pending modal state
   let pendingItemId = null, pendingTemp = null, pendingBaseCents = 0;
 
@@ -341,14 +357,15 @@
     sessionToken = session.access_token;
     const meta = currentUser.user_metadata;
 
-    // Load profile for location + last_room
-    const { data: profile } = await sb.from('profiles').select('location, last_room').eq('id', currentUser.id).maybeSingle();
+    // Load profile for location + last_room + name fallback
+    const { data: profile } = await sb.from('profiles').select('location, last_room, full_name').eq('id', currentUser.id).maybeSingle();
     customerProfile = profile;
     customerType    = getCustomerType(currentUser.email, profile);
 
-    document.getElementById('user-display-name').textContent = (meta.first_name || 'Eagle') + ' ' + (meta.last_name || '');
+    const { firstName, lastName } = resolveCustomerName(currentUser, profile);
+    document.getElementById('user-display-name').textContent = (firstName + ' ' + lastName).trim();
     document.getElementById('user-points-badge').textContent = (meta.loyalty_points || 0) + ' points';
-    document.getElementById('page-greeting').textContent = 'Hello, ' + (meta.first_name || 'Eagle') + '.';
+    document.getElementById('page-greeting').textContent = 'Hello, ' + firstName + '.';
     const userCard = document.getElementById('user-card');
     document.getElementById('user-points-badge').style.display = 'block';
     document.getElementById('guest-signin-cta').style.display = 'none';
@@ -796,7 +813,8 @@
       const result = await squareCard.tokenize();
       if (result.status !== 'OK') throw new Error(result.errors?.[0]?.message || 'Card tokenization failed');
 
-      const meta = currentUser.user_metadata;
+      const meta = currentUser.user_metadata || {};
+      const { firstName, lastName } = resolveCustomerName(currentUser, customerProfile);
 
       const cartItems = cart.map(c => ({
         id:                c.id,
@@ -821,7 +839,7 @@
           cartItems,
           userId:    currentUser.id,
           customerInfo: {
-            customerName: (meta.first_name || '') + ' ' + (meta.last_name || ''),
+            customerName: (firstName + ' ' + lastName).trim(),
             room:         document.getElementById('delivery-room').value,
             deliveryDay:  document.getElementById('delivery-date').value,
             deliveryDate: deliveryDatePicker?.selectedDates[0]

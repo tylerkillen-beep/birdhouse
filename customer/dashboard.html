@@ -265,6 +265,20 @@
     return 'student';
   }
 
+  function resolveCustomerName(user, profile) {
+    const meta = user.user_metadata || {};
+    const firstName = meta.first_name || meta.given_name || '';
+    const lastName = meta.last_name || meta.family_name || '';
+    if (firstName) return { firstName, lastName };
+
+    const fullName = (meta.full_name || meta.name || profile?.full_name || '').trim();
+    if (fullName && !fullName.includes('@')) {
+      const parts = fullName.split(/\s+/);
+      return { firstName: parts[0], lastName: parts.slice(1).join(' ') };
+    }
+    return { firstName: 'Eagle', lastName: '' };
+  }
+
   // ── Init ──────────────────────────────────────────────────────────────────
   async function init() {
     const { data: { session } } = await sb.auth.getSession();
@@ -276,10 +290,8 @@
     const { data: profile } = await sb.from('profiles').select('location, full_name').eq('id', currentUser.id).maybeSingle();
     customerType = getCustomerType(currentUser.email, profile);
 
-    const meta           = currentUser.user_metadata;
-    const profileParts   = (profile?.full_name || '').trim().split(' ');
-    const firstName      = meta.first_name || profileParts[0] || 'Eagle';
-    const lastName       = meta.last_name  || profileParts.slice(1).join(' ') || '';
+    const meta = currentUser.user_metadata || {};
+    const { firstName, lastName } = resolveCustomerName(currentUser, profile);
     document.getElementById('user-display-name').textContent = (firstName + ' ' + lastName).trim();
     document.getElementById('greeting-name').textContent     = firstName;
     const helloText = 'Hello, ' + firstName + '.';

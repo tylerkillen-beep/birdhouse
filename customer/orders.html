@@ -118,14 +118,31 @@
   const sb = supabase.createClient('https://ljukrhneikqbabcmcpet.supabase.co','sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn');
   let allOrders = [], currentUser = null;
 
+
+  function resolveCustomerName(user, profile) {
+    const meta = user.user_metadata || {};
+    const firstName = meta.first_name || meta.given_name || '';
+    const lastName = meta.last_name || meta.family_name || '';
+    if (firstName) return { firstName, lastName };
+
+    const fullName = (meta.full_name || meta.name || profile?.full_name || '').trim();
+    if (fullName && !fullName.includes('@')) {
+      const parts = fullName.split(/\s+/);
+      return { firstName: parts[0], lastName: parts.slice(1).join(' ') };
+    }
+    return { firstName: 'Eagle', lastName: '' };
+  }
+
   async function init() {
     const {data:{session}} = await sb.auth.getSession();
     if(!session){window.location.href='index.html';return;}
     currentUser = session.user;
-    const meta = currentUser.user_metadata;
-    document.getElementById('user-display-name').textContent=(meta.first_name||'Eagle')+' '+(meta.last_name||'');
-    document.getElementById('user-points-badge').textContent=(meta.loyalty_points||0)+' points';
-    document.getElementById('page-greeting').textContent='Hello, '+(meta.first_name||'Eagle')+'.';
+    const meta = currentUser.user_metadata || {};
+    const { data: profile } = await sb.from('profiles').select('full_name').eq('id', currentUser.id).maybeSingle();
+    const { firstName, lastName } = resolveCustomerName(currentUser, profile);
+    document.getElementById('user-display-name').textContent = (firstName + ' ' + lastName).trim();
+    document.getElementById('user-points-badge').textContent = (meta.loyalty_points || 0) + ' points';
+    document.getElementById('page-greeting').textContent = 'Hello, ' + firstName + '.';
     await loadOrders();
   }
 
