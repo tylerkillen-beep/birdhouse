@@ -122,8 +122,27 @@ serve(async (req) => {
     const squareData = await squareRes.json();
 
     if (!squareRes.ok || squareData.errors?.length) {
-      const detail = squareData.errors?.[0]?.detail ?? "Payment declined";
-      throw new Error(detail);
+      const err = squareData.errors?.[0];
+      // Log the full error so admins can diagnose credential/environment issues
+      // via Supabase Edge Function logs.
+      console.error("Square payment error:", {
+        category: err?.category,
+        code: err?.code,
+        detail: err?.detail,
+        field: err?.field,
+        squareEnv: Deno.env.get("SQUARE_ENV") || "production",
+        locationId,
+      });
+
+      // AUTHENTICATION_ERROR means the access token or environment is wrong —
+      // e.g. a sandbox token used against production, or mismatched location ID.
+      if (err?.category === "AUTHENTICATION_ERROR") {
+        throw new Error(
+          "Square credentials are misconfigured. Check SQUARE_ACCESS_TOKEN, SQUARE_LOCATION_ID, and SQUARE_ENV in Supabase secrets."
+        );
+      }
+
+      throw new Error(err?.detail ?? "Payment declined");
     }
 
     const squarePaymentId: string = squareData.payment.id;
