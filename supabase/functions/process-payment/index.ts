@@ -157,11 +157,15 @@ serve(async (req) => {
         ? `${items[0].name} (${items[0].temp === "iced" ? "Iced" : "Hot"})`
         : `${items[0].name} + ${items.length - 1} more item${items.length > 2 ? "s" : ""}`;
 
+    const itemName = items.map(i => i.name).join(', ');
+
     const { data: order, error: dbError } = await supabase
       .from("orders")
       .insert({
         user_id: userId,
+        customer_name: customerInfo.customerName || null,
         drink_name: drinkName,
+        item_name: itemName,
         cart_items: items,
         total_amount: totalAmount,
         room: customerInfo.room,
