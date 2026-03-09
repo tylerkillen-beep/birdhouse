@@ -1310,6 +1310,34 @@ function getOrderTotalCents(order) {
   return 0;
 }
 
+function isLikelyEmail(value) {
+  return typeof value === 'string' && value.includes('@');
+}
+
+function getProfileDisplayName(profile) {
+  const fullName = (profile?.full_name || '').trim();
+  if (fullName) return fullName;
+  const firstName = (profile?.first_name || '').trim();
+  const lastName = (profile?.last_name || '').trim();
+  return `${firstName} ${lastName}`.trim();
+}
+
+async function enrichOrderCustomerNames(orders) {
+  const needsProfileLookup = (orders || []).filter(o => o.user_id && (!o.customer_name || isLikelyEmail(o.customer_name)));
+  if (!needsProfileLookup.length) return;
+
+  const userIds = [...new Set(needsProfileLookup.map(o => o.user_id))];
+  const { data: profiles } = await sb.from('profiles').select('id,full_name,first_name,last_name').in('id', userIds);
+  const profileMap = Object.fromEntries((profiles || []).map(p => [p.id, getProfileDisplayName(p)]));
+
+  orders.forEach(o => {
+    const profileName = profileMap[o.user_id];
+    if (profileName && (!o.customer_name || isLikelyEmail(o.customer_name))) {
+      o.customer_name = profileName;
+    }
+  });
+}
+
 async function loadDashboard() {
   const startDate = new Date();
   const todayIso = startDate.toISOString().slice(0, 10);
@@ -1331,18 +1359,7 @@ async function loadDashboard() {
   const tbody = document.getElementById('dash-recent-orders');
   if (!recentOrders?.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray);padding:2rem">No orders yet today.</td></tr>'; return; }
 
-  // Fetch profile names for orders missing customer_name
-  const missingNameOrders = (recentOrders || []).filter(o => !o.customer_name && o.user_id);
-  if (missingNameOrders.length) {
-    const userIds = [...new Set(missingNameOrders.map(o => o.user_id))];
-    const { data: profiles } = await sb.from('profiles').select('id,full_name').in('id', userIds);
-    const profileMap = Object.fromEntries((profiles || []).map(p => [p.id, p.full_name]));
-    recentOrders.forEach(o => {
-      if (!o.customer_name && o.user_id && profileMap[o.user_id]) {
-        o.customer_name = profileMap[o.user_id];
-      }
-    });
-  }
+  await enrichOrderCustomerNames(recentOrders);
 
   tbody.innerHTML = (recentOrders || []).map(o => {
     const d = new Date(o.created_at);
@@ -1365,6 +1382,7 @@ async function loadDashboard() {
 async function loadOrders() {
   const { data } = await sb.from('orders').select('*').order('created_at', { ascending: false }).limit(200);
   allOrders = data || [];
+  await enrichOrderCustomerNames(allOrders);
   renderOrders(allOrders);
 }
 
