@@ -50,6 +50,23 @@
     .school-note { margin-top: 0.7rem; font-size: 0.72rem; color: var(--gray); line-height: 1.5; }
     .info-box { background: rgba(204,0,0,0.07); border: 1px solid rgba(204,0,0,0.2); border-radius: 8px; padding: 1rem; margin-top: 1.5rem; font-size: 0.82rem; color: var(--gray); line-height: 1.5; }
 
+    /* ── Location Picker Modal ── */
+    .loc-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 200; display: none; align-items: center; justify-content: center; padding: 1rem; }
+    .loc-overlay.open { display: flex; }
+    .loc-modal { background: #111; border: 1px solid var(--border); border-radius: 16px; padding: 2.5rem; width: 460px; max-width: 100%; text-align: center; }
+    .loc-eyebrow { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--red); margin-bottom: 0.5rem; }
+    .loc-title { font-family: 'Bebas Neue', sans-serif; font-size: 2.2rem; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+    .loc-sub { font-size: 0.85rem; color: var(--gray); line-height: 1.6; margin-bottom: 2rem; }
+    .loc-options { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+    .loc-btn { background: var(--card); border: 2px solid var(--border-dim); border-radius: 12px; padding: 1.5rem 1rem; cursor: pointer; transition: all 0.2s; font-family: 'DM Sans', sans-serif; color: var(--white); }
+    .loc-btn:hover, .loc-btn.selected { border-color: var(--red); background: rgba(204,0,0,0.1); }
+    .loc-btn-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+    .loc-btn-label { font-weight: 600; font-size: 0.95rem; }
+    .loc-btn-desc { font-size: 0.75rem; color: var(--gray); margin-top: 0.25rem; }
+    .loc-confirm { width: 100%; padding: 0.9rem; background: var(--red); color: white; border: none; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.06em; }
+    .loc-confirm:hover { background: var(--red-bright); }
+    .loc-confirm:disabled { opacity: 0.4; cursor: not-allowed; }
+
     @media (max-width: 980px) {
       body { grid-template-columns: 1fr; }
       .panel-left { display: none; }
@@ -92,6 +109,28 @@
     <div class="msg" id="login-msg" aria-live="polite"></div>
   </div>
 
+  <!-- Location Picker Modal (teachers only, first login) -->
+  <div class="loc-overlay" id="loc-overlay">
+    <div class="loc-modal">
+      <div class="loc-eyebrow">One-time Setup</div>
+      <h2 class="loc-title">Your Campus</h2>
+      <p class="loc-sub">Which campus do you order from? This helps us show you the right menu and remember your location.</p>
+      <div class="loc-options">
+        <button class="loc-btn" id="loc-hs" onclick="selectLocation('high_school')">
+          <div class="loc-btn-icon">🏫</div>
+          <div class="loc-btn-label">High School</div>
+          <div class="loc-btn-desc">Nixa High School</div>
+        </button>
+        <button class="loc-btn" id="loc-mathews" onclick="selectLocation('mathews')">
+          <div class="loc-btn-icon">⭐</div>
+          <div class="loc-btn-label">Mathews</div>
+          <div class="loc-btn-desc">Mathews Middle School</div>
+        </button>
+      </div>
+      <button class="loc-confirm" id="loc-confirm-btn" disabled onclick="confirmLocation()">Continue →</button>
+    </div>
+  </div>
+
   <script>
     const sb = supabase.createClient('https://ljukrhneikqbabcmcpet.supabase.co','sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn');
 
@@ -112,8 +151,61 @@
       m.className = 'msg error';
     }
 
-    sb.auth.getSession().then(({data})=>{ if(data.session) window.location.href=getPostLoginDestination(); });
+    // ── Location picker (teachers only) ──────────────────────────────────────
+    let pendingSession = null;
+    let selectedLoc    = null;
 
+    function selectLocation(loc) {
+      selectedLoc = loc;
+      document.getElementById('loc-hs').classList.toggle('selected', loc === 'high_school');
+      document.getElementById('loc-mathews').classList.toggle('selected', loc === 'mathews');
+      document.getElementById('loc-confirm-btn').disabled = false;
+    }
+
+    async function confirmLocation() {
+      if (!selectedLoc || !pendingSession) return;
+      const btn = document.getElementById('loc-confirm-btn');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+
+      const user = pendingSession.user;
+      const meta = user.user_metadata || {};
+      await sb.from('profiles').upsert({
+        id:         user.id,
+        email:      user.email,
+        full_name:  [meta.first_name, meta.last_name].filter(Boolean).join(' ') || user.email,
+        location:   selectedLoc,
+      }, { onConflict: 'id' });
+
+      window.location.href = getPostLoginDestination();
+    }
+
+    async function checkTeacherLocation(session) {
+      const { data: profile } = await sb
+        .from('profiles')
+        .select('location')
+        .eq('id', session.user.id)
+        .maybeSingle();
+
+      if (!profile?.location) {
+        // First-time teacher — show location picker
+        pendingSession = session;
+        document.getElementById('loc-overlay').classList.add('open');
+      } else {
+        window.location.href = getPostLoginDestination();
+      }
+    }
+
+    // ── Session check on page load ────────────────────────────────────────────
+    sb.auth.getSession().then(async ({ data }) => {
+      if (!data.session) return;
+      const email = data.session.user.email || '';
+      if (email.endsWith('@nixaschools.net')) {
+        await checkTeacherLocation(data.session);
+      } else {
+        window.location.href = getPostLoginDestination();
+      }
+    });
 
     async function handleGoogleLogin(btnEl) {
       const btn = btnEl || document.getElementById('customer-login-btn');
@@ -136,7 +228,7 @@
       }
     }
 
-    // Check after Google OAuth redirect — enforce school domain
+    // ── After Google OAuth redirect — enforce school domain ───────────────────
     sb.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session) {
         const email = session.user.email || '';
@@ -147,7 +239,11 @@
           m.className = 'msg error';
           return;
         }
-        window.location.href = getPostLoginDestination();
+        if (email.endsWith('@nixaschools.net')) {
+          await checkTeacherLocation(session);
+        } else {
+          window.location.href = getPostLoginDestination();
+        }
       }
     });
 

@@ -301,6 +301,23 @@
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   let currentUser = null, sessionToken = null;
   let menuItems = [], modifierListsMap = {}, cart = [], squareCard = null;
+  let customerProfile = null; // { location, last_room }
+  let customerType = 'student'; // 'student' | 'teacher' | 'mathews'
+
+  const TEACHER_DISCOUNT = 0.25; // 25% off for all @nixaschools.net accounts
+
+  function getCustomerType(email, profile) {
+    if (email.endsWith('@nixaschools.net')) {
+      return profile?.location === 'mathews' ? 'mathews' : 'teacher';
+    }
+    return 'student';
+  }
+
+  function applyDiscount(priceCents) {
+    return Math.round(priceCents * (1 - TEACHER_DISCOUNT));
+  }
+
+  function isTeacher() { return customerType === 'teacher' || customerType === 'mathews'; }
 
   // Pending modal state
   let pendingItemId = null, pendingTemp = null, pendingBaseCents = 0;
@@ -312,6 +329,12 @@
     currentUser  = session.user;
     sessionToken = session.access_token;
     const meta = currentUser.user_metadata;
+
+    // Load profile for location + last_room
+    const { data: profile } = await sb.from('profiles').select('location, last_room').eq('id', currentUser.id).maybeSingle();
+    customerProfile = profile;
+    customerType    = getCustomerType(currentUser.email, profile);
+
     document.getElementById('user-display-name').textContent = (meta.first_name || 'Eagle') + ' ' + (meta.last_name || '');
     document.getElementById('user-points-badge').textContent = (meta.loyalty_points || 0) + ' points';
     const userCard = document.getElementById('user-card');
@@ -319,7 +342,16 @@
     document.getElementById('guest-signin-cta').style.display = 'none';
     userCard.classList.remove('guest-clickable');
     userCard.onclick = null;
-    if (meta.room) document.getElementById('delivery-room').value = meta.room;
+
+    // Show teacher/Mathews badge and prefill last room
+    if (isTeacher()) {
+      const badge = document.createElement('div');
+      badge.style.cssText = 'font-size:0.68rem;color:#f5c842;margin-top:0.3rem;letter-spacing:0.04em';
+      badge.textContent = customerType === 'mathews' ? '⭐ Mathews — 25% off' : '🍎 Teacher — 25% off';
+      document.getElementById('user-card').appendChild(badge);
+    }
+    if (profile?.last_room) document.getElementById('delivery-room').value = profile.last_room;
+
     await Promise.all([loadMenu(), loadDeliveryTimes()]);
   }
 
@@ -376,28 +408,34 @@
 
     function getDisplayCategory(item) {
       const normalized = normalizeCategory(item.category);
+      if (normalized.includes('mathews')) return 'mathews';
       if (normalized.includes('special')) return 'specials';
       if (normalized.includes('soda') || normalized.includes('tea') || normalized.includes('energy') || normalized.includes('refresher')) return 'soda_tea';
       if (normalized.includes('food') || normalized.includes('pastry') || normalized.includes('snack')) return 'food';
       return 'coffee';
     }
 
-    const sections = [
+    // Mathews teachers only see Mathews items; everyone else sees non-Mathews items.
+    const isMathews = customerType === 'mathews';
+    const visibleItems = items.filter(i => isMathews
+      ? getDisplayCategory(i) === 'mathews'
+      : getDisplayCategory(i) !== 'mathews'
+    );
+
+    const allSections = [
       { key: 'specials', title: 'Specials', icon: '✨' },
       { key: 'coffee',   title: 'Coffee', icon: '☕' },
       { key: 'soda_tea', title: 'Soda & Tea', icon: '🥤' },
       { key: 'food',     title: 'Food', icon: '🍽️' },
       { key: 'mathews',  title: 'Mathews', icon: '⭐' },
     ];
+    const sections = isMathews
+      ? allSections.filter(s => s.key === 'mathews')
+      : allSections.filter(s => s.key !== 'mathews');
 
-    const bySection = {
-      specials: [],
-      coffee: [],
-      soda_tea: [],
-      food: [],
-    };
+    const bySection = { specials: [], coffee: [], soda_tea: [], food: [], mathews: [] };
 
-    items.forEach(item => {
+    visibleItems.forEach(item => {
       bySection[getDisplayCategory(item)].push(item);
     });
 
@@ -502,7 +540,10 @@
     const checkboxes = document.querySelectorAll('#mod-options-container input[type=checkbox]');
     let extra = 0;
     checkboxes.forEach(cb => { if (cb.checked) extra += parseInt(cb.dataset.price || '0'); });
-    document.getElementById('mod-total-price').textContent = `$${((pendingBaseCents + extra) / 100).toFixed(2)}`;
+    const rawCents = pendingBaseCents + extra;
+    const finalCents = isTeacher() ? applyDiscount(rawCents) : rawCents;
+    const discountNote = isTeacher() ? ` <span style="font-size:0.7rem;color:#f5c842">(25% off)</span>` : '';
+    document.getElementById('mod-total-price').innerHTML = `$${(finalCents / 100).toFixed(2)}${discountNote}`;
   }
 
   function closeModModal() {
@@ -525,14 +566,15 @@
     }));
 
     const modsCents  = selectedModifiers.reduce((s, m) => s + m.priceCents, 0);
-    const totalCents = pendingBaseCents + modsCents;
+    const rawCents   = pendingBaseCents + modsCents;
+    const totalCents = isTeacher() ? applyDiscount(rawCents) : rawCents;
 
-    addToCart(pendingItemId, pendingTemp, selectedModifiers, totalCents);
+    addToCart(pendingItemId, pendingTemp, selectedModifiers, totalCents, rawCents);
     closeModModal();
   }
 
   // ── Cart ──────────────────────────────────────────────────────────────────
-  function addToCart(itemId, temp, selectedModifiers, totalCents) {
+  function addToCart(itemId, temp, selectedModifiers, totalCents, originalCents) {
     const item = menuItems.find(i => i.id === itemId);
     if (!item) return;
 
@@ -550,6 +592,7 @@
         temp,
         priceCents:        totalCents,
         price:             totalCents / 100,
+        originalCents:     originalCents || totalCents,
         quantity:          1,
         squareVariationId: item.square_variation_id,
         selectedModifiers,
@@ -584,6 +627,10 @@
       const modsLabel = c.selectedModifiers?.length
         ? c.selectedModifiers.map(m => m.name).join(', ')
         : null;
+      const hasDiscount = isTeacher() && c.originalCents && c.originalCents !== c.priceCents;
+      const priceDisplay = hasDiscount
+        ? `<span style="text-decoration:line-through;color:var(--gray);font-size:0.78rem">$${(c.originalCents / 100 * c.quantity).toFixed(2)}</span> $${(c.price * c.quantity).toFixed(2)}`
+        : `$${(c.price * c.quantity).toFixed(2)}`;
       return `<div class="cart-item">
         <div class="cart-item-info">
           <div class="cart-item-name">${c.name}</div>
@@ -595,7 +642,7 @@
           <span class="qty-num">${c.quantity}</span>
           <button class="qty-btn" onclick="changeQty('${c.key}',1)">+</button>
         </div>
-        <div class="cart-item-price">$${(c.price * c.quantity).toFixed(2)}</div>
+        <div class="cart-item-price">${priceDisplay}</div>
       </div>`;
     }).join('');
     document.getElementById('cart-total-val').textContent = `$${cartTotal().toFixed(2)}`;
@@ -613,11 +660,15 @@
     }).join('');
     const room = document.getElementById('delivery-room').value;
     const time = document.getElementById('delivery-time').value;
-    document.getElementById('pay-summary-lines').innerHTML = lines + `
+    const total = cartTotal();
+    const discountLine = isTeacher()
+      ? `<div class="summary-line"><span class="summary-key" style="color:#f5c842">🍎 Teacher Discount (25%)</span><span class="summary-val" style="color:#f5c842">applied</span></div>`
+      : '';
+    document.getElementById('pay-summary-lines').innerHTML = lines + discountLine + `
       <div class="summary-line"><span class="summary-key">Deliver to</span><span class="summary-val">${room || '—'}</span></div>
       <div class="summary-line"><span class="summary-key">Time</span><span class="summary-val">${time || '—'}</span></div>
-      <div class="summary-line"><span class="summary-key">Total</span><span class="summary-val">$${cartTotal().toFixed(2)}</span></div>`;
-    document.getElementById('pay-btn-amount').textContent = `$${cartTotal().toFixed(2)}`;
+      <div class="summary-line"><span class="summary-key">Total</span><span class="summary-val">$${total.toFixed(2)}</span></div>`;
+    document.getElementById('pay-btn-amount').textContent = `$${total.toFixed(2)}`;
   }
 
   // ── Delivery Times ────────────────────────────────────────────────────────
@@ -684,6 +735,12 @@
 
       // Award loyalty points
       await sb.auth.updateUser({ data: { loyalty_points: (meta.loyalty_points || 0) + cartCount() } });
+
+      // Save last used room to profile
+      const roomVal = document.getElementById('delivery-room').value.trim();
+      if (roomVal) {
+        await sb.from('profiles').upsert({ id: currentUser.id, last_room: roomVal }, { onConflict: 'id' });
+      }
 
       document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
       document.getElementById('panel-success').classList.add('active');
