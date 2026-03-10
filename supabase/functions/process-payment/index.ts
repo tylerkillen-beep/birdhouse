@@ -57,7 +57,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
   try {
-    const { sourceId, cartItems, userId, customerInfo, creditUsedCents: rawCreditUsed } = await req.json();
+    const { sourceId, cartItems, userId, customerInfo, creditUsedCents: rawCreditUsed, deliveryMethod } = await req.json();
 
     // ── Validate auth ──────────────────────────────────────────────────────
     const accessToken = getBearerToken(req);
@@ -87,7 +87,13 @@ serve(async (req) => {
     if (!cartItems?.length) throw new Error("Cart is empty");
     if (!userId) throw new Error("User not authenticated");
     if (user.id !== userId) return fail("User mismatch", 403);
-    if (!customerInfo?.room) throw new Error("Delivery room is required");
+    if (!customerInfo?.room) throw new Error("Delivery location is required");
+
+    const orderDeliveryMethod = (deliveryMethod === 'pickup') ? 'pickup' : 'delivery';
+
+    // Students pay $1 for delivery; teachers always get free delivery
+    const isTeacherEmail = (user.email || '').endsWith('@nixaschools.net');
+    const deliveryFeeCents = (!isTeacherEmail && orderDeliveryMethod === 'delivery') ? 100 : 0;
 
     // ── Calculate order total ──────────────────────────────────────────────
     interface CartItem {
@@ -99,9 +105,10 @@ serve(async (req) => {
     }
 
     const items: CartItem[] = cartItems;
-    const orderTotalCents = Math.round(
+    const itemsTotalCents = Math.round(
       items.reduce((sum, item) => sum + item.price * item.quantity, 0) * 100
     );
+    const orderTotalCents = itemsTotalCents + deliveryFeeCents;
 
     if (orderTotalCents <= 0) throw new Error("Order total must be greater than zero");
 
@@ -152,7 +159,7 @@ serve(async (req) => {
           idempotency_key: crypto.randomUUID(),
           amount_money: { amount: chargeAmountCents, currency: "USD" },
           location_id: locationId,
-          note: `Birdhouse — ${customerInfo.customerName} — Room ${customerInfo.room}`,
+          note: `Birdhouse — ${customerInfo.customerName} — ${orderDeliveryMethod === 'pickup' ? 'Pickup' : `Room ${customerInfo.room}`}`,
         }),
       });
 
@@ -182,7 +189,7 @@ serve(async (req) => {
     }
 
     // ── Insert order into Supabase ─────────────────────────────────────────
-    const totalAmount = items.reduce((s, i) => s + i.price * i.quantity, 0);
+    const totalAmount = orderTotalCents / 100;
 
     const drinkName =
       items.length === 1
@@ -209,6 +216,7 @@ serve(async (req) => {
         points_earned: 0,
         credit_used_cents: creditUsedCents,
         square_payment_id: squarePaymentId,
+        delivery_method: orderDeliveryMethod,
       })
       .select()
       .single();
