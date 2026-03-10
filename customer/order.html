@@ -160,6 +160,13 @@
     .mod-total-price { font-family:'Bebas Neue',sans-serif; font-size:1.5rem; color:var(--red-bright); }
     .mod-btn-row { display:flex; gap:0.75rem; margin-top:1.25rem; }
 
+    .method-toggle { display:flex; gap:0.5rem; }
+    .method-btn { flex:1; padding:0.8rem 1rem; border:1px solid var(--border-dim); border-radius:8px; background:transparent; color:var(--light-gray); font-family:'DM Sans',sans-serif; font-size:0.88rem; cursor:pointer; transition:all 0.2s; text-align:center; }
+    .method-btn:hover { border-color:var(--border); color:var(--white); }
+    .method-btn.active { border-color:var(--red); background:rgba(204,0,0,0.1); color:var(--white); }
+    .pickup-note { padding:0.875rem 1rem; border:1px solid var(--border-dim); border-radius:8px; background:#0d0d0d; color:var(--light-gray); font-size:0.92rem; }
+    .delivery-fee-line { display:flex; justify-content:space-between; padding:0.4rem 0; font-size:0.85rem; color:var(--light-gray); }
+
     @media(max-width:900px) { .layout{grid-template-columns:1fr} .sidebar{display:none} .main{padding:1.5rem} .cart-bar{left:0;padding:1rem 1.5rem} .pay-layout{grid-template-columns:1fr} .form-row{grid-template-columns:1fr} }
     @media(max-width:600px) { .menu-grid{grid-template-columns:repeat(2,1fr);gap:0.6rem} .menu-card{padding:1rem} .menu-card-name{font-size:0.88rem} .main{padding:1rem 1rem 5rem} }
   </style>
@@ -191,7 +198,7 @@
     <div class="steps">
       <div class="step active" id="step-ind-1"><div class="step-num">1</div> Build Cart</div>
       <div class="step-line"></div>
-      <div class="step" id="step-ind-2"><div class="step-num">2</div> Delivery Info</div>
+      <div class="step" id="step-ind-2"><div class="step-num">2</div> Order Info</div>
       <div class="step-line"></div>
       <div class="step" id="step-ind-3"><div class="step-num">3</div> Payment</div>
     </div>
@@ -204,14 +211,23 @@
       </div>
     </div>
 
-    <!-- Step 2: Delivery -->
+    <!-- Step 2: Order Info -->
     <div class="step-panel" id="panel-2">
       <div class="cart-items-list" id="cart-review"></div>
       <div class="cart-total"><span>Total</span><span id="cart-total-val">$0.00</span></div>
       <div class="delivery-form">
-        <div class="form-group">
-          <label>Room / Location</label>
+        <!-- Pickup/Delivery toggle — students only -->
+        <div class="form-group" id="delivery-method-group" style="display:none">
+          <label>Order Type</label>
+          <div class="method-toggle">
+            <button class="method-btn active" id="btn-method-delivery" onclick="setDeliveryMethod('delivery')">🚚 Delivery (+$1.00)</button>
+            <button class="method-btn" id="btn-method-pickup" onclick="setDeliveryMethod('pickup')">🏠 Pickup (Free)</button>
+          </div>
+        </div>
+        <div class="form-group" id="room-group">
+          <label id="room-label">Room / Location</label>
           <input type="text" id="delivery-room" placeholder="e.g. Room 204, Library, Front Office" />
+          <div class="pickup-note" id="pickup-location-note" style="display:none">📍 Birdhouse — Library</div>
         </div>
         <div class="form-row">
           <div class="form-group">
@@ -261,7 +277,7 @@
       <div class="success-screen">
         <span class="success-icon">✅</span>
         <div class="success-title">Order Placed!</div>
-        <p class="success-sub">Payment confirmed. Our team will get your order ready and deliver it to your room.</p>
+        <p class="success-sub" id="success-sub-msg">Payment confirmed. Our team will get your order ready and deliver it to your room.</p>
         <div>
           <a class="btn-outline" href="order.html">Order Again</a>
           <a class="btn-outline" href="orders.html">View My Orders</a>
@@ -315,6 +331,7 @@
   let deliveryDatePicker = null;
   let availableCreditCents = 0; // current loyalty credit balance
   let applyLoyaltyCredit = false; // whether the credit checkbox is checked
+  let selectedDeliveryMethod = 'delivery'; // 'delivery' | 'pickup' — students only
 
   const TEACHER_DISCOUNT = 0.25; // 25% off for all @nixaschools.net accounts
 
@@ -393,6 +410,11 @@
       document.getElementById('user-card').appendChild(badge);
     }
     if (profile?.last_room) document.getElementById('delivery-room').value = profile.last_room;
+
+    // Show pickup/delivery toggle for students (teachers always get free delivery)
+    if (!isTeacher()) {
+      document.getElementById('delivery-method-group').style.display = '';
+    }
 
     await Promise.all([loadMenu(), setupDeliveryPicker()]);
   }
@@ -687,11 +709,53 @@
         <div class="cart-item-price">${priceDisplay}</div>
       </div>`;
     }).join('');
-    document.getElementById('cart-total-val').textContent = `$${cartTotal().toFixed(2)}`;
+    const fee = deliveryFeeDollars();
+    const totalEl = document.getElementById('cart-total-val');
+    totalEl.textContent = `$${(cartTotal() + fee).toFixed(2)}`;
+    // Show/update delivery fee line below cart total
+    let feeEl = document.getElementById('cart-fee-line');
+    if (!feeEl) {
+      feeEl = document.createElement('div');
+      feeEl.id = 'cart-fee-line';
+      feeEl.className = 'delivery-fee-line';
+      feeEl.innerHTML = '<span>Delivery fee</span><span>$1.00</span>';
+      totalEl.closest('.cart-total').after(feeEl);
+    }
+    feeEl.style.display = fee > 0 ? 'flex' : 'none';
+  }
+
+  function deliveryFeeDollars() {
+    return (!isTeacher() && selectedDeliveryMethod === 'delivery') ? 1.00 : 0;
+  }
+
+  function setDeliveryMethod(method) {
+    selectedDeliveryMethod = method;
+    document.getElementById('btn-method-delivery').classList.toggle('active', method === 'delivery');
+    document.getElementById('btn-method-pickup').classList.toggle('active', method === 'pickup');
+
+    const roomInput = document.getElementById('delivery-room');
+    const pickupNote = document.getElementById('pickup-location-note');
+    const roomLabel = document.getElementById('room-label');
+
+    if (method === 'pickup') {
+      roomInput.style.display = 'none';
+      pickupNote.style.display = 'block';
+      roomLabel.textContent = 'Pickup Location';
+    } else {
+      roomInput.style.display = '';
+      pickupNote.style.display = 'none';
+      roomLabel.textContent = 'Room / Location';
+    }
+
+    // Update the step-2 total to reflect fee change
+    const fee = deliveryFeeDollars();
+    const feeEl = document.getElementById('cart-fee-line');
+    if (feeEl) feeEl.style.display = fee > 0 ? 'flex' : 'none';
+    document.getElementById('cart-total-val').textContent = `$${(cartTotal() + fee).toFixed(2)}`;
   }
 
   function chargeTotal() {
-    const base = cartTotal();
+    const base = cartTotal() + deliveryFeeDollars();
     if (!applyLoyaltyCredit || availableCreditCents <= 0) return base;
     const creditDollars = availableCreditCents / 100;
     return Math.max(0, base - creditDollars);
@@ -724,7 +788,8 @@
       : '';
 
     // Credit checkbox — only shown if the customer has credit available
-    const creditApplied = Math.min(availableCreditCents, Math.round(subtotal * 100)) / 100;
+    const totalWithFee = subtotal + deliveryFeeDollars();
+    const creditApplied = Math.min(availableCreditCents, Math.round(totalWithFee * 100)) / 100;
     const creditCheckbox = availableCreditCents > 0 ? `
       <div class="summary-line" style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid rgba(255,255,255,0.06)">
         <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.85rem;color:#f5c842">
@@ -739,9 +804,16 @@
         <span class="summary-val" style="color:#f5c842">−$${creditApplied.toFixed(2)}</span>
       </div>` : '';
 
+    const fee = deliveryFeeDollars();
+    const feeLine = fee > 0
+      ? `<div class="summary-line"><span class="summary-key" style="color:#aaa">🚚 Delivery fee</span><span class="summary-val">$${fee.toFixed(2)}</span></div>`
+      : '';
+    const isPickup = selectedDeliveryMethod === 'pickup';
+    const locationLabel = isPickup ? 'Pickup at' : 'Deliver to';
+    const locationVal = isPickup ? 'Birdhouse — Library' : (room || '—');
     const charge = chargeTotal();
-    document.getElementById('pay-summary-lines').innerHTML = lines + discountLine + creditCheckbox + `
-      <div class="summary-line"><span class="summary-key">Deliver to</span><span class="summary-val">${room || '—'}</span></div>
+    document.getElementById('pay-summary-lines').innerHTML = lines + discountLine + feeLine + creditCheckbox + `
+      <div class="summary-line"><span class="summary-key">${locationLabel}</span><span class="summary-val">${locationVal}</span></div>
       <div class="summary-line"><span class="summary-key">Date</span><span class="summary-val">${dateDisplay || '—'}</span></div>
       <div class="summary-line"><span class="summary-key">Time</span><span class="summary-val">${time || '—'}</span></div>
       <div class="summary-line"><span class="summary-key" style="font-weight:500">Total</span><span class="summary-val" id="pay-summary-total">$${charge.toFixed(2)}</span></div>`;
@@ -873,8 +945,11 @@
         selectedModifiers: c.selectedModifiers || [],
       }));
 
+      const isPickup = selectedDeliveryMethod === 'pickup';
+      const roomValue = isPickup ? 'Birdhouse — Library' : document.getElementById('delivery-room').value;
+      const totalWithFeeCents = Math.round((cartTotal() + deliveryFeeDollars()) * 100);
       const creditUsedCents = applyLoyaltyCredit
-        ? Math.min(availableCreditCents, Math.round(cartTotal() * 100))
+        ? Math.min(availableCreditCents, totalWithFeeCents)
         : 0;
 
       const res = await fetch(`${SUPABASE_URL}/functions/v1/process-payment`, {
@@ -885,13 +960,14 @@
           'apikey': SUPABASE_KEY,
         },
         body: JSON.stringify({
-          sourceId:  result.token,
+          sourceId:       result.token,
           cartItems,
-          userId:    currentUser.id,
+          userId:         currentUser.id,
           creditUsedCents,
+          deliveryMethod: selectedDeliveryMethod,
           customerInfo: {
             customerName: (firstName + ' ' + lastName).trim(),
-            room:         document.getElementById('delivery-room').value,
+            room:         roomValue,
             deliveryDay:  document.getElementById('delivery-date').value,
             deliveryDate: deliveryDatePicker?.selectedDates[0]
               ? (() => {
@@ -914,11 +990,18 @@
         applyLoyaltyCredit = false;
       }
 
-      // Save last used room to profile
-      const roomVal = document.getElementById('delivery-room').value.trim();
-      if (roomVal) {
-        await sb.from('profiles').upsert({ id: currentUser.id, last_room: roomVal }, { onConflict: 'id' });
+      // Save last used room to profile (only for delivery orders)
+      if (!isPickup) {
+        const roomVal = document.getElementById('delivery-room').value.trim();
+        if (roomVal) {
+          await sb.from('profiles').upsert({ id: currentUser.id, last_room: roomVal }, { onConflict: 'id' });
+        }
       }
+
+      // Update success message based on order type
+      document.getElementById('success-sub-msg').textContent = isPickup
+        ? 'Payment confirmed. Come pick up your order at the Birdhouse in the library!'
+        : 'Payment confirmed. Our team will get your order ready and deliver it to your room.';
 
       document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
       document.getElementById('panel-success').classList.add('active');
@@ -954,9 +1037,9 @@
       const room = document.getElementById('delivery-room').value.trim();
       const date = document.getElementById('delivery-date').value;
       const time = document.getElementById('delivery-time').value;
-      if (!room) { alert('Please enter your room or delivery location.'); return; }
-      if (!date) { alert('Please select a delivery date.'); return; }
-      if (!time) { alert('Please select a delivery time.'); return; }
+      if (selectedDeliveryMethod === 'delivery' && !room) { alert('Please enter your room or delivery location.'); return; }
+      if (!date) { alert('Please select a date.'); return; }
+      if (!time) { alert('Please select a time.'); return; }
       renderPaySummary();
     }
     document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));

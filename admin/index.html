@@ -398,7 +398,7 @@
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Date</th><th>Customer</th><th>Items</th><th>Room</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Date</th><th>Customer</th><th>Items</th><th>Delivery / Pickup</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
         <tbody id="orders-tbody"><tr class="loading-row"><td colspan="7">Loading…</td></tr></tbody>
       </table>
     </div>
@@ -1403,7 +1403,12 @@ function renderOrders(list) {
       <td style="color:var(--gray-mid);font-size:0.78rem">${new Date(o.created_at).toLocaleDateString()}</td>
       <td>${o.customer_name || '—'}</td>
       <td>${o.item_name || o.drink_name || '—'}</td>
-      <td>${o.delivery_room || '—'}</td>
+      <td>
+        ${o.delivery_method === 'pickup'
+          ? `<span class="pill pill-blue">🏠 Pickup</span>`
+          : `<span class="pill pill-gray">🚚 ${o.room || '—'}</span>`
+        }
+      </td>
       <td>$${(getOrderTotalCents(o)/100).toFixed(2)}</td>
       <td>${statusPill(o.status)}</td>
       <td>

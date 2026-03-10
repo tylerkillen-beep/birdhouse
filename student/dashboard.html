@@ -603,7 +603,10 @@
             ${order.special_instructions ? `<br><strong>Note:</strong> ${order.special_instructions}` : ''}
           </div>
           <div class="order-meta">
-            <strong>Deliver to:</strong> ${order.room||'—'} &nbsp;·&nbsp;
+            ${order.delivery_method === 'pickup'
+              ? `<strong>🏠 Pickup</strong> at Birdhouse — Library`
+              : `<strong>🚚 Deliver to:</strong> ${order.room||'—'}`
+            } &nbsp;·&nbsp;
             <strong>Time:</strong> ${order.delivery_time||'—'} &nbsp;·&nbsp;
             <strong>Day:</strong> ${order.delivery_day||'—'}
           </div>
