@@ -135,16 +135,29 @@
   async function init() {
     const {data:{session}} = await sb.auth.getSession();
     if(!session){window.location.href='index.html';return;}
-    currentUser = session.user;
+    // Use getUser() to fetch fresh server-side metadata so loyalty balances
+    // are always current (getSession() returns a stale local cache).
+    const { data: { user: freshUser } } = await sb.auth.getUser();
+    currentUser = freshUser || session.user;
     const meta = currentUser.user_metadata || {};
     const { data: profile } = await sb.from('profiles').select('full_name').eq('id', currentUser.id).maybeSingle();
     const { firstName, lastName } = resolveCustomerName(currentUser, profile);
     document.getElementById('user-display-name').textContent = (firstName + ' ' + lastName).trim();
-    document.getElementById('user-points-badge').textContent = (meta.loyalty_points || 0) + ' points';
-    await loadOrders();
+    const spendCents = meta.loyalty_spend_cents || 0;
+    const creditCents = meta.loyalty_credit_cents || 0;
+    const spendTowardNext = spendCents % 2500;
+    if (creditCents > 0) {
+      document.getElementById('user-points-badge').textContent = '$' + (creditCents / 100).toFixed(2) + ' credit available';
+    } else {
+      document.getElementById('user-points-badge').textContent = '$' + (spendTowardNext / 100).toFixed(2) + ' toward reward';
+    }
+    await loadOrders(meta);
   }
 
-  async function loadOrders() {
+  let userMeta = {};
+
+  async function loadOrders(meta) {
+    if (meta) userMeta = meta;
     const {data} = await sb.from('orders').select('*').eq('user_id', currentUser.id).order('created_at',{ascending:false});
     allOrders = data||[];
     renderSummary();
@@ -154,13 +167,14 @@
   function renderSummary() {
     const total     = allOrders.length;
     const delivered = allOrders.filter(o=>o.status==='delivered').length;
-    const points    = allOrders.reduce((s,o)=>s+(o.points_earned||0),0);
     const active    = allOrders.filter(o=>o.status==='pending'||o.status==='paid').length;
+    const creditCents = userMeta.loyalty_credit_cents || 0;
+    const creditDisplay = '$' + (creditCents / 100).toFixed(2);
     document.getElementById('summary-row').innerHTML = `
       <div class="summary-chip"><strong>${total}</strong>Total Orders</div>
       <div class="summary-chip"><strong>${delivered}</strong>Delivered</div>
       ${active?`<div class="summary-chip"><strong style="color:#ff9800">${active}</strong>In Progress</div>`:''}
-      <div class="summary-chip"><strong>${points}</strong>Points Earned</div>`;
+      <div class="summary-chip"><strong style="color:#f5c842">${creditDisplay}</strong>Credit Available</div>`;
   }
 
   function filterOrders(filter, btn) {
