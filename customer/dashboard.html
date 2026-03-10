@@ -135,7 +135,7 @@
     <div class="sidebar-logo"><a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a></div>
     <div class="user-card">
       <div class="user-name" id="user-display-name">Loading...</div>
-      <div class="user-points" id="user-points-badge">0 points</div>
+      <div class="user-points" id="user-points-badge">$0.00 toward reward</div>
     </div>
     <nav>
       <a class="nav-item active" onclick="showSection('overview',this)">📊 Overview</a>
@@ -156,9 +156,9 @@
 
       <div class="stats-grid">
         <div class="stat-card">
-          <div class="stat-label">Loyalty Points</div>
-          <div class="stat-value" id="stat-points">0</div>
-          <div class="stat-sub">Next reward at 100 pts</div>
+          <div class="stat-label">Toward Next Reward</div>
+          <div class="stat-value" id="stat-points">$0.00</div>
+          <div class="stat-sub" id="stat-points-sub">$25.00 to earn $3 credit</div>
           <div class="points-bar"><div class="points-fill" id="points-fill" style="width:0%"></div></div>
         </div>
         <div class="stat-card">
@@ -207,26 +207,26 @@
     <!-- ── Loyalty ───────────────────────────────────────────────────────── -->
     <div id="section-loyalty" style="display:none">
       <div class="page-eyebrow">Rewards</div>
-      <h1 class="page-title">Loyalty Points</h1>
+      <h1 class="page-title">Loyalty Rewards</h1>
       <div class="stats-grid">
         <div class="stat-card">
-          <div class="stat-label">Current Points</div>
-          <div class="stat-value" id="loyalty-points">0</div>
-          <div class="stat-sub">1 point per drink</div>
+          <div class="stat-label">Toward Next Credit</div>
+          <div class="stat-value" id="loyalty-spend-progress">$0.00</div>
+          <div class="stat-sub">of $25.00</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">To Next Reward</div>
-          <div class="stat-value" id="loyalty-to-reward">100</div>
-          <div class="stat-sub">Free drink at 100 pts</div>
+          <div class="stat-label">Available Credit</div>
+          <div class="stat-value" id="loyalty-credit-balance" style="color:var(--gold)">$0.00</div>
+          <div class="stat-sub">Apply at checkout</div>
         </div>
       </div>
       <div class="reward-track">
         <div class="reward-track-label">
-          <span id="loyalty-bar-label">0 / 100 points</span>
-          <span>🎁 Free drink</span>
+          <span id="loyalty-bar-label">$0.00 / $25.00</span>
+          <span>🎁 $3 credit</span>
         </div>
         <div class="reward-bar"><div class="reward-fill" id="loyalty-bar-fill" style="width:0%"></div></div>
-        <p class="reward-desc">Earn 1 point for every drink — one-off orders and subscription deliveries both count. Hit 100 points and your next drink is on us.</p>
+        <p class="reward-desc">Every $25 you spend on menu orders earns a $3 credit. Credits apply to any menu item at checkout — if your item costs more than the credit, you pay the difference. Credits don't apply to subscriptions, and subscription payments don't count toward earning credits.</p>
       </div>
     </div>
 
@@ -300,15 +300,27 @@
       document.getElementById('user-card').appendChild(badge);
     }
 
-    // Points
-    const points = meta.loyalty_points || 0;
-    document.getElementById('user-points-badge').textContent   = points + ' points';
-    document.getElementById('stat-points').textContent         = points;
-    document.getElementById('loyalty-points').textContent      = points;
-    document.getElementById('loyalty-to-reward').textContent   = Math.max(0, 100 - (points % 100));
-    document.getElementById('points-fill').style.width         = Math.min(100, points % 100) + '%';
-    document.getElementById('loyalty-bar-fill').style.width    = Math.min(100, points % 100) + '%';
-    document.getElementById('loyalty-bar-label').textContent   = `${points % 100} / 100 points`;
+    // Loyalty: spend-based credit system
+    const spendCents  = meta.loyalty_spend_cents  || 0;
+    const creditCents = meta.loyalty_credit_cents || 0;
+    const spendTowardNext = spendCents % 2500; // cents within current $25 window
+    const pct = Math.min(100, Math.round((spendTowardNext / 2500) * 100));
+    const spendDisplay  = '$' + (spendTowardNext / 100).toFixed(2);
+    const creditDisplay = '$' + (creditCents / 100).toFixed(2);
+
+    if (creditCents > 0) {
+      document.getElementById('user-points-badge').textContent = creditDisplay + ' credit available';
+    } else {
+      document.getElementById('user-points-badge').textContent = spendDisplay + ' toward reward';
+    }
+    document.getElementById('stat-points').textContent     = spendDisplay;
+    document.getElementById('stat-points-sub').textContent = `$${((2500 - spendTowardNext) / 100).toFixed(2)} to earn $3 credit`;
+    document.getElementById('points-fill').style.width     = pct + '%';
+
+    document.getElementById('loyalty-spend-progress').textContent = spendDisplay;
+    document.getElementById('loyalty-credit-balance').textContent = creditDisplay;
+    document.getElementById('loyalty-bar-fill').style.width       = pct + '%';
+    document.getElementById('loyalty-bar-label').textContent      = `${spendDisplay} / $25.00`;
 
     await Promise.all([loadSubscription(), loadOrders()]);
   }
@@ -576,7 +588,8 @@
           <div class="order-meta">${dateStr} · Room ${o.room || '—'}${o.delivery_time ? ' · ' + o.delivery_time : ''}</div>
         </div>
         <div class="order-right">
-          <div class="order-points">+${o.points_earned || 1} pt</div>
+          ${o.total_amount ? `<div class="order-points">$${Number(o.total_amount).toFixed(2)}</div>` : ''}
+          ${o.credit_used_cents > 0 ? `<div style="font-size:0.75rem;color:var(--gold)">⭐ $${(o.credit_used_cents/100).toFixed(2)} credit used</div>` : ''}
           <div class="order-status${isSub ? ' sub' : ''}">${isSub ? '📦 Subscription' : '☕ One-off'}</div>
         </div>
       </div>`;
