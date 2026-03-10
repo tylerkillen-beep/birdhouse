@@ -361,16 +361,16 @@
     currentUser  = freshUser || session.user;
     const meta = currentUser.user_metadata;
 
-    // Load profile for location + last_room + name fallback
-    const { data: profile } = await sb.from('profiles').select('location, last_room, full_name').eq('id', currentUser.id).maybeSingle();
+    // Load profile for location + last_room + name fallback + loyalty totals
+    const { data: profile } = await sb.from('profiles').select('location, last_room, full_name, loyalty_spend_cents, loyalty_credit_cents').eq('id', currentUser.id).maybeSingle();
     customerProfile = profile;
     customerType    = getCustomerType(currentUser.email, profile);
 
     const { firstName, lastName } = resolveCustomerName(currentUser, profile);
     document.getElementById('user-display-name').textContent = (firstName + ' ' + lastName).trim();
-    // Loyalty credit balance
-    availableCreditCents = meta.loyalty_credit_cents || 0;
-    const spendCents = meta.loyalty_spend_cents || 0;
+    // Loyalty credit balance — prefer profiles (authoritative) over user_metadata
+    availableCreditCents = profile?.loyalty_credit_cents ?? meta.loyalty_credit_cents ?? 0;
+    const spendCents = profile?.loyalty_spend_cents ?? meta.loyalty_spend_cents ?? 0;
     const spendTowardNext = spendCents % 2500;
     const creditDollars = (availableCreditCents / 100).toFixed(2);
     const spendRemaining = ((2500 - spendTowardNext) / 100).toFixed(2);

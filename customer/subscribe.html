@@ -429,15 +429,15 @@
     currentUser  = freshUser || session.user;
     const meta = currentUser.user_metadata || {};
 
-    // Load profile for customer type and location defaults
-    const { data: profile } = await sb.from('profiles').select('location, last_room, full_name').eq('id', currentUser.id).maybeSingle();
+    // Load profile for customer type and location defaults + loyalty totals
+    const { data: profile } = await sb.from('profiles').select('location, last_room, full_name, loyalty_spend_cents, loyalty_credit_cents').eq('id', currentUser.id).maybeSingle();
     customerProfile = profile;
     customerType    = getCustomerType(currentUser.email, profile);
 
     const { firstName, lastName } = resolveCustomerName(currentUser, profile);
     document.getElementById('user-display-name').textContent = (firstName + ' ' + lastName).trim();
-    const spendCents = meta.loyalty_spend_cents || 0;
-    const creditCents = meta.loyalty_credit_cents || 0;
+    const spendCents = profile?.loyalty_spend_cents ?? meta.loyalty_spend_cents ?? 0;
+    const creditCents = profile?.loyalty_credit_cents ?? meta.loyalty_credit_cents ?? 0;
     const spendTowardNext = spendCents % 2500;
     if (creditCents > 0) {
       document.getElementById('user-points-badge').textContent = '$' + (creditCents / 100).toFixed(2) + ' credit available';

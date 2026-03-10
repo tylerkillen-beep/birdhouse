@@ -140,23 +140,25 @@
     const { data: { user: freshUser } } = await sb.auth.getUser();
     currentUser = freshUser || session.user;
     const meta = currentUser.user_metadata || {};
-    const { data: profile } = await sb.from('profiles').select('full_name').eq('id', currentUser.id).maybeSingle();
+    const { data: profile } = await sb.from('profiles').select('full_name, loyalty_spend_cents, loyalty_credit_cents').eq('id', currentUser.id).maybeSingle();
     const { firstName, lastName } = resolveCustomerName(currentUser, profile);
     document.getElementById('user-display-name').textContent = (firstName + ' ' + lastName).trim();
-    const spendCents = meta.loyalty_spend_cents || 0;
-    const creditCents = meta.loyalty_credit_cents || 0;
+    const spendCents = profile?.loyalty_spend_cents ?? meta.loyalty_spend_cents ?? 0;
+    const creditCents = profile?.loyalty_credit_cents ?? meta.loyalty_credit_cents ?? 0;
     const spendTowardNext = spendCents % 2500;
     if (creditCents > 0) {
       document.getElementById('user-points-badge').textContent = '$' + (creditCents / 100).toFixed(2) + ' credit available';
     } else {
       document.getElementById('user-points-badge').textContent = '$' + (spendTowardNext / 100).toFixed(2) + ' toward reward';
     }
-    await loadOrders(meta);
+    await loadOrders(profile, meta);
   }
 
+  let userProfile = {};
   let userMeta = {};
 
-  async function loadOrders(meta) {
+  async function loadOrders(profile, meta) {
+    if (profile) userProfile = profile;
     if (meta) userMeta = meta;
     const {data} = await sb.from('orders').select('*').eq('user_id', currentUser.id).order('created_at',{ascending:false});
     allOrders = data||[];
@@ -168,7 +170,7 @@
     const total     = allOrders.length;
     const delivered = allOrders.filter(o=>o.status==='delivered').length;
     const active    = allOrders.filter(o=>o.status==='pending'||o.status==='paid').length;
-    const creditCents = userMeta.loyalty_credit_cents || 0;
+    const creditCents = userProfile?.loyalty_credit_cents ?? userMeta.loyalty_credit_cents ?? 0;
     const creditDisplay = '$' + (creditCents / 100).toFixed(2);
     document.getElementById('summary-row').innerHTML = `
       <div class="summary-chip"><strong>${total}</strong>Total Orders</div>

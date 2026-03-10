@@ -106,8 +106,19 @@ serve(async (req) => {
     if (orderTotalCents <= 0) throw new Error("Order total must be greater than zero");
 
     // ── Validate and apply loyalty credit ─────────────────────────────────
+    // Read authoritative loyalty state from the profiles table.  user_metadata
+    // can be stale or absent for accounts that predate the loyalty system;
+    // profiles is the canonical source kept in sync by this function and
+    // backfilled from historical orders via migration.
     const meta = user.user_metadata || {};
-    const availableCreditCents: number = meta.loyalty_credit_cents || 0;
+    const { data: profileLoyalty } = await supabase
+      .from("profiles")
+      .select("loyalty_spend_cents, loyalty_credit_cents")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    const availableCreditCents: number =
+      profileLoyalty?.loyalty_credit_cents ?? meta.loyalty_credit_cents ?? 0;
 
     const creditUsedCents = Math.max(0, Math.min(
       Math.round(rawCreditUsed || 0),
@@ -213,8 +224,10 @@ serve(async (req) => {
 
     // ── Update loyalty metadata ────────────────────────────────────────────
     // Spend tracks the full order total (pre-credit) so using credits doesn't
-    // slow down future earning.
-    const oldSpendCents: number = meta.loyalty_spend_cents || 0;
+    // slow down future earning.  Use the profiles value (authoritative) as the
+    // baseline so historical orders are counted correctly.
+    const oldSpendCents: number =
+      profileLoyalty?.loyalty_spend_cents ?? meta.loyalty_spend_cents ?? 0;
     const newSpendCents = oldSpendCents + orderTotalCents;
 
     const creditsAlreadyEarned = Math.floor(oldSpendCents / SPEND_THRESHOLD_CENTS) * CREDIT_REWARD_CENTS;
