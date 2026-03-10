@@ -284,7 +284,7 @@
     sessionToken = session.access_token;
 
     // Load profile for customer type and name fallback
-    const { data: profile } = await sb.from('profiles').select('location, full_name').eq('id', currentUser.id).maybeSingle();
+    const { data: profile } = await sb.from('profiles').select('location, full_name, loyalty_spend_cents, loyalty_credit_cents').eq('id', currentUser.id).maybeSingle();
     customerType = getCustomerType(currentUser.email, profile);
 
     const meta = currentUser.user_metadata || {};
@@ -301,8 +301,9 @@
     }
 
     // Loyalty: spend-based credit system
-    const spendCents  = meta.loyalty_spend_cents  || 0;
-    const creditCents = meta.loyalty_credit_cents || 0;
+    // Prefer profiles table (always fresh) over cached session metadata
+    const spendCents  = profile?.loyalty_spend_cents  ?? meta.loyalty_spend_cents  ?? 0;
+    const creditCents = profile?.loyalty_credit_cents ?? meta.loyalty_credit_cents ?? 0;
     const spendTowardNext = spendCents % 2500; // cents within current $25 window
     const pct = Math.min(100, Math.round((spendTowardNext / 2500) * 100));
     const spendDisplay  = '$' + (spendTowardNext / 100).toFixed(2);
