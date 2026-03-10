@@ -422,8 +422,11 @@
       window.location.href = 'index.html?redirect=subscribe.html';
       return;
     }
-    currentUser  = session.user;
     sessionToken = session.access_token;
+    // Use getUser() to fetch fresh server-side metadata so loyalty balances
+    // are always current (getSession() returns a stale local cache).
+    const { data: { user: freshUser } } = await sb.auth.getUser();
+    currentUser  = freshUser || session.user;
     const meta = currentUser.user_metadata || {};
 
     // Load profile for customer type and location defaults
@@ -433,7 +436,14 @@
 
     const { firstName, lastName } = resolveCustomerName(currentUser, profile);
     document.getElementById('user-display-name').textContent = (firstName + ' ' + lastName).trim();
-    document.getElementById('user-points-badge').textContent = (meta.loyalty_points || 0) + ' points';
+    const spendCents = meta.loyalty_spend_cents || 0;
+    const creditCents = meta.loyalty_credit_cents || 0;
+    const spendTowardNext = spendCents % 2500;
+    if (creditCents > 0) {
+      document.getElementById('user-points-badge').textContent = '$' + (creditCents / 100).toFixed(2) + ' credit available';
+    } else {
+      document.getElementById('user-points-badge').textContent = '$' + (spendTowardNext / 100).toFixed(2) + ' toward reward';
+    }
     document.getElementById('page-greeting').textContent = 'Hello, ' + firstName + '.';
 
     // Show teacher badge

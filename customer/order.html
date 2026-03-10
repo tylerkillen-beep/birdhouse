@@ -354,8 +354,11 @@
   async function init() {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) { const err = new Error('No active session'); err.name = 'AuthSessionMissingError'; throw err; }
-    currentUser  = session.user;
     sessionToken = session.access_token;
+    // Use getUser() to fetch fresh server-side metadata so loyalty balances
+    // are always current (getSession() returns a stale local cache).
+    const { data: { user: freshUser } } = await sb.auth.getUser();
+    currentUser  = freshUser || session.user;
     const meta = currentUser.user_metadata;
 
     // Load profile for location + last_room + name fallback
