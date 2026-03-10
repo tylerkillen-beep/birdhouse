@@ -159,15 +159,13 @@ serve(async (req) => {
       if (!firstVarId) skippedNoVariation += 1;
       const priceCents = firstVarId ? (variations.get(firstVarId) || 0) : 0;
 
-      const payload = {
+      // Fields sourced from Square — always synced for both new and existing items
+      const squarePayload = {
         name: item.item_data?.name || "Untitled",
         description: item.item_data?.description || "",
         category: categories.get(item.item_data?.category_id || "") || "Coffee",
         base_price_cents: priceCents,
         base_price: (priceCents / 100).toFixed(2),
-        available: true,
-        is_hot: true,
-        is_iced: false,
         square_item_id: item.id,
       };
 
@@ -184,7 +182,9 @@ serve(async (req) => {
       }
 
       if (existing?.id) {
-        const { error } = await serviceClient.from("menu_items").update(payload).eq("id", existing.id);
+        // Only update Square-sourced fields — preserve frontend settings like
+        // available, is_hot, is_iced, and sort_order that admins have customized.
+        const { error } = await serviceClient.from("menu_items").update(squarePayload).eq("id", existing.id);
         if (!error) {
           updated += 1;
         } else {
@@ -201,7 +201,7 @@ serve(async (req) => {
         const sort_order = (maxSortRow?.sort_order || 0) + 1;
         const { error } = await serviceClient
           .from("menu_items")
-          .insert({ ...payload, sort_order, square_modifier_list_ids: [] });
+          .insert({ ...squarePayload, available: true, is_hot: true, is_iced: false, sort_order, square_modifier_list_ids: [] });
         if (!error) {
           inserted += 1;
         } else {
