@@ -313,6 +313,8 @@
   let blockedDatesSet = new Set();
   let blockedReasonsMap = {};
   let deliveryDatePicker = null;
+  let availableCreditCents = 0; // current loyalty credit balance
+  let applyLoyaltyCredit = false; // whether the credit checkbox is checked
 
   const TEACHER_DISCOUNT = 0.25; // 25% off for all @nixaschools.net accounts
 
@@ -363,7 +365,17 @@
 
     const { firstName, lastName } = resolveCustomerName(currentUser, profile);
     document.getElementById('user-display-name').textContent = (firstName + ' ' + lastName).trim();
-    document.getElementById('user-points-badge').textContent = (meta.loyalty_points || 0) + ' points';
+    // Loyalty credit balance
+    availableCreditCents = meta.loyalty_credit_cents || 0;
+    const spendCents = meta.loyalty_spend_cents || 0;
+    const spendTowardNext = spendCents % 2500;
+    const creditDollars = (availableCreditCents / 100).toFixed(2);
+    const spendRemaining = ((2500 - spendTowardNext) / 100).toFixed(2);
+    if (availableCreditCents > 0) {
+      document.getElementById('user-points-badge').textContent = `$${creditDollars} credit available`;
+    } else {
+      document.getElementById('user-points-badge').textContent = `$${((spendTowardNext)/100).toFixed(2)} / $25 toward reward`;
+    }
     const userCard = document.getElementById('user-card');
     document.getElementById('user-points-badge').style.display = 'block';
     document.getElementById('guest-signin-cta').style.display = 'none';
@@ -675,6 +687,21 @@
     document.getElementById('cart-total-val').textContent = `$${cartTotal().toFixed(2)}`;
   }
 
+  function chargeTotal() {
+    const base = cartTotal();
+    if (!applyLoyaltyCredit || availableCreditCents <= 0) return base;
+    const creditDollars = availableCreditCents / 100;
+    return Math.max(0, base - creditDollars);
+  }
+
+  function toggleLoyaltyCredit(checked) {
+    applyLoyaltyCredit = checked;
+    const charge = chargeTotal();
+    document.getElementById('pay-credit-line').style.display = checked ? 'flex' : 'none';
+    document.getElementById('pay-summary-total').textContent = `$${charge.toFixed(2)}`;
+    document.getElementById('pay-btn-amount').textContent = charge > 0 ? `$${charge.toFixed(2)}` : 'Free';
+  }
+
   function renderPaySummary() {
     const lines = cart.map(c => {
       const modsLabel = c.selectedModifiers?.length
@@ -688,16 +715,34 @@
     const room = document.getElementById('delivery-room').value;
     const dateDisplay = document.getElementById('delivery-date').value;
     const time = document.getElementById('delivery-time').value;
-    const total = cartTotal();
+    const subtotal = cartTotal();
     const discountLine = isTeacher()
       ? `<div class="summary-line"><span class="summary-key" style="color:#f5c842">🍎 Teacher Discount (25%)</span><span class="summary-val" style="color:#f5c842">applied</span></div>`
       : '';
-    document.getElementById('pay-summary-lines').innerHTML = lines + discountLine + `
+
+    // Credit checkbox — only shown if the customer has credit available
+    const creditApplied = Math.min(availableCreditCents, Math.round(subtotal * 100)) / 100;
+    const creditCheckbox = availableCreditCents > 0 ? `
+      <div class="summary-line" style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid rgba(255,255,255,0.06)">
+        <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.85rem;color:#f5c842">
+          <input type="checkbox" id="credit-checkbox" onchange="toggleLoyaltyCredit(this.checked)"
+            style="accent-color:#f5c842;width:16px;height:16px;cursor:pointer"
+            ${applyLoyaltyCredit ? 'checked' : ''}>
+          Apply $${(availableCreditCents / 100).toFixed(2)} loyalty credit
+        </label>
+      </div>
+      <div class="summary-line" id="pay-credit-line" style="display:${applyLoyaltyCredit ? 'flex' : 'none'}">
+        <span class="summary-key" style="color:#f5c842">⭐ Loyalty Credit</span>
+        <span class="summary-val" style="color:#f5c842">−$${creditApplied.toFixed(2)}</span>
+      </div>` : '';
+
+    const charge = chargeTotal();
+    document.getElementById('pay-summary-lines').innerHTML = lines + discountLine + creditCheckbox + `
       <div class="summary-line"><span class="summary-key">Deliver to</span><span class="summary-val">${room || '—'}</span></div>
       <div class="summary-line"><span class="summary-key">Date</span><span class="summary-val">${dateDisplay || '—'}</span></div>
       <div class="summary-line"><span class="summary-key">Time</span><span class="summary-val">${time || '—'}</span></div>
-      <div class="summary-line"><span class="summary-key">Total</span><span class="summary-val">$${total.toFixed(2)}</span></div>`;
-    document.getElementById('pay-btn-amount').textContent = `$${total.toFixed(2)}`;
+      <div class="summary-line"><span class="summary-key" style="font-weight:500">Total</span><span class="summary-val" id="pay-summary-total">$${charge.toFixed(2)}</span></div>`;
+    document.getElementById('pay-btn-amount').textContent = charge > 0 ? `$${charge.toFixed(2)}` : 'Free';
   }
 
   // ── Delivery Date + Time Picker ───────────────────────────────────────────
@@ -825,6 +870,10 @@
         selectedModifiers: c.selectedModifiers || [],
       }));
 
+      const creditUsedCents = applyLoyaltyCredit
+        ? Math.min(availableCreditCents, Math.round(cartTotal() * 100))
+        : 0;
+
       const res = await fetch(`${SUPABASE_URL}/functions/v1/process-payment`, {
         method: 'POST',
         headers: {
@@ -836,6 +885,7 @@
           sourceId:  result.token,
           cartItems,
           userId:    currentUser.id,
+          creditUsedCents,
           customerInfo: {
             customerName: (firstName + ' ' + lastName).trim(),
             room:         document.getElementById('delivery-room').value,
@@ -855,8 +905,11 @@
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Payment failed');
 
-      // Award loyalty points
-      await sb.auth.updateUser({ data: { loyalty_points: (meta.loyalty_points || 0) + cartCount() } });
+      // Loyalty metadata is updated server-side; refresh local state from the response
+      if (data.loyaltyUpdate) {
+        availableCreditCents = data.loyaltyUpdate.newCreditBalance;
+        applyLoyaltyCredit = false;
+      }
 
       // Save last used room to profile
       const roomVal = document.getElementById('delivery-room').value.trim();
@@ -873,7 +926,8 @@
       errEl.textContent = err.message;
       errEl.style.display = 'block';
       btn.disabled = false;
-      btn.innerHTML = `💳 Pay <span id="pay-btn-amount">$${cartTotal().toFixed(2)}</span>`;
+      const errCharge = chargeTotal();
+      btn.innerHTML = `💳 Pay <span id="pay-btn-amount">${errCharge > 0 ? '$' + errCharge.toFixed(2) : 'Free'}</span>`;
     }
   }
 

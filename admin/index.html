@@ -543,7 +543,7 @@
     <div class="page-header"><h1>Customers</h1><p>View all customer accounts</p></div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Name</th><th>Email</th><th>Points</th><th>Orders</th><th>Joined</th></tr></thead>
+        <thead><tr><th>Name</th><th>Email</th><th>Loyalty</th><th>Orders</th><th>Joined</th></tr></thead>
         <tbody id="customers-tbody"><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
       </table>
     </div>
@@ -1920,14 +1920,21 @@ async function loadCustomers() {
   const { data } = await sb.from('profiles').select('*').order('created_at', { ascending: false }).limit(300);
   const tbody = document.getElementById('customers-tbody');
   if (!data?.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray);padding:2rem">No customers yet.</td></tr>'; return; }
-  tbody.innerHTML = (data||[]).map(c => `
+  tbody.innerHTML = (data||[]).map(c => {
+    const spendCents  = c.loyalty_spend_cents  || 0;
+    const creditCents = c.loyalty_credit_cents || 0;
+    const spendTowardNext = spendCents % 2500;
+    const creditDisplay = creditCents > 0 ? `<span style="color:#f5c842">$${(creditCents/100).toFixed(2)} credit</span>` : '—';
+    const spendDisplay  = `$${(spendTowardNext/100).toFixed(2)} / $25`;
+    return `
     <tr>
       <td>${c.full_name || '—'}</td>
       <td style="color:var(--gray-mid)">${c.email||'—'}</td>
-      <td>${c.loyalty_points ?? 0}</td>
+      <td style="font-size:0.82rem">${creditDisplay}<br/><span style="color:var(--gray-mid);font-size:0.75rem">${spendDisplay} toward next</span></td>
       <td style="color:var(--gray-mid)">${c.order_count ?? 0}</td>
       <td style="color:var(--gray-mid);font-size:0.78rem">${new Date(c.created_at).toLocaleDateString()}</td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 }
 
 // ════════════════════════════════════

@@ -6,7 +6,14 @@
 //   SQUARE_LOCATION_ID   — your Square location ID (matches environment)
 //
 // The function receives the Square card token from the frontend, charges the
-// card for the full cart total, then records the order in the `orders` table.
+// card for the full cart total (minus any loyalty credit applied), records the
+// order in the `orders` table, and updates the customer's loyalty metadata.
+//
+// Loyalty system:
+//   - $25 spent on menu orders (non-subscription) earns a $3 credit
+//   - Credits accumulate; multiple can be used at once
+//   - Subscriptions are excluded from earning and using credits
+//   - User metadata fields: loyalty_spend_cents (cumulative), loyalty_credit_cents (available)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -17,6 +24,10 @@ const CORS = {
 };
 
 const JSON_HEADERS = { ...CORS, "Content-Type": "application/json" };
+
+// Loyalty constants
+const SPEND_THRESHOLD_CENTS = 2500; // $25.00
+const CREDIT_REWARD_CENTS   = 300;  // $3.00
 
 function getSquareBaseUrl() {
   const env = (Deno.env.get("SQUARE_ENV") || "production").toLowerCase();
@@ -46,7 +57,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
   try {
-    const { sourceId, cartItems, userId, customerInfo } = await req.json();
+    const { sourceId, cartItems, userId, customerInfo, creditUsedCents: rawCreditUsed } = await req.json();
 
     // ── Validate auth ──────────────────────────────────────────────────────
     const accessToken = getBearerToken(req);
@@ -78,7 +89,7 @@ serve(async (req) => {
     if (user.id !== userId) return fail("User mismatch", 403);
     if (!customerInfo?.room) throw new Error("Delivery room is required");
 
-    // ── Calculate total ────────────────────────────────────────────────────
+    // ── Calculate order total ──────────────────────────────────────────────
     interface CartItem {
       id: string;
       name: string;
@@ -88,70 +99,80 @@ serve(async (req) => {
     }
 
     const items: CartItem[] = cartItems;
-    const totalCents = Math.round(
+    const orderTotalCents = Math.round(
       items.reduce((sum, item) => sum + item.price * item.quantity, 0) * 100
     );
 
-    if (totalCents <= 0) throw new Error("Order total must be greater than zero");
+    if (orderTotalCents <= 0) throw new Error("Order total must be greater than zero");
 
-    // ── Charge via Square API ───────────────────────────────────────────
-    const squareToken = Deno.env.get("SQUARE_ACCESS_TOKEN");
-    const locationId = Deno.env.get("SQUARE_LOCATION_ID");
+    // ── Validate and apply loyalty credit ─────────────────────────────────
+    const meta = user.user_metadata || {};
+    const availableCreditCents: number = meta.loyalty_credit_cents || 0;
 
-    if (!squareToken || !locationId) {
-      throw new Error("Square credentials not configured — contact admin");
-    }
+    const creditUsedCents = Math.max(0, Math.min(
+      Math.round(rawCreditUsed || 0),
+      availableCreditCents,
+      orderTotalCents
+    ));
 
-    const squareBaseUrl = getSquareBaseUrl();
-    const squareRes = await fetch(`${squareBaseUrl}/v2/payments`, {
-      method: "POST",
-      headers: {
-        "Square-Version": "2024-01-18",
-        "Authorization": `Bearer ${squareToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        source_id: sourceId,
-        idempotency_key: crypto.randomUUID(),
-        amount_money: { amount: totalCents, currency: "USD" },
-        location_id: locationId,
-        note: `Birdhouse — ${customerInfo.customerName} — Room ${customerInfo.room}`,
-      }),
-    });
+    const chargeAmountCents = orderTotalCents - creditUsedCents;
 
-    const squareData = await squareRes.json();
+    // ── Charge via Square (skip if fully covered by credit) ────────────────
+    let squarePaymentId: string | null = null;
 
-    if (!squareRes.ok || squareData.errors?.length) {
-      const err = squareData.errors?.[0];
-      // Log the full error so admins can diagnose credential/environment issues
-      // via Supabase Edge Function logs.
-      console.error("Square payment error:", {
-        category: err?.category,
-        code: err?.code,
-        detail: err?.detail,
-        field: err?.field,
-        squareEnv: Deno.env.get("SQUARE_ENV") || "production",
-        locationId,
-      });
+    if (chargeAmountCents > 0) {
+      const squareToken = Deno.env.get("SQUARE_ACCESS_TOKEN");
+      const locationId = Deno.env.get("SQUARE_LOCATION_ID");
 
-      // AUTHENTICATION_ERROR means the access token or environment is wrong —
-      // e.g. a sandbox token used against production, or mismatched location ID.
-      if (err?.category === "AUTHENTICATION_ERROR") {
-        throw new Error(
-          "Square credentials are misconfigured. Check SQUARE_ACCESS_TOKEN, SQUARE_LOCATION_ID, and SQUARE_ENV in Supabase secrets."
-        );
+      if (!squareToken || !locationId) {
+        throw new Error("Square credentials not configured — contact admin");
       }
 
-      throw new Error(err?.detail ?? "Payment declined");
-    }
+      const squareBaseUrl = getSquareBaseUrl();
+      const squareRes = await fetch(`${squareBaseUrl}/v2/payments`, {
+        method: "POST",
+        headers: {
+          "Square-Version": "2024-01-18",
+          "Authorization": `Bearer ${squareToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          source_id: sourceId,
+          idempotency_key: crypto.randomUUID(),
+          amount_money: { amount: chargeAmountCents, currency: "USD" },
+          location_id: locationId,
+          note: `Birdhouse — ${customerInfo.customerName} — Room ${customerInfo.room}`,
+        }),
+      });
 
-    const squarePaymentId: string = squareData.payment.id;
+      const squareData = await squareRes.json();
+
+      if (!squareRes.ok || squareData.errors?.length) {
+        const err = squareData.errors?.[0];
+        console.error("Square payment error:", {
+          category: err?.category,
+          code: err?.code,
+          detail: err?.detail,
+          field: err?.field,
+          squareEnv: Deno.env.get("SQUARE_ENV") || "production",
+          locationId,
+        });
+
+        if (err?.category === "AUTHENTICATION_ERROR") {
+          throw new Error(
+            "Square credentials are misconfigured. Check SQUARE_ACCESS_TOKEN, SQUARE_LOCATION_ID, and SQUARE_ENV in Supabase secrets."
+          );
+        }
+
+        throw new Error(err?.detail ?? "Payment declined");
+      }
+
+      squarePaymentId = squareData.payment.id;
+    }
 
     // ── Insert order into Supabase ─────────────────────────────────────────
     const totalAmount = items.reduce((s, i) => s + i.price * i.quantity, 0);
-    const pointsEarned = items.reduce((s, i) => s + i.quantity, 0);
 
-    // Human-readable summary name for the order (used in legacy single-drink display)
     const drinkName =
       items.length === 1
         ? `${items[0].name} (${items[0].temp === "iced" ? "Iced" : "Hot"})`
@@ -174,28 +195,62 @@ serve(async (req) => {
         delivery_time: customerInfo.deliveryTime,
         special_instructions: customerInfo.notes || null,
         status: "paid",
-        points_earned: pointsEarned,
+        points_earned: 0,
+        credit_used_cents: creditUsedCents,
         square_payment_id: squarePaymentId,
       })
       .select()
       .single();
 
     if (dbError) {
-      // Payment went through but the DB write failed.
-      // Log it so the admin can reconcile via Square dashboard.
       console.error("DB insert failed after successful payment:", dbError, {
         squarePaymentId,
         userId,
         totalAmount,
       });
-      return ok({
-        success: true,
-        orderId: null,
-        warning: "Payment accepted — order may take a moment to appear. Contact staff if it doesn't.",
-      });
+      // Still update loyalty even if order record fails
     }
 
-    return ok({ success: true, orderId: order.id });
+    // ── Update loyalty metadata ────────────────────────────────────────────
+    // Spend tracks the full order total (pre-credit) so using credits doesn't
+    // slow down future earning.
+    const oldSpendCents: number = meta.loyalty_spend_cents || 0;
+    const newSpendCents = oldSpendCents + orderTotalCents;
+
+    const creditsAlreadyEarned = Math.floor(oldSpendCents / SPEND_THRESHOLD_CENTS) * CREDIT_REWARD_CENTS;
+    const creditsNowEarned     = Math.floor(newSpendCents / SPEND_THRESHOLD_CENTS) * CREDIT_REWARD_CENTS;
+    const newCreditsAwarded    = creditsNowEarned - creditsAlreadyEarned;
+
+    const newCreditBalance = Math.max(0, availableCreditCents - creditUsedCents + newCreditsAwarded);
+
+    await supabase.auth.admin.updateUserById(userId, {
+      user_metadata: {
+        ...meta,
+        loyalty_spend_cents:  newSpendCents,
+        loyalty_credit_cents: newCreditBalance,
+        // Clear old points field so the UI doesn't show stale data
+        loyalty_points: undefined,
+      },
+    });
+
+    // Sync loyalty totals to profiles table so the admin panel can display them
+    await supabase
+      .from("profiles")
+      .upsert(
+        { id: userId, loyalty_spend_cents: newSpendCents, loyalty_credit_cents: newCreditBalance },
+        { onConflict: "id" }
+      );
+
+    return ok({
+      success: true,
+      orderId: order?.id ?? null,
+      ...(dbError ? { warning: "Payment accepted — order may take a moment to appear. Contact staff if it doesn't." } : {}),
+      loyaltyUpdate: {
+        newSpendCents,
+        newCreditBalance,
+        newCreditsAwarded,
+      },
+    });
   } catch (err) {
     console.error("process-payment error:", err);
     return fail(err instanceof Error ? err.message : "An unexpected error occurred");
