@@ -909,6 +909,17 @@
       if (data.loyaltyUpdate) {
         availableCreditCents = data.loyaltyUpdate.newCreditBalance;
         applyLoyaltyCredit = false;
+        // Update the sidebar badge immediately so it's correct without a reload
+        const newSpend = data.loyaltyUpdate.newSpendCents;
+        const newCredit = data.loyaltyUpdate.newCreditBalance;
+        const badge = document.getElementById('user-points-badge');
+        if (badge) {
+          if (newCredit > 0) {
+            badge.textContent = '$' + (newCredit / 100).toFixed(2) + ' credit available';
+          } else {
+            badge.textContent = '$' + ((newSpend % 2500) / 100).toFixed(2) + ' toward reward';
+          }
+        }
       }
 
       // Save last used room to profile

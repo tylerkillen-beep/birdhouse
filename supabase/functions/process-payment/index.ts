@@ -223,15 +223,17 @@ serve(async (req) => {
 
     const newCreditBalance = Math.max(0, availableCreditCents - creditUsedCents + newCreditsAwarded);
 
-    await supabase.auth.admin.updateUserById(userId, {
+    const { error: metaUpdateError } = await supabase.auth.admin.updateUserById(userId, {
       user_metadata: {
         ...meta,
         loyalty_spend_cents:  newSpendCents,
         loyalty_credit_cents: newCreditBalance,
-        // Clear old points field so the UI doesn't show stale data
-        loyalty_points: undefined,
       },
     });
+    if (metaUpdateError) {
+      console.error("Failed to update loyalty user_metadata:", metaUpdateError);
+      throw new Error("Loyalty update failed — please contact support if your balance seems wrong.");
+    }
 
     // Sync loyalty totals to profiles table so the admin panel can display them
     await supabase
