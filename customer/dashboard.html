@@ -280,8 +280,11 @@
   async function init() {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) { window.location.href = 'index.html'; return; }
-    currentUser  = session.user;
     sessionToken = session.access_token;
+    // Use getUser() to fetch fresh server-side metadata so loyalty balances
+    // are always current (getSession() returns a stale local cache).
+    const { data: { user: freshUser } } = await sb.auth.getUser();
+    currentUser = freshUser || session.user;
 
     // Load profile for customer type and name fallback
     const { data: profile } = await sb.from('profiles').select('location, full_name').eq('id', currentUser.id).maybeSingle();
