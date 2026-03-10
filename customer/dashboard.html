@@ -133,7 +133,7 @@
 <div class="layout">
   <aside class="sidebar">
     <div class="sidebar-logo"><a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a></div>
-    <div class="user-card">
+    <div class="user-card" id="user-card">
       <div class="user-name" id="user-display-name">Loading...</div>
       <div class="user-points" id="user-points-badge">$0.00 toward reward</div>
     </div>
@@ -329,6 +329,12 @@
     document.getElementById('loyalty-bar-label').textContent      = `${spendDisplay} / $25.00`;
 
     await Promise.all([loadSubscription(), loadOrders()]);
+
+    // Deep-link: navigate to section specified in URL hash (e.g. #loyalty, #subscription)
+    const hash = window.location.hash.replace('#', '');
+    if (hash && document.getElementById('section-' + hash)) {
+      showSection(hash, null);
+    }
   }
 
   // ── Subscription ──────────────────────────────────────────────────────────
