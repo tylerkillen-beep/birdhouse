@@ -64,6 +64,33 @@
     .btn-reorder { background:rgba(204,0,0,0.08); color:var(--red-bright); border:1px solid var(--border); border-radius:7px; padding:0.45rem 0.9rem; font-size:0.78rem; cursor:pointer; transition:all 0.2s; font-family:'DM Sans',sans-serif; margin-top:0.5rem; display:inline-block; text-decoration:none; }
     .btn-reorder:hover { background:rgba(204,0,0,0.15); }
 
+    /* Review buttons */
+    .btn-review { background:rgba(245,200,66,0.08); color:#f5c842; border:1px solid rgba(245,200,66,0.25); border-radius:6px; padding:0.25rem 0.65rem; font-size:0.72rem; cursor:pointer; transition:all 0.2s; font-family:'DM Sans',sans-serif; margin-left:0.5rem; }
+    .btn-review:hover { background:rgba(245,200,66,0.18); }
+    .badge-reviewed { display:inline-block; color:#4caf50; font-size:0.72rem; margin-left:0.5rem; }
+
+    /* Review modal */
+    .review-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:200; display:none; align-items:center; justify-content:center; padding:1rem; }
+    .review-overlay.open { display:flex; }
+    .review-modal { background:#111; border:1px solid rgba(204,0,0,0.2); border-radius:16px; padding:2rem; width:480px; max-width:100%; }
+    .review-modal-title { font-family:'Bebas Neue',sans-serif; font-size:1.6rem; letter-spacing:0.05em; margin-bottom:0.25rem; }
+    .review-modal-sub { font-size:0.82rem; color:var(--light-gray); margin-bottom:1.5rem; }
+    .star-selector { display:flex; gap:0.4rem; margin-bottom:1.25rem; }
+    .star-selector .star { font-size:2rem; cursor:pointer; color:#333; transition:color 0.15s; line-height:1; }
+    .star-selector .star.lit { color:#f5c842; }
+    .review-textarea { width:100%; background:#0d0d0d; border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:0.75rem 1rem; color:var(--white); font-family:'DM Sans',sans-serif; font-size:0.88rem; resize:vertical; min-height:100px; outline:none; transition:border-color 0.2s; }
+    .review-textarea:focus { border-color:rgba(204,0,0,0.4); }
+    .review-char-hint { font-size:0.7rem; color:var(--gray); margin-top:0.3rem; margin-bottom:1.25rem; }
+    .review-actions { display:flex; gap:0.75rem; }
+    .btn-review-submit { background:var(--red); color:white; border:none; border-radius:8px; padding:0.75rem 1.5rem; font-family:'DM Sans',sans-serif; font-size:0.88rem; font-weight:500; cursor:pointer; transition:all 0.2s; }
+    .btn-review-submit:hover { background:var(--red-bright); }
+    .btn-review-submit:disabled { opacity:0.4; cursor:not-allowed; }
+    .btn-review-cancel { background:transparent; color:var(--light-gray); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:0.75rem 1.25rem; font-family:'DM Sans',sans-serif; font-size:0.88rem; cursor:pointer; transition:all 0.2s; }
+    .btn-review-cancel:hover { border-color:rgba(255,255,255,0.2); color:var(--white); }
+    .review-msg { margin-top:0.75rem; font-size:0.82rem; padding:0.6rem 0.85rem; border-radius:7px; display:none; }
+    .review-msg.ok  { background:rgba(76,175,80,0.1); color:#4caf50; border:1px solid rgba(76,175,80,0.2); }
+    .review-msg.err { background:rgba(204,0,0,0.1); color:#ff6b6b; border:1px solid rgba(204,0,0,0.2); }
+
     .empty-state { text-align:center; padding:4rem 2rem; color:var(--gray); }
     .empty-icon { font-size:3rem; margin-bottom:1rem; opacity:0.4; }
     .empty-text { font-size:0.9rem; margin-bottom:1.5rem; }
@@ -113,9 +140,33 @@
   </main>
 </div>
 
+<!-- Review Modal -->
+<div class="review-overlay" id="review-overlay">
+  <div class="review-modal">
+    <div class="review-modal-title" id="review-modal-title">Leave a Review</div>
+    <div class="review-modal-sub" id="review-modal-sub">How was it?</div>
+    <div class="star-selector" id="star-selector">
+      <span class="star" data-val="1" onclick="setReviewStar(1)">★</span>
+      <span class="star" data-val="2" onclick="setReviewStar(2)">★</span>
+      <span class="star" data-val="3" onclick="setReviewStar(3)">★</span>
+      <span class="star" data-val="4" onclick="setReviewStar(4)">★</span>
+      <span class="star" data-val="5" onclick="setReviewStar(5)">★</span>
+    </div>
+    <textarea class="review-textarea" id="review-text" placeholder="Tell others what you thought (optional)…" maxlength="500"></textarea>
+    <div class="review-char-hint">Up to 500 characters</div>
+    <div class="review-actions">
+      <button class="btn-review-submit" id="review-submit-btn" onclick="submitReview()" disabled>Post Review</button>
+      <button class="btn-review-cancel" onclick="closeReviewModal()">Cancel</button>
+    </div>
+    <div class="review-msg" id="review-msg"></div>
+  </div>
+</div>
+
 <script>
   const sb = supabase.createClient('https://ljukrhneikqbabcmcpet.supabase.co','sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn');
   let allOrders = [], currentUser = null;
+  // Set of "menuItemId|orderId" strings the user has already reviewed
+  let reviewedKeys = new Set();
 
 
   function resolveCustomerName(user, profile) {
@@ -160,8 +211,12 @@
   async function loadOrders(profile, meta) {
     if (profile) userProfile = profile;
     if (meta) userMeta = meta;
-    const {data} = await sb.from('orders').select('*').eq('user_id', currentUser.id).order('created_at',{ascending:false});
-    allOrders = data||[];
+    const [{ data: orders }, { data: myReviews }] = await Promise.all([
+      sb.from('orders').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }),
+      sb.from('reviews').select('menu_item_id, order_id').eq('user_id', currentUser.id),
+    ]);
+    allOrders = orders || [];
+    reviewedKeys = new Set((myReviews || []).map(r => `${r.menu_item_id}|${r.order_id}`));
     renderSummary();
     renderOrders('all');
   }
@@ -205,16 +260,32 @@
     container.innerHTML = list.map(order=>{
       const date = new Date(order.created_at).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
       const time = new Date(order.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+      const isDelivered = order.status === 'delivered';
 
       // Build the items section — use cart_items (multi-item) if available, otherwise legacy single-drink fields
       let itemsHtml = '';
       if (order.cart_items?.length) {
-        itemsHtml = order.cart_items.map(i =>
-          `<div style="margin-bottom:0.2rem">${i.name} ×${i.quantity} &middot; ${i.temp==='iced'?'🧊 Iced':'☕ Hot'} &middot; <span style="color:var(--red-bright)">$${(i.price*i.quantity).toFixed(2)}</span></div>`
-        ).join('');
+        itemsHtml = order.cart_items.map(i => {
+          let reviewBtnHtml = '';
+          if (isDelivered && i.id) {
+            const key = `${i.id}|${order.id}`;
+            if (reviewedKeys.has(key)) {
+              reviewBtnHtml = `<span class="badge-reviewed">✓ Reviewed</span>`;
+            } else {
+              const safeName = i.name.replace(/'/g, "\\'");
+              reviewBtnHtml = `<button class="btn-review" onclick="openReviewModal('${i.id}','${safeName}','${order.id}')">★ Review</button>`;
+            }
+          }
+          return `<div style="margin-bottom:0.2rem;display:flex;align-items:center;flex-wrap:wrap;gap:0.25rem">${i.name} ×${i.quantity} &middot; ${i.temp==='iced'?'🧊 Iced':'☕ Hot'} &middot; <span style="color:var(--red-bright)">$${(i.price*i.quantity).toFixed(2)}</span>${reviewBtnHtml}</div>`;
+        }).join('');
       } else {
         // Legacy single-drink order
         const extras = [order.size, order.milk, (order.syrup&&order.syrup!=='None'?order.syrup+' syrup':null)].filter(Boolean).join(' · ');
+        let reviewBtnHtml = '';
+        if (isDelivered && order.drink_name) {
+          // Legacy orders don't have menu_item_id in cart, so we skip per-item reviews
+          // and just show per-order review keyed by drink_name (no menu_item_id link)
+        }
         itemsHtml = `<div>${order.drink_name}${extras?` &middot; <span style="color:var(--gray)">${extras}</span>`:''}</div>`;
       }
 
@@ -240,10 +311,87 @@
           <div class="order-date">${date} at ${time}</div>
           ${totalDisplay}
           ${order.points_earned?`<div class="order-points">+${order.points_earned} pt${order.points_earned!==1?'s':''}</div>`:''}
-          ${order.status==='delivered'?`<a class="btn-reorder" href="order.html">Order Again →</a>`:''}
+          ${isDelivered?`<a class="btn-reorder" href="order.html">Order Again →</a>`:''}
         </div>
       </div>`;
     }).join('');
+  }
+
+  // ── Review Modal ──────────────────────────────────────────────────────────
+  let reviewPendingItemId = null, reviewPendingOrderId = null, reviewRating = 0;
+
+  function openReviewModal(menuItemId, menuItemName, orderId) {
+    reviewPendingItemId  = menuItemId;
+    reviewPendingOrderId = orderId;
+    reviewRating = 0;
+    document.getElementById('review-modal-title').textContent = menuItemName;
+    document.getElementById('review-modal-sub').textContent   = 'How was your drink? Tap stars to rate.';
+    document.getElementById('review-text').value = '';
+    document.getElementById('review-msg').style.display = 'none';
+    setReviewStar(0);
+    document.getElementById('review-submit-btn').disabled = true;
+    document.getElementById('review-overlay').classList.add('open');
+  }
+
+  function closeReviewModal() {
+    document.getElementById('review-overlay').classList.remove('open');
+    reviewPendingItemId = reviewPendingOrderId = null;
+    reviewRating = 0;
+  }
+
+  function setReviewStar(val) {
+    reviewRating = val;
+    document.querySelectorAll('#star-selector .star').forEach(s => {
+      s.classList.toggle('lit', parseInt(s.dataset.val) <= val);
+    });
+    document.getElementById('review-submit-btn').disabled = (val === 0);
+  }
+
+  async function submitReview() {
+    if (!reviewRating || !reviewPendingItemId || !currentUser) return;
+    const btn = document.getElementById('review-submit-btn');
+    const msg = document.getElementById('review-msg');
+    btn.disabled = true;
+    btn.textContent = 'Posting…';
+    msg.style.display = 'none';
+
+    const meta = currentUser.user_metadata || {};
+    const firstName = meta.first_name || meta.given_name || '';
+    const lastName  = meta.last_name  || meta.family_name || '';
+    const fullName  = firstName ? (firstName + (lastName ? ' ' + lastName : '')) : (meta.full_name || meta.name || 'Anonymous');
+
+    const { error } = await sb.from('reviews').insert({
+      user_id:      currentUser.id,
+      menu_item_id: reviewPendingItemId,
+      order_id:     reviewPendingOrderId,
+      rating:       reviewRating,
+      review_text:  document.getElementById('review-text').value.trim() || null,
+      reviewer_name: fullName,
+    });
+
+    if (error) {
+      msg.textContent = 'Could not post review. You may have already reviewed this drink.';
+      msg.className   = 'review-msg err';
+      msg.style.display = 'block';
+      btn.disabled  = false;
+      btn.textContent = 'Post Review';
+      return;
+    }
+
+    // Update local state so button turns into badge without reload
+    reviewedKeys.add(`${reviewPendingItemId}|${reviewPendingOrderId}`);
+    msg.textContent   = 'Thanks for your review!';
+    msg.className     = 'review-msg ok';
+    msg.style.display = 'block';
+    btn.textContent   = '✓ Posted';
+    setTimeout(() => {
+      closeReviewModal();
+      // Re-render current filter to reflect the new badge
+      const activeBtn = document.querySelector('.filter-btn.active');
+      const filter = activeBtn ? activeBtn.textContent.toLowerCase().replace(' orders','').replace('all','all') : 'all';
+      const filterMap = { 'all orders': 'all', 'active': 'active', 'delivered': 'delivered', 'cancelled': 'cancelled' };
+      renderOrders(filterMap[activeBtn?.textContent.toLowerCase()] ?? 'all');
+    }, 1200);
   }
 
   async function signOut(){await sb.auth.signOut();window.location.href='index.html';}
