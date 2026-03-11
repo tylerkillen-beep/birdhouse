@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Birdhouse — Order Queue</title>
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --black: #0a0a0a; --dark: #111; --red: #cc0000; --red-bright: #ff1a1a;
+      --gray: #555; --light-gray: #999; --white: #f0f0f0;
+      --card: #141414; --border: rgba(204,0,0,0.18); --border-dim: rgba(255,255,255,0.07);
+    }
+    body { background: var(--black); color: var(--white); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+    .layout { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+
+    /* ── Sidebar ── */
+    .sidebar { background: #0d0000; border-right: 1px solid var(--border); padding: 1.75rem 1.25rem; position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; }
+    .sidebar-logo img { height: 38px; filter: drop-shadow(0 0 8px rgba(204,0,0,0.5)); margin-bottom: 2rem; }
+    .user-card { background: rgba(204,0,0,0.08); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; margin-bottom: 1.75rem; }
+    .user-name { font-size: 0.9rem; color: var(--white); font-weight: 500; }
+    .user-role { font-size: 0.68rem; color: var(--red-bright); margin-top: 0.25rem; letter-spacing: 0.08em; text-transform: uppercase; }
+    nav { flex: 1; }
+    .nav-item { display: flex; align-items: center; gap: 0.7rem; padding: 0.7rem 0.9rem; border-radius: 7px; color: var(--gray); font-size: 0.85rem; text-decoration: none; cursor: pointer; transition: all 0.2s; margin-bottom: 0.2rem; border: 1px solid transparent; }
+    .nav-item:hover { color: var(--white); background: rgba(255,255,255,0.04); }
+    .nav-item.active { background: rgba(204,0,0,0.12); color: var(--red-bright); border-color: rgba(204,0,0,0.25); }
+    .signout-btn { background: none; border: 1px solid rgba(255,255,255,0.08); border-radius: 7px; padding: 0.65rem 1rem; color: var(--gray); font-size: 0.8rem; cursor: pointer; width: 100%; text-align: left; transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem; font-family: 'DM Sans', sans-serif; }
+    .signout-btn:hover { color: var(--white); }
+
+    /* ── Main ── */
+    .main { padding: 2.5rem 3rem; }
+    .page-eyebrow { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--red); margin-bottom: 0.3rem; }
+    .page-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 1.75rem; flex-wrap: wrap; gap: 0.75rem; }
+    .page-title { font-family: 'Bebas Neue', sans-serif; font-size: 2.5rem; letter-spacing: 0.04em; }
+    .refresh-row { display: flex; align-items: center; gap: 0.75rem; }
+    .last-updated { font-size: 0.72rem; color: var(--gray); }
+    .refresh-btn { background: none; border: 1px solid var(--border-dim); border-radius: 7px; padding: 0.4rem 0.75rem; color: var(--gray); font-size: 0.78rem; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.2s; display: flex; align-items: center; gap: 0.4rem; }
+    .refresh-btn:hover { color: var(--white); border-color: var(--border); }
+    .refresh-btn.spinning { color: var(--red-bright); }
+
+    /* ── Filter bar ── */
+    .filter-bar { background: var(--card); border: 1px solid var(--border-dim); border-radius: 14px; padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; display: flex; flex-direction: column; gap: 0.85rem; }
+    .filter-row { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+    .filter-label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--gray); min-width: 60px; flex-shrink: 0; }
+    .filter-pills { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .filter-pill { background: transparent; border: 1px solid var(--border-dim); border-radius: 20px; padding: 0.28rem 0.8rem; font-size: 0.78rem; color: var(--gray); cursor: pointer; transition: all 0.2s; font-family: 'DM Sans', sans-serif; white-space: nowrap; }
+    .filter-pill:hover { color: var(--white); border-color: var(--border); }
+    .filter-pill.active { background: rgba(204,0,0,0.12); border-color: var(--border); color: var(--red-bright); }
+
+    /* Date controls */
+    .date-controls { display: flex; align-items: center; gap: 0.4rem; }
+    .date-nav-btn { background: transparent; border: 1px solid var(--border-dim); border-radius: 7px; padding: 0.28rem 0.6rem; color: var(--gray); cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 0.85rem; transition: all 0.2s; line-height: 1; }
+    .date-nav-btn:hover { color: var(--white); border-color: var(--border); }
+    .date-display-btn { background: transparent; border: 1px solid var(--border-dim); border-radius: 20px; padding: 0.28rem 0.9rem; color: var(--white); cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 0.78rem; transition: all 0.2s; position: relative; }
+    .date-display-btn:hover { border-color: var(--border); }
+    .date-display-btn.today-active { background: rgba(204,0,0,0.12); border-color: var(--border); color: var(--red-bright); }
+    #date-picker-input { position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px; top: 0; left: 0; }
+
+    /* ── Stats strip ── */
+    .stats-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.85rem; margin-bottom: 1.5rem; }
+    .stat-chip { background: var(--card); border: 1px solid var(--border-dim); border-radius: 10px; padding: 1rem 1.25rem; }
+    .stat-chip-label { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--light-gray); margin-bottom: 0.35rem; }
+    .stat-chip-value { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; color: var(--red-bright); letter-spacing: 0.05em; line-height: 1; }
+
+    /* ── Orders table ── */
+    .orders-section-title { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--gray); margin-bottom: 0.75rem; }
+    .order-card { background: var(--card); border: 1px solid var(--border-dim); border-radius: 12px; padding: 1.1rem 1.25rem 1.1rem 1.5rem; margin-bottom: 0.6rem; display: grid; grid-template-columns: 1fr auto; gap: 1rem; align-items: center; transition: border-color 0.2s; position: relative; }
+    .order-card:hover { border-color: var(--border); }
+    .order-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; border-radius: 12px 0 0 12px; }
+    .order-card.status-pending::before  { background: #ff9800; }
+    .order-card.status-paid::before     { background: var(--red); }
+    .order-card.status-delivered::before{ background: #4caf50; }
+    .order-card.status-cancelled::before{ background: #444; }
+    .order-card.status-delivered { opacity: 0.65; }
+    .order-card.status-cancelled { opacity: 0.4; }
+
+    .order-top { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.35rem; flex-wrap: wrap; }
+    .order-customer { font-weight: 500; font-size: 0.95rem; }
+    .order-items { font-size: 0.82rem; color: var(--light-gray); }
+    .order-detail-row { font-size: 0.78rem; color: var(--gray); line-height: 1.8; }
+    .order-detail-row strong { color: var(--light-gray); }
+    .order-note { font-size: 0.75rem; color: #888; margin-top: 0.2rem; font-style: italic; }
+
+    .status-badge { display: inline-block; padding: 0.2rem 0.65rem; border-radius: 20px; font-size: 0.68rem; font-weight: 500; white-space: nowrap; }
+    .badge-pending   { background: rgba(255,152,0,0.1);  color: #ff9800; border: 1px solid rgba(255,152,0,0.2); }
+    .badge-paid      { background: rgba(204,0,0,0.1);    color: var(--red-bright); border: 1px solid var(--border); }
+    .badge-delivered { background: rgba(0,200,80,0.1);   color: #4caf50; border: 1px solid rgba(0,200,80,0.2); }
+    .badge-cancelled { background: rgba(255,255,255,0.05); color: var(--gray); border: 1px solid var(--border-dim); }
+    .method-badge { display: inline-block; padding: 0.2rem 0.55rem; border-radius: 5px; font-size: 0.65rem; font-weight: 500; letter-spacing: 0.04em; }
+    .method-delivery { background: rgba(100,150,255,0.1); color: #6699ff; border: 1px solid rgba(100,150,255,0.2); }
+    .method-pickup   { background: rgba(255,200,0,0.08); color: #d4a800; border: 1px solid rgba(255,200,0,0.15); }
+
+    .order-actions { display: flex; flex-direction: column; gap: 0.45rem; align-items: flex-end; }
+    .order-time-placed { font-size: 0.68rem; color: var(--gray); text-align: right; margin-bottom: 0.35rem; }
+    .btn-deliver { background: rgba(0,200,80,0.1); color: #4caf50; border: 1px solid rgba(0,200,80,0.25); border-radius: 7px; padding: 0.45rem 0.9rem; font-size: 0.78rem; cursor: pointer; transition: all 0.2s; font-family: 'DM Sans', sans-serif; font-weight: 500; white-space: nowrap; }
+    .btn-deliver:hover { background: rgba(0,200,80,0.2); }
+    .btn-cancel-order { background: none; color: var(--gray); border: 1px solid var(--border-dim); border-radius: 7px; padding: 0.45rem 0.9rem; font-size: 0.78rem; cursor: pointer; transition: all 0.2s; font-family: 'DM Sans', sans-serif; white-space: nowrap; }
+    .btn-cancel-order:hover { color: var(--red-bright); border-color: var(--border); }
+
+    .empty-state { text-align: center; padding: 3.5rem 2rem; background: var(--card); border: 1px solid var(--border-dim); border-radius: 12px; color: var(--gray); }
+    .empty-state-icon { font-size: 2.5rem; margin-bottom: 0.75rem; opacity: 0.5; }
+    .empty-state-msg { font-size: 0.9rem; }
+
+    /* Delivery total amount */
+    .order-total { font-family: 'Bebas Neue', sans-serif; font-size: 1.1rem; color: var(--white); letter-spacing: 0.05em; }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .main { padding: 1.5rem; }
+      .stats-strip { grid-template-columns: repeat(2, 1fr); }
+      .filter-row { gap: 0.5rem; }
+      .filter-label { min-width: unset; }
+    }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo"><a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a></div>
+    <div class="user-card">
+      <div class="user-name" id="user-display-name">Loading...</div>
+      <div class="user-role" id="user-role-badge">Staff</div>
+    </div>
+    <nav>
+      <a class="nav-item" href="dashboard.html">📊 Overview</a>
+      <a class="nav-item active" href="orders.html">🧾 Order Queue</a>
+      <a class="nav-item" href="dashboard.html#schedule">🗓️ My Schedule</a>
+      <a class="nav-item" href="dashboard.html#inventory">📦 Inventory</a>
+      <a class="nav-item" href="dashboard.html#sales">📈 Sales Data</a>
+      <a class="nav-item" href="dashboard.html#menu">☕ Menu Availability</a>
+      <a class="nav-item" href="dashboard.html#summary">📝 Weekly Summary</a>
+    </nav>
+    <button class="signout-btn" onclick="signOut()">← Sign Out</button>
+  </aside>
+
+  <main class="main">
+    <div class="page-eyebrow">Team Hub</div>
+    <div class="page-header">
+      <h1 class="page-title">Order Queue</h1>
+      <div class="refresh-row">
+        <span class="last-updated" id="last-updated-label">—</span>
+        <button class="refresh-btn" id="refresh-btn" onclick="loadOrders(true)">↻ Refresh</button>
+      </div>
+    </div>
+
+    <!-- Filter bar -->
+    <div class="filter-bar">
+      <!-- Sort by -->
+      <div class="filter-row">
+        <span class="filter-label">Sort by</span>
+        <div class="filter-pills" id="sort-pills">
+          <button class="filter-pill active" data-val="scheduled" onclick="setSortFilter('scheduled', this)">⏰ Scheduled</button>
+          <button class="filter-pill" data-val="placed" onclick="setSortFilter('placed', this)">🕐 Placed</button>
+        </div>
+      </div>
+      <!-- Delivery method -->
+      <div class="filter-row">
+        <span class="filter-label">Delivery</span>
+        <div class="filter-pills" id="method-pills">
+          <button class="filter-pill active" data-val="all" onclick="setMethodFilter('all', this)">All</button>
+          <button class="filter-pill" data-val="delivery" onclick="setMethodFilter('delivery', this)">🚚 Delivery</button>
+          <button class="filter-pill" data-val="pickup" onclick="setMethodFilter('pickup', this)">🏠 Pickup</button>
+        </div>
+      </div>
+      <!-- Status -->
+      <div class="filter-row">
+        <span class="filter-label">Status</span>
+        <div class="filter-pills" id="status-pills">
+          <button class="filter-pill active" data-val="active" onclick="setStatusFilter('active', this)">🔴 Active</button>
+          <button class="filter-pill" data-val="pending" onclick="setStatusFilter('pending', this)">⏳ Pending</button>
+          <button class="filter-pill" data-val="paid" onclick="setStatusFilter('paid', this)">💳 Paid</button>
+          <button class="filter-pill" data-val="delivered" onclick="setStatusFilter('delivered', this)">✅ Delivered</button>
+          <button class="filter-pill" data-val="cancelled" onclick="setStatusFilter('cancelled', this)">✕ Cancelled</button>
+          <button class="filter-pill" data-val="all" onclick="setStatusFilter('all', this)">All</button>
+        </div>
+      </div>
+      <!-- Date -->
+      <div class="filter-row">
+        <span class="filter-label">Date</span>
+        <div class="date-controls">
+          <button class="date-nav-btn" onclick="shiftDate(-1)" title="Previous day">‹</button>
+          <button class="date-display-btn" id="date-display-btn" onclick="openDatePicker()">
+            <span id="date-display-label">Today</span>
+            <input type="date" id="date-picker-input" onchange="onDatePickerChange(this.value)" />
+          </button>
+          <button class="date-nav-btn" onclick="shiftDate(1)" title="Next day">›</button>
+          <button class="filter-pill" id="all-dates-pill" onclick="setAllDates()" style="margin-left:0.25rem">All Dates</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats strip -->
+    <div class="stats-strip">
+      <div class="stat-chip"><div class="stat-chip-label">Showing</div><div class="stat-chip-value" id="stat-showing">—</div></div>
+      <div class="stat-chip"><div class="stat-chip-label">Active</div><div class="stat-chip-value" id="stat-active">—</div></div>
+      <div class="stat-chip"><div class="stat-chip-label">Delivered</div><div class="stat-chip-value" id="stat-delivered">—</div></div>
+      <div class="stat-chip"><div class="stat-chip-label">Total Today</div><div class="stat-chip-value" id="stat-total-today">—</div></div>
+    </div>
+
+    <!-- Orders list -->
+    <div class="orders-section-title" id="orders-section-label">Orders</div>
+    <div id="orders-container">
+      <div class="empty-state"><div class="empty-state-icon">☕</div><div class="empty-state-msg">Loading orders...</div></div>
+    </div>
+  </main>
+</div>
+
+<script>
+  const sb = supabase.createClient(
+    'https://ljukrhneikqbabcmcpet.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqdWtyaG5laWtxYmFiY21jcGV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyODg1MjEsImV4cCI6MjA4Nzg2NDUyMX0.UbtB_-syG9a9vLcJp04w_k2F3XP2tMScYtB4sez3j78'
+  );
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  let allOrders = [];
+  let filterSort   = 'scheduled'; // 'scheduled' | 'placed'
+  let filterMethod = 'all';       // 'all' | 'delivery' | 'pickup'
+  let filterStatus = 'active';    // 'active' | 'pending' | 'paid' | 'delivered' | 'cancelled' | 'all'
+  let filterDate   = todayStr();  // 'YYYY-MM-DD' or null (all dates)
+  let pollTimer    = null;
+
+  function todayStr() {
+    return new Date().toISOString().split('T')[0];
+  }
+
+  // ── Auth ───────────────────────────────────────────────────────────────────
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if (!session) { window.location.href = 'index.html'; return; }
+    const user = session.user;
+
+    // Check role
+    const { data: studentRow } = await sb.from('students').select('role, first_name, last_name').eq('email', user.email).maybeSingle();
+    const role = studentRow?.role;
+    if (!role || !['student', 'manager', 'admin'].includes(role)) {
+      await sb.auth.signOut();
+      window.location.href = 'index.html';
+      return;
+    }
+
+    const meta = user.user_metadata || {};
+    const firstName = studentRow?.first_name || meta.full_name?.split(' ')[0] || 'Staff';
+    const lastName  = studentRow?.last_name  || meta.full_name?.split(' ').slice(1).join(' ') || '';
+    document.getElementById('user-display-name').textContent = (firstName + ' ' + lastName).trim();
+    document.getElementById('user-role-badge').textContent = role === 'admin' ? 'Admin' : role === 'manager' ? 'Manager' : 'Student Staff';
+
+    initDatePicker();
+    await loadOrders();
+    startPolling();
+  });
+
+  async function signOut() {
+    await sb.auth.signOut();
+    window.location.href = 'index.html';
+  }
+
+  // ── Date helpers ───────────────────────────────────────────────────────────
+  function initDatePicker() {
+    setDateDisplay(filterDate);
+  }
+
+  function setDateDisplay(dateStr) {
+    const btn = document.getElementById('date-display-btn');
+    const label = document.getElementById('date-display-label');
+    const input = document.getElementById('date-picker-input');
+
+    if (!dateStr) {
+      label.textContent = 'All Dates';
+      btn.classList.remove('today-active');
+      document.getElementById('all-dates-pill').classList.add('active');
+    } else {
+      const d = new Date(dateStr + 'T12:00:00');
+      const isToday = dateStr === todayStr();
+      if (isToday) {
+        label.textContent = 'Today';
+        btn.classList.add('today-active');
+      } else {
+        label.textContent = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: d.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined });
+        btn.classList.remove('today-active');
+      }
+      document.getElementById('all-dates-pill').classList.remove('active');
+      input.value = dateStr;
+    }
+  }
+
+  function openDatePicker() {
+    document.getElementById('date-picker-input').showPicker?.();
+    document.getElementById('date-picker-input').click();
+  }
+
+  function onDatePickerChange(val) {
+    if (!val) return;
+    filterDate = val;
+    setDateDisplay(val);
+    renderOrders();
+  }
+
+  function shiftDate(delta) {
+    const base = filterDate ? new Date(filterDate + 'T12:00:00') : new Date();
+    base.setDate(base.getDate() + delta);
+    filterDate = base.toISOString().split('T')[0];
+    setDateDisplay(filterDate);
+    renderOrders();
+  }
+
+  function setAllDates() {
+    filterDate = null;
+    setDateDisplay(null);
+    renderOrders();
+  }
+
+  // ── Filter setters ─────────────────────────────────────────────────────────
+  function setSortFilter(val, btn) {
+    filterSort = val;
+    document.querySelectorAll('#sort-pills .filter-pill').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderOrders();
+  }
+
+  function setMethodFilter(val, btn) {
+    filterMethod = val;
+    document.querySelectorAll('#method-pills .filter-pill').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderOrders();
+  }
+
+  function setStatusFilter(val, btn) {
+    filterStatus = val;
+    document.querySelectorAll('#status-pills .filter-pill').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderOrders();
+  }
+
+  // ── Data loading ───────────────────────────────────────────────────────────
+  async function loadOrders(manual = false) {
+    if (manual) {
+      const btn = document.getElementById('refresh-btn');
+      btn.classList.add('spinning');
+      btn.textContent = '↻ Refreshing...';
+    }
+
+    const { data, error } = await sb
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(500);
+
+    if (!error) {
+      allOrders = data || [];
+    }
+
+    updateLastUpdated();
+    updateStats();
+    renderOrders();
+
+    if (manual) {
+      const btn = document.getElementById('refresh-btn');
+      btn.classList.remove('spinning');
+      btn.textContent = '↻ Refresh';
+    }
+  }
+
+  function startPolling() {
+    clearInterval(pollTimer);
+    pollTimer = setInterval(() => loadOrders(), 30000);
+  }
+
+  function updateLastUpdated() {
+    const now = new Date();
+    const t = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    document.getElementById('last-updated-label').textContent = `Updated ${t}`;
+  }
+
+  function updateStats() {
+    const today = todayStr();
+    const todayOrders = allOrders.filter(o => (o.delivery_date === today) || (!o.delivery_date && dayNameForDate(today) === o.delivery_day));
+    const active = todayOrders.filter(o => o.status === 'pending' || o.status === 'paid').length;
+    const delivered = todayOrders.filter(o => o.status === 'delivered').length;
+    document.getElementById('stat-active').textContent = active;
+    document.getElementById('stat-delivered').textContent = delivered;
+    document.getElementById('stat-total-today').textContent = todayOrders.length;
+  }
+
+  function dayNameForDate(dateStr) {
+    const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    return days[new Date(dateStr + 'T12:00:00').getDay()];
+  }
+
+  // ── Rendering ──────────────────────────────────────────────────────────────
+  function applyFilters() {
+    let orders = [...allOrders];
+
+    // Date filter
+    if (filterDate) {
+      const dayName = dayNameForDate(filterDate);
+      orders = orders.filter(o => {
+        if (o.delivery_date) return o.delivery_date === filterDate;
+        return o.delivery_day === dayName;
+      });
+    }
+
+    // Status filter
+    if (filterStatus === 'active')       orders = orders.filter(o => o.status === 'pending' || o.status === 'paid');
+    else if (filterStatus !== 'all')     orders = orders.filter(o => o.status === filterStatus);
+
+    // Delivery method filter
+    if (filterMethod !== 'all')          orders = orders.filter(o => o.delivery_method === filterMethod);
+
+    // Sort
+    if (filterSort === 'scheduled') {
+      orders.sort((a, b) => {
+        const at = parseTime(a.delivery_time);
+        const bt = parseTime(b.delivery_time);
+        if (at !== bt) return at - bt;
+        return new Date(a.created_at) - new Date(b.created_at);
+      });
+    } else {
+      orders.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    }
+
+    return orders;
+  }
+
+  function parseTime(timeStr) {
+    if (!timeStr) return 9999;
+    const m = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (!m) return 9999;
+    let h = parseInt(m[1]);
+    const min = parseInt(m[2]);
+    const ampm = m[3].toUpperCase();
+    if (ampm === 'PM' && h !== 12) h += 12;
+    if (ampm === 'AM' && h === 12) h = 0;
+    return h * 60 + min;
+  }
+
+  function renderOrders() {
+    const filtered = applyFilters();
+    const container = document.getElementById('orders-container');
+    document.getElementById('stat-showing').textContent = filtered.length;
+
+    // Update section label
+    const dateLabel = filterDate
+      ? (filterDate === todayStr() ? 'Today' : new Date(filterDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }))
+      : 'All Dates';
+    const statusLabel = { active: 'Active', pending: 'Pending', paid: 'Paid', delivered: 'Delivered', cancelled: 'Cancelled', all: 'All' }[filterStatus] || '';
+    document.getElementById('orders-section-label').textContent = `${statusLabel} Orders — ${dateLabel}`;
+
+    if (!filtered.length) {
+      container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">☕</div><div class="empty-state-msg">No orders match the current filters.</div></div>`;
+      return;
+    }
+
+    container.innerHTML = filtered.map(order => {
+      const statusLabel = { pending: '⏳ Pending', paid: '💳 Paid', delivered: '✅ Delivered', cancelled: '✕ Cancelled' }[order.status] || order.status;
+      const methodLabel = order.delivery_method === 'pickup' ? '🏠 Pickup' : '🚚 Delivery';
+      const methodClass = order.delivery_method === 'pickup' ? 'method-pickup' : 'method-delivery';
+
+      // Customer name
+      const customerName = order.customer_name || 'Unknown';
+
+      // Items display
+      let itemsHtml = '';
+      if (order.cart_items && order.cart_items.length > 0) {
+        itemsHtml = order.cart_items.map(item => {
+          const temp = item.temp === 'iced' ? 'Iced' : 'Hot';
+          const qty = item.quantity > 1 ? `×${item.quantity}` : '';
+          return `${temp} ${item.name}${qty ? ' ' + qty : ''}`;
+        }).join(' · ');
+      } else {
+        const parts = [order.drink_name, order.size, order.milk].filter(Boolean);
+        itemsHtml = parts.join(' · ');
+      }
+
+      // Delivery info
+      let deliveryInfo = '';
+      if (order.delivery_method === 'pickup') {
+        deliveryInfo = `Pick up at Birdhouse — ${order.delivery_time || ''}`;
+      } else {
+        const room = order.room ? `Room ${order.room}` : '';
+        deliveryInfo = [room, order.delivery_time].filter(Boolean).join(' · ');
+      }
+
+      // Scheduled date label
+      let schedLabel = '';
+      if (order.delivery_date) {
+        const d = new Date(order.delivery_date + 'T12:00:00');
+        schedLabel = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      } else if (order.delivery_day) {
+        schedLabel = order.delivery_day;
+      }
+
+      // Placed at
+      const placedAt = new Date(order.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+
+      // Total
+      const total = order.total_amount ? `$${Number(order.total_amount).toFixed(2)}` : '';
+
+      // Actions
+      const canDeliver = order.status !== 'delivered' && order.status !== 'cancelled';
+      const canCancel  = order.status !== 'delivered' && order.status !== 'cancelled';
+      const actionsHtml = canDeliver || canCancel ? `
+        <div class="order-actions">
+          <div class="order-time-placed">Placed ${placedAt}</div>
+          ${total ? `<div class="order-total">${total}</div>` : ''}
+          ${canDeliver ? `<button class="btn-deliver" onclick="markDelivered('${order.id}')">✓ Delivered</button>` : ''}
+          ${canCancel  ? `<button class="btn-cancel-order" onclick="cancelOrder('${order.id}')">Cancel</button>` : ''}
+        </div>` : `
+        <div class="order-actions">
+          <div class="order-time-placed">Placed ${placedAt}</div>
+          ${total ? `<div class="order-total">${total}</div>` : ''}
+        </div>`;
+
+      return `<div class="order-card status-${order.status}" id="order-card-${order.id}">
+        <div>
+          <div class="order-top">
+            <span class="order-customer">${escHtml(customerName)}</span>
+            <span class="status-badge badge-${order.status}">${statusLabel}</span>
+            <span class="method-badge ${methodClass}">${methodLabel}</span>
+          </div>
+          <div class="order-items">${escHtml(itemsHtml)}</div>
+          <div class="order-detail-row" style="margin-top:0.4rem">
+            ${deliveryInfo ? `<strong>📍</strong> ${escHtml(deliveryInfo)}` : ''}
+            ${schedLabel ? ` &nbsp;·&nbsp; <strong>📅</strong> ${escHtml(schedLabel)}` : ''}
+          </div>
+          ${order.special_instructions ? `<div class="order-note">💬 ${escHtml(order.special_instructions)}</div>` : ''}
+        </div>
+        ${actionsHtml}
+      </div>`;
+    }).join('');
+  }
+
+  function escHtml(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Actions ────────────────────────────────────────────────────────────────
+  async function markDelivered(id) {
+    const { error } = await sb.from('orders').update({ status: 'delivered' }).eq('id', id);
+    if (error) { alert('Failed to update order.'); return; }
+    const o = allOrders.find(x => x.id === id);
+    if (o) o.status = 'delivered';
+    updateStats();
+    renderOrders();
+  }
+
+  async function cancelOrder(id) {
+    if (!confirm('Cancel this order?')) return;
+    const { error } = await sb.from('orders').update({ status: 'cancelled' }).eq('id', id);
+    if (error) { alert('Failed to cancel order.'); return; }
+    const o = allOrders.find(x => x.id === id);
+    if (o) o.status = 'cancelled';
+    updateStats();
+    renderOrders();
+  }
+</script>
+</body>
+</html>
