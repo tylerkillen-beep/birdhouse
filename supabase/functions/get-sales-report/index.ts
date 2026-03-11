@@ -244,8 +244,12 @@ serve(async (req) => {
       .lte("created_at", endDate)
       .eq("status", "paid");
 
+    // Also build a per-day in-app revenue map for the stacked bar chart
+    const inAppDailyMap: Record<string, { revenueCents: number; orderCount: number }> = {};
+
     for (const order of orders || []) {
       const items: CartItem[] = Array.isArray(order.cart_items) ? order.cart_items : [];
+      let orderRevCents = 0;
       for (const item of items) {
         const name = item.name || "Unknown Item";
         const qty = Number(item.quantity) || 1;
@@ -254,7 +258,12 @@ serve(async (req) => {
         itemMap[name].quantity += qty;
         itemMap[name].revenueCents += rev;
         // In-app orders don't carry discount data; discountCents stays 0
+        orderRevCents += rev;
       }
+      const day = (order.created_at as string).slice(0, 10);
+      if (!inAppDailyMap[day]) inAppDailyMap[day] = { revenueCents: 0, orderCount: 0 };
+      inAppDailyMap[day].revenueCents += orderRevCents;
+      inAppDailyMap[day].orderCount += 1;
     }
 
     // Prorate processing fees to each item by its share of total revenue
@@ -271,7 +280,18 @@ serve(async (req) => {
     const totalDiscountCents = Object.values(itemMap).reduce((s, d) => s + d.discountCents, 0);
 
     const dailyBreakdown = Object.entries(dailyMap)
-      .map(([date, d]) => ({ date, revenueCents: d.revenueCents, orderCount: d.orderCount }))
+      .map(([date, d]) => {
+        const inApp = inAppDailyMap[date] || { revenueCents: 0, orderCount: 0 };
+        return {
+          date,
+          revenueCents: d.revenueCents,
+          orderCount: d.orderCount,
+          inAppRevenueCents: inApp.revenueCents,
+          inAppOrderCount: inApp.orderCount,
+          squareRevenueCents: Math.max(0, d.revenueCents - inApp.revenueCents),
+          squareOrderCount: Math.max(0, d.orderCount - inApp.orderCount),
+        };
+      })
       .sort((a, b) => a.date.localeCompare(b.date));
 
     const orderCount = allPayments.length;
