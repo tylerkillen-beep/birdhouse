@@ -477,6 +477,14 @@
       <button class="btn btn-primary btn-sm" onclick="openStaffTeamModal()">+ Add Team</button>
     </div>
     <div id="staff-team-board" class="staff-team-grid"><div class="empty-state">Loading teams…</div></div>
+
+    <!-- Bio Approvals -->
+    <div class="section-header" style="margin-top:2.5rem">
+      <div class="section-title">Bio Approvals <span id="bio-pending-count-label"></span></div>
+    </div>
+    <div id="bio-approvals-container">
+      <div class="empty-state">Loading bio submissions…</div>
+    </div>
   </div>
 
   <!-- ── SCORE RUBRIC ── -->
@@ -1481,10 +1489,11 @@ async function loadOrdersBadge() {
 // Staff / Approvals
 // ════════════════════════════════════
 async function loadStaff() {
-  const [{ data: pending }, { data: active }, { data: teams }] = await Promise.all([
+  const [{ data: pending }, { data: active }, { data: teams }, { data: bioPending }] = await Promise.all([
     sb.from('students').select('*').is('role', null).order('created_at'),
     sb.from('students').select('*,teams(name)').not('role', 'is', null).order('last_name'),
     sb.from('teams').select('id,name,period,color,product_name,cost_cents').order('name'),
+    sb.from('students').select('id,first_name,last_name,bio_pending,bio_status').eq('bio_status','pending').order('last_name'),
   ]);
   staffTeams = teams || [];
   allStaff = [...(pending||[]), ...(active||[])];
@@ -1511,9 +1520,38 @@ async function loadStaff() {
   const board = document.getElementById('staff-team-board');
   if (!active?.length) {
     board.innerHTML = '<div class="empty-state">No students or staff assigned yet.</div>';
-    return;
+  } else {
+    board.innerHTML = renderStaffTeamBoard(active);
   }
-  board.innerHTML = renderStaffTeamBoard(active);
+
+  // Bio approvals
+  const bioContainer = document.getElementById('bio-approvals-container');
+  const bioLabel = document.getElementById('bio-pending-count-label');
+  if (!bioPending?.length) {
+    bioLabel.textContent = '';
+    bioContainer.innerHTML = '<div class="empty-state">No pending bio submissions.</div>';
+  } else {
+    bioLabel.textContent = `(${bioPending.length})`;
+    bioContainer.innerHTML = bioPending.map(s => `
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.25rem 1.5rem;margin-bottom:0.75rem;border-left:3px solid var(--warning)">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+          <div style="flex:1">
+            <div style="font-weight:500;font-size:0.95rem;margin-bottom:0.5rem">${s.first_name} ${s.last_name}</div>
+            <div style="font-size:0.88rem;color:var(--gray-mid);line-height:1.65;white-space:pre-wrap">${s.bio_pending}</div>
+          </div>
+          <div style="display:flex;gap:0.5rem;flex-shrink:0">
+            <button class="btn btn-success btn-sm" onclick="approveBio('${s.id}',\`${s.bio_pending.replace(/`/g,"'")}\`)">Approve</button>
+            <button class="btn btn-danger btn-sm" onclick="rejectBio('${s.id}')">Reject</button>
+          </div>
+        </div>
+      </div>`).join('');
+  }
+
+  // Update nav badge with total pending (staff + bio)
+  const staffBadge = document.getElementById('badge-staff');
+  const totalPending = (pending?.length || 0) + (bioPending?.length || 0);
+  if (totalPending > 0) { staffBadge.textContent = totalPending; staffBadge.style.display = 'inline-block'; }
+  else { staffBadge.style.display = 'none'; }
 }
 
 function renderStaffTeamBoard(active) {
@@ -1712,6 +1750,17 @@ async function denyStaff(id) {
   loadStaff(); loadPendingBadge();
 }
 
+async function approveBio(id, bioText) {
+  await sb.from('students').update({ bio: bioText, bio_pending: null, bio_status: 'approved' }).eq('id', id);
+  loadStaff();
+}
+
+async function rejectBio(id) {
+  if (!confirm('Reject this bio submission? The student will be notified to revise and resubmit.')) return;
+  await sb.from('students').update({ bio_pending: null, bio_status: 'rejected' }).eq('id', id);
+  loadStaff();
+}
+
 async function removeStaff(id) {
   if (!confirm('Remove this staff member?')) return;
   await sb.from('students').update({ role: null }).eq('id', id);
@@ -1719,9 +1768,13 @@ async function removeStaff(id) {
 }
 
 async function loadPendingBadge() {
-  const { count } = await sb.from('students').select('id', { count: 'exact', head: true }).is('role', null);
+  const [{ count: staffCount }, { count: bioCount }] = await Promise.all([
+    sb.from('students').select('id', { count: 'exact', head: true }).is('role', null),
+    sb.from('students').select('id', { count: 'exact', head: true }).eq('bio_status', 'pending'),
+  ]);
+  const total = (staffCount || 0) + (bioCount || 0);
   const badge = document.getElementById('badge-staff');
-  if (count > 0) { badge.textContent = count; badge.style.display = 'inline-block'; } else { badge.style.display = 'none'; }
+  if (total > 0) { badge.textContent = total; badge.style.display = 'inline-block'; } else { badge.style.display = 'none'; }
 }
 
 // ════════════════════════════════════

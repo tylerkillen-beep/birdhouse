@@ -207,6 +207,7 @@
       <a class="nav-item" onclick="showSection('sales',this)">📈 Sales Data</a>
       <a class="nav-item" onclick="showSection('menu',this)">☕ Menu Availability</a>
       <a class="nav-item" onclick="showSection('summary',this)">📝 Weekly Summary</a>
+      <a class="nav-item" onclick="showSection('bio',this)">🪪 My Bio</a>
     </nav>
     <button class="signout-btn" onclick="signOut()">← Sign Out</button>
   </aside>
@@ -507,6 +508,22 @@
       <div style="margin-top:2rem">
         <div class="section-title">Past Submissions</div>
         <div id="past-summaries"><div style="color:var(--gray);font-size:0.88rem;padding:1.5rem;background:var(--card);border-radius:10px;border:1px solid var(--border-dim)">Loading...</div></div>
+      </div>
+    </div>
+
+    <!-- Bio -->
+    <div id="section-bio" style="display:none">
+      <div class="page-eyebrow">About Me</div>
+      <h1 class="page-title">My Bio</h1>
+      <div class="summary-form">
+        <div id="bio-status-banner" style="display:none;margin-bottom:1.25rem;padding:0.85rem 1rem;border-radius:8px;font-size:0.85rem"></div>
+        <div class="form-group">
+          <label>Your Bio</label>
+          <textarea id="bio-text" placeholder="Tell the Birdhouse community a little about yourself — your role, interests, favorite drink, or anything you'd like people to know about you." style="min-height:160px"></textarea>
+          <div style="font-size:0.72rem;color:var(--gray);margin-top:0.4rem">Keep it friendly and school-appropriate. Once you submit, your instructor will review it before it appears on the About page.</div>
+        </div>
+        <button class="btn-primary" id="bio-submit-btn" onclick="submitBio()">Submit Bio for Review →</button>
+        <div class="msg" id="bio-msg"></div>
       </div>
     </div>
   </main>
@@ -1201,6 +1218,58 @@
     container.innerHTML=data.map(s=>`<div class="past-summary-item"><div><div style="font-weight:500;font-size:0.92rem">Week of ${s.week_of}</div><div style="font-size:0.76rem;color:var(--gray);margin-top:0.2rem">${s.hours_worked}h worked · ${s.orders_fulfilled} orders · ${'⭐'.repeat(s.rating)}</div></div><div style="font-size:0.75rem;color:var(--gray)">${new Date(s.created_at).toLocaleDateString()}</div></div>`).join('');
   }
 
+  async function loadBio() {
+    const banner = document.getElementById('bio-status-banner');
+    const textarea = document.getElementById('bio-text');
+    const btn = document.getElementById('bio-submit-btn');
+    const {data} = await sb.from('students').select('bio,bio_pending,bio_status').eq('id',currentUser.id).single();
+    if (!data) return;
+
+    if (data.bio_status === 'approved') {
+      banner.style.display = 'block';
+      banner.style.background = 'rgba(0,200,80,0.08)';
+      banner.style.border = '1px solid rgba(0,200,80,0.2)';
+      banner.style.color = '#4caf50';
+      banner.textContent = '✓ Your bio is live on the About page! You can update it below and resubmit for review.';
+      textarea.value = data.bio || '';
+      btn.textContent = 'Resubmit Updated Bio →';
+    } else if (data.bio_status === 'pending') {
+      banner.style.display = 'block';
+      banner.style.background = 'rgba(255,152,0,0.08)';
+      banner.style.border = '1px solid rgba(255,152,0,0.2)';
+      banner.style.color = '#ff9800';
+      banner.textContent = '⏳ Your bio has been submitted and is waiting for instructor approval.';
+      textarea.value = data.bio_pending || '';
+      btn.textContent = 'Update Submission →';
+    } else if (data.bio_status === 'rejected') {
+      banner.style.display = 'block';
+      banner.style.background = 'rgba(204,0,0,0.08)';
+      banner.style.border = '1px solid rgba(204,0,0,0.2)';
+      banner.style.color = '#ff6b6b';
+      banner.textContent = '✗ Your bio was not approved. Please revise it and resubmit.';
+      textarea.value = data.bio_pending || data.bio || '';
+      btn.textContent = 'Resubmit Bio →';
+    } else {
+      banner.style.display = 'none';
+      textarea.value = '';
+      btn.textContent = 'Submit Bio for Review →';
+    }
+  }
+
+  async function submitBio() {
+    const text = document.getElementById('bio-text').value.trim();
+    const msg = document.getElementById('bio-msg');
+    const btn = document.getElementById('bio-submit-btn');
+    if (!text) { msg.textContent = 'Please write something before submitting.'; msg.className = 'msg error'; return; }
+    btn.disabled = true;
+    const {error} = await sb.from('students').update({bio_pending: text, bio_status: 'pending'}).eq('id', currentUser.id);
+    btn.disabled = false;
+    if (error) { msg.textContent = 'Error submitting bio: ' + error.message; msg.className = 'msg error'; return; }
+    msg.textContent = 'Bio submitted! Your instructor will review it shortly.';
+    msg.className = 'msg success';
+    loadBio();
+  }
+
   function showSection(name,el) {
     document.querySelectorAll('[id^="section-"]').forEach(s=>s.style.display='none');
     document.getElementById('section-'+name).style.display='block';
@@ -1212,6 +1281,7 @@
     if(name==='schedule')loadSchedule();
     if(name==='inventory')loadInventory();
     if(name==='sales')initStudentSalesReport();
+    if(name==='bio')loadBio();
   }
 
   async function signOut() { await sb.auth.signOut(); window.location.href='index.html'; }
