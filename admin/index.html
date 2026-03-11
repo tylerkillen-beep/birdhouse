@@ -330,6 +330,9 @@
   <div class="nav-item" onclick="showSection('customers')" id="nav-customers">
     <span class="nav-icon">🎓</span> Customers
   </div>
+  <div class="nav-item" onclick="showSection('reviews')" id="nav-reviews">
+    <span class="nav-icon">★</span> Reviews
+  </div>
 
   <div class="nav-section">Financials</div>
   <div class="nav-item" onclick="showSection('sales-report')" id="nav-sales-report">
@@ -545,6 +548,38 @@
       <table>
         <thead><tr><th>Name</th><th>Email</th><th>Loyalty</th><th>Orders</th><th>Joined</th></tr></thead>
         <tbody id="customers-tbody"><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── REVIEWS ── -->
+  <div class="section-panel" id="section-reviews">
+    <div class="page-header">
+      <h1>Customer Reviews</h1>
+      <p>All drink reviews submitted by customers. Delete any review that is inappropriate.</p>
+    </div>
+    <div class="filter-bar">
+      <input class="filter-input" id="reviews-search" placeholder="Search by name, drink, or review…" oninput="filterReviews()" style="flex:1;min-width:200px" />
+      <select class="filter-select" id="reviews-rating-filter" onchange="filterReviews()">
+        <option value="">All Ratings</option>
+        <option value="5">5 Stars</option>
+        <option value="4">4 Stars</option>
+        <option value="3">3 Stars</option>
+        <option value="2">2 Stars</option>
+        <option value="1">1 Star</option>
+      </select>
+    </div>
+    <div class="stats-row" id="reviews-stats-row" style="margin-bottom:1.5rem">
+      <div class="stat-card"><div class="stat-label">Total Reviews</div><div class="stat-value accent" id="rev-stat-total">—</div></div>
+      <div class="stat-card"><div class="stat-label">Avg Rating</div><div class="stat-value accent" id="rev-stat-avg">—</div></div>
+      <div class="stat-card"><div class="stat-label">5-Star Reviews</div><div class="stat-value" id="rev-stat-five">—</div></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Reviewer</th><th>Drink</th><th>Rating</th><th>Review</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="reviews-tbody"><tr class="loading-row"><td colspan="6">Loading reviews…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -1303,6 +1338,7 @@ function showSection(id) {
     'product-performance': initProductPerformance,
     'library-split': initLibrarySplit,
     'closed-days': loadClosedDays,
+    reviews: loadReviews,
   };
   if (loaders[id]) loaders[id]();
 }
@@ -3733,6 +3769,93 @@ const fpCommonOpts = { mode: 'range', dateFormat: 'Y-m-d', maxDate: 'today', dis
 window.fpReport = flatpickr('#report-date-range', fpCommonOpts);
 window.fpPP     = flatpickr('#pp-date-range',     fpCommonOpts);
 window.fpLib    = flatpickr('#lib-date-range',    fpCommonOpts);
+
+// ════════════════════════════════════════════
+// REVIEWS SECTION
+// ════════════════════════════════════════════
+let allReviews = [];
+
+async function loadReviews() {
+  document.getElementById('reviews-tbody').innerHTML = '<tr class="loading-row"><td colspan="6">Loading reviews…</td></tr>';
+
+  // Join with menu_items to get drink name
+  const { data, error } = await sb
+    .from('reviews')
+    .select('id, rating, review_text, reviewer_name, created_at, menu_item_id, menu_items(name)')
+    .order('created_at', { ascending: false });
+
+  if (error || !data) {
+    document.getElementById('reviews-tbody').innerHTML = '<tr class="loading-row"><td colspan="6">Failed to load reviews.</td></tr>';
+    return;
+  }
+
+  allReviews = data;
+  renderReviewStats(data);
+  renderReviewsTable(data);
+}
+
+function renderReviewStats(reviews) {
+  const total = reviews.length;
+  const avg   = total ? (reviews.reduce((s, r) => s + r.rating, 0) / total).toFixed(1) : '—';
+  const five  = reviews.filter(r => r.rating === 5).length;
+  document.getElementById('rev-stat-total').textContent = total;
+  document.getElementById('rev-stat-avg').textContent   = total ? `${avg} ★` : '—';
+  document.getElementById('rev-stat-five').textContent  = five;
+}
+
+function renderReviewsTable(reviews) {
+  const tbody = document.getElementById('reviews-tbody');
+  if (!reviews.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--gray-mid);padding:2rem">No reviews yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = reviews.map(r => {
+    const date     = new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const stars    = '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
+    const drinkName = r.menu_items?.name || '—';
+    const text     = r.review_text
+      ? `<span style="color:var(--text)">${r.review_text}</span>`
+      : `<span style="color:var(--gray-mid);font-style:italic">No written review</span>`;
+    return `<tr>
+      <td style="color:var(--gray-mid);white-space:nowrap">${date}</td>
+      <td style="font-weight:500">${r.reviewer_name || 'Anonymous'}</td>
+      <td>${drinkName}</td>
+      <td style="color:#f5c842;white-space:nowrap">${stars}</td>
+      <td style="max-width:320px;font-size:0.82rem">${text}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteReview('${r.id}',this)">Delete</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function filterReviews() {
+  const query  = document.getElementById('reviews-search').value.toLowerCase();
+  const rating = document.getElementById('reviews-rating-filter').value;
+  let list = allReviews;
+  if (rating) list = list.filter(r => String(r.rating) === rating);
+  if (query)  list = list.filter(r =>
+    (r.reviewer_name || '').toLowerCase().includes(query) ||
+    (r.menu_items?.name || '').toLowerCase().includes(query) ||
+    (r.review_text || '').toLowerCase().includes(query)
+  );
+  renderReviewsTable(list);
+}
+
+async function deleteReview(reviewId, btn) {
+  if (!confirm('Delete this review? This cannot be undone.')) return;
+  btn.disabled = true;
+  btn.textContent = 'Deleting…';
+  const { error } = await sb.from('reviews').update({ deleted_at: new Date().toISOString() }).eq('id', reviewId);
+  if (error) {
+    btn.disabled = false;
+    btn.textContent = 'Delete';
+    alert('Failed to delete review: ' + error.message);
+    return;
+  }
+  // Remove from local list and re-render
+  allReviews = allReviews.filter(r => r.id !== reviewId);
+  renderReviewStats(allReviews);
+  filterReviews();
+}
 </script>
 </body>
 </html>
