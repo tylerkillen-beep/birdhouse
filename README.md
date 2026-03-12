@@ -66,7 +66,7 @@ In Supabase → **Authentication → URL Configuration**:
 
 | Role | Can Do |
 |------|--------|
-| `customer` | Sign up themselves, order drinks, view loyalty points, see their subscription |
+| `customer` | Sign up themselves, order drinks, view Birdhouse Bucks, see their subscription |
 | `student` | View their schedule, update inventory, see sales data, submit weekly summaries |
 | `admin` | Everything students can do, plus view ALL schedules and summaries |
 
@@ -77,7 +77,7 @@ In Supabase → **Authentication → URL Configuration**:
 ### Customer Portal
 - ✅ Self-registration (sign up with name, email, room)
 - ✅ Login / logout
-- ✅ Loyalty points display
+- ✅ Birdhouse Bucks display
 - ✅ Order history
 - ✅ Subscription status
 
@@ -94,5 +94,5 @@ In Supabase → **Authentication → URL Configuration**:
 ## Coming Next
 - Customer ordering (with Square integration)
 - Schedule builder for admins
-- Loyalty point redemption
+- Birdhouse Bucks redemption
 - Push notifications for deliveries
