@@ -463,14 +463,77 @@
       });
     }
 
-    await Promise.all([loadPlans(), loadMenu(), loadDeliveryTimes()]);
+    const results = await Promise.allSettled([loadPlans(), loadMenu(), loadDeliveryTimes()]);
+    const failed = results.find(r => r.status === 'rejected');
+    if (failed) {
+      console.error('Subscribe page initialization failed', failed.reason);
+      renderPlansLoadError('Unable to finish loading subscription setup.', 'Please refresh. If this continues, ask staff to verify Supabase table permissions for subscription plans and store_config.');
+    }
   }
 
   // ── Plans ─────────────────────────────────────────────────────────────────
+  function normalizePlanRecord(planRow) {
+    return {
+      id: planRow.id,
+      name: planRow.name,
+      price_cents: planRow.price_cents,
+      drinks_per_week: planRow.drinks_per_week,
+      free_modifier_count: planRow.free_modifier_count,
+      description: planRow.description,
+      early_access: !!planRow.early_access,
+      sort_order: planRow.sort_order,
+      active: planRow.active,
+    };
+  }
+
+  function renderPlansLoadError(message, hint) {
+    const grid = document.getElementById('plans-grid');
+    grid.innerHTML = `<div style="color:#ff8a8a;border:1px solid rgba(255,100,100,0.35);background:rgba(255,80,80,0.08);border-radius:10px;padding:1rem">
+      <div style="font-weight:600;margin-bottom:0.3rem">${message}</div>
+      <div style="color:var(--gray);font-size:0.85rem">${hint}</div>
+    </div>`;
+  }
+
   async function loadPlans() {
-    const { data } = await sb.from('subscription_plans').select('*').eq('active', true).order('sort_order');
-    plans = data || [];
-    renderPlans();
+    try {
+      const { data, error } = await sb
+        .from('subscription_plans')
+        .select('*')
+        .eq('active', true)
+        .order('sort_order');
+
+      if (!error && data) {
+        plans = data.map(normalizePlanRecord);
+        renderPlans();
+        return;
+      }
+
+      console.warn('subscription_plans lookup failed; trying legacy plans table', error);
+
+      const { data: legacyData, error: legacyError } = await sb
+        .from('plans')
+        .select('*')
+        .eq('active', true)
+        .order('sort_order');
+
+      if (legacyError) {
+        const rawMessage = legacyError.message || error?.message || 'Unable to load plans.';
+        const missingTable = /42P01|relation|does not exist|not found/i.test(rawMessage);
+        const hint = missingTable
+          ? 'Neither subscription_plans nor plans exists in Supabase. Run the latest SQL migrations, then reload.'
+          : 'Your account may not have read access to plans. Check RLS policies for subscription_plans/plans.';
+        renderPlansLoadError('Unable to load plans right now.', hint + ` (${rawMessage})`);
+        plans = [];
+        return;
+      }
+
+      plans = (legacyData || []).map(normalizePlanRecord);
+      renderPlans();
+    } catch (err) {
+      console.error('Unexpected loadPlans failure', err);
+      renderPlansLoadError('Unable to load plans right now.', err?.message || 'Unexpected error while loading plans.');
+      plans = [];
+    }
   }
 
   function renderPlans() {
@@ -521,11 +584,16 @@
 
   // ── Menu ──────────────────────────────────────────────────────────────────
   async function loadMenu() {
-    const [{ data: items }, { data: modLists }, { data: modOptions }] = await Promise.all([
+    const [{ data: items, error: itemsError }, { data: modLists, error: modListsError }, { data: modOptions, error: modOptionsError }] = await Promise.all([
       sb.from('menu_items').select('*').eq('available', true).order('sort_order'),
       sb.from('modifier_lists').select('*'),
       sb.from('modifier_options').select('*').order('sort_order'),
     ]);
+
+    const firstError = itemsError || modListsError || modOptionsError;
+    if (firstError) {
+      throw new Error(firstError.message || 'Unable to load menu configuration.');
+    }
 
     modifierListsMap = {};
     (modLists || []).forEach(ml => {
@@ -737,8 +805,11 @@
 
   // ── Delivery Times ────────────────────────────────────────────────────────
   async function loadDeliveryTimes() {
-    const { data } = await sb.from('store_config').select('value').eq('key', 'delivery_times').single();
-    const times = data?.value || ['7:30 AM','8:00 AM','8:30 AM','9:00 AM','10:00 AM','11:00 AM','12:00 PM'];
+    const { data, error } = await sb.from('store_config').select('value').eq('key', 'delivery_times').single();
+    if (error && error.code !== 'PGRST116') {
+      throw new Error(error.message || 'Unable to load delivery times.');
+    }
+    const times = Array.isArray(data?.value) ? data.value : ['7:30 AM','8:00 AM','8:30 AM','9:00 AM','10:00 AM','11:00 AM','12:00 PM'];
     ['slot-1-time','slot-2-time'].forEach(selId => {
       const sel = document.getElementById(selId);
       times.forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; sel.appendChild(o); });
