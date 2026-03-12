@@ -338,12 +338,43 @@
   }
 
   // ── Subscription ──────────────────────────────────────────────────────────
-  async function loadSubscription() {
-    const { data: sub } = await sb
+  async function fetchLatestSubscription() {
+    // Some customers (especially long-running teacher accounts) can have
+    // historical cancelled rows plus a current row. maybeSingle() without a
+    // limit fails when more than one row exists, which makes the dashboard act
+    // like no subscription exists. Prefer the latest non-cancelled row first.
+    const activeStatuses = ['active', 'paused', 'payment_failed'];
+
+    const { data: activeSub, error: activeError } = await sb
       .from('subscriptions')
       .select(`*, subscription_plans(*), subscription_drink_slots(*, menu_items(name))`)
       .eq('user_id', currentUser.id)
+      .in('status', activeStatuses)
+      .order('created_at', { ascending: false })
+      .limit(1)
       .maybeSingle();
+
+    if (activeError) {
+      console.error('Failed loading active subscription', activeError);
+    }
+    if (activeSub) return activeSub;
+
+    const { data: latestSub, error: latestError } = await sb
+      .from('subscriptions')
+      .select(`*, subscription_plans(*), subscription_drink_slots(*, menu_items(name))`)
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (latestError) {
+      console.error('Failed loading latest subscription', latestError);
+    }
+    return latestSub || null;
+  }
+
+  async function loadSubscription() {
+    const sub = await fetchLatestSubscription();
 
     activeSubscription = sub;
 
