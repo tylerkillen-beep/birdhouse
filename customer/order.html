@@ -1095,6 +1095,7 @@
           deliveryMethod: selectedDeliveryMethod,
           customerInfo: {
             customerName: (firstName + ' ' + lastName).trim(),
+            email:        (currentUser.email || '').trim().toLowerCase(),
             room:         roomValue,
             deliveryDay:  document.getElementById('delivery-date').value,
             deliveryDate: deliveryDatePicker?.selectedDates[0]
