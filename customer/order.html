@@ -365,6 +365,7 @@
   let menuRatings = {};
   let customerProfile = null; // { location, last_room }
   let customerType = 'student'; // 'student' | 'teacher' | 'mathews'
+  let hasApprovedStaffHubAccount = false;
   let allDeliveryTimes = [];
   let blockedDatesSet = new Set();
   let blockedReasonsMap = {};
@@ -373,7 +374,8 @@
   let applyLoyaltyCredit = false; // whether the credit checkbox is checked
   let selectedDeliveryMethod = 'delivery'; // 'delivery' | 'pickup' — students only
 
-  const TEACHER_DISCOUNT = 0.25; // 25% off for all @nixaschools.net accounts
+  const EMPLOYEE_DISCOUNT = 0.50; // 50% off for approved staff-hub accounts
+  const TEACHER_DISCOUNT  = 0.25; // 25% off for teachers
 
   function getCustomerType(email, profile) {
     if (email.endsWith('@nixaschools.net')) {
@@ -382,11 +384,25 @@
     return 'student';
   }
 
-  function applyDiscount(priceCents) {
-    return Math.round(priceCents * (1 - TEACHER_DISCOUNT));
+  function hasEmployeeDiscount() { return hasApprovedStaffHubAccount; }
+  function isTeacher() { return customerType === 'teacher' || customerType === 'mathews'; }
+
+  function discountRate() {
+    if (hasEmployeeDiscount()) return EMPLOYEE_DISCOUNT;
+    if (isTeacher()) return TEACHER_DISCOUNT;
+    return 0;
   }
 
-  function isTeacher() { return customerType === 'teacher' || customerType === 'mathews'; }
+  function applyDiscount(priceCents) {
+    const rate = discountRate();
+    return rate > 0 ? Math.round(priceCents * (1 - rate)) : priceCents;
+  }
+
+  function discountLabel() {
+    if (hasEmployeeDiscount()) return '💼 Employee Discount (50%)';
+    if (isTeacher()) return '🍎 Teacher Discount (25%)';
+    return '';
+  }
 
 
   function resolveCustomerName(user, profile) {
@@ -420,8 +436,10 @@
 
     // Load profile for location + last_room + name fallback + loyalty totals
     const { data: profile } = await sb.from('profiles').select('location, last_room, full_name, loyalty_spend_cents, loyalty_credit_cents').eq('id', currentUser.id).maybeSingle();
+    const { data: staffHubAccount } = await sb.from('students').select('role').eq('id', currentUser.id).maybeSingle();
     customerProfile = profile;
     customerType    = getCustomerType(currentUser.email, profile);
+    hasApprovedStaffHubAccount = ['student', 'manager', 'admin'].includes(staffHubAccount?.role);
 
     const { firstName, lastName } = resolveCustomerName(currentUser, profile);
     document.getElementById('user-display-name').textContent = (firstName + ' ' + lastName).trim();
@@ -442,19 +460,18 @@
     userCard.classList.remove('guest-clickable');
     userCard.onclick = null;
 
-    // Show teacher/Mathews badge and prefill last room
-    if (isTeacher()) {
+    // Show discount badge and prefill last room
+    const activeDiscount = discountLabel();
+    if (activeDiscount) {
       const badge = document.createElement('div');
       badge.style.cssText = 'font-size:0.68rem;color:#f5c842;margin-top:0.3rem;letter-spacing:0.04em';
-      badge.textContent = customerType === 'mathews' ? '⭐ Mathews — 25% off' : '🍎 Teacher — 25% off';
+      badge.textContent = activeDiscount.replace('(', '— ').replace(')', ' off');
       document.getElementById('user-card').appendChild(badge);
     }
     if (profile?.last_room) document.getElementById('delivery-room').value = profile.last_room;
 
-    // Show pickup/delivery toggle for students (teachers always get free delivery)
-    if (!isTeacher()) {
-      document.getElementById('delivery-method-group').style.display = '';
-    }
+    // Show pickup/delivery toggle for everyone.
+    document.getElementById('delivery-method-group').style.display = '';
 
     await Promise.all([loadMenu(), setupDeliveryPicker()]);
   }
@@ -714,8 +731,9 @@
     let extra = 0;
     checkboxes.forEach(cb => { if (cb.checked) extra += parseInt(cb.dataset.price || '0'); });
     const rawCents = pendingBaseCents + extra;
-    const finalCents = isTeacher() ? applyDiscount(rawCents) : rawCents;
-    const discountNote = isTeacher() ? ` <span style="font-size:0.7rem;color:#f5c842">(25% off)</span>` : '';
+    const rate = discountRate();
+    const finalCents = applyDiscount(rawCents);
+    const discountNote = rate > 0 ? ` <span style="font-size:0.7rem;color:#f5c842">(${Math.round(rate * 100)}% off)</span>` : '';
     document.getElementById('mod-total-price').innerHTML = `$${(finalCents / 100).toFixed(2)}${discountNote}`;
   }
 
@@ -740,7 +758,7 @@
 
     const modsCents  = selectedModifiers.reduce((s, m) => s + m.priceCents, 0);
     const rawCents   = pendingBaseCents + modsCents;
-    const totalCents = isTeacher() ? applyDiscount(rawCents) : rawCents;
+    const totalCents = applyDiscount(rawCents);
 
     addToCart(pendingItemId, pendingTemp, selectedModifiers, totalCents, rawCents);
     closeModModal();
@@ -800,7 +818,7 @@
       const modsLabel = c.selectedModifiers?.length
         ? c.selectedModifiers.map(m => m.name).join(', ')
         : null;
-      const hasDiscount = isTeacher() && c.originalCents && c.originalCents !== c.priceCents;
+      const hasDiscount = c.originalCents && c.originalCents !== c.priceCents;
       const priceDisplay = hasDiscount
         ? `<span style="text-decoration:line-through;color:var(--gray);font-size:0.78rem">$${(c.originalCents / 100 * c.quantity).toFixed(2)}</span> $${(c.price * c.quantity).toFixed(2)}`
         : `$${(c.price * c.quantity).toFixed(2)}`;
@@ -834,7 +852,7 @@
   }
 
   function deliveryFeeDollars() {
-    return (!isTeacher() && selectedDeliveryMethod === 'delivery') ? 1.00 : 0;
+    return selectedDeliveryMethod === 'delivery' ? 1.00 : 0;
   }
 
   function setDeliveryMethod(method) {
@@ -892,8 +910,9 @@
     const dateDisplay = document.getElementById('delivery-date').value;
     const time = document.getElementById('delivery-time').value;
     const subtotal = cartTotal();
-    const discountLine = isTeacher()
-      ? `<div class="summary-line"><span class="summary-key" style="color:#f5c842">🍎 Teacher Discount (25%)</span><span class="summary-val" style="color:#f5c842">applied</span></div>`
+    const activeDiscount = discountLabel();
+    const discountLine = activeDiscount
+      ? `<div class="summary-line"><span class="summary-key" style="color:#f5c842">${activeDiscount}</span><span class="summary-val" style="color:#f5c842">applied</span></div>`
       : '';
 
     // Credit checkbox — only shown if the customer has credit available
