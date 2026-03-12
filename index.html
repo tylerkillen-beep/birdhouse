@@ -172,7 +172,8 @@
     .team-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 1.75rem 1.5rem; position: relative; overflow: hidden; transition: transform 0.25s, box-shadow 0.25s; }
     .team-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--red), transparent); }
     .team-card:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(204,0,0,0.15); }
-    .team-card-initials { width: 48px; height: 48px; border-radius: 50%; background: rgba(204,0,0,0.15); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; color: var(--red-bright); margin-bottom: 1rem; letter-spacing: 0.05em; }
+    .team-card-avatar { width: 56px; height: 56px; border-radius: 50%; border: 1px solid var(--border); margin-bottom: 1rem; object-fit: cover; display:block; }
+    .team-card-initials { width: 56px; height: 56px; border-radius: 50%; background: rgba(204,0,0,0.15); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; color: var(--red-bright); margin-bottom: 1rem; letter-spacing: 0.05em; }
     .team-card-name { font-weight: 500; font-size: 1rem; color: var(--white); margin-bottom: 0.5rem; }
     .team-card-bio { font-size: 0.85rem; color: var(--gray); line-height: 1.65; font-weight: 300; }
     .team-empty { color: var(--gray); font-size: 0.88rem; text-align: center; padding: 3rem; background: var(--card); border: 1px solid var(--border); border-radius: 14px; }
@@ -282,7 +283,7 @@
       const grid = document.getElementById('team-grid');
       const { data, error } = await sb
         .from('students')
-        .select('first_name, last_name, bio')
+        .select('first_name, last_name, bio, bio_photo_url')
         .eq('bio_status', 'approved')
         .order('last_name');
 
@@ -294,9 +295,12 @@
       grid.innerHTML = data.map(s => {
         const initials = `${(s.first_name||'?')[0]}${(s.last_name||'?')[0]}`.toUpperCase();
         const name = `${s.first_name||''} ${s.last_name||''}`.trim();
+        const avatar = s.bio_photo_url
+          ? `<img class="team-card-avatar" src="${s.bio_photo_url}" alt="${name} profile photo" loading="lazy" />`
+          : `<div class="team-card-initials">${initials}</div>`;
         return `
           <div class="team-card">
-            <div class="team-card-initials">${initials}</div>
+            ${avatar}
             <div class="team-card-name">${name}</div>
             <div class="team-card-bio">${s.bio}</div>
           </div>`;
