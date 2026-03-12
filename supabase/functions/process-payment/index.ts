@@ -82,6 +82,10 @@ serve(async (req) => {
       return fail("Please sign in before placing an order.", 401);
     }
 
+    // Prefer authenticated email, with customer payload as a fallback.
+    // Square only sends receipt emails when buyer_email_address is present.
+    const buyerEmail = (user.email || customerInfo?.email || "").trim().toLowerCase() || null;
+
     // ── Validate inputs ────────────────────────────────────────────────────
     if (!sourceId) throw new Error("Missing payment token");
     if (!cartItems?.length) throw new Error("Cart is empty");
@@ -147,6 +151,14 @@ serve(async (req) => {
       }
 
       const squareBaseUrl = getSquareBaseUrl();
+
+      if (!buyerEmail) {
+        console.warn("process-payment: buyer email missing, Square receipt email may not be sent", {
+          userId,
+          squareEnv: Deno.env.get("SQUARE_ENV") || "production",
+        });
+      }
+
       const squareRes = await fetch(`${squareBaseUrl}/v2/payments`, {
         method: "POST",
         headers: {
@@ -159,6 +171,7 @@ serve(async (req) => {
           idempotency_key: crypto.randomUUID(),
           amount_money: { amount: chargeAmountCents, currency: "USD" },
           location_id: locationId,
+          ...(buyerEmail ? { buyer_email_address: buyerEmail } : {}),
           note: `Birdhouse — ${customerInfo.customerName} — ${orderDeliveryMethod === 'pickup' ? 'Pickup' : `Room ${customerInfo.room}`}`,
         }),
       });
