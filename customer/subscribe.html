@@ -37,6 +37,54 @@
     .page-title { font-family:'Bebas Neue',sans-serif; font-size:2.5rem; letter-spacing:0.04em; margin-bottom:0.4rem; }
     .page-sub { color:var(--light-gray); font-size:0.88rem; margin-bottom:2rem; line-height:1.6; }
 
+    .subscribe-perks {
+      display:grid;
+      grid-template-columns:1.25fr 1fr;
+      gap:1rem;
+      margin:-0.5rem 0 2rem;
+    }
+    .perk-hero,
+    .perk-list {
+      background:linear-gradient(145deg, rgba(204,0,0,0.14), rgba(20,20,20,0.95));
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:1rem 1.1rem;
+    }
+    .perk-eyebrow {
+      font-size:0.62rem;
+      letter-spacing:0.15em;
+      text-transform:uppercase;
+      color:var(--red-bright);
+      margin-bottom:0.45rem;
+    }
+    .perk-title {
+      font-family:'Bebas Neue',sans-serif;
+      letter-spacing:0.05em;
+      font-size:1.65rem;
+      margin-bottom:0.35rem;
+    }
+    .perk-copy { color:var(--light-gray); font-size:0.82rem; line-height:1.55; }
+    .perk-icons { display:grid; grid-template-columns:repeat(3,1fr); gap:0.5rem; margin-top:0.9rem; }
+    .perk-icon {
+      border:1px solid var(--border-dim);
+      border-radius:10px;
+      padding:0.55rem;
+      background:rgba(0,0,0,0.25);
+      text-align:center;
+    }
+    .perk-icon-emoji { font-size:1.05rem; display:block; margin-bottom:0.15rem; }
+    .perk-icon-label { font-size:0.68rem; color:var(--light-gray); letter-spacing:0.04em; text-transform:uppercase; }
+    .perk-list { display:flex; flex-direction:column; gap:0.65rem; justify-content:center; }
+    .perk-row { display:flex; gap:0.6rem; align-items:flex-start; }
+    .perk-row-dot {
+      width:22px; height:22px; border-radius:50%;
+      display:flex; align-items:center; justify-content:center;
+      background:rgba(204,0,0,0.18); border:1px solid rgba(204,0,0,0.32);
+      font-size:0.72rem; color:var(--red-bright); flex-shrink:0;
+    }
+    .perk-row strong { display:block; font-size:0.82rem; color:var(--white); }
+    .perk-row span { color:var(--light-gray); font-size:0.75rem; line-height:1.45; }
+
     /* Steps */
     .steps { display:flex; align-items:center; margin-bottom:2.5rem; }
     .step { display:flex; align-items:center; gap:0.6rem; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--gray); white-space:nowrap; }
@@ -166,6 +214,7 @@
       .layout{grid-template-columns:1fr} .sidebar{display:none} .main{padding:1.5rem}
       .plans-grid{grid-template-columns:1fr} .pay-layout{grid-template-columns:1fr}
       .delivery-grid{grid-template-columns:1fr}
+      .subscribe-perks{grid-template-columns:1fr}
     }
     @media(max-width:600px) { .menu-grid{grid-template-columns:repeat(2,1fr);gap:0.55rem} .menu-card{padding:0.85rem} .menu-card-name{font-size:0.83rem} .main{padding:1rem 1rem 5rem} }
   </style>
@@ -193,6 +242,33 @@
     <h1 class="page-title">Start Your Subscription</h1>
     <p class="page-sub" id="page-greeting">Hello, Eagle.</p>
     <p class="page-sub" style="margin-top:-1.5rem">Pick a plan, customize your weekly drink, and save your card. We handle the rest.</p>
+
+    <section class="subscribe-perks" aria-label="Subscription perks">
+      <div class="perk-hero">
+        <div class="perk-eyebrow">Why Subscribe</div>
+        <h2 class="perk-title">Fuel Your Week on Autopilot</h2>
+        <p class="perk-copy">Choose your favorites once, then enjoy consistent coffee without the ordering scramble. Subscriptions are built for busy mornings and smoother routines.</p>
+        <div class="perk-icons">
+          <div class="perk-icon"><span class="perk-icon-emoji">🚚</span><span class="perk-icon-label">Free Delivery</span></div>
+          <div class="perk-icon"><span class="perk-icon-emoji">⏰</span><span class="perk-icon-label">No Reordering</span></div>
+          <div class="perk-icon"><span class="perk-icon-emoji">✨</span><span class="perk-icon-label">Always Ready</span></div>
+        </div>
+      </div>
+      <div class="perk-list">
+        <div class="perk-row">
+          <div class="perk-row-dot">✓</div>
+          <div><strong>Free delivery included</strong><span>Your weekly drinks arrive with zero delivery fee so every plan dollar goes further.</span></div>
+        </div>
+        <div class="perk-row">
+          <div class="perk-row-dot">✓</div>
+          <div><strong>Predictable coffee budget</strong><span>One weekly price makes your routine easy to plan without surprise checkout totals.</span></div>
+        </div>
+        <div class="perk-row">
+          <div class="perk-row-dot">✓</div>
+          <div><strong>Personalized to your taste</strong><span>Lock in your go-to drink and customize it once, then enjoy it every week.</span></div>
+        </div>
+      </div>
+    </section>
 
     <div class="steps">
       <div class="step active" id="step-ind-1"><div class="step-num">1</div> Choose Plan</div>
