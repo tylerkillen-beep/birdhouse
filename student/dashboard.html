@@ -518,9 +518,13 @@
       <div class="summary-form">
         <div id="bio-status-banner" style="display:none;margin-bottom:1.25rem;padding:0.85rem 1rem;border-radius:8px;font-size:0.85rem"></div>
         <div class="form-group">
-          <label>Your Bio</label>
+          <label>Your Bio Summary</label>
           <textarea id="bio-text" placeholder="Tell the Birdhouse community a little about yourself — your role, interests, favorite drink, or anything you'd like people to know about you." style="min-height:160px"></textarea>
-          <div style="font-size:0.72rem;color:var(--gray);margin-top:0.4rem">Keep it friendly and school-appropriate. Once you submit, your instructor will review it before it appears on the About page.</div>
+        </div>
+        <div class="form-group" style="margin-top:1rem">
+          <label>Your Photo (optional)</label>
+          <input id="bio-photo" type="file" accept="image/*" style="padding:0.75rem" />
+          <div id="bio-photo-help" style="font-size:0.72rem;color:var(--gray);margin-top:0.45rem">Upload a clear headshot. This photo and your summary are both reviewed by your instructor before appearing on the About page.</div>
         </div>
         <button class="btn-primary" id="bio-submit-btn" onclick="submitBio()">Submit Bio for Review →</button>
         <div class="msg" id="bio-msg"></div>
@@ -533,6 +537,7 @@
   const sb = supabase.createClient('https://ljukrhneikqbabcmcpet.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqdWtyaG5laWtxYmFiY21jcGV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyODg1MjEsImV4cCI6MjA4Nzg2NDUyMX0.UbtB_-syG9a9vLcJp04w_k2F3XP2tMScYtB4sez3j78');
   const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
   let currentUser = null;
+  let currentBioRecord = null;
 
   async function init() {
     const {data:{session}} = await sb.auth.getSession();
@@ -1222,8 +1227,12 @@
     const banner = document.getElementById('bio-status-banner');
     const textarea = document.getElementById('bio-text');
     const btn = document.getElementById('bio-submit-btn');
-    const {data} = await sb.from('students').select('bio,bio_pending,bio_status').eq('id',currentUser.id).single();
+    const photoHelp = document.getElementById('bio-photo-help');
+    const photoInput = document.getElementById('bio-photo');
+    const {data} = await sb.from('students').select('bio,bio_pending,bio_status,bio_photo_url,bio_photo_pending_url').eq('id',currentUser.id).single();
     if (!data) return;
+    currentBioRecord = data;
+    photoInput.value = '';
 
     if (data.bio_status === 'approved') {
       banner.style.display = 'block';
@@ -1233,6 +1242,9 @@
       banner.textContent = '✓ Your bio is live on the About page! You can update it below and resubmit for review.';
       textarea.value = data.bio || '';
       btn.textContent = 'Resubmit Updated Bio →';
+      photoHelp.textContent = data.bio_photo_url
+        ? 'Current approved photo is live. Select a new image only if you want to replace it.'
+        : 'No approved photo yet. You can upload one with your next submission.';
     } else if (data.bio_status === 'pending') {
       banner.style.display = 'block';
       banner.style.background = 'rgba(255,152,0,0.08)';
@@ -1241,6 +1253,9 @@
       banner.textContent = '⏳ Your bio has been submitted and is waiting for instructor approval.';
       textarea.value = data.bio_pending || '';
       btn.textContent = 'Update Submission →';
+      photoHelp.textContent = data.bio_photo_pending_url
+        ? 'A new photo is already attached to this pending submission. Choose another file to replace it.'
+        : 'You can attach a photo to this pending submission by selecting a file before updating.';
     } else if (data.bio_status === 'rejected') {
       banner.style.display = 'block';
       banner.style.background = 'rgba(204,0,0,0.08)';
@@ -1249,10 +1264,14 @@
       banner.textContent = '✗ Your bio was not approved. Please revise it and resubmit.';
       textarea.value = data.bio_pending || data.bio || '';
       btn.textContent = 'Resubmit Bio →';
+      photoHelp.textContent = data.bio_photo_url
+        ? 'Your last approved photo is still saved. Upload a new one if you want to replace it.'
+        : 'You can include a photo with your revised submission.';
     } else {
       banner.style.display = 'none';
       textarea.value = '';
       btn.textContent = 'Submit Bio for Review →';
+      photoHelp.textContent = 'Upload a clear headshot. This photo and your summary are both reviewed by your instructor before appearing on the About page.';
     }
   }
 
@@ -1260,9 +1279,31 @@
     const text = document.getElementById('bio-text').value.trim();
     const msg = document.getElementById('bio-msg');
     const btn = document.getElementById('bio-submit-btn');
+    const photoInput = document.getElementById('bio-photo');
+    const photoFile = photoInput.files?.[0];
     if (!text) { msg.textContent = 'Please write something before submitting.'; msg.className = 'msg error'; return; }
     btn.disabled = true;
-    const {error} = await sb.from('students').update({bio_pending: text, bio_status: 'pending'}).eq('id', currentUser.id);
+
+    let pendingPhotoUrl = currentBioRecord?.bio_photo_pending_url || currentBioRecord?.bio_photo_url || null;
+    if (photoFile) {
+      const ext = (photoFile.name.split('.').pop() || 'jpg').toLowerCase();
+      const path = `${currentUser.id}/bio-photo-${Date.now()}.${ext}`;
+      const { error: uploadError } = await sb.storage.from('student-bio-photos').upload(path, photoFile, { upsert: true, cacheControl: '3600', contentType: photoFile.type || 'image/jpeg' });
+      if (uploadError) {
+        btn.disabled = false;
+        msg.textContent = 'Photo upload failed: ' + uploadError.message;
+        msg.className = 'msg error';
+        return;
+      }
+      pendingPhotoUrl = sb.storage.from('student-bio-photos').getPublicUrl(path).data.publicUrl;
+    }
+
+    const {error} = await sb.from('students').update({
+      bio_pending: text,
+      bio_photo_pending_url: pendingPhotoUrl,
+      bio_status: 'pending'
+    }).eq('id', currentUser.id);
+
     btn.disabled = false;
     if (error) { msg.textContent = 'Error submitting bio: ' + error.message; msg.className = 'msg error'; return; }
     msg.textContent = 'Bio submitted! Your instructor will review it shortly.';
