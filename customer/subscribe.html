@@ -455,6 +455,7 @@
   let selectedPlan = null, squareCard = null;
   let customerProfile = null;
   let customerType = 'student'; // 'student' | 'teacher' | 'mathews'
+  let hasApprovedStaffHubAccount = false;
 
   const TEACHER_DISCOUNT = 0.25;
 
@@ -464,7 +465,11 @@
     }
     return 'student';
   }
-  function isTeacher() { return customerType === 'teacher' || customerType === 'mathews'; }
+  function isTeacher() {
+    // Staff-hub accounts should always pay full price for subscriptions.
+    if (hasApprovedStaffHubAccount) return false;
+    return customerType === 'teacher' || customerType === 'mathews';
+  }
   function discountedCents(cents) { return Math.round(cents * (1 - TEACHER_DISCOUNT)); }
 
 
@@ -507,8 +512,10 @@
 
     // Load profile for customer type and location defaults + loyalty totals
     const { data: profile } = await sb.from('profiles').select('location, last_room, full_name, loyalty_spend_cents, loyalty_credit_cents').eq('id', currentUser.id).maybeSingle();
+    const { data: staffHubAccount } = await sb.from('students').select('role').eq('id', currentUser.id).maybeSingle();
     customerProfile = profile;
     customerType    = getCustomerType(currentUser.email, profile);
+    hasApprovedStaffHubAccount = ['student', 'manager', 'admin'].includes(staffHubAccount?.role);
 
     const { firstName, lastName } = resolveCustomerName(currentUser, profile);
     document.getElementById('user-display-name').textContent = (firstName + ' ' + lastName).trim();
