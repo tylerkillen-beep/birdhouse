@@ -11,10 +11,16 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
       --black: #0a0a0a; --red: #cc0000; --red-bright: #ff1a1a;
-      --gray: #666; --light-gray: #aaa; --white: #f0f0f0;
+      --gray: #888; --light-gray: #aaa; --white: #f0f0f0;
       --card: #161616; --border: rgba(204,0,0,0.2); --border-dim: rgba(255,255,255,0.07);
     }
     body { background: var(--black); color: var(--white); font-family: 'DM Sans', sans-serif; min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; }
+    .skip-link { position: absolute; top: -100%; left: 1rem; background: var(--red-bright); color: #000; padding: 0.5rem 1rem; border-radius: 0 0 6px 6px; font-size: 0.85rem; font-weight: 500; text-decoration: none; z-index: 9999; }
+    .skip-link:focus { top: 0; }
+    :focus-visible { outline: 2px solid var(--red-bright); outline-offset: 3px; border-radius: 3px; }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+    }
     body::before { content: ''; position: fixed; inset: 0; background-image: linear-gradient(rgba(204,0,0,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(204,0,0,0.03) 1px, transparent 1px); background-size: 40px 40px; pointer-events: none; z-index: 0; }
 
     .panel-left { background: #0d0000; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 4rem; position: relative; overflow: hidden; border-right: 1px solid var(--border); }
@@ -33,7 +39,7 @@
     .panel-right { display: flex; flex-direction: column; justify-content: center; padding: 4rem 3.5rem; position: relative; z-index: 1; }
     .back-link { font-size: 0.78rem; color: var(--gray); text-decoration: none; letter-spacing: 0.08em; display: inline-flex; align-items: center; gap: 0.4rem; margin-bottom: 2.5rem; transition: color 0.2s; text-transform: uppercase; }
     .back-link:hover { color: var(--red-bright); }
-    .form-eyebrow { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--red); margin-bottom: 0.5rem; }
+    .form-eyebrow { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--red-bright); margin-bottom: 0.5rem; }
     .form-title { font-family: 'Bebas Neue', sans-serif; font-size: 3rem; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
     .form-sub { color: var(--gray); font-size: 0.85rem; margin-bottom: 2rem; }
 
@@ -54,7 +60,8 @@
   </style>
 </head>
 <body>
-  <div class="panel-left">
+  <a class="skip-link" href="#login-form">Skip to login form</a>
+  <div class="panel-left" aria-hidden="true">
     <div class="panel-text">
       <img class="panel-logo" src="../logo.png" alt="The Birdhouse" />
       <h2 class="panel-title">TEAM<br><span>HUB.</span></h2>
@@ -68,7 +75,7 @@
     </div>
   </div>
 
-  <div class="panel-right">
+  <main class="panel-right" id="login-form">
     <a class="back-link" href="../index.html">← Back to Home</a>
     <div class="form-eyebrow">Student Staff Portal</div>
     <h1 class="form-title">Team Sign In.</h1>
@@ -81,7 +88,7 @@
 
     <div class="info-box">🔐 Team Hub access is approved by an admin after your first Google sign-in.</div>
     <div class="msg" id="login-msg" aria-live="polite"></div>
-  </div>
+  </main>
 
   <script>
     const sb = supabase.createClient('https://ljukrhneikqbabcmcpet.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqdWtyaG5laWtxYmFiY21jcGV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyODg1MjEsImV4cCI6MjA4Nzg2NDUyMX0.UbtB_-syG9a9vLcJp04w_k2F3XP2tMScYtB4sez3j78');

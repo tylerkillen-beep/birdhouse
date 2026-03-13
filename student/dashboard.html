@@ -13,10 +13,12 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
       --black: #0a0a0a; --dark: #111; --red: #cc0000; --red-bright: #ff1a1a;
-      --gray: #555; --light-gray: #999; --white: #f0f0f0;
+      --gray: #888; --light-gray: #999; --white: #f0f0f0;
       --card: #141414; --border: rgba(204,0,0,0.18); --border-dim: rgba(255,255,255,0.07);
     }
     body { background: var(--black); color: var(--white); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+    :focus-visible { outline: 2px solid var(--red-bright); outline-offset: 3px; border-radius: 3px; }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; } }
     .layout { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
 
     .sidebar { background: #0d0000; border-right: 1px solid var(--border); padding: 1.75rem 1.25rem; position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; }
@@ -32,7 +34,7 @@
     .signout-btn:hover { color: var(--white); }
 
     .main { padding: 2.5rem 3rem; }
-    .page-eyebrow { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--red); margin-bottom: 0.3rem; }
+    .page-eyebrow { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--red-bright); margin-bottom: 0.3rem; }
     .page-title { font-family: 'Bebas Neue', sans-serif; font-size: 2.5rem; letter-spacing: 0.04em; margin-bottom: 2rem; }
 
     .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem; }
@@ -225,13 +227,13 @@
 </div>
 <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleNav()"></div>
 <div class="layout">
-  <aside class="sidebar">
+  <aside class="sidebar" aria-label="Team hub navigation">
     <div class="sidebar-logo"><a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a></div>
     <div class="user-card">
       <div class="user-name" id="user-display-name">Loading...</div>
       <div class="user-role" id="user-role-badge">Student Staff</div>
     </div>
-    <nav>
+    <nav aria-label="Team hub">
       <a class="nav-item active" onclick="showSection('overview',this)">📊 Overview</a>
       <a class="nav-item" href="orders.html" style="justify-content:space-between">🧾 Order Queue <span id="pending-badge" style="display:none;background:var(--red);color:white;font-size:0.6rem;padding:0.1rem 0.45rem;border-radius:10px"></span></a>
       <a class="nav-item" onclick="showSection('schedule',this)">🗓️ My Schedule</a>
