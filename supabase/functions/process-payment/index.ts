@@ -46,6 +46,11 @@ function fail(message: string, status = 400) {
   });
 }
 
+function normalizeEmail(email: string | null | undefined) {
+  const normalized = (email || "").trim().toLowerCase();
+  return normalized || null;
+}
+
 
 function getBearerToken(req: Request) {
   const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
@@ -80,6 +85,23 @@ serve(async (req) => {
     const isAnonymousUser = (user as { is_anonymous?: boolean }).is_anonymous === true;
     if (isAnonymousUser) {
       return fail("Please sign in before placing an order.", 401);
+    }
+
+    // Prefer authenticated email, with customer payload as a fallback.
+    // Square only sends receipt emails when buyer_email_address is present.
+    let buyerEmail = normalizeEmail(user.email) || normalizeEmail(customerInfo?.email);
+
+    // Some auth flows can yield sparse user payloads from getUser(token).
+    // If email is still missing, hydrate directly from auth by user id.
+    if (!buyerEmail) {
+      const { data: adminUserData, error: adminUserError } = await supabase.auth.admin.getUserById(user.id);
+      if (adminUserError) {
+        console.warn("process-payment: unable to hydrate auth user email", {
+          userId,
+          error: adminUserError.message,
+        });
+      }
+      buyerEmail = normalizeEmail(adminUserData.user?.email);
     }
 
     // ── Validate inputs ────────────────────────────────────────────────────
@@ -147,6 +169,14 @@ serve(async (req) => {
       }
 
       const squareBaseUrl = getSquareBaseUrl();
+
+      if (!buyerEmail) {
+        console.warn("process-payment: buyer email missing; proceeding without Square receipt email", {
+          userId,
+          squareEnv: Deno.env.get("SQUARE_ENV") || "production",
+        });
+      }
+
       const squareRes = await fetch(`${squareBaseUrl}/v2/payments`, {
         method: "POST",
         headers: {
@@ -159,6 +189,7 @@ serve(async (req) => {
           idempotency_key: crypto.randomUUID(),
           amount_money: { amount: chargeAmountCents, currency: "USD" },
           location_id: locationId,
+          ...(buyerEmail ? { buyer_email_address: buyerEmail } : {}),
           note: `Birdhouse — ${customerInfo.customerName} — ${orderDeliveryMethod === 'pickup' ? 'Pickup' : `Room ${customerInfo.room}`}`,
         }),
       });
