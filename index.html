@@ -33,6 +33,86 @@
     .logo-header img { height: 52px; width: auto; filter: drop-shadow(0 0 12px rgba(204,0,0,0.6)); }
     nav a { font-size: 0.82rem; color: var(--red-bright); text-decoration: none; letter-spacing: 0.1em; text-transform: uppercase; margin-left: 2rem; transition: color 0.2s; }
     nav a:hover { color: var(--white); }
+
+    /* Hours section */
+    .hours-section {
+      position: relative; z-index: 1;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      background: var(--card);
+      padding: 3rem 5rem;
+      display: flex; align-items: center; justify-content: space-between; gap: 3rem;
+    }
+    .hours-left { min-width: 0; }
+    .hours-eyebrow { font-size: 0.7rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--red-bright); margin-bottom: 0.6rem; display: flex; align-items: center; gap: 0.75rem; }
+    .hours-eyebrow::before { content: ''; display: block; width: 24px; height: 1px; background: var(--red); }
+    .hours-title { font-family: 'Bebas Neue', sans-serif; font-size: 2.4rem; letter-spacing: 0.04em; margin-bottom: 0.25rem; }
+    .hours-days { font-size: 1rem; color: var(--light-gray); font-weight: 300; }
+    .hours-right { display: flex; gap: 1.5rem; flex-shrink: 0; }
+    .hours-card {
+      background: #1a1a1a; border: 1px solid var(--border); border-radius: 12px;
+      padding: 1.25rem 1.75rem; text-align: center; min-width: 130px;
+    }
+    .hours-card-label { font-size: 0.63rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gray); margin-bottom: 0.4rem; }
+    .hours-card-time { font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; color: var(--white); letter-spacing: 0.05em; }
+    .hours-divider { font-size: 1.4rem; color: var(--red); align-self: center; }
+
+    /* Menu section */
+    .menu-section {
+      position: relative; z-index: 1;
+      padding: 4rem 5rem 5rem;
+    }
+    .menu-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 2.5rem; gap: 1.5rem; flex-wrap: wrap; }
+    .menu-header-left {}
+    .menu-eyebrow { font-size: 0.7rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--red-bright); margin-bottom: 0.6rem; display: flex; align-items: center; gap: 0.75rem; }
+    .menu-eyebrow::before { content: ''; display: block; width: 24px; height: 1px; background: var(--red); }
+    .menu-title { font-family: 'Bebas Neue', sans-serif; font-size: 3rem; letter-spacing: 0.04em; }
+    .menu-signin-cta {
+      display: flex; align-items: center; gap: 0.75rem;
+      background: rgba(204,0,0,0.12); border: 1px solid rgba(204,0,0,0.3);
+      border-radius: 10px; padding: 0.75rem 1.25rem;
+      font-size: 0.82rem; color: var(--light-gray); white-space: nowrap;
+    }
+    .menu-signin-cta a { color: var(--red-bright); text-decoration: none; font-weight: 500; }
+    .menu-signin-cta a:hover { color: var(--white); }
+    .menu-signin-cta::before { content: '🔒'; font-size: 0.85rem; }
+    .menu-loading { color: var(--gray); font-size: 0.9rem; padding: 2rem 0; }
+    .menu-error { color: var(--red-bright); font-size: 0.9rem; padding: 1rem 0; }
+    .menu-category { margin-bottom: 2.5rem; }
+    .menu-category-header {
+      display: flex; align-items: center; gap: 0.75rem;
+      margin-bottom: 1.25rem; padding-bottom: 0.6rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .menu-category-icon { font-size: 1.1rem; }
+    .menu-category-name { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 0.06em; color: var(--white); }
+    .menu-category-count { font-size: 0.7rem; color: var(--gray); letter-spacing: 0.1em; margin-left: auto; }
+    .menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
+    .menu-item-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 1.1rem 1.15rem; transition: border-color 0.2s, transform 0.2s;
+    }
+    .menu-item-card:hover { border-color: rgba(204,0,0,0.4); transform: translateY(-2px); }
+    .menu-item-name { font-size: 0.92rem; font-weight: 500; color: var(--white); margin-bottom: 0.35rem; }
+    .menu-item-desc { font-size: 0.78rem; color: var(--gray); line-height: 1.5; margin-bottom: 0.65rem; font-weight: 300; }
+    .menu-item-price { font-size: 0.88rem; color: var(--red-bright); font-weight: 500; letter-spacing: 0.02em; }
+
+    @media (max-width: 900px) {
+      .hours-section { padding: 2.5rem 2.5rem; flex-direction: column; align-items: flex-start; }
+      .menu-section { padding: 3rem 2.5rem 4rem; }
+    }
+    @media (max-width: 768px) {
+      .hours-section { padding: 2rem 2rem; }
+      .hours-right { width: 100%; }
+      .hours-card { flex: 1; min-width: 0; }
+      .menu-section { padding: 2.5rem 2rem 3.5rem; }
+      .menu-title { font-size: 2.4rem; }
+      .menu-header { flex-direction: column; align-items: flex-start; }
+    }
+    @media (max-width: 480px) {
+      .hours-section { padding: 1.75rem 1.25rem; }
+      .menu-section { padding: 2rem 1.25rem 3rem; }
+    }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
     }
@@ -173,6 +253,8 @@
   <header>
     <a class="logo-header" href="/"><img src="logo.png" alt="The Birdhouse" width="300" height="102" /></a>
     <nav aria-label="Main navigation">
+      <a href="#menu">Menu</a>
+      <a href="#hours">Hours</a>
       <a href="customer/order.html">Order Now</a>
       <a href="about.html">About</a>
     </nav>
@@ -240,6 +322,121 @@
       </div>
     </div>
   </main>
+
+  <section class="hours-section" id="hours" aria-label="Hours">
+    <div class="hours-left">
+      <div class="hours-eyebrow">When We're Open</div>
+      <div class="hours-title">Monday – Friday</div>
+      <div class="hours-days">During school hours · Closed on weekends &amp; breaks</div>
+    </div>
+    <div class="hours-right" aria-label="Opening and closing times">
+      <div class="hours-card">
+        <div class="hours-card-label">Opens</div>
+        <div class="hours-card-time">7:30 AM</div>
+      </div>
+      <div class="hours-divider" aria-hidden="true">—</div>
+      <div class="hours-card">
+        <div class="hours-card-label">Last Order</div>
+        <div class="hours-card-time">1:30 PM</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="menu-section" id="menu" aria-label="Our menu">
+    <div class="menu-header">
+      <div class="menu-header-left">
+        <div class="menu-eyebrow">What We Serve</div>
+        <h2 class="menu-title">Our Menu</h2>
+      </div>
+      <div class="menu-signin-cta">
+        Browse freely &mdash; <a href="customer/index.html">sign in</a> to place an order
+      </div>
+    </div>
+    <div id="menu-content" aria-live="polite">
+      <p class="menu-loading">Loading menu&hellip;</p>
+    </div>
+  </section>
+
+  <script>
+    (function() {
+      const SUPABASE_URL = 'https://ljukrhneikqbabcmcpet.supabase.co';
+      const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqdWtyaG5laWtxYmFiY21jcGV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyODg1MjEsImV4cCI6MjA4Nzg2NDUyMX0.UbtB_-syG9a9vLcJp04w_k2F3XP2tMScYtB4sez3j78';
+
+      const CATEGORIES = [
+        { key: 'specials', title: 'Specials',  icon: '✨' },
+        { key: 'coffee',   title: 'Coffee',    icon: '☕' },
+        { key: 'soda_tea', title: 'Soda & Tea', icon: '🥤' },
+        { key: 'food',     title: 'Food',       icon: '🍽️' },
+      ];
+
+      function getCategory(item) {
+        const n = String(item.category || '').trim().toLowerCase();
+        if (n.includes('mathews')) return null; // Mathews-only items not shown publicly
+        if (n.includes('special')) return 'specials';
+        if (n.includes('soda') || n.includes('tea') || n.includes('energy') || n.includes('refresher')) return 'soda_tea';
+        if (n.includes('food') || n.includes('pastry') || n.includes('snack') || n.includes('bak') || n.includes('cookie')) return 'food';
+        return 'coffee';
+      }
+
+      function formatPrice(item) {
+        const cents = item.base_price_cents;
+        if (cents != null) return '$' + (cents / 100).toFixed(2);
+        if (item.base_price != null) return '$' + parseFloat(item.base_price).toFixed(2);
+        return '';
+      }
+
+      async function loadMenu() {
+        const container = document.getElementById('menu-content');
+        try {
+          const res = await fetch(
+            `${SUPABASE_URL}/rest/v1/menu_items?select=name,description,category,base_price_cents,base_price,sort_order&available=eq.true&order=category.asc,sort_order.asc`,
+            { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
+          );
+          if (!res.ok) throw new Error('Failed to load menu');
+          const items = await res.json();
+
+          // Group into categories
+          const groups = {};
+          CATEGORIES.forEach(c => { groups[c.key] = []; });
+          items.forEach(item => {
+            const key = getCategory(item);
+            if (key && groups[key]) groups[key].push(item);
+          });
+
+          const html = CATEGORIES
+            .filter(c => groups[c.key].length > 0)
+            .map(c => `
+              <div class="menu-category">
+                <div class="menu-category-header">
+                  <span class="menu-category-icon" aria-hidden="true">${c.icon}</span>
+                  <span class="menu-category-name">${c.title}</span>
+                  <span class="menu-category-count">${groups[c.key].length} item${groups[c.key].length !== 1 ? 's' : ''}</span>
+                </div>
+                <div class="menu-grid">
+                  ${groups[c.key].map(item => `
+                    <div class="menu-item-card">
+                      <div class="menu-item-name">${escHtml(item.name)}</div>
+                      ${item.description ? `<div class="menu-item-desc">${escHtml(item.description)}</div>` : ''}
+                      ${formatPrice(item) ? `<div class="menu-item-price">${formatPrice(item)}</div>` : ''}
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            `).join('');
+
+          container.innerHTML = html || '<p class="menu-loading">No items available right now.</p>';
+        } catch (err) {
+          container.innerHTML = '<p class="menu-error">Unable to load menu. Please try again later.</p>';
+        }
+      }
+
+      function escHtml(str) {
+        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      }
+
+      loadMenu();
+    })();
+  </script>
 
 </body>
 </html>
