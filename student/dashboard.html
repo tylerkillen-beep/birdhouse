@@ -188,10 +188,42 @@
     .avail-toggle.on { background:var(--red); }
     .avail-toggle.on::after { left:21px; }
 
-    @media (max-width: 900px) { .layout{grid-template-columns:1fr} .sidebar{display:none} .main{padding:1.5rem} .stats-grid{grid-template-columns:1fr 1fr} .schedule-grid{grid-template-columns:1fr 1fr} }
+    /* ── Mobile top bar ── */
+    .mobile-topbar { display:none; position:fixed; top:0; left:0; right:0; height:54px; background:#0d0000; border-bottom:1px solid var(--border); z-index:300; align-items:center; justify-content:space-between; padding:0 1.25rem; }
+    .mobile-topbar img { height:30px; filter:drop-shadow(0 0 6px rgba(204,0,0,0.5)); }
+    .hamburger { background:none; border:none; cursor:pointer; display:flex; flex-direction:column; gap:5px; padding:6px; }
+    .hamburger span { display:block; width:22px; height:2px; background:var(--white); border-radius:2px; transition:all 0.25s; }
+    .hamburger.open span:nth-child(1) { transform:translateY(7px) rotate(45deg); }
+    .hamburger.open span:nth-child(2) { opacity:0; }
+    .hamburger.open span:nth-child(3) { transform:translateY(-7px) rotate(-45deg); }
+    .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:250; }
+    .sidebar-overlay.open { display:block; }
+
+    @media (max-width: 900px) {
+      .mobile-topbar { display:flex; }
+      .layout { grid-template-columns:1fr; }
+      .sidebar { display:flex !important; position:fixed; top:0; left:0; bottom:0; width:280px; height:100%; transform:translateX(-100%); transition:transform 0.28s ease; z-index:260; overflow-y:auto; }
+      .sidebar.open { transform:translateX(0); }
+      .main { padding:1.5rem; padding-top:calc(1.5rem + 54px); }
+      .stats-grid { grid-template-columns:1fr 1fr; }
+      .schedule-grid { grid-template-columns:repeat(3,1fr); }
+      .form-row { grid-template-columns:1fr; }
+    }
+    @media (max-width: 600px) {
+      .stats-grid { grid-template-columns:1fr; }
+      .schedule-grid { grid-template-columns:1fr 1fr; }
+      .sched-periods-grid { grid-template-columns:1fr; }
+    }
   </style>
 </head>
 <body>
+<div class="mobile-topbar">
+  <a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a>
+  <button class="hamburger" id="hamburger-btn" onclick="toggleNav()" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</div>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleNav()"></div>
 <div class="layout">
   <aside class="sidebar">
     <div class="sidebar-logo"><a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a></div>
@@ -1311,6 +1343,20 @@
     loadBio();
   }
 
+  function toggleNav() {
+    const sidebar   = document.querySelector('.sidebar');
+    const overlay   = document.getElementById('sidebar-overlay');
+    const hamburger = document.getElementById('hamburger-btn');
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('open');
+    hamburger.classList.toggle('open');
+  }
+  function closeNav() {
+    document.querySelector('.sidebar').classList.remove('open');
+    document.getElementById('sidebar-overlay').classList.remove('open');
+    document.getElementById('hamburger-btn').classList.remove('open');
+  }
+
   function showSection(name,el) {
     document.querySelectorAll('[id^="section-"]').forEach(s=>s.style.display='none');
     document.getElementById('section-'+name).style.display='block';
@@ -1323,6 +1369,8 @@
     if(name==='inventory')loadInventory();
     if(name==='sales')initStudentSalesReport();
     if(name==='bio')loadBio();
+    closeNav();
+    window.scrollTo(0,0);
   }
 
   async function signOut() { await sb.auth.signOut(); window.location.href='index.html'; }
