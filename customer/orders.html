@@ -433,12 +433,8 @@
         throw new Error(details);
       }
 
-      if (msgEl) {
-        const safeUrl = escapeHtml(data.receiptUrl);
-        const safeMessage = escapeHtml(data.message || 'Open your receipt link.');
-        msgEl.innerHTML = `<a href="${safeUrl}" target="_blank" rel="noopener" style="color:var(--red-bright)">Open Square receipt ↗</a><div style="margin-top:0.2rem">${safeMessage}</div>`;
-      }
-      if (btnEl) btnEl.textContent = 'Receipt Ready';
+      window.open(data.receiptUrl, '_blank', 'noopener');
+      if (btnEl) btnEl.textContent = 'Receipt Opened';
     } catch (err) {
       if (msgEl) {
         msgEl.textContent = err instanceof Error ? err.message : 'Unable to load receipt link.';
