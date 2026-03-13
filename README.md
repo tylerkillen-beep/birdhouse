@@ -62,6 +62,13 @@ In Supabase → **Authentication → URL Configuration**:
 
 ---
 
+## Square Receipts & Invoices
+
+- See `docs/square-receipts-invoices.md` for a practical guide to transaction receipts, account checks, and an invoice-mode migration path.
+- Note: this guide is documentation only; behavior does not change until follow-up code/migration PRs are implemented.
+
+---
+
 ## User Roles
 
 | Role | Can Do |
