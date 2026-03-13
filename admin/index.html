@@ -18,14 +18,16 @@
       --accent: #c8a96e;
       --accent-dim: #a8894e;
       --text: #f0ece4;
-      --gray: #555;
-      --gray-mid: #888;
+      --gray: #888;
+      --gray-mid: #aaa;
       --danger: #c0392b;
       --success: #27ae60;
       --warning: #e67e22;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.92rem; min-height: 100vh; display: flex; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; } }
     body.auth-pending #sidebar, body.auth-pending #main { display: none; }
     .auth-gate { display: none; position: fixed; inset: 0; align-items: center; justify-content: center; background: var(--bg); color: var(--gray-mid); letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.72rem; z-index: 9999; }
     body.auth-pending .auth-gate { display: flex; }

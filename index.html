@@ -4,16 +4,20 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>The Birdhouse</title>
+  <meta name="description" content="The Birdhouse is a student-run coffee shop at Nixa High School. Order drinks online, earn Birdhouse Bucks, and get delivery straight to your classroom." />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
       --black: #0a0a0a; --red: #cc0000; --red-bright: #ff1a1a;
-      --gray: #666; --light-gray: #aaa; --white: #f0f0f0;
+      --gray: #888; --light-gray: #aaa; --white: #f0f0f0;
       --card: #161616; --border: rgba(204,0,0,0.2);
     }
     body { background: var(--black); color: var(--white); font-family: 'DM Sans', sans-serif; min-height: 100vh; overflow-x: hidden; }
+    .skip-link { position: absolute; top: -100%; left: 1rem; background: var(--red-bright); color: #000; padding: 0.5rem 1rem; border-radius: 0 0 6px 6px; font-size: 0.85rem; font-weight: 500; text-decoration: none; z-index: 9999; }
+    .skip-link:focus { top: 0; }
+    :focus-visible { outline: 2px solid var(--red-bright); outline-offset: 3px; border-radius: 3px; }
     body::before {
       content: ''; position: fixed; inset: 0;
       background-image: linear-gradient(rgba(204,0,0,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(204,0,0,0.03) 1px, transparent 1px);
@@ -29,12 +33,15 @@
     .logo-header img { height: 52px; filter: drop-shadow(0 0 12px rgba(204,0,0,0.6)); }
     nav a { font-size: 0.82rem; color: var(--red-bright); text-decoration: none; letter-spacing: 0.1em; text-transform: uppercase; margin-left: 2rem; transition: color 0.2s; }
     nav a:hover { color: var(--white); }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+    }
 
     .hero { display: grid; grid-template-columns: 1.2fr 0.8fr; min-height: calc(100vh - 85px); position: relative; z-index: 1; }
 
     /* LEFT */
     .hero-left { display: flex; flex-direction: column; justify-content: center; padding: 4rem 3rem 4rem 5rem; min-width: 0; }
-    .hero-eyebrow { font-size: 0.72rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--red); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; }
+    .hero-eyebrow { font-size: 0.72rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--red-bright); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; }
     .hero-eyebrow::before { content: ''; display: block; width: 30px; height: 1px; background: var(--red); }
     .hero-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(5rem, 8vw, 8rem); line-height: 0.95; letter-spacing: 0.02em; margin-bottom: 1.5rem; }
     .hero-title .glow { color: var(--red-bright); text-shadow: 0 0 30px rgba(204,0,0,0.8), 0 0 60px rgba(204,0,0,0.4); }
@@ -75,7 +82,7 @@
     .portal-card:hover::before { opacity: 1; }
     .portal-card.student { background: linear-gradient(135deg, #1a0000 0%, var(--card) 60%); border-color: rgba(204,0,0,0.35); }
     .portal-icon { font-size: 1.4rem; margin-bottom: 0.6rem; display: block; }
-    .portal-label { font-size: 0.65rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--red); margin-bottom: 0.4rem; }
+    .portal-label { font-size: 0.65rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--red-bright); margin-bottom: 0.4rem; }
     .portal-name { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 0.05em; color: var(--white); margin-bottom: 0.75rem; }
     .portal-desc { font-size: 0.82rem; color: var(--gray); line-height: 1.5; font-weight: 300; }
     .portal-arrow { position: absolute; bottom: 1.5rem; right: 1.5rem; font-size: 1rem; color: var(--red); opacity: 0.5; transition: opacity 0.2s, transform 0.2s; }
@@ -162,21 +169,22 @@
   </style>
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
   <header>
-    <a class="logo-header" href="/"><img src="logo.png" alt="The Birdhouse" /></a>
-    <nav>
+    <a class="logo-header" href="/"><img src="logo.png" alt="The Birdhouse" width="300" height="102" /></a>
+    <nav aria-label="Main navigation">
       <a href="customer/order.html">Order Now</a>
       <a href="about.html">About</a>
     </nav>
   </header>
 
-  <main class="hero">
+  <main class="hero" id="main-content">
     <div class="hero-left">
       <p class="hero-eyebrow fade-up">Serving Since 2014</p>
       <h1 class="hero-title fade-up">YOUR<br>DAILY<br><span class="glow">BREW.</span></h1>
       <p class="hero-desc fade-up">Order your favorite drinks, earn Birdhouse Bucks, and get delivery straight to your room.</p>
 
-      <div class="marquee-wrap fade-up">
+      <div class="marquee-wrap fade-up" aria-hidden="true">
         <div class="marquee-track">
           <span class="marquee-item">Student-Run</span><span class="marquee-dot">✦</span>
           <span class="marquee-item">Classroom Delivery</span><span class="marquee-dot">✦</span>
@@ -215,7 +223,7 @@
       </div>
     </div>
 
-    <div class="hero-right">
+    <div class="hero-right" aria-hidden="true">
       <div class="cup-wrap">
         <img class="cup-img" src="coffee.png" alt="" />
         <div class="cup-logo-wrap">
@@ -226,7 +234,7 @@
           <div class="glow-ring-1"></div>
           <div class="glow-core"></div>
           <div class="cup-logo">
-            <img src="logo.png" alt="The Birdhouse" />
+            <img src="logo.png" alt="" />
           </div>
         </div>
       </div>

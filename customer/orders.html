@@ -9,9 +9,11 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root { --black:#0a0a0a; --red:#cc0000; --red-bright:#ff1a1a; --gray:#555; --light-gray:#999; --white:#f0f0f0; --card:#141414; --border:rgba(204,0,0,0.18); --border-dim:rgba(255,255,255,0.07); }
+    :root { --black:#0a0a0a; --red:#cc0000; --red-bright:#ff1a1a; --gray:#888; --light-gray:#999; --white:#f0f0f0; --card:#141414; --border:rgba(204,0,0,0.18); --border-dim:rgba(255,255,255,0.07); }
     body { background:var(--black); color:var(--white); font-family:'DM Sans',sans-serif; min-height:100vh; }
     body::before { content:''; position:fixed; inset:0; background-image:linear-gradient(rgba(204,0,0,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(204,0,0,0.03) 1px,transparent 1px); background-size:40px 40px; pointer-events:none; }
+    :focus-visible { outline: 2px solid var(--red-bright); outline-offset: 3px; border-radius: 3px; }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; } }
     .layout { display:grid; grid-template-columns:220px 1fr; min-height:100vh; }
     .sidebar { background:#0d0000; border-right:1px solid var(--border); padding:1.75rem 1.25rem; position:sticky; top:0; height:100vh; display:flex; flex-direction:column; }
     .sidebar-logo img { height:38px; filter:drop-shadow(0 0 8px rgba(204,0,0,0.5)); margin-bottom:2rem; }
@@ -25,7 +27,7 @@
     .signout-btn { background:none; border:1px solid rgba(255,255,255,0.08); border-radius:7px; padding:0.65rem 1rem; color:var(--gray); font-size:0.8rem; cursor:pointer; width:100%; text-align:left; transition:all 0.2s; display:flex; align-items:center; gap:0.5rem; font-family:'DM Sans',sans-serif; }
     .signout-btn:hover { color:var(--white); }
     .main { padding:2.5rem 3rem; position:relative; z-index:1; }
-    .page-eyebrow { font-size:0.65rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--red); margin-bottom:0.3rem; }
+    .page-eyebrow { font-size:0.65rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--red-bright); margin-bottom:0.3rem; }
     .page-title { font-family:'Bebas Neue',sans-serif; font-size:2.5rem; letter-spacing:0.04em; margin-bottom:0.3rem; }
     .page-sub { color:var(--light-gray); font-size:0.88rem; margin-bottom:1.75rem; }
 
@@ -80,7 +82,7 @@
     .review-modal-title { font-family:'Bebas Neue',sans-serif; font-size:1.6rem; letter-spacing:0.05em; margin-bottom:0.25rem; }
     .review-modal-sub { font-size:0.82rem; color:var(--light-gray); margin-bottom:1.5rem; }
     .star-selector { display:flex; gap:0.4rem; margin-bottom:1.25rem; }
-    .star-selector .star { font-size:2rem; cursor:pointer; color:#333; transition:color 0.15s; line-height:1; }
+    .star-selector .star { font-size:2rem; cursor:pointer; color:#333; transition:color 0.15s; line-height:1; background:none; border:none; padding:0; font-family:inherit; }
     .star-selector .star.lit { color:#f5c842; }
     .review-textarea { width:100%; background:#0d0d0d; border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:0.75rem 1rem; color:var(--white); font-family:'DM Sans',sans-serif; font-size:0.88rem; resize:vertical; min-height:100px; outline:none; transition:border-color 0.2s; }
     .review-textarea:focus { border-color:rgba(204,0,0,0.4); }
@@ -111,16 +113,16 @@
 </head>
 <body>
 <div class="layout">
-  <aside class="sidebar">
+  <aside class="sidebar" aria-label="Customer portal navigation">
     <div class="sidebar-logo"><a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a></div>
     <div class="user-card">
       <div class="user-name" id="user-display-name">Loading...</div>
       <div class="user-points" id="user-points-badge">$0.00 toward Birdhouse Bucks</div>
     </div>
-    <nav>
+    <nav aria-label="Customer portal">
       <a class="nav-item" href="dashboard.html">📊 Overview</a>
       <a class="nav-item" href="order.html">☕ Place an Order</a>
-      <a class="nav-item active" href="orders.html">📋 My Orders</a>
+      <a class="nav-item active" href="orders.html" aria-current="page">📋 My Orders</a>
       <a class="nav-item" href="dashboard.html#subscription">📦 My Subscription</a>
       <a class="nav-item" href="dashboard.html#loyalty">⭐ Birdhouse Bucks</a>
     </nav>
@@ -145,19 +147,19 @@
 </div>
 
 <!-- Review Modal -->
-<div class="review-overlay" id="review-overlay">
+<div class="review-overlay" id="review-overlay" role="dialog" aria-modal="true" aria-labelledby="review-modal-title">
   <div class="review-modal">
-    <div class="review-modal-title" id="review-modal-title">Leave a Review</div>
+    <h2 class="review-modal-title" id="review-modal-title">Leave a Review</h2>
     <div class="review-modal-sub" id="review-modal-sub">How was it?</div>
-    <div class="star-selector" id="star-selector">
-      <span class="star" data-val="1" onclick="setReviewStar(1)">★</span>
-      <span class="star" data-val="2" onclick="setReviewStar(2)">★</span>
-      <span class="star" data-val="3" onclick="setReviewStar(3)">★</span>
-      <span class="star" data-val="4" onclick="setReviewStar(4)">★</span>
-      <span class="star" data-val="5" onclick="setReviewStar(5)">★</span>
+    <div class="star-selector" id="star-selector" role="group" aria-label="Star rating">
+      <button class="star" data-val="1" onclick="setReviewStar(1)" aria-label="1 star">★</button>
+      <button class="star" data-val="2" onclick="setReviewStar(2)" aria-label="2 stars">★</button>
+      <button class="star" data-val="3" onclick="setReviewStar(3)" aria-label="3 stars">★</button>
+      <button class="star" data-val="4" onclick="setReviewStar(4)" aria-label="4 stars">★</button>
+      <button class="star" data-val="5" onclick="setReviewStar(5)" aria-label="5 stars">★</button>
     </div>
-    <textarea class="review-textarea" id="review-text" placeholder="Tell others what you thought (optional)…" maxlength="500"></textarea>
-    <div class="review-char-hint">Up to 500 characters</div>
+    <textarea class="review-textarea" id="review-text" placeholder="Tell others what you thought (optional)…" maxlength="500" aria-label="Review text (optional, up to 500 characters)"></textarea>
+    <div class="review-char-hint" aria-hidden="true">Up to 500 characters</div>
     <div class="review-actions">
       <button class="btn-review-submit" id="review-submit-btn" onclick="submitReview()" disabled>Post Review</button>
       <button class="btn-review-cancel" onclick="closeReviewModal()">Cancel</button>

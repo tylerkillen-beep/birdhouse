@@ -8,9 +8,11 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-  :root{--red:#cc0000;--red-bright:#ff1a1a;--black:#0a0a0a;--card:#111;--border:rgba(204,0,0,0.18);--border-dim:rgba(255,255,255,0.06);--gray:#555;--light-gray:#999;--white:#f0f0f0}
+  :root{--red:#cc0000;--red-bright:#ff1a1a;--black:#0a0a0a;--card:#111;--border:rgba(204,0,0,0.18);--border-dim:rgba(255,255,255,0.06);--gray:#888;--light-gray:#999;--white:#f0f0f0}
   *{margin:0;padding:0;box-sizing:border-box}
   body{background:var(--black);color:var(--white);font-family:'DM Sans',sans-serif;min-height:100vh;display:flex}
+  :focus-visible{outline:2px solid var(--red-bright);outline-offset:3px;border-radius:3px}
+  @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important}}
   .sidebar{width:220px;min-height:100vh;background:#0d0d0d;border-right:1px solid var(--border-dim);padding:1.5rem 0;flex-shrink:0;display:flex;flex-direction:column}
   .logo{padding:0 1.25rem 1.5rem;border-bottom:1px solid var(--border-dim);margin-bottom:1rem}
   .role-badge{margin:0 1rem 1.25rem;padding:0.35rem 0.75rem;background:rgba(0,100,200,0.12);border:1px solid rgba(0,100,200,0.2);border-radius:6px;font-size:0.62rem;font-weight:600;text-transform:uppercase;letter-spacing:0.12em;color:#4488ff}
@@ -23,7 +25,7 @@
   .nav-user strong{display:block;color:var(--white);font-size:0.85rem}
   .sign-out{font-size:0.72rem;color:var(--gray);cursor:pointer;background:none;border:none;font-family:'DM Sans',sans-serif;text-decoration:underline}
   .main{flex:1;padding:2.5rem;overflow-y:auto}
-  .page-eyebrow{font-size:0.62rem;text-transform:uppercase;letter-spacing:0.18em;color:var(--red);margin-bottom:0.4rem}
+  .page-eyebrow{font-size:0.62rem;text-transform:uppercase;letter-spacing:0.18em;color:var(--red-bright);margin-bottom:0.4rem}
   .page-title{font-family:'Bebas Neue',sans-serif;font-size:2.8rem;letter-spacing:0.04em;line-height:1;margin-bottom:1.75rem}
   .stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:2rem}
   .stat-card{background:var(--card);border:1px solid var(--border-dim);border-radius:12px;padding:1.25rem}
@@ -108,11 +110,11 @@
       <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.2em;color:var(--gray)">Manager Portal</div>
     </div>
     <div style="margin-bottom:1rem">
-      <label style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);margin-bottom:0.35rem">Email</label>
+      <label for="login-email" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);margin-bottom:0.35rem">Email</label>
       <input type="email" id="login-email" placeholder="your@email.com" style="width:100%;padding:0.85rem 1rem;border:1px solid var(--border-dim);border-radius:8px;background:#0d0d0d;color:var(--white);font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/>
     </div>
     <div style="margin-bottom:1.5rem">
-      <label style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);margin-bottom:0.35rem">Password</label>
+      <label for="login-password" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);margin-bottom:0.35rem">Password</label>
       <input type="password" id="login-password" placeholder="••••••••" style="width:100%;padding:0.85rem 1rem;border:1px solid var(--border-dim);border-radius:8px;background:#0d0d0d;color:var(--white);font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none" onkeydown="if(event.key==='Enter')doLogin()"/>
     </div>
     <button onclick="doLogin()" style="width:100%;padding:0.95rem;background:var(--red);color:white;border:none;border-radius:8px;font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:0.1em;cursor:pointer">SIGN IN TO MANAGER HUB →</button>
@@ -121,7 +123,7 @@
 </div>
 
 <div id="app" style="display:none;width:100%;flex-direction:row">
-  <div class="sidebar">
+  <nav class="sidebar" aria-label="Manager navigation">
     <div class="logo"><a href="../index.html" style="text-decoration:none"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:0.08em;color:var(--red)">🏠 BIRDHOUSE</div></a></div>
     <div class="role-badge">Manager</div>
     <div class="nav-section">Overview</div>
@@ -136,8 +138,8 @@
       <div class="nav-user"><strong id="nav-name">—</strong>Manager</div>
       <button class="sign-out" onclick="doSignOut()">Sign out</button>
     </div>
-  </div>
-  <div class="main">
+  </nav>
+  <main class="main">
 
     <div class="section active" id="section-overview">
       <div class="page-eyebrow">Manager Hub</div>
@@ -194,7 +196,7 @@
       <div id="scores-content"></div>
     </div>
 
-  </div>
+  </main>
 </div>
 
 <script>

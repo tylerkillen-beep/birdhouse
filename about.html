@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>The Birdhouse — About</title>
+  <meta name="description" content="Learn about The Birdhouse, a fully student-run coffee shop at Nixa High School operating since 2014. Meet the team behind your daily brew." />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -11,10 +12,16 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
       --black: #0a0a0a; --red: #cc0000; --red-bright: #ff1a1a;
-      --gray: #666; --light-gray: #aaa; --white: #f0f0f0;
+      --gray: #888; --light-gray: #aaa; --white: #f0f0f0;
       --card: #161616; --border: rgba(204,0,0,0.2);
     }
     body { background: var(--black); color: var(--white); font-family: 'DM Sans', sans-serif; min-height: 100vh; overflow-x: hidden; }
+    .skip-link { position: absolute; top: -100%; left: 1rem; background: var(--red-bright); color: #000; padding: 0.5rem 1rem; border-radius: 0 0 6px 6px; font-size: 0.85rem; font-weight: 500; text-decoration: none; z-index: 9999; }
+    .skip-link:focus { top: 0; }
+    :focus-visible { outline: 2px solid var(--red-bright); outline-offset: 3px; border-radius: 3px; }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+    }
     body::before {
       content: ''; position: fixed; inset: 0;
       background-image: linear-gradient(rgba(204,0,0,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(204,0,0,0.03) 1px, transparent 1px);
@@ -33,14 +40,14 @@
     .about-section { position: relative; z-index: 1; padding: 6rem 5rem; border-top: 1px solid var(--border); }
     .about-section::before { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(204,0,0,0.04) 0%, transparent 100%); pointer-events: none; }
     .about-inner { position: relative; max-width: 1100px; margin: 0 auto; }
-    .about-eyebrow { font-size: 0.68rem; letter-spacing: 0.28em; text-transform: uppercase; color: var(--red); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.75rem; }
+    .about-eyebrow { font-size: 0.68rem; letter-spacing: 0.28em; text-transform: uppercase; color: var(--red-bright); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.75rem; }
     .about-eyebrow::before { content: ''; display: block; width: 30px; height: 1px; background: var(--red); }
     .about-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(2.8rem, 5vw, 4.5rem); line-height: 1; letter-spacing: 0.03em; margin-bottom: 2rem; }
     .about-body { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; margin-bottom: 4rem; }
     .about-body p { font-size: 1rem; color: #bbb; line-height: 1.8; font-weight: 300; }
     .about-divider { width: 60px; height: 2px; background: var(--red); margin: 0 auto 4rem; opacity: 0.5; }
 
-    .team-eyebrow { font-size: 0.68rem; letter-spacing: 0.28em; text-transform: uppercase; color: var(--red); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.75rem; }
+    .team-eyebrow { font-size: 0.68rem; letter-spacing: 0.28em; text-transform: uppercase; color: var(--red-bright); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.75rem; }
     .team-eyebrow::before { content: ''; display: block; width: 30px; height: 1px; background: var(--red); }
     .team-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(2.2rem, 4vw, 3.5rem); line-height: 1; letter-spacing: 0.03em; margin-bottom: 2.5rem; }
     .team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.25rem; }
@@ -58,14 +65,16 @@
   </style>
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
   <header>
     <a class="logo-header" href="/"><img src="logo.png" alt="The Birdhouse" /></a>
-    <nav>
+    <nav aria-label="Main navigation">
       <a href="index.html">Home</a>
       <a href="customer/order.html">Order Now</a>
     </nav>
   </header>
 
+  <main id="main-content">
   <section class="about-section" id="about">
     <div class="about-inner">
       <p class="about-eyebrow">Our Story</p>
@@ -84,6 +93,7 @@
       </div>
     </div>
   </section>
+  </main>
 
   <script>
     (async () => {

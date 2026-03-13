@@ -11,12 +11,14 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
       --black: #0a0a0a; --dark: #111111; --red: #cc0000; --red-bright: #ff1a1a;
-      --gray: #555; --light-gray: #999; --white: #f0f0f0;
+      --gray: #888; --light-gray: #999; --white: #f0f0f0;
       --card: #141414; --border: rgba(204,0,0,0.18); --border-dim: rgba(255,255,255,0.07);
       --gold: #f5c842;
     }
     body { background: var(--black); color: var(--white); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
     body::before { content:''; position:fixed; inset:0; background-image:linear-gradient(rgba(204,0,0,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(204,0,0,0.03) 1px,transparent 1px); background-size:40px 40px; pointer-events:none; z-index:0; }
+    :focus-visible { outline: 2px solid var(--red-bright); outline-offset: 3px; border-radius: 3px; }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; } }
 
     .layout { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
 
@@ -33,7 +35,7 @@
     .signout-btn:hover { color: var(--white); border-color: rgba(255,255,255,0.2); }
 
     .main { padding: 2.5rem 3rem; position: relative; z-index: 1; }
-    .page-eyebrow { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--red); margin-bottom: 0.3rem; }
+    .page-eyebrow { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--red-bright); margin-bottom: 0.3rem; }
     .page-title { font-family: 'Bebas Neue', sans-serif; font-size: 2.5rem; letter-spacing: 0.04em; margin-bottom: 2rem; }
 
     /* Stats */
@@ -69,7 +71,7 @@
     .badge-cancelled{ background: rgba(255,255,255,0.05); color: var(--gray); border: 1px solid var(--border-dim); }
     .sub-slots-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 0.75rem; margin-bottom: 1.25rem; }
     .sub-slot-card { background: rgba(255,255,255,0.03); border: 1px solid var(--border-dim); border-radius: 10px; padding: 1rem 1.1rem; }
-    .sub-slot-label { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--red); margin-bottom: 0.4rem; }
+    .sub-slot-label { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--red-bright); margin-bottom: 0.4rem; }
     .sub-slot-drink { font-weight: 500; font-size: 0.92rem; margin-bottom: 0.2rem; }
     .sub-slot-mods  { font-size: 0.75rem; color: var(--light-gray); margin-bottom: 0.35rem; }
     .sub-slot-when  { font-size: 0.78rem; color: var(--gray); }
@@ -161,13 +163,13 @@
 </div>
 <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleNav()"></div>
 <div class="layout">
-  <aside class="sidebar">
+  <aside class="sidebar" aria-label="Customer portal navigation">
     <div class="sidebar-logo"><a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a></div>
     <div class="user-card" id="user-card">
       <div class="user-name" id="user-display-name">Loading...</div>
       <div class="user-points" id="user-points-badge">$0.00 toward Birdhouse Bucks</div>
     </div>
-    <nav>
+    <nav aria-label="Customer portal">
       <a class="nav-item active" onclick="showSection('overview',this)">📊 Overview</a>
       <a class="nav-item" href="order.html">☕ Place an Order</a>
       <a class="nav-item" href="orders.html">📋 Order History</a>
