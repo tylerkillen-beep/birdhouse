@@ -63,6 +63,10 @@
     /* Reorder button */
     .btn-reorder { background:rgba(204,0,0,0.08); color:var(--red-bright); border:1px solid var(--border); border-radius:7px; padding:0.45rem 0.9rem; font-size:0.78rem; cursor:pointer; transition:all 0.2s; font-family:'DM Sans',sans-serif; margin-top:0.5rem; display:inline-block; text-decoration:none; }
     .btn-reorder:hover { background:rgba(204,0,0,0.15); }
+    .btn-secondary { background:transparent; color:var(--light-gray); border:1px solid var(--border-dim); border-radius:7px; padding:0.42rem 0.75rem; font-size:0.74rem; cursor:pointer; transition:all 0.2s; font-family:'DM Sans',sans-serif; margin-top:0.45rem; }
+    .btn-secondary:hover { border-color:var(--border); color:var(--white); }
+    .btn-secondary[disabled] { opacity:0.65; cursor:not-allowed; }
+    .receipt-msg { margin-top:0.4rem; font-size:0.72rem; color:var(--light-gray); max-width:250px; margin-left:auto; }
 
     /* Review buttons */
     .btn-review { background:rgba(245,200,66,0.08); color:#f5c842; border:1px solid rgba(245,200,66,0.25); border-radius:6px; padding:0.25rem 0.65rem; font-size:0.72rem; cursor:pointer; transition:all 0.2s; font-family:'DM Sans',sans-serif; margin-left:0.5rem; }
@@ -240,6 +244,10 @@
     renderOrders(filter);
   }
 
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[ch]));
+  }
+
   function renderOrders(filter) {
     let list = allOrders;
     if(filter==='active')    list = allOrders.filter(o=>o.status==='pending'||o.status==='paid');
@@ -311,6 +319,8 @@
           <div class="order-date">${date} at ${time}</div>
           ${totalDisplay}
           ${order.points_earned?`<div class="order-points">+${order.points_earned} pt${order.points_earned!==1?'s':''}</div>`:''}
+          ${order.square_payment_id?`<button class="btn-secondary" data-receipt-btn="${order.id}" onclick="requestReceipt('${order.id}', this)">Get Receipt Link</button>`:''}
+          <div class="receipt-msg" id="receipt-msg-${order.id}"></div>
           ${isDelivered?`<a class="btn-reorder" href="order.html">Order Again →</a>`:''}
         </div>
       </div>`;
@@ -392,6 +402,60 @@
       const filterMap = { 'all orders': 'all', 'active': 'active', 'delivered': 'delivered', 'cancelled': 'cancelled' };
       renderOrders(filterMap[activeBtn?.textContent.toLowerCase()] ?? 'all');
     }, 1200);
+  }
+
+  async function requestReceipt(orderId, btnEl) {
+    const msgEl = document.getElementById(`receipt-msg-${orderId}`);
+    if (btnEl) {
+      btnEl.disabled = true;
+      btnEl.textContent = 'Loading…';
+    }
+    if (msgEl) {
+      msgEl.textContent = '';
+      msgEl.style.color = 'var(--light-gray)';
+    }
+
+    try {
+      const { data, error } = await sb.functions.invoke('request-receipt', {
+        body: { orderId },
+      });
+
+      if (error || !data?.success) {
+        let details = data?.error || error?.message || 'Unable to fetch receipt';
+        if (error?.context) {
+          try {
+            const parsed = await error.context.json();
+            if (parsed?.error) details = parsed.error;
+          } catch (_) {
+            // keep default message
+          }
+        }
+        throw new Error(details);
+      }
+
+      if (data?.receiptUrl) {
+        const popup = window.open(data.receiptUrl, '_blank', 'noopener');
+        if (popup) {
+          popup.focus();
+          if (msgEl) msgEl.textContent = '';
+          if (btnEl) btnEl.textContent = 'Opened Receipt';
+        } else {
+          if (msgEl) {
+            const safeUrl = escapeHtml(data.receiptUrl);
+            msgEl.innerHTML = `<a href="${safeUrl}" target="_blank" rel="noopener" style="color:var(--red-bright)">Open Square receipt ↗</a><div style="margin-top:0.2rem">Popup blocked — tap link to open receipt.</div>`;
+          }
+          if (btnEl) btnEl.textContent = 'Receipt Ready';
+        }
+      }
+    } catch (err) {
+      if (msgEl) {
+        msgEl.textContent = err instanceof Error ? err.message : 'Unable to load receipt link.';
+        msgEl.style.color = '#ff9800';
+      }
+      if (btnEl) btnEl.textContent = 'Try Again';
+    } finally {
+      if (btnEl) btnEl.disabled = false;
+    }
   }
 
   async function signOut(){await sb.auth.signOut();window.location.href='index.html';}
