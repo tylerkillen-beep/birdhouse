@@ -436,7 +436,7 @@
             <tbody id="menu-hot-body"><tr><td colspan="4" style="text-align:center;color:var(--gray);padding:1.5rem">Loading...</td></tr></tbody></table>
           </div>
         </div>
-        <div id="menu-iced-section">
+        <div id="menu-iced-section" style="margin-bottom:2rem">
           <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.85rem">
             <span style="font-size:1.2rem">🧊</span>
             <span style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:0.05em">Iced Drinks</span>
@@ -445,6 +445,17 @@
           <div class="table-wrap">
             <table><thead><tr><th>Item</th><th>Description</th><th>Available</th><th>Suggest Edit</th></tr></thead>
             <tbody id="menu-iced-body"><tr><td colspan="4" style="text-align:center;color:var(--gray);padding:1.5rem">Loading...</td></tr></tbody></table>
+          </div>
+        </div>
+        <div id="menu-mathews-section">
+          <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.85rem">
+            <span style="font-size:1.2rem">⭐</span>
+            <span style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:0.05em">Mathews</span>
+            <span style="font-size:0.65rem;padding:0.2rem 0.6rem;border-radius:20px;background:rgba(0,100,204,0.1);color:#66aaff;border:1px solid rgba(0,100,204,0.25)">Elementary</span>
+          </div>
+          <div class="table-wrap">
+            <table><thead><tr><th>Item</th><th>Description</th><th>Available</th><th>Suggest Edit</th></tr></thead>
+            <tbody id="menu-mathews-body"><tr><td colspan="4" style="text-align:center;color:var(--gray);padding:1.5rem">Loading...</td></tr></tbody></table>
           </div>
         </div>
       </div>
@@ -1125,8 +1136,10 @@
   async function loadMenuAvailability() {
     const {data} = await sb.from('menu_items').select('*').order('sort_order');
     if(!data) return;
-    const hotItems  = data.filter(i => i.is_hot !== false && i.is_iced !== true);
-    const icedItems = data.filter(i => i.is_iced === true);
+    const isMathewsItem = i => String(i.category || '').toLowerCase().includes('mathews');
+    const hotItems     = data.filter(i => !isMathewsItem(i) && i.is_hot !== false && i.is_iced !== true);
+    const icedItems    = data.filter(i => !isMathewsItem(i) && i.is_iced === true);
+    const mathewsItems = data.filter(i => isMathewsItem(i));
     const renderRows = (items, tbodyId) => {
       const tbody = document.getElementById(tbodyId);
       if(!items.length){tbody.innerHTML=`<tr><td colspan="4" style="text-align:center;color:var(--gray);padding:1.5rem">No items in this category.</td></tr>`;return;}
@@ -1147,6 +1160,7 @@
     };
     renderRows(hotItems, 'menu-hot-body');
     renderRows(icedItems, 'menu-iced-body');
+    renderRows(mathewsItems, 'menu-mathews-body');
     // Load pending submission count
     loadSubmissionBadge();
   }
