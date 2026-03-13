@@ -274,10 +274,45 @@
     .inv-log-pos { color: #4cd07d; font-weight: 500; }
     .inv-log-neg { color: #e05a4a; font-weight: 500; }
     .inv-log-meta { font-size: 0.7rem; color: var(--gray); margin-top: 0.15rem; }
+
+    /* ── Mobile top bar ── */
+    .mobile-topbar { display:none; position:fixed; top:0; left:0; right:0; height:54px; background:#0d0d0d; border-bottom:1px solid var(--border); z-index:300; align-items:center; justify-content:space-between; padding:0 1.25rem; }
+    .mobile-topbar-brand { font-family:'Bebas Neue',sans-serif; font-size:1.3rem; letter-spacing:0.08em; color:var(--accent); text-decoration:none; }
+    .hamburger { background:none; border:none; cursor:pointer; display:flex; flex-direction:column; gap:5px; padding:6px; }
+    .hamburger span { display:block; width:22px; height:2px; background:var(--text); border-radius:2px; transition:all 0.25s; }
+    .hamburger.open span:nth-child(1) { transform:translateY(7px) rotate(45deg); }
+    .hamburger.open span:nth-child(2) { opacity:0; }
+    .hamburger.open span:nth-child(3) { transform:translateY(-7px) rotate(-45deg); }
+    .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:250; }
+    .sidebar-overlay.open { display:block; }
+
+    @media (max-width: 900px) {
+      body { display:block; }
+      .mobile-topbar { display:flex; }
+      #sidebar { display:flex !important; transform:translateX(-100%); transition:transform 0.28s ease; z-index:260; overflow-y:auto; }
+      #sidebar.open { transform:translateX(0); }
+      #main { margin-left:0; padding:1.5rem; padding-top:calc(1.5rem + 54px); }
+      .stats-row { grid-template-columns:repeat(2,1fr); }
+      .staff-team-grid { grid-template-columns:1fr; }
+      .plan-cards-grid { grid-template-columns:1fr; }
+    }
+    @media (max-width: 500px) {
+      .stats-row { grid-template-columns:1fr; }
+      .section-header { flex-direction:column; align-items:flex-start; }
+      .filter-bar { flex-direction:column; }
+    }
   </style>
 </head>
 <body class="auth-pending">
 <div class="auth-gate">Checking access…</div>
+
+<div class="mobile-topbar">
+  <a class="mobile-topbar-brand" href="../index.html">🏠 BIRDHOUSE</a>
+  <button class="hamburger" id="hamburger-btn" onclick="toggleNav()" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</div>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleNav()"></div>
 
 <!-- ══════════════ SIDEBAR ══════════════ -->
 <nav id="sidebar">
@@ -1322,6 +1357,23 @@ async function init() {
 async function signOut() { await sb.auth.signOut(); window.location.href = 'login.html'; }
 
 // ════════════════════════════════════
+// Mobile nav
+// ════════════════════════════════════
+function toggleNav() {
+  const sidebar   = document.getElementById('sidebar');
+  const overlay   = document.getElementById('sidebar-overlay');
+  const hamburger = document.getElementById('hamburger-btn');
+  sidebar.classList.toggle('open');
+  overlay.classList.toggle('open');
+  hamburger.classList.toggle('open');
+}
+function closeNav() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('open');
+  document.getElementById('hamburger-btn').classList.remove('open');
+}
+
+// ════════════════════════════════════
 // Navigation
 // ════════════════════════════════════
 function showSection(id) {
@@ -1329,6 +1381,7 @@ function showSection(id) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('section-' + id)?.classList.add('active');
   document.getElementById('nav-' + id)?.classList.add('active');
+  closeNav();
 
   const loaders = {
     orders: loadOrders,
