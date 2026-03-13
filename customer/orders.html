@@ -421,7 +421,16 @@
       });
 
       if (error || !data?.success) {
-        throw new Error(data?.error || error?.message || 'Unable to fetch receipt');
+        let details = data?.error || error?.message || 'Unable to fetch receipt';
+        if (error?.context) {
+          try {
+            const parsed = await error.context.json();
+            if (parsed?.error) details = parsed.error;
+          } catch (_) {
+            // keep default message
+          }
+        }
+        throw new Error(details);
       }
 
       if (msgEl) {

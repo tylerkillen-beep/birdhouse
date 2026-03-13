@@ -45,6 +45,9 @@ enable_confirmations = false
 [functions.get-sales-report]
 verify_jwt = false
 
+[functions.request-receipt]
+verify_jwt = true
+
 [analytics]
 enabled = false
 port = 54327

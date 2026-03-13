@@ -31,6 +31,20 @@ function getBearerToken(req: Request) {
   return authHeader.slice(7).trim();
 }
 
+function getJwtSubUnsafe(jwt: string): string | null {
+  try {
+    const parts = jwt.split(".");
+    if (parts.length < 2) return null;
+    const payload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = payload + "=".repeat((4 - (payload.length % 4)) % 4);
+    const decoded = atob(padded);
+    const parsed = JSON.parse(decoded);
+    return typeof parsed?.sub === "string" ? parsed.sub : null;
+  } catch {
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
@@ -46,13 +60,18 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser(accessToken);
+    let userId = getJwtSubUnsafe(accessToken);
 
-    if (authError || !user) {
-      return fail("Invalid or expired session. Please sign in again.", 401);
+    if (!userId) {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser(accessToken);
+
+      if (authError || !user) {
+        return fail("Invalid or expired session. Please sign in again.", 401);
+      }
+      userId = user.id;
     }
 
     const { data: order, error: orderError } = await supabase
@@ -62,11 +81,11 @@ serve(async (req) => {
       .maybeSingle();
 
     if (orderError) {
-      console.error("request-receipt: failed to load order", orderError, { orderId, userId: user.id });
+      console.error("request-receipt: failed to load order", orderError, { orderId, userId });
       return fail("Could not load order", 500);
     }
 
-    if (!order || order.user_id !== user.id) {
+    if (!order || order.user_id !== userId) {
       return fail("Order not found", 404);
     }
 
