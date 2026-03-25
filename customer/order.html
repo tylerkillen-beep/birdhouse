@@ -593,21 +593,30 @@
       : getDisplayCategory(i) !== 'mathews'
     );
 
-    const allSections = [
+    const regularSections = [
       { key: 'specials', title: 'Specials', icon: '✨' },
       { key: 'coffee',   title: 'Coffee', icon: '☕' },
       { key: 'soda_tea', title: 'Soda & Tea', icon: '🥤' },
       { key: 'food',     title: 'Food', icon: '🍽️' },
-      { key: 'mathews',  title: 'Mathews', icon: '⭐' },
     ];
-    const sections = isMathews
-      ? allSections.filter(s => s.key === 'mathews')
-      : allSections.filter(s => s.key !== 'mathews');
+    const mathewsSections = [
+      { key: 'mathews_hot',  title: 'Hot',  icon: '☕', temp: 'hot' },
+      { key: 'mathews_cold', title: 'Cold', icon: '🧊', temp: 'iced' },
+      { key: 'mathews_food', title: 'Food', icon: '🍽️', temp: 'food' },
+    ];
+    const sections = isMathews ? mathewsSections : regularSections;
 
-    const bySection = { specials: [], coffee: [], soda_tea: [], food: [], mathews: [] };
+    function getMathewsSubCategory(item) {
+      if (item.is_hot !== true && item.is_iced !== true) return 'mathews_food';
+      if (item.is_iced === true && item.is_hot !== true) return 'mathews_cold';
+      return 'mathews_hot';
+    }
+
+    const bySection = { specials: [], coffee: [], soda_tea: [], food: [], mathews_hot: [], mathews_cold: [], mathews_food: [] };
 
     visibleItems.forEach(item => {
-      bySection[getDisplayCategory(item)].push(item);
+      const key = isMathews ? getMathewsSubCategory(item) : getDisplayCategory(item);
+      bySection[key].push(item);
     });
 
     let html = '';
@@ -619,7 +628,10 @@
         <span class="menu-section-title">${section.title}</span>
         <span class="menu-section-count">${sectionItems.length} item${sectionItems.length !== 1 ? 's' : ''}</span>
       </div>
-      <div class="menu-grid">${sectionItems.map(i => menuCard(i, i.is_iced === true && i.is_hot === false ? 'iced' : 'hot')).join('')}</div>`;
+      <div class="menu-grid">${sectionItems.map(i => {
+        const temp = section.temp || (i.is_iced === true && i.is_hot === false ? 'iced' : 'hot');
+        return menuCard(i, temp);
+      }).join('')}</div>`;
     });
 
     container.innerHTML = html || '<div class="no-menu">No items available.</div>';
@@ -630,7 +642,7 @@
     const hasMods  = item.square_modifier_list_ids?.length > 0;
     const btnLabel = hasMods ? '+ Customize & Add' : '+ Add to Cart';
     const cat      = String(item.category || '').toLowerCase();
-    const isFood   = cat.includes('food') || cat.includes('pastry') || cat.includes('snack');
+    const isFood   = cat.includes('food') || cat.includes('pastry') || cat.includes('snack') || temp === 'food';
     const badge    = isFood ? '' : (temp === 'iced'
       ? `<span class="size-pill pill-iced">Iced</span>`
       : `<span class="size-pill pill-hot">Hot</span>`);
@@ -866,7 +878,7 @@
       return `<div class="cart-item">
         <div class="cart-item-info">
           <div class="cart-item-name">${c.name}</div>
-          <div class="cart-item-sub">${c.temp === 'iced' ? '🧊 Iced 16oz' : '☕ Hot 12oz'}</div>
+          <div class="cart-item-sub">${c.temp === 'iced' ? '🧊 Iced 16oz' : c.temp === 'food' ? '🍽️ Food' : '☕ Hot 12oz'}</div>
           ${modsLabel ? `<div class="cart-item-mods">${modsLabel}</div>` : ''}
         </div>
         <div class="qty-ctrl">
