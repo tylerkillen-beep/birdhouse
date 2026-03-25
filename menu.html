@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Birdhouse — Menu</title>
+  <meta name="description" content="Browse the full Birdhouse menu. Coffee, soda, tea, food, and specials — student-run at Nixa High School." />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --black: #0a0a0a; --red: #cc0000; --red-bright: #ff1a1a;
+      --gray: #888; --light-gray: #aaa; --white: #f0f0f0;
+      --card: #161616; --border: rgba(204,0,0,0.2);
+    }
+    body { background: var(--black); color: var(--white); font-family: 'DM Sans', sans-serif; min-height: 100vh; overflow-x: hidden; }
+    .skip-link { position: absolute; top: -100%; left: 1rem; background: var(--red-bright); color: #000; padding: 0.5rem 1rem; border-radius: 0 0 6px 6px; font-size: 0.85rem; font-weight: 500; text-decoration: none; z-index: 9999; }
+    .skip-link:focus { top: 0; }
+    :focus-visible { outline: 2px solid var(--red-bright); outline-offset: 3px; border-radius: 3px; }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+    }
+    body::before {
+      content: ''; position: fixed; inset: 0;
+      background-image: linear-gradient(rgba(204,0,0,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(204,0,0,0.03) 1px, transparent 1px);
+      background-size: 40px 40px; pointer-events: none; z-index: 0;
+    }
+    header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 1.5rem 3rem; border-bottom: 1px solid var(--border);
+      position: relative; z-index: 10; background: rgba(10,10,10,0.95);
+    }
+    .logo-header { display: flex; align-items: center; text-decoration: none; }
+    .logo-header img { height: 52px; width: auto; filter: drop-shadow(0 0 12px rgba(204,0,0,0.6)); }
+    nav a { font-size: 0.82rem; color: var(--red-bright); text-decoration: none; letter-spacing: 0.1em; text-transform: uppercase; margin-left: 2rem; transition: color 0.2s; }
+    nav a:hover { color: var(--white); }
+
+    .menu-page { position: relative; z-index: 1; padding: 4rem 5rem 5rem; }
+    .menu-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 2.5rem; gap: 1.5rem; flex-wrap: wrap; }
+    .menu-header-left {}
+    .menu-eyebrow { font-size: 0.7rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--red-bright); margin-bottom: 0.6rem; display: flex; align-items: center; gap: 0.75rem; }
+    .menu-eyebrow::before { content: ''; display: block; width: 24px; height: 1px; background: var(--red); }
+    .menu-title { font-family: 'Bebas Neue', sans-serif; font-size: 3rem; letter-spacing: 0.04em; }
+    .menu-signin-cta {
+      display: flex; align-items: center; gap: 0.75rem;
+      background: rgba(204,0,0,0.12); border: 1px solid rgba(204,0,0,0.3);
+      border-radius: 10px; padding: 0.75rem 1.25rem;
+      font-size: 0.82rem; color: var(--light-gray); white-space: nowrap;
+    }
+    .menu-signin-cta a { color: var(--red-bright); text-decoration: none; font-weight: 500; }
+    .menu-signin-cta a:hover { color: var(--white); }
+    .menu-signin-cta::before { content: '🔒'; font-size: 0.85rem; }
+    .menu-loading { color: var(--gray); font-size: 0.9rem; padding: 2rem 0; }
+    .menu-error { color: var(--red-bright); font-size: 0.9rem; padding: 1rem 0; }
+    .menu-category { margin-bottom: 2.5rem; }
+    .menu-category-header {
+      display: flex; align-items: center; gap: 0.75rem;
+      margin-bottom: 1.25rem; padding-bottom: 0.6rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .menu-category-icon { font-size: 1.1rem; }
+    .menu-category-name { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 0.06em; color: var(--white); }
+    .menu-category-count { font-size: 0.7rem; color: var(--gray); letter-spacing: 0.1em; margin-left: auto; }
+    .menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
+    .menu-item-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 1.1rem 1.15rem; transition: border-color 0.2s, transform 0.2s;
+    }
+    .menu-item-card:hover { border-color: rgba(204,0,0,0.4); transform: translateY(-2px); }
+    .menu-item-name { font-size: 0.92rem; font-weight: 500; color: var(--white); margin-bottom: 0.35rem; }
+    .menu-item-desc { font-size: 0.78rem; color: var(--gray); line-height: 1.5; margin-bottom: 0.65rem; font-weight: 300; }
+    .menu-item-price { font-size: 0.88rem; color: var(--red-bright); font-weight: 500; letter-spacing: 0.02em; }
+
+    @media (max-width: 900px) {
+      .menu-page { padding: 3rem 2.5rem 4rem; }
+    }
+    @media (max-width: 768px) {
+      .menu-page { padding: 2.5rem 2rem 3.5rem; }
+      .menu-title { font-size: 2.4rem; }
+      .menu-header { flex-direction: column; align-items: flex-start; }
+      header { padding: 1.25rem 1.5rem; }
+    }
+    @media (max-width: 480px) {
+      header { padding: 1rem; flex-wrap: wrap; gap: 0.5rem; }
+      nav a { margin-left: 1rem; font-size: 0.75rem; }
+      .menu-page { padding: 2rem 1.25rem 3rem; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <header>
+    <a class="logo-header" href="/"><img src="logo.png" alt="The Birdhouse" width="300" height="102" /></a>
+    <nav aria-label="Main navigation">
+      <a href="menu.html">Menu</a>
+      <a href="hours.html">Hours</a>
+      <a href="customer/order.html">Order Now</a>
+      <a href="about.html">About</a>
+    </nav>
+  </header>
+
+  <main class="menu-page" id="main-content">
+    <div class="menu-header">
+      <div class="menu-header-left">
+        <div class="menu-eyebrow">What We Serve</div>
+        <h1 class="menu-title">Our Menu</h1>
+      </div>
+      <div class="menu-signin-cta">
+        Browse freely &mdash; <a href="customer/index.html">sign in</a> to place an order
+      </div>
+    </div>
+    <div id="menu-content" aria-live="polite">
+      <p class="menu-loading">Loading menu&hellip;</p>
+    </div>
+  </main>
+
+  <script>
+    (function() {
+      const SUPABASE_URL = 'https://ljukrhneikqbabcmcpet.supabase.co';
+      const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqdWtyaG5laWtxYmFiY21jcGV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyODg1MjEsImV4cCI6MjA4Nzg2NDUyMX0.UbtB_-syG9a9vLcJp04w_k2F3XP2tMScYtB4sez3j78';
+
+      const CATEGORIES = [
+        { key: 'specials', title: 'Specials',  icon: '✨' },
+        { key: 'coffee',   title: 'Coffee',    icon: '☕' },
+        { key: 'soda_tea', title: 'Soda & Tea', icon: '🥤' },
+        { key: 'food',     title: 'Food',       icon: '🍽️' },
+      ];
+
+      function getCategory(item) {
+        const n = String(item.category || '').trim().toLowerCase();
+        if (n.includes('mathews')) return null;
+        if (n.includes('special')) return 'specials';
+        if (n.includes('soda') || n.includes('tea') || n.includes('energy') || n.includes('refresher')) return 'soda_tea';
+        if (n.includes('food') || n.includes('pastry') || n.includes('snack') || n.includes('bak') || n.includes('cookie')) return 'food';
+        return 'coffee';
+      }
+
+      function formatPrice(item) {
+        const cents = item.base_price_cents;
+        if (cents != null) return '$' + (cents / 100).toFixed(2);
+        if (item.base_price != null) return '$' + parseFloat(item.base_price).toFixed(2);
+        return '';
+      }
+
+      async function loadMenu() {
+        const container = document.getElementById('menu-content');
+        try {
+          const res = await fetch(
+            `${SUPABASE_URL}/rest/v1/menu_items?select=name,description,category,base_price_cents,base_price,sort_order&available=eq.true&order=category.asc,sort_order.asc`,
+            { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
+          );
+          if (!res.ok) throw new Error('Failed to load menu');
+          const items = await res.json();
+
+          const groups = {};
+          CATEGORIES.forEach(c => { groups[c.key] = []; });
+          items.forEach(item => {
+            const key = getCategory(item);
+            if (key && groups[key]) groups[key].push(item);
+          });
+
+          const html = CATEGORIES
+            .filter(c => groups[c.key].length > 0)
+            .map(c => `
+              <div class="menu-category">
+                <div class="menu-category-header">
+                  <span class="menu-category-icon" aria-hidden="true">${c.icon}</span>
+                  <span class="menu-category-name">${c.title}</span>
+                  <span class="menu-category-count">${groups[c.key].length} item${groups[c.key].length !== 1 ? 's' : ''}</span>
+                </div>
+                <div class="menu-grid">
+                  ${groups[c.key].map(item => `
+                    <div class="menu-item-card">
+                      <div class="menu-item-name">${escHtml(item.name)}</div>
+                      ${item.description ? `<div class="menu-item-desc">${escHtml(item.description)}</div>` : ''}
+                      ${formatPrice(item) ? `<div class="menu-item-price">${formatPrice(item)}</div>` : ''}
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            `).join('');
+
+          container.innerHTML = html || '<p class="menu-loading">No items available right now.</p>';
+        } catch (err) {
+          container.innerHTML = '<p class="menu-error">Unable to load menu. Please try again later.</p>';
+        }
+      }
+
+      function escHtml(str) {
+        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      }
+
+      loadMenu();
+    })();
+  </script>
+
+</body>
+</html>
