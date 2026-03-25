@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Birdhouse — Hours</title>
+  <meta name="description" content="The Birdhouse is open Monday through Friday during school hours. Last orders at 1:30 PM." />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --black: #0a0a0a; --red: #cc0000; --red-bright: #ff1a1a;
+      --gray: #888; --light-gray: #aaa; --white: #f0f0f0;
+      --card: #161616; --border: rgba(204,0,0,0.2);
+    }
+    body { background: var(--black); color: var(--white); font-family: 'DM Sans', sans-serif; min-height: 100vh; overflow-x: hidden; }
+    .skip-link { position: absolute; top: -100%; left: 1rem; background: var(--red-bright); color: #000; padding: 0.5rem 1rem; border-radius: 0 0 6px 6px; font-size: 0.85rem; font-weight: 500; text-decoration: none; z-index: 9999; }
+    .skip-link:focus { top: 0; }
+    :focus-visible { outline: 2px solid var(--red-bright); outline-offset: 3px; border-radius: 3px; }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+    }
+    body::before {
+      content: ''; position: fixed; inset: 0;
+      background-image: linear-gradient(rgba(204,0,0,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(204,0,0,0.03) 1px, transparent 1px);
+      background-size: 40px 40px; pointer-events: none; z-index: 0;
+    }
+    header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 1.5rem 3rem; border-bottom: 1px solid var(--border);
+      position: relative; z-index: 10; background: rgba(10,10,10,0.95);
+    }
+    .logo-header { display: flex; align-items: center; text-decoration: none; }
+    .logo-header img { height: 52px; width: auto; filter: drop-shadow(0 0 12px rgba(204,0,0,0.6)); }
+    nav a { font-size: 0.82rem; color: var(--red-bright); text-decoration: none; letter-spacing: 0.1em; text-transform: uppercase; margin-left: 2rem; transition: color 0.2s; }
+    nav a:hover { color: var(--white); }
+
+    .hours-page { position: relative; z-index: 1; padding: 6rem 5rem; }
+    .hours-inner { max-width: 900px; margin: 0 auto; }
+    .hours-eyebrow { font-size: 0.7rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--red-bright); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.75rem; }
+    .hours-eyebrow::before { content: ''; display: block; width: 30px; height: 1px; background: var(--red); }
+    .hours-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(3rem, 6vw, 5rem); line-height: 1; letter-spacing: 0.03em; margin-bottom: 0.5rem; }
+    .hours-subtitle { font-size: 1rem; color: var(--light-gray); font-weight: 300; margin-bottom: 3rem; }
+
+    .hours-cards { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+    .hours-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+      padding: 2rem 2.5rem; text-align: center; min-width: 160px; flex: 1; max-width: 220px;
+    }
+    .hours-card-label { font-size: 0.63rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gray); margin-bottom: 0.5rem; }
+    .hours-card-time { font-family: 'Bebas Neue', sans-serif; font-size: 2.2rem; color: var(--white); letter-spacing: 0.05em; }
+
+    .hours-note {
+      margin-top: 3rem; padding: 1.25rem 1.5rem;
+      background: rgba(204,0,0,0.08); border: 1px solid rgba(204,0,0,0.2); border-radius: 12px;
+      font-size: 0.88rem; color: var(--light-gray); line-height: 1.6;
+    }
+    .hours-note strong { color: var(--white); }
+
+    @media (max-width: 768px) {
+      .hours-page { padding: 4rem 2rem; }
+      header { padding: 1.25rem 1.5rem; }
+    }
+    @media (max-width: 480px) {
+      header { padding: 1rem; flex-wrap: wrap; gap: 0.5rem; }
+      nav a { margin-left: 1rem; font-size: 0.75rem; }
+      .hours-page { padding: 3rem 1.25rem; }
+      .hours-cards { flex-direction: column; }
+      .hours-card { max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <header>
+    <a class="logo-header" href="/"><img src="logo.png" alt="The Birdhouse" width="300" height="102" /></a>
+    <nav aria-label="Main navigation">
+      <a href="menu.html">Menu</a>
+      <a href="hours.html">Hours</a>
+      <a href="customer/order.html">Order Now</a>
+      <a href="about.html">About</a>
+    </nav>
+  </header>
+
+  <main class="hours-page" id="main-content">
+    <div class="hours-inner">
+      <div class="hours-eyebrow">When We're Open</div>
+      <h1 class="hours-title">Monday – Friday</h1>
+      <p class="hours-subtitle">During school hours · Closed on weekends &amp; breaks</p>
+
+      <div class="hours-cards" aria-label="Opening and closing times">
+        <div class="hours-card">
+          <div class="hours-card-label">Opens</div>
+          <div class="hours-card-time">7:30 AM</div>
+        </div>
+        <div class="hours-card">
+          <div class="hours-card-label">Last Order</div>
+          <div class="hours-card-time">1:30 PM</div>
+        </div>
+      </div>
+
+      <div class="hours-note">
+        <strong>Heads up:</strong> Hours may vary on early release days, school events, or holidays. Follow us for any same-day changes.
+      </div>
+    </div>
+  </main>
+
+</body>
+</html>
