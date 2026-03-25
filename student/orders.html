@@ -256,7 +256,12 @@
   }
 
   // ── Auth ───────────────────────────────────────────────────────────────────
-  sb.auth.onAuthStateChange(async (event, session) => {
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_OUT') { window.location.href = 'index.html'; }
+  });
+
+  async function init() {
+    const { data: { session } } = await sb.auth.getSession();
     if (!session) { window.location.href = 'index.html'; return; }
     const user = session.user;
 
@@ -278,7 +283,9 @@
     initDatePicker();
     await loadOrders();
     startPolling();
-  });
+  }
+
+  init();
 
   function toggleNav() {
     const sidebar   = document.querySelector('.sidebar');
@@ -379,14 +386,18 @@
       btn.textContent = '↻ Refreshing...';
     }
 
-    const { data, error } = await sb
-      .from('orders')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(500);
+    try {
+      const { data, error } = await sb
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(500);
 
-    if (!error) {
-      allOrders = data || [];
+      if (!error) {
+        allOrders = data || [];
+      }
+    } catch (e) {
+      console.error('Failed to fetch orders:', e);
     }
 
     updateLastUpdated();
