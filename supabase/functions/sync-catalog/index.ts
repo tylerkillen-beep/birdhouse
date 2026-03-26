@@ -19,6 +19,15 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS });
 }
 
+type SquareModifier = {
+  id: string;
+  modifier_data?: {
+    name?: string;
+    price_money?: { amount?: number };
+    ordinal?: number;
+  };
+};
+
 type SquareObject = {
   id: string;
   type: string;
@@ -30,12 +39,17 @@ type SquareObject = {
     description?: string;
     category_id?: string;
     variations?: Array<{ id: string }>;
+    modifier_list_info?: Array<{ modifier_list_id: string; enabled: boolean }>;
   };
   category_data?: {
     name?: string;
   };
   item_variation_data?: {
     price_money?: { amount?: number };
+  };
+  modifier_list_data?: {
+    name?: string;
+    modifiers?: SquareModifier[];
   };
 };
 
@@ -95,12 +109,12 @@ serve(async (req) => {
       "Content-Type": "application/json",
     };
 
-    // Fetch all catalog objects (ITEM_VARIATION and CATEGORY) for price/category lookups
+    // Fetch all catalog objects (ITEM_VARIATION, CATEGORY, MODIFIER_LIST) for lookups
     const allObjects: SquareObject[] = [];
     let listCursor: string | undefined;
 
     do {
-      const params = new URLSearchParams({ types: "ITEM_VARIATION,CATEGORY" });
+      const params = new URLSearchParams({ types: "ITEM_VARIATION,CATEGORY,MODIFIER_LIST" });
       if (listCursor) params.set("cursor", listCursor);
 
       const sqRes = await fetch(`${squareBaseUrl}/v2/catalog/list?${params.toString()}`, {
@@ -116,10 +130,60 @@ serve(async (req) => {
 
     const categories = new Map<string, string>();
     const variations = new Map<string, number>();
+    const modifierLists = new Map<string, SquareObject>();
 
     for (const o of allObjects) {
       if (o.type === "CATEGORY") categories.set(o.id, o.category_data?.name || "Coffee");
       if (o.type === "ITEM_VARIATION") variations.set(o.id, o.item_variation_data?.price_money?.amount || 0);
+      if (o.type === "MODIFIER_LIST") modifierLists.set(o.id, o);
+    }
+
+    // ── Sync modifier lists and options ──────────────────────────────────────
+    let modListsUpserted = 0;
+    let modOptionsUpserted = 0;
+    let modErrors = 0;
+
+    for (const [squareListId, ml] of modifierLists) {
+      const listName = ml.modifier_list_data?.name || "Modifiers";
+
+      const { data: upsertedList, error: listErr } = await serviceClient
+        .from("modifier_lists")
+        .upsert({ square_id: squareListId, name: listName }, { onConflict: "square_id" })
+        .select("id")
+        .single();
+
+      if (listErr || !upsertedList) {
+        modErrors += 1;
+        continue;
+      }
+      modListsUpserted += 1;
+
+      const modifiers = ml.modifier_list_data?.modifiers || [];
+      for (let i = 0; i < modifiers.length; i++) {
+        const mod = modifiers[i];
+        const modName = mod.modifier_data?.name || "Option";
+        const priceCents = mod.modifier_data?.price_money?.amount || 0;
+        const sortOrder = mod.modifier_data?.ordinal ?? i;
+
+        const { error: optErr } = await serviceClient
+          .from("modifier_options")
+          .upsert(
+            {
+              square_id: mod.id,
+              modifier_list_id: upsertedList.id,
+              name: modName,
+              price_cents: priceCents,
+              sort_order: sortOrder,
+            },
+            { onConflict: "square_id" },
+          );
+
+        if (optErr) {
+          modErrors += 1;
+        } else {
+          modOptionsUpserted += 1;
+        }
+      }
     }
 
     // Use SearchCatalogItems with enabled_location_ids to only fetch items for this location
@@ -159,6 +223,11 @@ serve(async (req) => {
       if (!firstVarId) skippedNoVariation += 1;
       const priceCents = firstVarId ? (variations.get(firstVarId) || 0) : 0;
 
+      // Collect the Square IDs of enabled modifier lists for this item
+      const squareModifierListIds = (item.item_data?.modifier_list_info || [])
+        .filter((info) => info.enabled)
+        .map((info) => info.modifier_list_id);
+
       const payload = {
         name: item.item_data?.name || "Untitled",
         description: item.item_data?.description || "",
@@ -169,6 +238,7 @@ serve(async (req) => {
         is_hot: true,
         is_iced: false,
         square_item_id: item.id,
+        square_modifier_list_ids: squareModifierListIds,
       };
 
       const { data: existing, error: existingErr } = await serviceClient
@@ -201,7 +271,7 @@ serve(async (req) => {
         const sort_order = (maxSortRow?.sort_order || 0) + 1;
         const { error } = await serviceClient
           .from("menu_items")
-          .insert({ ...payload, sort_order, square_modifier_list_ids: [] });
+          .insert({ ...payload, sort_order });
         if (!error) {
           inserted += 1;
         } else {
@@ -245,6 +315,10 @@ serve(async (req) => {
       insertErrors,
       updateErrors,
       deleteErrors,
+      modifierLists: modifierLists.size,
+      modListsUpserted,
+      modOptionsUpserted,
+      modErrors,
       sampleErrors,
     };
 
