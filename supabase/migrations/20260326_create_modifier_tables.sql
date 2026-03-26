@@ -17,19 +17,26 @@ create table if not exists modifier_options (
   created_at timestamptz not null default now()
 );
 
--- Add unique constraints on square_id so upserts work correctly
-alter table modifier_lists
-  add constraint if not exists modifier_lists_square_id_key unique (square_id);
-
-alter table modifier_options
-  add constraint if not exists modifier_options_square_id_key unique (square_id);
-
 -- Allow customers to read modifier data (needed by order and subscribe pages)
 alter table modifier_lists enable row level security;
 alter table modifier_options enable row level security;
 
 do $$
 begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'modifier_lists_square_id_key'
+  ) then
+    alter table modifier_lists add constraint modifier_lists_square_id_key unique (square_id);
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'modifier_options_square_id_key'
+  ) then
+    alter table modifier_options add constraint modifier_options_square_id_key unique (square_id);
+  end if;
+
   if not exists (
     select 1 from pg_policies
     where tablename = 'modifier_lists' and policyname = 'modifier_lists_public_read'
