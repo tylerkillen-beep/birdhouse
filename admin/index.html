@@ -1060,6 +1060,14 @@
         <label class="form-label">Par Level</label>
         <input class="form-input" id="inv-item-par" type="number" min="0" step="0.5" placeholder="1" />
       </div>
+      <div class="form-group">
+        <label class="form-label">Last Ordered</label>
+        <input class="form-input" id="inv-item-last-ordered" type="date" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Expected Arrival</label>
+        <input class="form-input" id="inv-item-expected-arrival" type="date" />
+      </div>
       <div class="form-group" style="grid-column:1/-1">
         <label class="form-label">Notes <span style="color:var(--gray);font-weight:400;text-transform:none">(optional)</span></label>
         <input class="form-input" id="inv-item-notes" placeholder="Storage location, supplier, etc." />
@@ -3131,6 +3139,10 @@ function renderInvGrid() {
         ${item.unit}
       </div>
       ${item.notes ? `<div style="font-size:0.72rem;color:var(--gray);margin-bottom:0.5rem">📝 ${item.notes}</div>` : ''}
+      <div style="font-size:0.7rem;color:var(--gray);margin-bottom:0.5rem;display:flex;flex-direction:column;gap:0.15rem">
+        <span>📅 Last ordered: ${item.last_ordered_at ? new Date(item.last_ordered_at + 'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'}</span>
+        <span>🚚 Expected arrival: ${item.expected_arrival ? new Date(item.expected_arrival + 'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'}</span>
+      </div>
       <div class="inv-actions">
         <button class="btn btn-primary btn-sm" style="flex:1" onclick="saveInvItem('${item.id}','${item.name.replace(/'/g,"\\'")}',${item.quantity})">Save Count</button>
         <button class="btn btn-ghost btn-sm" onclick="openEditInvItemModal('${item.id}')">✏️ Edit</button>
@@ -3165,6 +3177,8 @@ function openAddInvItemModal() {
   document.getElementById('inv-item-unit').value = 'units';
   document.getElementById('inv-item-par').value = '1';
   document.getElementById('inv-item-notes').value = '';
+  document.getElementById('inv-item-last-ordered').value = '';
+  document.getElementById('inv-item-expected-arrival').value = '';
   document.getElementById('inv-item-modal-msg').style.display = 'none';
   document.getElementById('inv-item-modal').classList.add('open');
 }
@@ -3180,6 +3194,8 @@ function openEditInvItemModal(id) {
   document.getElementById('inv-item-unit').value = item.unit;
   document.getElementById('inv-item-par').value = item.par_level;
   document.getElementById('inv-item-notes').value = item.notes || '';
+  document.getElementById('inv-item-last-ordered').value = item.last_ordered_at || '';
+  document.getElementById('inv-item-expected-arrival').value = item.expected_arrival || '';
   document.getElementById('inv-item-modal-msg').style.display = 'none';
   document.getElementById('inv-item-modal').classList.add('open');
 }
@@ -3191,11 +3207,13 @@ async function saveInvItemModal() {
   const unit = document.getElementById('inv-item-unit').value.trim() || 'units';
   const par = parseFloat(document.getElementById('inv-item-par').value) || 0;
   const notes = document.getElementById('inv-item-notes').value.trim();
+  const lastOrdered = document.getElementById('inv-item-last-ordered').value || null;
+  const expectedArrival = document.getElementById('inv-item-expected-arrival').value || null;
   const msgEl = document.getElementById('inv-item-modal-msg');
 
   if (!name) { msgEl.textContent = 'Item name is required.'; msgEl.style.display = 'block'; return; }
 
-  const payload = { name, category, quantity: qty, unit, par_level: par, notes, updated_at: new Date().toISOString() };
+  const payload = { name, category, quantity: qty, unit, par_level: par, notes: notes || null, last_ordered_at: lastOrdered, expected_arrival: expectedArrival, updated_at: new Date().toISOString() };
   const { error } = editingInvItemId
     ? await sb.from('inventory').update(payload).eq('id', editingInvItemId)
     : await sb.from('inventory').insert({ ...payload, created_by: currentUser.id });
