@@ -852,6 +852,10 @@
     if (cart[idx].quantity <= 0) cart.splice(idx, 1);
     updateCartUI();
     if (document.getElementById('panel-2').classList.contains('active')) renderCartReview();
+    if (document.getElementById('panel-3').classList.contains('active')) {
+      if (cart.length === 0) { goToStep(1); return; }
+      renderPaySummary();
+    }
   }
 
   function cartTotal() { return cart.reduce((s, c) => s + c.price * c.quantity, 0); }
@@ -954,8 +958,13 @@
       const modsLabel = c.selectedModifiers?.length
         ? ` (${c.selectedModifiers.map(m => m.name).join(', ')})`
         : '';
-      return `<div class="summary-line">
-        <span class="summary-key">${c.name}${modsLabel} × ${c.quantity}</span>
+      return `<div class="summary-line" style="align-items:center">
+        <span class="summary-key">${c.name}${modsLabel}</span>
+        <div class="qty-ctrl" style="margin:0 0.5rem;flex-shrink:0">
+          <button class="qty-btn" style="width:22px;height:22px;font-size:0.8rem" onclick="changeQty('${c.key}',-1)">−</button>
+          <span class="qty-num">${c.quantity}</span>
+          <button class="qty-btn" style="width:22px;height:22px;font-size:0.8rem" onclick="changeQty('${c.key}',1)">+</button>
+        </div>
         <span class="summary-val">$${(c.price * c.quantity).toFixed(2)}</span>
       </div>`;
     }).join('');
