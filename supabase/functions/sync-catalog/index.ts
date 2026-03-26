@@ -21,10 +21,12 @@ function json(body: unknown, status = 200) {
 
 type SquareModifier = {
   id: string;
+  type?: string;
   modifier_data?: {
     name?: string;
     price_money?: { amount?: number };
     ordinal?: number;
+    modifier_list_id?: string;
   };
 };
 
@@ -50,6 +52,12 @@ type SquareObject = {
   modifier_list_data?: {
     name?: string;
     modifiers?: SquareModifier[];
+  };
+  modifier_data?: {
+    name?: string;
+    price_money?: { amount?: number };
+    ordinal?: number;
+    modifier_list_id?: string;
   };
 };
 
@@ -109,12 +117,12 @@ serve(async (req) => {
       "Content-Type": "application/json",
     };
 
-    // Fetch all catalog objects (ITEM_VARIATION, CATEGORY, MODIFIER_LIST) for lookups
+    // Fetch all catalog objects (ITEM_VARIATION, CATEGORY, MODIFIER_LIST, MODIFIER) for lookups
     const allObjects: SquareObject[] = [];
     let listCursor: string | undefined;
 
     do {
-      const params = new URLSearchParams({ types: "ITEM_VARIATION,CATEGORY,MODIFIER_LIST" });
+      const params = new URLSearchParams({ types: "ITEM_VARIATION,CATEGORY,MODIFIER_LIST,MODIFIER" });
       if (listCursor) params.set("cursor", listCursor);
 
       const sqRes = await fetch(`${squareBaseUrl}/v2/catalog/list?${params.toString()}`, {
@@ -131,11 +139,18 @@ serve(async (req) => {
     const categories = new Map<string, string>();
     const variations = new Map<string, number>();
     const modifierLists = new Map<string, SquareObject>();
+    // modifiersByList: square list ID → array of MODIFIER objects
+    const modifiersByList = new Map<string, SquareObject[]>();
 
     for (const o of allObjects) {
       if (o.type === "CATEGORY") categories.set(o.id, o.category_data?.name || "Coffee");
       if (o.type === "ITEM_VARIATION") variations.set(o.id, o.item_variation_data?.price_money?.amount || 0);
       if (o.type === "MODIFIER_LIST") modifierLists.set(o.id, o);
+      if (o.type === "MODIFIER" && o.modifier_data?.modifier_list_id) {
+        const listId = o.modifier_data.modifier_list_id;
+        if (!modifiersByList.has(listId)) modifiersByList.set(listId, []);
+        modifiersByList.get(listId)!.push(o);
+      }
     }
 
     // ── Sync modifier lists and options ──────────────────────────────────────
@@ -158,7 +173,8 @@ serve(async (req) => {
       }
       modListsUpserted += 1;
 
-      const modifiers = ml.modifier_list_data?.modifiers || [];
+      // Prefer separately-fetched MODIFIER objects; fall back to embedded array
+      const modifiers = modifiersByList.get(squareListId) || ml.modifier_list_data?.modifiers || [];
       for (let i = 0; i < modifiers.length; i++) {
         const mod = modifiers[i];
         const modName = mod.modifier_data?.name || "Option";
