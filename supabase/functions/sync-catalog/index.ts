@@ -244,19 +244,6 @@ serve(async (req) => {
         .filter((info) => info.enabled)
         .map((info) => info.modifier_list_id);
 
-      const payload = {
-        name: item.item_data?.name || "Untitled",
-        description: item.item_data?.description || "",
-        category: categories.get(item.item_data?.category_id || "") || "Coffee",
-        base_price_cents: priceCents,
-        base_price: (priceCents / 100).toFixed(2),
-        available: true,
-        is_hot: true,
-        is_iced: false,
-        square_item_id: item.id,
-        square_modifier_list_ids: squareModifierListIds,
-      };
-
       const { data: existing, error: existingErr } = await serviceClient
         .from("menu_items")
         .select("id")
@@ -270,7 +257,17 @@ serve(async (req) => {
       }
 
       if (existing?.id) {
-        const { error } = await serviceClient.from("menu_items").update(payload).eq("id", existing.id);
+        // Only update fields sourced from Square — never overwrite manually-managed
+        // settings like available, is_hot, is_iced, or category.
+        const updatePayload = {
+          name: item.item_data?.name || "Untitled",
+          description: item.item_data?.description || "",
+          base_price_cents: priceCents,
+          base_price: (priceCents / 100).toFixed(2),
+          square_item_id: item.id,
+          square_modifier_list_ids: squareModifierListIds,
+        };
+        const { error } = await serviceClient.from("menu_items").update(updatePayload).eq("id", existing.id);
         if (!error) {
           updated += 1;
         } else {
@@ -278,6 +275,19 @@ serve(async (req) => {
           if (sampleErrors.length < 8) sampleErrors.push(`update ${item.id}: ${error.message}`);
         }
       } else {
+        // New item — set reasonable defaults; admin can adjust afterwards.
+        const insertPayload = {
+          name: item.item_data?.name || "Untitled",
+          description: item.item_data?.description || "",
+          category: categories.get(item.item_data?.category_id || "") || "Coffee",
+          base_price_cents: priceCents,
+          base_price: (priceCents / 100).toFixed(2),
+          available: false,
+          is_hot: true,
+          is_iced: false,
+          square_item_id: item.id,
+          square_modifier_list_ids: squareModifierListIds,
+        };
         const { data: maxSortRow } = await serviceClient
           .from("menu_items")
           .select("sort_order")
@@ -287,7 +297,7 @@ serve(async (req) => {
         const sort_order = (maxSortRow?.sort_order || 0) + 1;
         const { error } = await serviceClient
           .from("menu_items")
-          .insert({ ...payload, sort_order });
+          .insert({ ...insertPayload, sort_order });
         if (!error) {
           inserted += 1;
         } else {
