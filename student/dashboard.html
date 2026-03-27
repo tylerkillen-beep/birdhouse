@@ -303,6 +303,13 @@
       <!-- Week schedule grid -->
       <div class="schedule-grid" id="schedule-grid"></div>
 
+      <!-- Publish bar -->
+      <div id="sched-publish-bar" style="display:none;background:rgba(204,0,0,0.07);border:1px solid rgba(204,0,0,0.18);border-radius:10px;padding:1rem 1.25rem;margin-top:1.25rem;flex-wrap:wrap;gap:0.75rem;align-items:center;justify-content:space-between">
+        <div style="font-size:0.88rem;color:var(--light-gray)">Schedule is a draft — confirm to publish it to your team.</div>
+        <button class="btn-primary" id="sched-publish-btn" onclick="confirmScheduleWeek()" style="font-size:0.82rem;padding:0.6rem 1.1rem">✓ Confirm &amp; Publish</button>
+      </div>
+      <div id="sched-publish-msg" style="display:none;margin-top:0.75rem" class="msg"></div>
+
       <!-- No assignment state -->
       <div id="no-assignment" style="display:none;color:var(--gray);text-align:center;padding:3rem;background:var(--card);border-radius:14px;border:1px solid var(--border-dim)">
         No schedule published for this week yet — check back soon!
@@ -582,6 +589,7 @@
   const sb = supabase.createClient('https://ljukrhneikqbabcmcpet.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqdWtyaG5laWtxYmFiY21jcGV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyODg1MjEsImV4cCI6MjA4Nzg2NDUyMX0.UbtB_-syG9a9vLcJp04w_k2F3XP2tMScYtB4sez3j78');
   const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
   let currentUser = null;
+  let currentTeamId = null;
   let currentBioRecord = null;
 
   async function init() {
@@ -716,6 +724,8 @@
 
   async function loadSchedule(offset) {
     if(offset !== undefined) scheduleWeekOffset = offset;
+    document.getElementById('sched-publish-bar').style.display = 'none';
+    document.getElementById('sched-publish-msg').style.display = 'none';
     const today = new Date();
     const day = today.getDay();
     const diff = day===0?-6:1-day;
@@ -726,7 +736,8 @@
 
     // Get student's team
     const {data:studentData} = await sb.from('students').select('team_id,period,teams(name,period,color)').eq('id',currentUser.id).single();
-    const teamId = studentData?.team_id;
+    currentTeamId = studentData?.team_id;
+    const teamId = currentTeamId;
     const teamName = studentData?.teams?.name;
     const teamColor = studentData?.teams?.color||'#cc0000';
     const teamPeriod = studentData?.teams?.period;
@@ -821,9 +832,44 @@
       </div>`;
     }).join('');
 
+    // Show publish bar if assignment is not yet confirmed
+    if (assignment && !assignment.confirmed) {
+      document.getElementById('sched-publish-bar').style.display = 'flex';
+    }
+
     if(nextShift){
       document.getElementById('stat-next-shift').textContent=nextShift.day;
       document.getElementById('stat-next-time').textContent=nextShift.pos?POS_LABELS[nextShift.pos]:'Working';
+    }
+  }
+
+  async function confirmScheduleWeek() {
+    if (!currentTeamId) return;
+    const btn = document.getElementById('sched-publish-btn');
+    btn.disabled = true; btn.textContent = 'Publishing…';
+
+    const today = new Date();
+    const day = today.getDay();
+    const diff = day===0?-6:1-day;
+    const monday = new Date(today);
+    monday.setDate(today.getDate()+diff+(scheduleWeekOffset*7));
+    monday.setHours(0,0,0,0);
+    const ws = monday.toISOString().split('T')[0];
+
+    const {error} = await sb.from('weekly_assignments').update({confirmed:true}).eq('team_id',currentTeamId).eq('week_start',ws);
+
+    const msg = document.getElementById('sched-publish-msg');
+    if (!error) {
+      document.getElementById('sched-publish-bar').style.display = 'none';
+      msg.textContent = '✓ Schedule published!';
+      msg.className = 'msg success';
+      msg.style.display = 'block';
+      setTimeout(()=>{ msg.style.display='none'; }, 4000);
+    } else {
+      msg.textContent = 'Error publishing schedule. Please try again.';
+      msg.className = 'msg error';
+      msg.style.display = 'block';
+      btn.disabled = false; btn.textContent = '✓ Confirm & Publish';
     }
   }
 

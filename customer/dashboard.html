@@ -173,7 +173,7 @@
       <a class="nav-item active" onclick="showSection('overview',this)">📊 Overview</a>
       <a class="nav-item" href="order.html">☕ Place an Order</a>
       <a class="nav-item" href="orders.html">📋 Order History</a>
-      <a class="nav-item" onclick="showSection('subscription',this)">📦 My Subscription</a>
+      <a class="nav-item" id="nav-sub" onclick="showSection('subscription',this)">📦 My Subscription</a>
       <a class="nav-item" onclick="showSection('loyalty',this)">⭐ Birdhouse Bucks</a>
     </nav>
     <button class="signout-btn" onclick="signOut()">← Sign Out</button>
@@ -198,7 +198,7 @@
           <div class="stat-value" id="stat-orders">0</div>
           <div class="stat-sub">All time</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" id="stat-card-sub">
           <div class="stat-label">Subscription</div>
           <div class="stat-value" id="stat-sub" style="font-size:1.8rem">—</div>
           <div class="stat-sub" id="stat-sub-detail">No active plan</div>
@@ -337,6 +337,12 @@
       badge.textContent = customerType === 'mathews' ? '⭐ Mathews — 25% off' : '🍎 Teacher — 25% off';
       document.getElementById('user-card').appendChild(badge);
     }
+    if (customerType === 'student') {
+      ['nav-sub', 'stat-card-sub', 'overview-sub-cta'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+      });
+    }
 
     // Birdhouse Bucks: spend-based credit system.
     // Prefer profile columns (kept in sync by process-payment edge function) over
@@ -408,6 +414,7 @@
   }
 
   async function loadSubscription() {
+    if (customerType === 'student') return;
     const sub = await fetchLatestSubscription();
 
     activeSubscription = sub;
