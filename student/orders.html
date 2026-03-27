@@ -513,13 +513,17 @@
       let itemsHtml = '';
       if (order.cart_items && order.cart_items.length > 0) {
         itemsHtml = order.cart_items.map(item => {
-          const temp = item.temp === 'iced' ? 'Iced' : 'Hot';
-          const qty = item.quantity > 1 ? `×${item.quantity}` : '';
-          return `${temp} ${item.name}${qty ? ' ' + qty : ''}`;
-        }).join(' · ');
+          const temp = item.temp === 'iced' ? 'Iced' : item.temp === 'food' ? '' : 'Hot';
+          const qty = item.quantity > 1 ? ` ×${item.quantity}` : '';
+          const label = [temp, escHtml(item.name)].filter(Boolean).join(' ') + qty;
+          const mods = item.selectedModifiers && item.selectedModifiers.length
+            ? `<div style="font-size:0.75rem;color:var(--gray);margin-top:0.1rem;padding-left:0.5rem">${item.selectedModifiers.map(m => escHtml(m.name)).join(' · ')}</div>`
+            : '';
+          return `<div style="margin-bottom:0.25rem">${label}${mods}</div>`;
+        }).join('');
       } else {
-        const parts = [order.drink_name, order.size, order.milk].filter(Boolean);
-        itemsHtml = parts.join(' · ');
+        const parts = [order.drink_name, order.size, order.milk, order.syrup && order.syrup !== 'None' ? order.syrup : null].filter(Boolean);
+        itemsHtml = escHtml(parts.join(' · '));
       }
 
       // Delivery info
@@ -568,7 +572,7 @@
             <span class="status-badge badge-${order.status}">${statusLabel}</span>
             <span class="method-badge ${methodClass}">${methodLabel}</span>
           </div>
-          <div class="order-items">${escHtml(itemsHtml)}</div>
+          <div class="order-items">${itemsHtml}</div>
           <div class="order-detail-row" style="margin-top:0.4rem">
             ${deliveryInfo ? `<strong>📍</strong> ${escHtml(deliveryInfo)}` : ''}
             ${schedLabel ? ` &nbsp;·&nbsp; <strong>📅</strong> ${escHtml(schedLabel)}` : ''}
