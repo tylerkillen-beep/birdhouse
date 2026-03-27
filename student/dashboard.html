@@ -660,15 +660,33 @@
           ${order.status !== 'cancelled' ? `<button class="btn-cancel-order" onclick="cancelOrder('${order.id}')">Cancel</button>` : ''}
         </div>` : '';
 
-      return `<div class="order-card status-${order.status}" id="order-card-${order.id}">
-        <div>
-          <div class="order-name">${order.drink_name} <span style="color:var(--gray);font-weight:400;font-size:0.82rem">— ${order.customer_name}</span></div>
-          <div class="order-meta" style="margin:0.3rem 0 0.6rem">
+      let itemsHtml;
+      if(order.cart_items && order.cart_items.length) {
+        itemsHtml = order.cart_items.map(item => {
+          const qty = item.quantity > 1 ? `${item.quantity}× ` : '';
+          const temp = item.temp && item.temp !== 'food' ? ` <span style="color:var(--gray);font-size:0.78rem">(${item.temp})</span>` : '';
+          const mods = item.selectedModifiers && item.selectedModifiers.length
+            ? `<div style="font-size:0.78rem;color:var(--gray);padding-left:0.75rem;margin-top:0.1rem">${item.selectedModifiers.map(m=>m.name).join(' · ')}</div>`
+            : '';
+          return `<div style="margin-bottom:0.3rem"><span style="font-weight:500">${qty}${item.name}</span>${temp}${mods}</div>`;
+        }).join('');
+        if(order.special_instructions) {
+          itemsHtml += `<div style="font-size:0.78rem;margin-top:0.4rem"><strong>Note:</strong> ${order.special_instructions}</div>`;
+        }
+      } else {
+        itemsHtml = `<div style="font-weight:500">${order.drink_name||'—'}</div>
+          <div class="order-meta" style="margin:0.2rem 0 0">
             <strong>Size:</strong> ${order.size||'—'} &nbsp;·&nbsp;
             <strong>Milk:</strong> ${order.milk||'—'} &nbsp;·&nbsp;
             <strong>Syrup:</strong> ${order.syrup||'None'}
             ${order.special_instructions ? `<br><strong>Note:</strong> ${order.special_instructions}` : ''}
-          </div>
+          </div>`;
+      }
+
+      return `<div class="order-card status-${order.status}" id="order-card-${order.id}">
+        <div>
+          <div class="order-name" style="margin-bottom:0.4rem">${order.customer_name}</div>
+          <div class="order-meta" style="margin-bottom:0.5rem">${itemsHtml}</div>
           <div class="order-meta">
             ${order.delivery_method === 'pickup'
               ? `<strong>🏠 Pickup</strong> at Birdhouse — Library`
