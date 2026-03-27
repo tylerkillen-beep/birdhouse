@@ -51,7 +51,10 @@
   .inv-bar-fill{height:100%;border-radius:4px;transition:width 0.4s}
   .inv-qty-input{width:72px;padding:0.4rem 0.5rem;border:1px solid var(--border-dim);border-radius:6px;background:#0d0d0d;color:var(--white);font-family:'DM Sans',sans-serif;font-size:0.85rem;outline:none}
   .inv-save-btn{background:var(--red);color:white;border:none;border-radius:6px;padding:0.45rem 0.9rem;font-family:'DM Sans',sans-serif;font-size:0.75rem;font-weight:500;cursor:pointer;text-transform:uppercase;letter-spacing:0.05em}
-  .order-row{display:flex;justify-content:space-between;align-items:center;padding:0.9rem 1.25rem;background:var(--card);border:1px solid var(--border-dim);border-radius:10px;margin-bottom:0.5rem;flex-wrap:wrap;gap:0.75rem}
+  .order-row{display:flex;justify-content:space-between;align-items:flex-start;padding:0.9rem 1.25rem;background:var(--card);border:1px solid var(--border-dim);border-radius:10px;margin-bottom:0.5rem;flex-wrap:wrap;gap:0.75rem}
+  .order-items{margin-top:0.35rem;display:flex;flex-direction:column;gap:0.3rem}
+  .order-item-line{font-size:0.78rem;color:var(--light-gray)}
+  .order-item-mods{font-size:0.72rem;color:var(--gray);margin-top:0.1rem;padding-left:0.75rem}
   .order-status{font-size:0.7rem;padding:0.2rem 0.65rem;border-radius:20px;font-weight:500}
   .status-pending{background:rgba(255,152,0,0.1);color:#ff9800;border:1px solid rgba(255,152,0,0.25)}
   .status-preparing{background:rgba(33,150,243,0.1);color:#2196f3;border:1px solid rgba(33,150,243,0.25)}
@@ -411,14 +414,35 @@ async function loadOrders(){
   allOrders=data||[];renderOrders();
 }
 function filterOrders(f,btn){orderFilter=f;document.querySelectorAll('#order-filter-btns .cat-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderOrders();}
+function renderOrderItems(o){
+  const items=o.cart_items;
+  if(items&&items.length){
+    return '<div class="order-items">'+items.map(item=>{
+      const mods=item.selectedModifiers&&item.selectedModifiers.length?item.selectedModifiers.map(m=>m.name).join(' · '):'';
+      const qty=item.quantity>1?`${item.quantity}× `:'';
+      const temp=item.temp&&item.temp!=='food'?` (${item.temp})`:'';
+      return `<div><div class="order-item-line">${qty}${item.name}${temp}</div>${mods?`<div class="order-item-mods">${mods}</div>`:''}</div>`;
+    }).join('')+'</div>';
+  }
+  // Legacy single-item order
+  const parts=[o.drink_name||'—'];
+  if(o.milk)parts.push(o.milk);
+  if(o.syrup)parts.push(o.syrup);
+  if(o.size)parts.push(o.size);
+  return `<div class="order-items"><div class="order-item-line">${parts[0]}</div>${parts.length>1?`<div class="order-item-mods">${parts.slice(1).join(' · ')}</div>`:''}</div>`;
+}
 function renderOrders(){
   const el=document.getElementById('orders-content');
   let orders=allOrders;
   if(orderFilter!=='all')orders=orders.filter(o=>o.status===orderFilter);
   if(!orders.length){el.innerHTML='<div style="color:var(--gray);text-align:center;padding:3rem;background:var(--card);border-radius:14px;border:1px solid var(--border-dim)">No orders found.</div>';return;}
   el.innerHTML=orders.map(o=>`<div class="order-row">
-    <div><div style="font-weight:500">${o.customer_name||'Customer'}</div><div style="font-size:0.75rem;color:var(--gray);margin-top:0.2rem">${o.drink_name||'—'} · ${o.delivery_location||'—'}</div></div>
-    <div style="display:flex;align-items:center;gap:0.75rem"><span class="order-status status-${o.status||'pending'}">${o.status||'pending'}</span><span style="font-size:0.72rem;color:var(--gray)">${new Date(o.created_at).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}</span></div>
+    <div>
+      <div style="font-weight:500">${o.customer_name||'Customer'}</div>
+      ${renderOrderItems(o)}
+      <div style="font-size:0.72rem;color:var(--gray);margin-top:0.3rem">${o.delivery_location||'—'}</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.75rem;flex-shrink:0"><span class="order-status status-${o.status||'pending'}">${o.status||'pending'}</span><span style="font-size:0.72rem;color:var(--gray)">${new Date(o.created_at).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}</span></div>
   </div>`).join('');
 }
 
