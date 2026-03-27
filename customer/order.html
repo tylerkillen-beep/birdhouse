@@ -193,6 +193,16 @@
     @media(max-width:600px) { .menu-grid{grid-template-columns:repeat(2,1fr);gap:0.6rem} .menu-card{padding:1rem} .menu-card-name{font-size:0.88rem} .main{padding:1rem 1rem 5rem; padding-top:calc(1rem + 54px)} }
     @media(max-width:400px) { .menu-grid{grid-template-columns:1fr} }
 
+    /* ── Location Autocomplete ── */
+    .autocomplete-wrapper { position:relative; }
+    .autocomplete-dropdown { position:absolute; top:100%; left:0; right:0; background:#141414; border:1px solid rgba(204,0,0,0.3); border-radius:8px; margin-top:3px; max-height:230px; overflow-y:auto; z-index:50; display:none; box-shadow:0 8px 24px rgba(0,0,0,0.55); }
+    .autocomplete-dropdown.open { display:block; }
+    .autocomplete-item { padding:0.6rem 1rem; font-size:0.86rem; cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.05); display:flex; justify-content:space-between; align-items:center; gap:0.75rem; }
+    .autocomplete-item:last-child { border-bottom:none; }
+    .autocomplete-item:hover, .autocomplete-item.kbd-active { background:rgba(204,0,0,0.12); color:var(--white); }
+    .autocomplete-item-name { flex:1; color:var(--light-gray); }
+    .autocomplete-item-room { font-size:0.78rem; color:var(--red-bright); font-weight:600; flex-shrink:0; }
+
     /* ── Ratings & reviews popup ── */
     .menu-card-rating { font-size:0.76rem; color:#f5c842; margin-bottom:0.45rem; cursor:pointer; display:inline-flex; align-items:center; gap:0.3rem; }
     .menu-card-rating:hover .rating-count { text-decoration:underline; }
@@ -278,11 +288,6 @@
             <button class="method-btn" id="btn-method-pickup" onclick="setDeliveryMethod('pickup')">🏠 Pickup (Free)</button>
           </div>
         </div>
-        <div class="form-group" id="room-group">
-          <label id="room-label">Room / Location</label>
-          <input type="text" id="delivery-room" placeholder="e.g. Room 204, Library, Front Office" />
-          <div class="pickup-note" id="pickup-location-note" style="display:none">📍 Birdhouse — Library</div>
-        </div>
         <div class="form-row">
           <div class="form-group">
             <label>Delivery Date</label>
@@ -293,9 +298,20 @@
             <select id="delivery-time"><option value="">Select a date first…</option></select>
           </div>
         </div>
+        <div class="form-group" id="room-group">
+          <label id="room-label">Room / Location</label>
+          <div class="autocomplete-wrapper">
+            <input type="text" id="delivery-room" placeholder="Type a name or room number…" autocomplete="off" />
+            <div class="autocomplete-dropdown" id="ac-delivery-room"></div>
+          </div>
+          <div class="pickup-note" id="pickup-location-note" style="display:none">📍 Birdhouse — Library</div>
+        </div>
         <div class="form-group">
-          <label>Order Notes <span style="color:var(--gray);font-weight:300">(optional)</span></label>
-          <input type="text" id="order-notes" placeholder="e.g. extra shot, no whip, oat milk..." />
+          <label>Backup Location <span style="color:var(--gray);font-weight:300">(optional)</span></label>
+          <div class="autocomplete-wrapper">
+            <input type="text" id="backup-location" placeholder="Type a name or room number…" autocomplete="off" />
+            <div class="autocomplete-dropdown" id="ac-backup-location"></div>
+          </div>
         </div>
       </div>
       <div class="btn-row">
@@ -1167,7 +1183,7 @@
                 })()
               : null,
             deliveryTime: document.getElementById('delivery-time').value,
-            notes:        document.getElementById('order-notes').value,
+            notes:        document.getElementById('backup-location').value,
           },
         }),
       });
@@ -1272,6 +1288,248 @@
     userCard.onclick = redirectToSignIn;
     await Promise.all([loadMenu(), setupDeliveryPicker()]);
   }
+
+  // ── Location Autocomplete Data ────────────────────────────────────────────
+  const NHS_LOCATIONS = [
+    // Teachers (Last, First — Subject : Room value)
+    { label: 'Adams, Sahara — SPED',                    value: '278'      },
+    { label: 'Adriano, Ben — SPED',                     value: '217'      },
+    { label: 'Ames, Michell — ELL',                     value: '273'      },
+    { label: 'Arnold, Patti — Dean of Students',        value: '121'      },
+    { label: 'Ashby, Briana — Comm. Arts',              value: '320'      },
+    { label: 'Baker, Samantha — Comm. Arts',            value: '321'      },
+    { label: 'Baldwin, Dustin — Government',            value: '314'      },
+    { label: 'Beck, Kitty — Comm. Arts',                value: '250'      },
+    { label: 'Bennett, Cristy — Homebound',             value: '121'      },
+    { label: 'Blansit, Brenda — PE',                    value: 'Gym/184'  },
+    { label: 'Blansit, Danelle — Athletics/Activities', value: '273'      },
+    { label: 'Boyce, Andrew — PE',                      value: 'Gym/184'  },
+    { label: 'Bradford, Michael — Band',                value: 'Band Rm'  },
+    { label: 'Brantner, Amber — Business',              value: '215'      },
+    { label: 'Brumley, Lance — Science',                value: '263'      },
+    { label: 'Burford, Barrett — Comm. Arts',           value: '357'      },
+    { label: 'Burger, Lisa — Math',                     value: '332'      },
+    { label: 'Burns, Jordan — Business',                value: '214'      },
+    { label: 'Burnside, Ryan — French',                 value: '176'      },
+    { label: 'Cecenas, Jose — History/Govt.',           value: '305'      },
+    { label: 'Chamberlain, Christine — Process Coord.', value: '252'      },
+    { label: 'Clark, Brandon — Activities Director',    value: '276A'     },
+    { label: 'Cobb, Lisa — Counselor Sec.',             value: '119'      },
+    { label: 'Corya, Wendee — Math',                    value: '240'      },
+    { label: 'Daniels, Lakyn — Drama',                  value: '199'      },
+    { label: 'Davis, Sydney — Math',                    value: '309'      },
+    { label: 'Dense, Ashley — Spanish',                 value: '170'      },
+    { label: 'Donham, Katie — Science',                 value: '265'      },
+    { label: 'Durham, Jessica — History',               value: '310'      },
+    { label: 'Dye, Diane — Nurse',                      value: '124'      },
+    { label: 'Edwards, Alexander — History',            value: '303'      },
+    { label: 'Eggleston, Beth — Journalism',            value: '221'      },
+    { label: 'Fergus, Kim — Spanish',                   value: '171'      },
+    { label: 'Fields, Kelly — Indust. Tech.',           value: 'COC'      },
+    { label: 'Finger, Craig — Band',                    value: 'A100'     },
+    { label: 'Finke, Jennifer — District Social Worker',value: '224'      },
+    { label: 'Finley, Ashley — Counselor CC/A+',        value: '139'      },
+    { label: 'Fleetwood, Allison — Drama',              value: 'A133'     },
+    { label: 'Foster, Jason — Science',                 value: '277'      },
+    { label: 'Francis, Krista — SPED',                  value: '206'      },
+    { label: 'Garrison, Sarah — Math',                  value: '325'      },
+    { label: 'Gibson, Jennifer — Registrar',            value: '114'      },
+    { label: 'Glenn, Cory — Drama',                     value: 'A140'     },
+    { label: 'Gold, Jonathan — Weight Room',            value: '1001'     },
+    { label: 'Goodyear, Kimberly — Comm. Arts',         value: '249'      },
+    { label: 'Gunther, Teri — Science',                 value: '318'      },
+    { label: 'Gutierrez, Daniel — Music',               value: 'A125'     },
+    { label: 'Hamilton, Lindsey — SPED',                value: '208'      },
+    { label: 'Hancock, Chloe — Math/Science',           value: '237'      },
+    { label: 'Hardy, Aubrey — SPED',                    value: '189'      },
+    { label: 'Harris, Angie — Comm. Arts',              value: '223'      },
+    { label: 'Hartsell, Diana — Counselor Virtual',     value: '138'      },
+    { label: 'Hartsell, Jason — School Police Chief',   value: '127'      },
+    { label: 'Heckman, Kristine — Math',                value: '233'      },
+    { label: 'Hefley, Angela — Science',                value: '269'      },
+    { label: 'Herring, Alisha — SPED',                  value: '213'      },
+    { label: 'Hill, Bill — Help Desk',                  value: '136'      },
+    { label: 'Hodapp, Robert — JROTC',                  value: '181'      },
+    { label: 'Horton, Megan — Math',                    value: '238'      },
+    { label: 'Howard, Kallie — Process Coordinator',    value: '252'      },
+    { label: 'Howard, Michaela — Comm. Arts',           value: '255'      },
+    { label: 'Hower, Regina — District Social Worker',  value: '244'      },
+    { label: 'Hughes, Logan — Opport. Plus',            value: '282'      },
+    { label: 'Humes, Alician — SPED',                   value: '188'      },
+    { label: 'Hunt, Randi — Counselor 9th',             value: '115'      },
+    { label: 'Hurlbert, Brier — Print Shop',            value: '220'      },
+    { label: 'Johns, Melissa — SPED',                   value: '326'      },
+    { label: 'Jones, Tiffany — Curr. Specialist',       value: '103'      },
+    { label: 'Jordan, Theodor — Science',               value: '268'      },
+    { label: 'Kauffman, Tiffany — Indust. Tech.',       value: 'COC'      },
+    { label: 'Kelly, David — Principal',                value: "Principal's Office" },
+    { label: 'Killen, Tyler — Business',                value: '216'      },
+    { label: 'Lambton, Ben — SPED',                     value: '222'      },
+    { label: 'Langston, Traci — CC/A+ Sec.',            value: '139'      },
+    { label: 'Lansdown, Melinda — Nurse',               value: '124'      },
+    { label: 'Lawless, Shane — Comm. Arts',             value: '256'      },
+    { label: 'Lazaro, Holly — Office Manager',          value: '102'      },
+    { label: 'Lechner, Rachel — Comm. Arts',            value: '258'      },
+    { label: 'Link, Niki — Attendance Sec.',            value: '103'      },
+    { label: 'Livengood, Erin — Comm. Arts',            value: '260'      },
+    { label: 'Lotz, Melissa — Math',                    value: '330'      },
+    { label: 'Lutz, Janet — ASL Para',                  value: '323'      },
+    { label: 'Mancini, Nicole — Finance Sec.',          value: '103'      },
+    { label: 'Mann, Elliott — Art',                     value: '236'      },
+    { label: 'Marsiglio, Annaliese — Math',             value: '242'      },
+    { label: 'Martin, Dustin — Opport. Plus',           value: '212'      },
+    { label: 'Martin, Hannah — Science',                value: '266'      },
+    { label: 'Mason, Robin — SPED',                     value: '211'      },
+    { label: 'McCoy, Jeremy — Asst. Activities Director', value: '276B'  },
+    { label: 'McElhinney, Curtis — Math',               value: '241'      },
+    { label: 'McGowan, Rachel — SPED',                  value: '126'      },
+    { label: 'McMillin, Matthew — Asst. Principal 9th', value: '107'      },
+    { label: 'Miller, Scott — History',                 value: '314A'     },
+    { label: 'Mitchell, David — Art',                   value: '228'      },
+    { label: 'Montana, Taylor — Comm. Arts',            value: '246'      },
+    { label: 'Motto, Tania — Math',                     value: '328'      },
+    { label: 'Myler, Jenney — Counselor 12th',          value: '117'      },
+    { label: 'Nelson, Holly — Math',                    value: '239'      },
+    { label: 'Nelson, Zac — Science',                   value: '262'      },
+    { label: 'Newberry, Ashley — FACS',                 value: '218'      },
+    { label: "O'Bryant, Erika — Band",                  value: 'Band Rm'  },
+    { label: 'Palmer, Evan — Government',               value: '304'      },
+    { label: 'Patterson, Kim — Band',                   value: 'A128'     },
+    { label: 'Perry, Ana — Spanish',                    value: '172'      },
+    { label: 'Perry, John — PE',                        value: '1001'     },
+    { label: 'Posegate, Josh — Government',             value: '311B'     },
+    { label: 'Pycior, Stephanie — FACS',                value: '237'      },
+    { label: 'Rapp, Whitney — Science',                 value: '317'      },
+    { label: 'Reichert, Jonah — History',               value: '308'      },
+    { label: 'Richardson, Rob — Health',                value: '191'      },
+    { label: 'Ritter Frizell, Julia — Comm. Arts',      value: '324'      },
+    { label: 'Roller, Alayna — Asst. Principal 10th',   value: '104'      },
+    { label: 'Sartin, Kim — SPED',                      value: '209'      },
+    { label: 'Shepherd, Christina — Science',           value: '281'      },
+    { label: 'Smith, Kari — Kitchen Manager',           value: 'Kitchen'  },
+    { label: 'Spayde, Kirby — Band',                    value: 'Band Rm'  },
+    { label: 'Spence, Jonathon — Comm. Arts',           value: '248'      },
+    { label: 'Staats, Julie — Librarian',               value: 'Library'  },
+    { label: 'Stammers, Jennifer — Music',              value: 'A124'     },
+    { label: 'Stoll, Amanda — Comm. Arts',              value: '319'      },
+    { label: 'Stormazd, Carrie — Counselor 10th',       value: '112'      },
+    { label: 'Stubblefield, Tammy — Music',             value: 'A125'     },
+    { label: 'Sustaita, Nohemi — Spanish',              value: '173'      },
+    { label: 'Sweet, Veronica — ASL',                   value: '323'      },
+    { label: 'Sweitzer, Matt — Tech. Support Spec.',    value: '245'      },
+    { label: 'Talbert, Jennifer — PE/Health',           value: 'Gym/194'  },
+    { label: 'Teed, Chris — History',                   value: '307'      },
+    { label: 'Thompson, Brooke — Science',              value: '275'      },
+    { label: 'Uber, Dana — Counselor 11th',             value: '116'      },
+    { label: 'Villanueva, George — History',            value: '280'      },
+    { label: 'Villanueva, Melissa — Curr. Specialist',  value: '302'      },
+    { label: 'Vincent, Emma — Science',                 value: '272'      },
+    { label: 'Vincent, Tina — Library Aide',            value: 'Library'  },
+    { label: 'Walker, Matt — History',                  value: '313'      },
+    { label: 'Walton, Amanda — Math',                   value: '235'      },
+    { label: 'Widel, Ryan — Art',                       value: '234'      },
+    { label: 'Wilbur, Steven — SPO',                    value: '127'      },
+    { label: 'Williamson, Jay — Speech/Debate',         value: '169'      },
+    { label: 'Willis, Jody — Science',                  value: '315'      },
+    { label: 'Wood, Marcy — FACS',                      value: '226'      },
+    { label: 'Wright, Jaime L. — SPED',                 value: '225'      },
+    { label: 'Wright, R. — Assoc. Principal 12th',      value: '105'      },
+    { label: 'Yeager, Elizabeth — History',             value: '306'      },
+    { label: 'Zimmerman, Annie — PE',                   value: 'Gym/196'  },
+    // NHS Locations
+    { label: 'Admin Conference Room',                   value: '111'      },
+    { label: 'AETOS Box Office',                        value: 'AETOS'    },
+    { label: 'Birdhouse',                               value: 'Library'  },
+    { label: 'Burrell Office',                          value: '231'      },
+    { label: 'Computer Lab B — Library',                value: '137'      },
+    { label: 'Cox Clinic',                              value: '123'      },
+    { label: 'Help Desk',                               value: '136'      },
+    { label: 'Homebound',                               value: '121'      },
+    { label: 'ISS — In School Suspension',              value: '168'      },
+    { label: 'Kitchen',                                 value: 'Kitchen'  },
+    { label: 'Lecture Hall A & B',                      value: '329/331'  },
+    { label: 'Library',                                 value: 'Library'  },
+    { label: 'Nurse',                                   value: '124'      },
+    { label: 'Piano Lab / Choir Room',                  value: 'A128'     },
+    { label: 'Print Shop',                              value: '220'      },
+    { label: 'Room 210',                                value: '210'      },
+    { label: 'School Police Office',                    value: '127'      },
+    { label: 'Technology Rep',                          value: '243'      },
+    { label: 'Writing Center',                          value: '259'      },
+    { label: '1st Floor Work Room',                     value: '125'      },
+    { label: '2nd Floor Work Room',                     value: '229'      },
+    { label: '3rd Floor Work Room',                     value: '312'      },
+  ];
+
+  function initLocationAutocomplete(inputId) {
+    const input    = document.getElementById(inputId);
+    const dropdown = document.getElementById('ac-' + inputId);
+    if (!input || !dropdown) return;
+    let activeIdx = -1;
+
+    function getMatches(query) {
+      const q = query.trim().toLowerCase();
+      if (!q) return [];
+      const tokens = q.split(/\s+/);
+      return NHS_LOCATIONS
+        .map(entry => {
+          const haystack = (entry.label + ' ' + entry.value).toLowerCase();
+          if (!tokens.every(t => haystack.includes(t))) return null;
+          const score = tokens.reduce((s, t) => {
+            const i = haystack.indexOf(t);
+            return s + (i === 0 || haystack[i - 1] === ' ' ? 2 : 1);
+          }, 0);
+          return { entry, score };
+        })
+        .filter(Boolean)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 8)
+        .map(x => x.entry);
+    }
+
+    function renderDropdown(matches) {
+      if (!matches.length) { dropdown.classList.remove('open'); dropdown.innerHTML = ''; return; }
+      dropdown.innerHTML = matches.map((m, i) =>
+        `<div class="autocomplete-item" data-value="${m.value.replace(/"/g,'&quot;')}" data-idx="${i}">
+          <span class="autocomplete-item-name">${m.label}</span>
+          <span class="autocomplete-item-room">${m.value}</span>
+        </div>`
+      ).join('');
+      activeIdx = -1;
+      dropdown.classList.add('open');
+      dropdown.querySelectorAll('.autocomplete-item').forEach(el => {
+        el.addEventListener('mousedown', function(e) { e.preventDefault(); selectValue(this.dataset.value); });
+      });
+    }
+
+    function selectValue(val) {
+      input.value = val;
+      dropdown.classList.remove('open');
+      dropdown.innerHTML = '';
+      activeIdx = -1;
+    }
+
+    function setActiveItem(idx) {
+      const items = dropdown.querySelectorAll('.autocomplete-item');
+      items.forEach((el, i) => el.classList.toggle('kbd-active', i === idx));
+      activeIdx = idx;
+    }
+
+    input.addEventListener('input',  () => renderDropdown(getMatches(input.value)));
+    input.addEventListener('focus',  () => { if (input.value) renderDropdown(getMatches(input.value)); });
+    input.addEventListener('blur',   () => setTimeout(() => { dropdown.classList.remove('open'); }, 150));
+    input.addEventListener('keydown', e => {
+      const items = dropdown.querySelectorAll('.autocomplete-item');
+      if (!items.length) return;
+      if (e.key === 'ArrowDown')  { e.preventDefault(); setActiveItem(Math.min(activeIdx + 1, items.length - 1)); }
+      else if (e.key === 'ArrowUp')   { e.preventDefault(); setActiveItem(Math.max(activeIdx - 1, 0)); }
+      else if (e.key === 'Enter' && activeIdx >= 0) { e.preventDefault(); selectValue(items[activeIdx].dataset.value); }
+      else if (e.key === 'Escape') { dropdown.classList.remove('open'); }
+    });
+  }
+
+  initLocationAutocomplete('delivery-room');
+  initLocationAutocomplete('backup-location');
 
   init().catch(async (err) => {
     if (err?.name === 'AuthSessionMissingError') {
