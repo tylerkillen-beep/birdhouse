@@ -660,7 +660,6 @@
           ${order.status !== 'cancelled' ? `<button class="btn-cancel-order" onclick="cancelOrder('${order.id}')">Cancel</button>` : ''}
         </div>` : '';
 
-      console.log('[order debug]', order.id, 'cart_items:', order.cart_items);
       let itemsHtml;
       if(order.cart_items && order.cart_items.length) {
         itemsHtml = order.cart_items.map(item => {
@@ -674,6 +673,7 @@
         if(order.special_instructions) {
           itemsHtml += `<div style="font-size:0.78rem;margin-top:0.4rem"><strong>Note:</strong> ${order.special_instructions}</div>`;
         }
+        itemsHtml += `<details style="margin-top:0.5rem"><summary style="font-size:0.68rem;color:var(--gray);cursor:pointer">raw data (debug)</summary><pre style="font-size:0.65rem;color:var(--gray);white-space:pre-wrap;word-break:break-all;margin-top:0.3rem">${JSON.stringify(order.cart_items, null, 2)}</pre></details>`;
       } else {
         itemsHtml = `<div style="font-weight:500">${order.drink_name||'—'}</div>
           <div class="order-meta" style="margin:0.2rem 0 0">
@@ -681,7 +681,8 @@
             <strong>Milk:</strong> ${order.milk||'—'} &nbsp;·&nbsp;
             <strong>Syrup:</strong> ${order.syrup||'None'}
             ${order.special_instructions ? `<br><strong>Note:</strong> ${order.special_instructions}` : ''}
-          </div>`;
+          </div>
+          <div style="font-size:0.68rem;color:var(--gray);margin-top:0.3rem">⚠️ cart_items is empty — order used legacy fields</div>`;
       }
 
       return `<div class="order-card status-${order.status}" id="order-card-${order.id}">
