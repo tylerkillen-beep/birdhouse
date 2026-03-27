@@ -925,7 +925,8 @@
   }
 
   function deliveryFeeDollars() {
-    return selectedDeliveryMethod === 'delivery' ? 1.00 : 0;
+    if (isTeacher() || selectedDeliveryMethod !== 'delivery') return 0;
+    return 1.00;
   }
 
   function setDeliveryMethod(method) {
@@ -1011,8 +1012,10 @@
       </div>` : '';
 
     const fee = deliveryFeeDollars();
-    const feeLine = fee > 0
-      ? `<div class="summary-line"><span class="summary-key" style="color:#aaa">🚚 Delivery fee</span><span class="summary-val">$${fee.toFixed(2)}</span></div>`
+    const feeLine = selectedDeliveryMethod === 'delivery'
+      ? (fee > 0
+          ? `<div class="summary-line"><span class="summary-key" style="color:#aaa">🚚 Delivery fee</span><span class="summary-val">$${fee.toFixed(2)}</span></div>`
+          : `<div class="summary-line"><span class="summary-key" style="color:#aaa">🚚 Delivery fee</span><span class="summary-val" style="color:#4caf50">Free</span></div>`)
       : '';
     const isPickup = selectedDeliveryMethod === 'pickup';
     const locationLabel = isPickup ? 'Pickup at' : 'Deliver to';
