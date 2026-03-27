@@ -660,6 +660,7 @@
           ${order.status !== 'cancelled' ? `<button class="btn-cancel-order" onclick="cancelOrder('${order.id}')">Cancel</button>` : ''}
         </div>` : '';
 
+      console.log('[order debug]', order.id, 'cart_items:', order.cart_items);
       let itemsHtml;
       if(order.cart_items && order.cart_items.length) {
         itemsHtml = order.cart_items.map(item => {
