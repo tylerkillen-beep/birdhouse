@@ -352,6 +352,9 @@
   <div class="nav-item" onclick="showSection('manager-scores')" id="nav-manager-scores">
     <span class="nav-icon">📋</span> Manager Scores
   </div>
+  <div class="nav-item" onclick="showSection('peer-evals')" id="nav-peer-evals">
+    <span class="nav-icon">👥</span> Peer Evals
+  </div>
 
   <div class="nav-section">Customers</div>
   <div class="nav-item" onclick="showSection('orders')" id="nav-orders">
@@ -550,6 +553,19 @@
       </div>
     </div>
     <div id="admin-scores-content"><div class="empty-state"><div class="empty-icon">📋</div>Loading scores…</div></div>
+  </div>
+
+  <!-- ── PEER EVALUATIONS ── -->
+  <div class="section-panel" id="section-peer-evals">
+    <div class="page-header"><h1>Peer Evaluations</h1><p>Student-to-student team evaluations (out of 10, anonymous scores)</p></div>
+    <div class="section-header" style="margin-bottom:1.25rem">
+      <div class="section-title" id="peer-evals-week-label">Last Week</div>
+      <div style="display:flex;gap:0.5rem;align-items:center">
+        <button class="btn btn-ghost btn-sm" onclick="loadAdminPeerEvals(-1)">← Prev</button>
+        <button class="btn btn-ghost btn-sm" onclick="loadAdminPeerEvals(1)">Next →</button>
+      </div>
+    </div>
+    <div id="admin-peer-evals-content"><div class="empty-state"><div class="empty-icon">👥</div>Loading…</div></div>
   </div>
 
   <!-- ── SUBSCRIPTIONS ── -->
@@ -1410,6 +1426,7 @@ function showSection(id) {
     'library-split': initLibrarySplit,
     'closed-days': loadClosedDays,
     reviews: loadReviews,
+    'peer-evals': () => loadAdminPeerEvals(0),
   };
   if (loaders[id]) loaders[id]();
 }
@@ -1978,6 +1995,84 @@ async function loadAdminScores(offsetDelta) {
       </tr>`;
     }).join('')}
     </tbody>
+  </table></div>`;
+}
+
+// ════════════════════════════════════
+// Peer Evaluations (Admin)
+// ════════════════════════════════════
+let adminPeerWeekOffset = -1;
+
+async function loadAdminPeerEvals(offsetDelta) {
+  if (offsetDelta !== undefined) adminPeerWeekOffset += offsetDelta;
+  const now = new Date();
+  const day = now.getDay();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1) + (adminPeerWeekOffset * 7));
+  const ws = monday.toISOString().slice(0, 10);
+
+  const label = document.getElementById('peer-evals-week-label');
+  if (adminPeerWeekOffset === 0) label.textContent = 'This Week';
+  else if (adminPeerWeekOffset === -1) label.textContent = 'Last Week';
+  else label.textContent = `Week of ${monday.toLocaleDateString('en-US', {month:'short', day:'numeric'})}`;
+
+  const [{ data: rubric }, { data: peerRows }, { data: students }] = await Promise.all([
+    sb.from('score_rubric').select('*').eq('active', true).order('sort_order'),
+    sb.from('peer_evaluations').select('*').eq('week_start', ws),
+    sb.from('students').select('id,first_name,last_name,team_id,teams(name,period)').eq('role', 'student'),
+  ]);
+
+  const c = document.getElementById('admin-peer-evals-content');
+  if (!peerRows?.length) {
+    c.innerHTML = '<div class="empty-state"><div class="empty-icon">👥</div>No peer evaluations submitted for this week yet.</div>';
+    return;
+  }
+
+  const totalMgrMax = (rubric || []).reduce((a, r) => a + r.max_points, 0);
+  const peerMaxFor = r => totalMgrMax > 0 ? Math.max(1, Math.round(r.max_points / totalMgrMax * 10)) : 2;
+  const totalPeerMax = (rubric || []).reduce((a, r) => a + peerMaxFor(r), 0);
+
+  // Group by evaluatee
+  const byEvaluatee = {};
+  (peerRows || []).forEach(p => {
+    if (!byEvaluatee[p.evaluatee_id]) byEvaluatee[p.evaluatee_id] = { scores: {}, comments: [] };
+    if (!byEvaluatee[p.evaluatee_id].scores[p.evaluator_id]) byEvaluatee[p.evaluatee_id].scores[p.evaluator_id] = {};
+    byEvaluatee[p.evaluatee_id].scores[p.evaluator_id][p.rubric_id] = p.score;
+    if (p.comment && !byEvaluatee[p.evaluatee_id].comments.some(x => x.evaluatorId === p.evaluator_id)) {
+      byEvaluatee[p.evaluatee_id].comments.push({ evaluatorId: p.evaluator_id, name: p.evaluator_name || '—', comment: p.comment });
+    }
+  });
+
+  const rows = (students || []).filter(s => byEvaluatee[s.id]).map(s => {
+    const d = byEvaluatee[s.id];
+    const evaluatorIds = Object.keys(d.scores);
+    const numEvals = evaluatorIds.length;
+    let totalScore = 0;
+    evaluatorIds.forEach(evId => {
+      totalScore += Object.values(d.scores[evId]).reduce((a, b) => a + b, 0);
+    });
+    const avgScore = numEvals > 0 ? (totalScore / numEvals).toFixed(1) : '—';
+    const pct = numEvals > 0 && totalPeerMax > 0 ? Math.round((totalScore / numEvals) / totalPeerMax * 100) : null;
+    const color = pct === null ? 'var(--gray)' : pct >= 80 ? '#4cd07d' : pct >= 60 ? '#f0a044' : '#e05a4a';
+    const commentsHtml = d.comments.length
+      ? d.comments.map(c => `<div style="font-size:0.78rem;margin-bottom:0.2rem"><span style="color:var(--gray-mid)">${c.name}:</span> ${c.comment}</div>`).join('')
+      : '<span style="color:var(--gray);font-size:0.78rem">—</span>';
+    return `<tr>
+      <td>${s.first_name} ${s.last_name}<br/><span style="font-size:0.72rem;color:var(--gray)">${s.teams?.name||'—'}</span></td>
+      <td style="text-align:center;color:${color};font-weight:500">${avgScore} / ${totalPeerMax}</td>
+      <td style="text-align:center;color:var(--gray-mid);font-size:0.82rem">${numEvals} of ${evaluatorIds.length > 0 ? evaluatorIds.length : '?'}</td>
+      <td>${commentsHtml}</td>
+    </tr>`;
+  }).join('');
+
+  c.innerHTML = `<div class="table-wrap"><table>
+    <thead><tr>
+      <th>Student</th>
+      <th style="text-align:center">Avg Score / ${totalPeerMax}</th>
+      <th style="text-align:center">Evaluators</th>
+      <th>Comments (with name)</th>
+    </tr></thead>
+    <tbody>${rows || '<tr><td colspan="4" style="text-align:center;color:var(--gray);padding:2rem">No data</td></tr>'}</tbody>
   </table></div>`;
 }
 

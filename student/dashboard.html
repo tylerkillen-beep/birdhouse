@@ -241,6 +241,8 @@
       <a class="nav-item" onclick="showSection('sales',this)">📈 Sales Data</a>
       <a class="nav-item" onclick="showSection('menu',this)">☕ Menu Availability</a>
       <a class="nav-item" onclick="showSection('summary',this)">📝 Weekly Summary</a>
+      <a class="nav-item" onclick="showSection('peer-eval',this)" style="justify-content:space-between">👥 Peer Evals <span id="peer-eval-badge" style="display:none;background:var(--red);color:white;font-size:0.6rem;padding:0.1rem 0.45rem;border-radius:10px"></span></a>
+      <a class="nav-item" onclick="showSection('my-scores',this)">⭐ My Scores</a>
       <a class="nav-item" onclick="showSection('bio',this)">🪪 My Bio</a>
     </nav>
     <button class="signout-btn" onclick="signOut()">← Sign Out</button>
@@ -256,6 +258,11 @@
         <div class="stat-card"><div class="stat-label">This Week's Orders</div><div class="stat-value" id="stat-week-orders">—</div><div class="stat-sub">Total delivered</div></div>
         <div class="stat-card"><div class="stat-label">Low Stock Items</div><div class="stat-value" id="stat-low-stock">—</div><div class="stat-sub">Need restocking</div></div>
       </div>
+      <!-- Peer eval notification banner -->
+      <div id="peer-eval-banner" style="display:none;background:rgba(204,0,0,0.08);border:1px solid rgba(204,0,0,0.25);border-radius:10px;padding:0.85rem 1.25rem;margin-bottom:1.25rem;font-size:0.85rem;color:var(--red-bright);cursor:pointer" onclick="showSection('peer-eval',document.querySelector('[onclick*=peer-eval]'))">
+        ⚠️ <span id="peer-eval-banner-text"></span>
+      </div>
+
       <div class="section">
         <div class="section-title">Quick Actions</div>
         <div style="display:flex;gap:1rem;flex-wrap:wrap">
@@ -557,6 +564,22 @@
     </div>
 
     <!-- Bio -->
+    <!-- Peer Evaluations -->
+    <div id="section-peer-eval" style="display:none">
+      <div class="page-eyebrow">Team Evaluations</div>
+      <h1 class="page-title">Peer Evals</h1>
+      <div style="font-size:0.85rem;color:var(--gray);margin-bottom:1.5rem">Rate your teammates for the week of <strong id="peer-eval-week-label" style="color:var(--light-gray)">—</strong>. Scores are anonymous; comments show your name.</div>
+      <div id="peer-eval-list"><div style="color:var(--gray);text-align:center;padding:3rem">Loading…</div></div>
+    </div>
+
+    <!-- My Scores -->
+    <div id="section-my-scores" style="display:none">
+      <div class="page-eyebrow">Performance</div>
+      <h1 class="page-title">My Scores</h1>
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap" id="my-scores-week-nav"></div>
+      <div id="my-scores-content"><div style="color:var(--gray);text-align:center;padding:3rem">Loading…</div></div>
+    </div>
+
     <div id="section-bio" style="display:none">
       <div class="page-eyebrow">About Me</div>
       <h1 class="page-title">My Bio</h1>
@@ -583,6 +606,7 @@
   const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
   let currentUser = null;
   let currentBioRecord = null;
+  let currentStudentRow = null;
 
   async function init() {
     const {data:{session}} = await sb.auth.getSession();
@@ -590,9 +614,10 @@
     currentUser = session.user;
 
     // Check role from students table (supports both Google OAuth and password login)
-    const {data: studentRow} = await sb.from('students').select('role,first_name,last_name').eq('id', currentUser.id).single();
+    const {data: studentRow} = await sb.from('students').select('role,first_name,last_name,team_id').eq('id', currentUser.id).single();
     const role = studentRow?.role || currentUser.user_metadata?.role;
     if(role!=='student'&&role!=='admin'){await sb.auth.signOut();window.location.href='index.html';return;}
+    currentStudentRow = studentRow;
 
     const meta = currentUser.user_metadata;
     const firstName = studentRow?.first_name || meta.first_name || 'Eagle';
@@ -600,7 +625,7 @@
     document.getElementById('user-display-name').textContent = firstName+' '+lastName;
     document.getElementById('greeting-name').textContent = firstName;
     document.getElementById('user-role-badge').textContent = role==='admin'?'Admin':'Student Staff';
-    loadSchedule(); loadInventory(); loadOrders();
+    loadSchedule(); loadInventory(); loadOrders(); loadPeerEvalBanner();
     const today=new Date(); const monday=new Date(today);
     monday.setDate(today.getDate()-(today.getDay()===0?6:today.getDay()-1));
     document.getElementById('summary-week').value=monday.toISOString().split('T')[0];
@@ -1385,6 +1410,8 @@
     if(name==='inventory')loadInventory();
     if(name==='sales')initStudentSalesReport();
     if(name==='bio')loadBio();
+    if(name==='peer-eval')loadPeerEvalSection();
+    if(name==='my-scores')loadMyScores();
     closeNav();
     window.scrollTo(0,0);
   }
@@ -1596,6 +1623,224 @@
 
   // ── Flatpickr calendar range picker ──
   window.fpSrng = flatpickr('#srng-date-range', { mode: 'range', dateFormat: 'Y-m-d', maxDate: 'today', disableMobile: true });
+
+  // ── Peer Evaluations ──
+  let peerRubric = [];
+  let peerTeammates = [];
+  let peerWeekStart = '';
+  let peerEvalData = {};
+  let peerDataLoaded = false;
+
+  function getPrevWeekStart() {
+    const today = new Date();
+    const day = today.getDay();
+    const daysToMon = day === 0 ? 6 : day - 1;
+    const thisMon = new Date(today);
+    thisMon.setDate(today.getDate() - daysToMon);
+    const prevMon = new Date(thisMon);
+    prevMon.setDate(thisMon.getDate() - 7);
+    return prevMon.toISOString().slice(0, 10);
+  }
+
+  function peerMaxFor(r) {
+    const totalMax = peerRubric.reduce((a, x) => a + x.max_points, 0);
+    return totalMax > 0 ? Math.max(1, Math.round(r.max_points / totalMax * 10)) : 2;
+  }
+
+  function isTeammateEvaluated(evaluateeId) {
+    const evals = peerEvalData[evaluateeId];
+    if (!evals) return false;
+    return peerRubric.every(r => evals[r.id] !== undefined);
+  }
+
+  async function loadPeerEvalBanner() {
+    if (!currentStudentRow?.team_id) return;
+    peerWeekStart = getPrevWeekStart();
+    const [rubricRes, teamRes, evalRes] = await Promise.all([
+      sb.from('score_rubric').select('*').eq('active', true).order('sort_order'),
+      sb.from('students').select('id,first_name,last_name').eq('team_id', currentStudentRow.team_id).eq('role', 'student').neq('id', currentUser.id),
+      sb.from('peer_evaluations').select('evaluatee_id,rubric_id,score,comment').eq('evaluator_id', currentUser.id).eq('week_start', peerWeekStart)
+    ]);
+    peerRubric = rubricRes.data || [];
+    peerTeammates = teamRes.data || [];
+    peerEvalData = {};
+    (evalRes.data || []).forEach(e => {
+      if (!peerEvalData[e.evaluatee_id]) peerEvalData[e.evaluatee_id] = {};
+      peerEvalData[e.evaluatee_id][e.rubric_id] = { score: e.score, comment: e.comment };
+    });
+    peerDataLoaded = true;
+    refreshPeerEvalBanner();
+  }
+
+  function refreshPeerEvalBanner() {
+    if (!peerTeammates.length) return;
+    const remaining = peerTeammates.filter(t => !isTeammateEvaluated(t.id)).length;
+    const banner = document.getElementById('peer-eval-banner');
+    const bannerText = document.getElementById('peer-eval-banner-text');
+    const badge = document.getElementById('peer-eval-badge');
+    if (remaining > 0) {
+      bannerText.textContent = `${remaining} of ${peerTeammates.length} peer evaluation${remaining !== 1 ? 's' : ''} pending for last week — tap to complete`;
+      banner.style.display = 'block';
+      badge.textContent = remaining;
+      badge.style.display = 'inline';
+    } else {
+      banner.style.display = 'none';
+      badge.style.display = 'none';
+    }
+  }
+
+  async function loadPeerEvalSection() {
+    if (!peerDataLoaded) await loadPeerEvalBanner();
+    const prevMon = new Date(peerWeekStart + 'T12:00:00');
+    const prevSun = new Date(prevMon);
+    prevSun.setDate(prevMon.getDate() + 6);
+    const fmt = d => d.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+    document.getElementById('peer-eval-week-label').textContent = `${fmt(prevMon)} – ${fmt(prevSun)}`;
+
+    const container = document.getElementById('peer-eval-list');
+    if (!peerTeammates.length) {
+      container.innerHTML = '<div style="color:var(--gray);text-align:center;padding:3rem;background:var(--card);border-radius:12px;border:1px solid var(--border-dim)">No teammates to evaluate this week.</div>';
+      return;
+    }
+
+    container.innerHTML = peerTeammates.map(t => {
+      const done = isTeammateEvaluated(t.id);
+      const existingComment = peerEvalData[t.id] ? Object.values(peerEvalData[t.id])[0]?.comment || '' : '';
+      return `
+      <div class="score-student-card" id="peer-card-${t.id}">
+        <div class="score-student-header">
+          <div style="font-weight:600;font-size:1rem">${t.first_name} ${t.last_name}</div>
+          <span id="peer-saved-${t.id}" style="display:${done?'inline':'none'};color:#4caf50;font-size:0.8rem;font-weight:500">✓ Submitted</span>
+        </div>
+        ${peerRubric.map(r => {
+          const pm = peerMaxFor(r);
+          const existing = peerEvalData[t.id]?.[r.id]?.score ?? '';
+          return `<div class="rubric-row">
+            <div class="rubric-label">${r.name}</div>
+            <div class="rubric-desc">${r.description || ''}</div>
+            <input type="number" class="score-input" id="peer-score-${t.id}-${r.id}" min="0" max="${pm}" value="${existing}" placeholder="0–${pm}" />
+            <span style="font-size:0.72rem;color:var(--gray)">/ ${pm}</span>
+          </div>`;
+        }).join('')}
+        <textarea class="score-comment" id="peer-comment-${t.id}" placeholder="Comment (optional — your name will be shown)">${existingComment}</textarea>
+        <button class="score-save-btn" onclick="savePeerEval('${t.id}')">Save Evaluation</button>
+      </div>`;
+    }).join('');
+  }
+
+  async function savePeerEval(evaluateeId) {
+    const comment = document.getElementById(`peer-comment-${evaluateeId}`)?.value || '';
+    const myName = `${currentStudentRow.first_name} ${currentStudentRow.last_name}`;
+    const rows = peerRubric.map(r => {
+      const pm = peerMaxFor(r);
+      const val = Math.min(Math.max(0, parseInt(document.getElementById(`peer-score-${evaluateeId}-${r.id}`)?.value || 0)), pm);
+      return { evaluator_id: currentUser.id, evaluatee_id: evaluateeId, rubric_id: r.id, week_start: peerWeekStart, score: val, comment, evaluator_name: myName, updated_at: new Date().toISOString() };
+    });
+    const { error } = await sb.from('peer_evaluations').upsert(rows, { onConflict: 'evaluator_id,evaluatee_id,rubric_id,week_start' });
+    if (!error) {
+      if (!peerEvalData[evaluateeId]) peerEvalData[evaluateeId] = {};
+      peerRubric.forEach(r => {
+        const pm = peerMaxFor(r);
+        const val = Math.min(Math.max(0, parseInt(document.getElementById(`peer-score-${evaluateeId}-${r.id}`)?.value || 0)), pm);
+        peerEvalData[evaluateeId][r.id] = { score: val, comment };
+      });
+      const el = document.getElementById(`peer-saved-${evaluateeId}`);
+      if (el) el.style.display = 'inline';
+      refreshPeerEvalBanner();
+    }
+  }
+
+  // ── My Scores ──
+  let myScoresWeekOffset = -1;
+
+  async function loadMyScores(offsetDelta) {
+    if (offsetDelta !== undefined) myScoresWeekOffset += offsetDelta;
+    const today = new Date();
+    const day = today.getDay();
+    const daysToMon = day === 0 ? 6 : day - 1;
+    const thisMon = new Date(today);
+    thisMon.setDate(today.getDate() - daysToMon + myScoresWeekOffset * 7);
+    const ws = thisMon.toISOString().slice(0, 10);
+    const sun = new Date(thisMon); sun.setDate(thisMon.getDate() + 6);
+    const fmt = d => d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+    const weekLabel = `${thisMon.toLocaleDateString('en-US',{month:'short',day:'numeric'})} – ${fmt(sun)}`;
+
+    const nav = document.getElementById('my-scores-week-nav');
+    nav.innerHTML = `<button class="btn-secondary" style="padding:0.45rem 1rem;font-size:0.82rem" onclick="loadMyScores(-1)">← Prev</button><span style="font-size:0.95rem;font-weight:500">${weekLabel}</span><button class="btn-secondary" style="padding:0.45rem 1rem;font-size:0.82rem" onclick="loadMyScores(1)">Next →</button>`;
+
+    const [rubricRes, peerRes, mgRes] = await Promise.all([
+      sb.from('score_rubric').select('*').eq('active', true).order('sort_order'),
+      sb.from('peer_evaluations').select('*').eq('evaluatee_id', currentUser.id).eq('week_start', ws),
+      sb.from('student_scores').select('*').eq('student_id', currentUser.id).eq('week_start', ws)
+    ]);
+
+    const rubric = rubricRes.data || [];
+    const peerRows = peerRes.data || [];
+    const mgRows = mgRes.data || [];
+    const totalMgrMax = rubric.reduce((a, r) => a + r.max_points, 0);
+    const totalPeerMax = rubric.reduce((a, r) => a + peerMaxFor(r), 0);
+
+    // Aggregate peer scores by rubric_id
+    const peerByRubric = {};
+    const peerComments = [];
+    const seenCommentEvaluators = new Set();
+    peerRows.forEach(p => {
+      if (!peerByRubric[p.rubric_id]) peerByRubric[p.rubric_id] = [];
+      peerByRubric[p.rubric_id].push(p.score);
+      if (p.comment && p.evaluator_name && !seenCommentEvaluators.has(p.evaluator_id)) {
+        seenCommentEvaluators.add(p.evaluator_id);
+        peerComments.push({ name: p.evaluator_name, comment: p.comment });
+      }
+    });
+
+    // Compute avg peer total
+    const numEvaluators = peerRows.length > 0 ? new Set(peerRows.map(p => p.evaluator_id)).size : 0;
+    let peerTotal = 0;
+    rubric.forEach(r => {
+      const scores = peerByRubric[r.id] || [];
+      peerTotal += scores.reduce((a, b) => a + b, 0);
+    });
+    const peerAvg = numEvaluators > 0 ? (peerTotal / numEvaluators).toFixed(1) : null;
+
+    // Manager scores
+    const mgrByRubric = {};
+    let mgrComment = '', mgrScoredBy = '';
+    mgRows.forEach(m => {
+      mgrByRubric[m.rubric_id] = m.score;
+      if (m.comment) mgrComment = m.comment;
+      if (m.scored_by_name) mgrScoredBy = m.scored_by_name;
+    });
+    const mgrTotal = Object.values(mgrByRubric).reduce((a, b) => a + b, 0);
+
+    const c = document.getElementById('my-scores-content');
+
+    const peerHtml = peerAvg === null
+      ? '<div style="color:var(--gray);padding:1.5rem;text-align:center">No peer evaluations submitted yet for this week.</div>'
+      : `<div style="margin-bottom:1rem">
+          <div style="font-family:\'Bebas Neue\',sans-serif;font-size:2.5rem;color:var(--red-bright);letter-spacing:0.04em">${peerAvg}<span style="font-size:1.2rem;color:var(--gray)"> / ${totalPeerMax}</span></div>
+          <div style="font-size:0.72rem;color:var(--gray);text-transform:uppercase;letter-spacing:0.1em">Avg from ${numEvaluators} teammate${numEvaluators!==1?'s':''}</div>
+        </div>
+        ${peerComments.length ? `<div style="margin-top:1rem"><div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);margin-bottom:0.5rem">Comments</div>${peerComments.map(c=>`<div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:0.65rem 0.9rem;margin-bottom:0.5rem"><div style="font-size:0.72rem;color:var(--light-gray);font-weight:600;margin-bottom:0.25rem">${c.name}</div><div style="font-size:0.85rem;color:var(--light-gray)">${c.comment}</div></div>`).join('')}</div>` : ''}`;
+
+    const mgrHtml = mgRows.length === 0
+      ? '<div style="color:var(--gray);padding:1.5rem;text-align:center">No manager score submitted yet for this week.</div>'
+      : `<div style="margin-bottom:1rem">
+          <div style="font-family:\'Bebas Neue\',sans-serif;font-size:2.5rem;color:var(--red-bright);letter-spacing:0.04em">${mgrTotal}<span style="font-size:1.2rem;color:var(--gray)"> / ${totalMgrMax}</span></div>
+          <div style="font-size:0.72rem;color:var(--gray);text-transform:uppercase;letter-spacing:0.1em">Manager score${mgrScoredBy ? ` by ${mgrScoredBy}` : ''}</div>
+        </div>
+        ${mgrComment ? `<div style="margin-top:1rem"><div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);margin-bottom:0.5rem">Comment</div><div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:0.65rem 0.9rem;font-size:0.85rem;color:var(--light-gray)">${mgrComment}</div></div>` : ''}`;
+
+    c.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem">
+      <div style="background:var(--card);border:1px solid var(--border-dim);border-radius:14px;padding:1.5rem">
+        <div style="font-size:0.62rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--gray);margin-bottom:1rem">Peer Score</div>
+        ${peerHtml}
+      </div>
+      <div style="background:var(--card);border:1px solid var(--border-dim);border-radius:14px;padding:1.5rem">
+        <div style="font-size:0.62rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--gray);margin-bottom:1rem">Manager Score</div>
+        ${mgrHtml}
+      </div>
+    </div>`;
+  }
 
   init();
 </script>
