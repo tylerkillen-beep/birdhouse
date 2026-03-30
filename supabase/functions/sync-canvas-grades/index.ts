@@ -1,24 +1,28 @@
 // Supabase Edge Function: sync-canvas-grades
-// Aggregates weekly manager scores and/or peer evaluation scores per student
-// and submits them to the Canvas LMS Gradebook via the Canvas REST API.
+// Aggregates weekly manager scores, peer evaluation scores, and/or team product
+// performance scores per student and submits them to Canvas LMS via the REST API.
 //
 // Required Supabase secrets:
 //   CANVAS_ACCESS_TOKEN  — Canvas API token (generated in Canvas → Account → Settings)
 //
 // Canvas config is stored in store_config under key 'canvas_config':
-//   { domain, course_id, manager_assignment_id, peer_assignment_id,
-//     manager_points, peer_points }
+//   { domain, course_id,
+//     manager_assignment_id, peer_assignment_id, product_assignment_id,
+//     manager_points, peer_points, product_points }
 //
 // Scoring:
 //   Manager: sum(student_scores.score) / sum(rubric.max_points) * manager_points
 //   Peer:    avg(peer_evaluations.score received) / 10 * peer_points
+//   Product: (team_profit / threshold) capped at 1.0, * product_points
+//            team_scores passed from client as [{team_id, score}] where score is 0–10
 //
 // Students are matched to Canvas users by email via sis_login_id.
 //
 // Request body: {
 //   week_start: string,          "YYYY-MM-DD" (Monday of the target week)
-//   type: "manager"|"peer"|"both",
+//   type: "manager"|"peer"|"product"|"both"|"all",
 //   dry_run?: boolean            if true, compute grades but don't submit to Canvas
+//   team_scores?: Array<{ team_id: string; score: number }>   required when type includes "product"
 // }
 // Accessible by admin or manager only.
 
@@ -42,8 +46,10 @@ interface CanvasConfig {
   course_id: string;
   manager_assignment_id: string;
   peer_assignment_id: string;
+  product_assignment_id: string;
   manager_points: number;
   peer_points: number;
+  product_points: number;
 }
 
 interface RubricRow {
@@ -57,6 +63,7 @@ interface StudentRow {
   first_name: string;
   last_name: string;
   email: string;
+  team_id: string | null;
 }
 
 interface ManagerScoreRow {
@@ -69,6 +76,11 @@ interface PeerEvalRow {
   evaluatee_id: string;
   evaluator_id: string;
   score: number;
+}
+
+interface TeamScoreInput {
+  team_id: string;
+  score: number; // 0–10
 }
 
 interface GradeResult {
@@ -117,17 +129,26 @@ serve(async (req) => {
 
     // Parse request body
     const body = await req.json();
-    const { week_start, type, dry_run = false } = body as {
+    const { week_start, type, dry_run = false, team_scores = [] } = body as {
       week_start: string;
-      type: "manager" | "peer" | "both";
+      type: "manager" | "peer" | "product" | "both" | "all";
       dry_run?: boolean;
+      team_scores?: TeamScoreInput[];
     };
 
     if (!week_start || !/^\d{4}-\d{2}-\d{2}$/.test(week_start)) {
       return json({ success: false, error: "week_start must be a YYYY-MM-DD date string" }, 400);
     }
-    if (!["manager", "peer", "both"].includes(type)) {
-      return json({ success: false, error: "type must be 'manager', 'peer', or 'both'" }, 400);
+    if (!["manager", "peer", "product", "both", "all"].includes(type)) {
+      return json({ success: false, error: "type must be 'manager', 'peer', 'product', 'both', or 'all'" }, 400);
+    }
+
+    const includesManager = type === "manager" || type === "both" || type === "all";
+    const includesPeer = type === "peer" || type === "both" || type === "all";
+    const includesProduct = type === "product" || type === "all";
+
+    if (includesProduct && (!team_scores || team_scores.length === 0)) {
+      return json({ success: false, error: "team_scores is required when syncing product performance grades" }, 400);
     }
 
     // Load Canvas config
@@ -148,11 +169,14 @@ serve(async (req) => {
     if (!cfg.domain || !cfg.course_id) {
       return json({ success: false, error: "Canvas config is incomplete. Set domain and course_id in Canvas Settings." }, 400);
     }
-    if ((type === "manager" || type === "both") && !cfg.manager_assignment_id) {
+    if (includesManager && !cfg.manager_assignment_id) {
       return json({ success: false, error: "manager_assignment_id is not configured in Canvas Settings." }, 400);
     }
-    if ((type === "peer" || type === "both") && !cfg.peer_assignment_id) {
+    if (includesPeer && !cfg.peer_assignment_id) {
       return json({ success: false, error: "peer_assignment_id is not configured in Canvas Settings." }, 400);
+    }
+    if (includesProduct && !cfg.product_assignment_id) {
+      return json({ success: false, error: "product_assignment_id is not configured in Canvas Settings." }, 400);
     }
 
     const canvasBase = `https://${cfg.domain}/api/v1`;
@@ -161,7 +185,7 @@ serve(async (req) => {
       "Content-Type": "application/json",
     };
 
-    // Load active rubric
+    // Load active rubric (needed for manager + peer scoring)
     const { data: rubricData } = await serviceClient
       .from("score_rubric")
       .select("id, max_points, active")
@@ -169,18 +193,19 @@ serve(async (req) => {
     const rubric: RubricRow[] = rubricData || [];
     const rubricMaxTotal = rubric.reduce((sum, r) => sum + (r.max_points ?? 0), 0);
 
-    // Load all students with email
+    // Load all students with email and team_id
     const { data: studentsData } = await serviceClient
       .from("students")
-      .select("id, first_name, last_name, email")
+      .select("id, first_name, last_name, email, team_id")
       .eq("role", "student");
     const students: StudentRow[] = studentsData || [];
 
     const managerResults: GradeResult[] = [];
     const peerResults: GradeResult[] = [];
+    const productResults: GradeResult[] = [];
 
     // ── Manager Scores ──────────────────────────────────────────────────────────
-    if (type === "manager" || type === "both") {
+    if (includesManager) {
       const { data: scoresData } = await serviceClient
         .from("student_scores")
         .select("student_id, rubric_id, score")
@@ -198,7 +223,6 @@ serve(async (req) => {
       for (const student of students) {
         const earned = scoresByStudent.get(student.id) ?? null;
         if (earned === null) {
-          // No scores submitted for this student this week — skip
           managerResults.push({
             student_id: student.id,
             name: `${student.first_name} ${student.last_name}`,
@@ -241,7 +265,7 @@ serve(async (req) => {
     }
 
     // ── Peer Evaluations ────────────────────────────────────────────────────────
-    if (type === "peer" || type === "both") {
+    if (includesPeer) {
       const { data: peerData } = await serviceClient
         .from("peer_evaluations")
         .select("evaluatee_id, evaluator_id, score")
@@ -250,7 +274,6 @@ serve(async (req) => {
 
       // Mirror the admin UI: for each evaluator sum all their category scores into one
       // composite, then average those composites across evaluators per evaluatee.
-      // evalScores: evaluatee_id -> { evaluator_id -> composite_total }
       const evalScores = new Map<string, Map<string, number>>();
       for (const row of peerEvals) {
         if (!evalScores.has(row.evaluatee_id)) evalScores.set(row.evaluatee_id, new Map());
@@ -310,17 +333,73 @@ serve(async (req) => {
       }
     }
 
-    const submitted = [...managerResults, ...peerResults].filter(r => r.canvas_status === "submitted").length;
-    const errors = [...managerResults, ...peerResults].filter(r => r.canvas_status === "error").length;
+    // ── Product Performance ─────────────────────────────────────────────────────
+    if (includesProduct) {
+      // Build team_id → score map from client-provided data
+      const teamScoreMap = new Map<string, number>();
+      for (const ts of team_scores) {
+        teamScoreMap.set(ts.team_id, ts.score); // score is 0–10
+      }
+
+      const maxPoints = cfg.product_points ?? 10;
+
+      for (const student of students) {
+        if (!student.team_id || !teamScoreMap.has(student.team_id)) {
+          productResults.push({
+            student_id: student.id,
+            name: `${student.first_name} ${student.last_name}`,
+            email: student.email,
+            grade: 0,
+            canvas_status: "skipped",
+            canvas_error: student.team_id
+              ? "Team not included in product scores for this week"
+              : "Student has no team assigned",
+          });
+          continue;
+        }
+
+        const rawScore = teamScoreMap.get(student.team_id)!; // 0–10
+        const grade = Math.round((rawScore / 10) * maxPoints * 100) / 100;
+
+        const result: GradeResult = {
+          student_id: student.id,
+          name: `${student.first_name} ${student.last_name}`,
+          email: student.email,
+          grade,
+          canvas_status: dry_run ? "dry_run" : "submitted",
+        };
+
+        if (!dry_run) {
+          const canvasUrl = `${canvasBase}/courses/${cfg.course_id}/assignments/${cfg.product_assignment_id}/submissions/sis_login_id:${encodeURIComponent(student.email)}`;
+          const resp = await fetch(canvasUrl, {
+            method: "PUT",
+            headers: canvasHeaders,
+            body: JSON.stringify({ submission: { posted_grade: grade } }),
+          });
+          if (!resp.ok) {
+            const errText = await resp.text();
+            result.canvas_status = "error";
+            result.canvas_error = `Canvas API ${resp.status}: ${errText.slice(0, 200)}`;
+          }
+        }
+
+        productResults.push(result);
+      }
+    }
+
+    const allResults = [...managerResults, ...peerResults, ...productResults];
+    const submitted = allResults.filter(r => r.canvas_status === "submitted").length;
+    const errors = allResults.filter(r => r.canvas_status === "error").length;
 
     return json({
       success: true,
       dry_run,
       week_start,
       type,
-      summary: { submitted, errors, dry_run: dry_run ? managerResults.length + peerResults.length : 0 },
-      manager_results: type !== "peer" ? managerResults : undefined,
-      peer_results: type !== "manager" ? peerResults : undefined,
+      summary: { submitted, errors, dry_run: dry_run ? allResults.length : 0 },
+      manager_results: includesManager ? managerResults : undefined,
+      peer_results: includesPeer ? peerResults : undefined,
+      product_results: includesProduct ? productResults : undefined,
     });
 
   } catch (err) {
