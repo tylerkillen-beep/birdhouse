@@ -67,6 +67,7 @@ interface ManagerScoreRow {
 
 interface PeerEvalRow {
   evaluatee_id: string;
+  evaluator_id: string;
   score: number;
 }
 
@@ -243,25 +244,31 @@ serve(async (req) => {
     if (type === "peer" || type === "both") {
       const { data: peerData } = await serviceClient
         .from("peer_evaluations")
-        .select("evaluatee_id, score")
+        .select("evaluatee_id, evaluator_id, score")
         .eq("week_start", week_start);
       const peerEvals: PeerEvalRow[] = peerData || [];
 
-      // Average received scores per student
-      const sumByStudent = new Map<string, number>();
-      const countByStudent = new Map<string, number>();
+      // Mirror the admin UI: for each evaluator sum all their category scores into one
+      // composite, then average those composites across evaluators per evaluatee.
+      // evalScores: evaluatee_id -> { evaluator_id -> composite_total }
+      const evalScores = new Map<string, Map<string, number>>();
       for (const row of peerEvals) {
-        sumByStudent.set(row.evaluatee_id, (sumByStudent.get(row.evaluatee_id) ?? 0) + (row.score ?? 0));
-        countByStudent.set(row.evaluatee_id, (countByStudent.get(row.evaluatee_id) ?? 0) + 1);
+        if (!evalScores.has(row.evaluatee_id)) evalScores.set(row.evaluatee_id, new Map());
+        const byEval = evalScores.get(row.evaluatee_id)!;
+        byEval.set(row.evaluator_id, (byEval.get(row.evaluator_id) ?? 0) + (row.score ?? 0));
       }
+
+      // Total peer max mirrors admin UI: each rubric category's share of 10 points
+      const totalPeerMax = rubricMaxTotal > 0
+        ? rubric.reduce((a, r) => a + Math.max(1, Math.round((r.max_points / rubricMaxTotal) * 10)), 0)
+        : 10;
 
       const maxPoints = cfg.peer_points ?? 100;
 
       for (const student of students) {
-        const total = sumByStudent.get(student.id) ?? null;
-        const count = countByStudent.get(student.id) ?? 0;
+        const byEval = evalScores.get(student.id);
 
-        if (total === null || count === 0) {
+        if (!byEval || byEval.size === 0) {
           peerResults.push({
             student_id: student.id,
             name: `${student.first_name} ${student.last_name}`,
@@ -273,9 +280,9 @@ serve(async (req) => {
           continue;
         }
 
-        const avg = total / count;
-        // Each peer eval score is out of 10 per rubric item; avg is the mean across all items/evaluators
-        const grade = Math.round((avg / 10) * maxPoints * 100) / 100;
+        const composites = Array.from(byEval.values());
+        const avgComposite = composites.reduce((a, b) => a + b, 0) / composites.length;
+        const grade = Math.round((avgComposite / totalPeerMax) * maxPoints * 100) / 100;
 
         const result: GradeResult = {
           student_id: student.id,
