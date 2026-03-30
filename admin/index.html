@@ -619,9 +619,9 @@
     </div>
 
     <!-- Sync Tool -->
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.5rem;max-width:560px">
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.5rem;">
       <div class="section-title" style="margin-bottom:1.25rem">Sync Grades to Canvas</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;max-width:560px">
         <div class="form-group">
           <label class="form-label">Week (Monday date)</label>
           <input class="form-input" id="canvas-sync-week" type="date" />
@@ -4288,13 +4288,19 @@ async function syncCanvasGrades(dryRun) {
     return `
       <div style="margin-bottom:1.5rem">
         <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);margin-bottom:0.5rem">${title}</div>
-        <div class="table-wrap"><table>
+        <div class="table-wrap"><table style="table-layout:fixed;width:100%">
+          <colgroup>
+            <col style="width:160px" />
+            <col style="width:220px" />
+            <col style="width:80px" />
+            <col />
+          </colgroup>
           <thead><tr><th>Student</th><th>Email</th><th style="text-align:right">Grade</th><th>Status</th></tr></thead>
           <tbody>${rows.map(r => `<tr>
-            <td>${r.name}</td>
-            <td style="color:var(--gray-mid);font-size:0.8rem">${r.email}</td>
+            <td style="white-space:nowrap">${r.name}</td>
+            <td style="color:var(--gray-mid);font-size:0.8rem;word-break:break-all">${r.email}</td>
             <td style="text-align:right;font-weight:500">${r.canvas_status !== 'skipped' && r.canvas_status !== 'error' ? r.grade : '—'}</td>
-            <td style="font-size:0.8rem;color:${statusColor(r)}">${statusLabel(r)}</td>
+            <td style="font-size:0.8rem;color:${statusColor(r)};white-space:normal">${statusLabel(r)}</td>
           </tr>`).join('')}</tbody>
         </table></div>
       </div>`;
