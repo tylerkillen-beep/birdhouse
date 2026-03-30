@@ -2043,10 +2043,25 @@ async function loadAdminPeerEvals(offsetDelta) {
     }
   });
 
-  const rows = (students || []).filter(s => byEvaluatee[s.id]).map(s => {
+  // Build team membership map for computing expected evaluators
+  const teamMembers = {};
+  (students || []).forEach(s => {
+    if (!teamMembers[s.team_id]) teamMembers[s.team_id] = [];
+    teamMembers[s.team_id].push(s);
+  });
+
+  const rows = (students || [])
+    .filter(s => byEvaluatee[s.id])
+    .sort((a, b) => a.last_name.localeCompare(b.last_name))
+    .map(s => {
     const d = byEvaluatee[s.id];
     const evaluatorIds = Object.keys(d.scores);
     const numEvals = evaluatorIds.length;
+
+    // Teammates = same team, excluding this student
+    const teammates = (teamMembers[s.team_id] || []).filter(t => t.id !== s.id);
+    const missingSubmitters = teammates.filter(t => !evaluatorIds.includes(t.id));
+
     let totalScore = 0;
     evaluatorIds.forEach(evId => {
       totalScore += Object.values(d.scores[evId]).reduce((a, b) => a + b, 0);
@@ -2057,11 +2072,15 @@ async function loadAdminPeerEvals(offsetDelta) {
     const commentsHtml = d.comments.length
       ? d.comments.map(c => `<div style="font-size:0.78rem;margin-bottom:0.2rem"><span style="color:var(--gray-mid)">${c.name}:</span> ${c.comment}</div>`).join('')
       : '<span style="color:var(--gray);font-size:0.78rem">—</span>';
+    const missingHtml = missingSubmitters.length
+      ? missingSubmitters.map(t => `<div style="font-size:0.78rem;color:#e05a4a">${t.first_name} ${t.last_name}</div>`).join('')
+      : '<span style="font-size:0.78rem;color:#4cd07d">All submitted</span>';
     return `<tr>
       <td>${s.first_name} ${s.last_name}<br/><span style="font-size:0.72rem;color:var(--gray)">${s.teams?.name||'—'}</span></td>
       <td style="text-align:center;color:${color};font-weight:500">${avgScore} / ${totalPeerMax}</td>
-      <td style="text-align:center;color:var(--gray-mid);font-size:0.82rem">${numEvals} of ${evaluatorIds.length > 0 ? evaluatorIds.length : '?'}</td>
+      <td style="text-align:center;color:var(--gray-mid);font-size:0.82rem">${numEvals} of ${teammates.length}</td>
       <td>${commentsHtml}</td>
+      <td>${missingHtml}</td>
     </tr>`;
   }).join('');
 
@@ -2071,8 +2090,9 @@ async function loadAdminPeerEvals(offsetDelta) {
       <th style="text-align:center">Avg Score / ${totalPeerMax}</th>
       <th style="text-align:center">Evaluators</th>
       <th>Comments (with name)</th>
+      <th>Missing Evals</th>
     </tr></thead>
-    <tbody>${rows || '<tr><td colspan="4" style="text-align:center;color:var(--gray);padding:2rem">No data</td></tr>'}</tbody>
+    <tbody>${rows || '<tr><td colspan="5" style="text-align:center;color:var(--gray);padding:2rem">No data</td></tr>'}</tbody>
   </table></div>`;
 }
 
