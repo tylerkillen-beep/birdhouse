@@ -253,19 +253,19 @@
 </div>
 
 <!-- New Team Modal -->
-<div id="team-modal" style="position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:100;display:none;align-items:center;justify-content:center">
+<div id="team-modal" role="dialog" aria-modal="true" aria-labelledby="team-modal-title" style="position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:100;display:none;align-items:center;justify-content:center">
   <div style="background:#111;border:1px solid var(--border);border-radius:16px;padding:2rem;width:420px;max-width:95vw">
     <div style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:0.05em;margin-bottom:1.5rem" id="team-modal-title">New Team</div>
-    <div class="form-group"><label>Team Name</label><input type="text" id="team-name" placeholder="e.g. Team A, Team H" /></div>
+    <div class="form-group"><label for="team-name">Team Name</label><input type="text" id="team-name" placeholder="e.g. Team A, Team H" /></div>
     <div class="form-group">
-      <label>Class Period</label>
+      <label for="team-period">Class Period</label>
       <select id="team-period">
         <option value="1st Hour">1st Hour</option>
         <option value="6th Hour">6th Hour</option>
       </select>
     </div>
     <div class="form-group">
-      <label>Color</label>
+      <label for="team-color">Color</label>
       <input type="text" id="team-color" placeholder="#cc0000" value="#cc0000" />
     </div>
     <div class="msg" id="team-msg"></div>
@@ -277,11 +277,11 @@
 </div>
 
 <!-- Reassign Student Modal -->
-<div id="reassign-modal" style="position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:100;display:none;align-items:center;justify-content:center">
+<div id="reassign-modal" role="dialog" aria-modal="true" aria-labelledby="reassign-modal-title" style="position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:100;display:none;align-items:center;justify-content:center">
   <div style="background:#111;border:1px solid var(--border);border-radius:16px;padding:2rem;width:380px;max-width:95vw">
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:0.05em;margin-bottom:0.4rem">Reassign Student</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:0.05em;margin-bottom:0.4rem" id="reassign-modal-title">Reassign Student</div>
     <div style="font-size:0.88rem;color:var(--gray);margin-bottom:1.5rem" id="reassign-student-name"></div>
-    <div class="form-group"><label>Move to Team</label><select id="reassign-team-select"></select></div>
+    <div class="form-group"><label for="reassign-team-select">Move to Team</label><select id="reassign-team-select"></select></div>
     <div class="msg" id="reassign-msg"></div>
     <div style="display:flex;gap:1rem;margin-top:1.5rem">
       <button class="btn-ghost" onclick="closeReassignModal()">Cancel</button>

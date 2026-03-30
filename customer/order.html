@@ -231,22 +231,22 @@
 <body>
 <div class="mobile-topbar">
   <a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a>
-  <button class="hamburger" id="hamburger-btn" onclick="toggleNav()" aria-label="Menu">
+  <button class="hamburger" id="hamburger-btn" onclick="toggleNav()" aria-label="Menu" aria-expanded="false" aria-controls="sidebar">
     <span></span><span></span><span></span>
   </button>
 </div>
 <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleNav()"></div>
 <div class="layout">
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar" aria-label="Customer portal navigation">
     <div class="sidebar-logo"><a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a></div>
     <div class="user-card" id="user-card">
       <div class="user-name" id="user-display-name">Loading...</div>
       <div class="user-points" id="user-points-badge">$0.00 toward Birdhouse Bucks</div>
       <div class="guest-signin-cta" id="guest-signin-cta" style="display:none">Sign in to place orders</div>
     </div>
-    <nav>
+    <nav aria-label="Customer portal">
       <a class="nav-item" href="dashboard.html">📊 Overview</a>
-      <a class="nav-item active" href="order.html">☕ Place an Order</a>
+      <a class="nav-item active" href="order.html" aria-current="page">☕ Place an Order</a>
       <a class="nav-item" href="orders.html">📋 My Orders</a>
       <a class="nav-item" href="dashboard.html#subscription">📦 My Subscription</a>
       <a class="nav-item" href="dashboard.html#loyalty">⭐ Birdhouse Bucks</a>
@@ -290,16 +290,16 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label>Delivery Date</label>
+            <label for="delivery-date">Delivery Date</label>
             <input type="text" id="delivery-date" placeholder="Select a date…" readonly style="cursor:pointer" />
           </div>
           <div class="form-group">
-            <label>Preferred Time</label>
+            <label for="delivery-time">Preferred Time</label>
             <select id="delivery-time"><option value="">Select a date first…</option></select>
           </div>
         </div>
         <div class="form-group" id="room-group">
-          <label id="room-label">Room / Location</label>
+          <label id="room-label" for="delivery-room">Room / Location</label>
           <div class="autocomplete-wrapper">
             <input type="text" id="delivery-room" placeholder="Type a name or room number…" autocomplete="off" />
             <div class="autocomplete-dropdown" id="ac-delivery-room"></div>
@@ -307,7 +307,7 @@
           <div class="pickup-note" id="pickup-location-note" style="display:none">📍 Birdhouse — Library</div>
         </div>
         <div class="form-group">
-          <label>Backup Location <span style="color:var(--gray);font-weight:300">(optional)</span></label>
+          <label for="backup-location">Backup Location <span style="color:var(--gray);font-weight:300">(optional)</span></label>
           <div class="autocomplete-wrapper">
             <input type="text" id="backup-location" placeholder="Type a name or room number…" autocomplete="off" />
             <div class="autocomplete-dropdown" id="ac-backup-location"></div>
@@ -368,21 +368,21 @@
 </div>
 
 <!-- Reviews Popup Modal -->
-<div class="reviews-overlay" id="reviews-overlay" onclick="if(event.target===this)closeReviewsModal()">
+<div class="reviews-overlay" id="reviews-overlay" role="dialog" aria-modal="true" aria-labelledby="reviews-modal-title" onclick="if(event.target===this)closeReviewsModal()">
   <div class="reviews-modal">
     <div class="reviews-modal-header">
       <div>
         <div class="reviews-modal-title" id="reviews-modal-title">Reviews</div>
         <div class="reviews-modal-avg" id="reviews-modal-avg"></div>
       </div>
-      <button class="reviews-modal-close" onclick="closeReviewsModal()">✕</button>
+      <button class="reviews-modal-close" onclick="closeReviewsModal()" aria-label="Close reviews">✕</button>
     </div>
     <div class="reviews-list" id="reviews-list"></div>
   </div>
 </div>
 
 <!-- Modifier Selection Modal -->
-<div class="mod-overlay" id="mod-overlay">
+<div class="mod-overlay" id="mod-overlay" role="dialog" aria-modal="true" aria-labelledby="mod-title">
   <div class="mod-modal">
     <div class="mod-modal-title" id="mod-title">Customize</div>
     <div class="mod-modal-price" id="mod-base-price"></div>
@@ -403,9 +403,10 @@
     const sidebar   = document.querySelector('.sidebar');
     const overlay   = document.getElementById('sidebar-overlay');
     const hamburger = document.getElementById('hamburger-btn');
-    sidebar.classList.toggle('open');
+    const isOpen = sidebar.classList.toggle('open');
     overlay.classList.toggle('open');
     hamburger.classList.toggle('open');
+    hamburger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
   }
 
   const SUPABASE_URL  = 'https://ljukrhneikqbabcmcpet.supabase.co';

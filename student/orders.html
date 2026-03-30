@@ -141,13 +141,13 @@
 <body>
 <div class="mobile-topbar">
   <a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a>
-  <button class="hamburger" id="hamburger-btn" onclick="toggleNav()" aria-label="Menu">
+  <button class="hamburger" id="hamburger-btn" onclick="toggleNav()" aria-label="Menu" aria-expanded="false" aria-controls="team-sidebar">
     <span></span><span></span><span></span>
   </button>
 </div>
 <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleNav()"></div>
 <div class="layout">
-  <aside class="sidebar" aria-label="Team hub navigation">
+  <aside class="sidebar" id="team-sidebar" aria-label="Team hub navigation">
     <div class="sidebar-logo"><a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a></div>
     <div class="user-card">
       <div class="user-name" id="user-display-name">Loading...</div>
@@ -213,7 +213,7 @@
           <button class="date-nav-btn" onclick="shiftDate(-1)" title="Previous day">‹</button>
           <button class="date-display-btn" id="date-display-btn" onclick="openDatePicker()">
             <span id="date-display-label">Today</span>
-            <input type="date" id="date-picker-input" onchange="onDatePickerChange(this.value)" />
+            <input type="date" id="date-picker-input" onchange="onDatePickerChange(this.value)" aria-hidden="true" tabindex="-1" />
           </button>
           <button class="date-nav-btn" onclick="shiftDate(1)" title="Next day">›</button>
           <button class="filter-pill" id="all-dates-pill" onclick="setAllDates()" style="margin-left:0.25rem">All Dates</button>
@@ -291,9 +291,10 @@
     const sidebar   = document.querySelector('.sidebar');
     const overlay   = document.getElementById('sidebar-overlay');
     const hamburger = document.getElementById('hamburger-btn');
-    sidebar.classList.toggle('open');
+    const isOpen = sidebar.classList.toggle('open');
     overlay.classList.toggle('open');
     hamburger.classList.toggle('open');
+    hamburger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
   }
 
   async function signOut() {

@@ -157,24 +157,24 @@
 <body>
 <div class="mobile-topbar">
   <a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a>
-  <button class="hamburger" id="hamburger-btn" onclick="toggleNav()" aria-label="Menu">
+  <button class="hamburger" id="hamburger-btn" onclick="toggleNav()" aria-label="Menu" aria-expanded="false" aria-controls="sidebar">
     <span></span><span></span><span></span>
   </button>
 </div>
 <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleNav()"></div>
 <div class="layout">
-  <aside class="sidebar" aria-label="Customer portal navigation">
+  <aside class="sidebar" id="sidebar" aria-label="Customer portal navigation">
     <div class="sidebar-logo"><a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a></div>
     <div class="user-card" id="user-card">
       <div class="user-name" id="user-display-name">Loading...</div>
       <div class="user-points" id="user-points-badge">$0.00 toward Birdhouse Bucks</div>
     </div>
     <nav aria-label="Customer portal">
-      <a class="nav-item active" onclick="showSection('overview',this)">📊 Overview</a>
+      <a class="nav-item active" href="#section-overview" onclick="showSection('overview',this)">📊 Overview</a>
       <a class="nav-item" href="order.html">☕ Place an Order</a>
       <a class="nav-item" href="orders.html">📋 Order History</a>
-      <a class="nav-item" onclick="showSection('subscription',this)">📦 My Subscription</a>
-      <a class="nav-item" onclick="showSection('loyalty',this)">⭐ Birdhouse Bucks</a>
+      <a class="nav-item" href="#section-subscription" onclick="showSection('subscription',this)">📦 My Subscription</a>
+      <a class="nav-item" href="#section-loyalty" onclick="showSection('loyalty',this)">⭐ Birdhouse Bucks</a>
     </nav>
     <button class="signout-btn" onclick="signOut()">← Sign Out</button>
   </aside>
@@ -266,7 +266,7 @@
 </div>
 
 <!-- Confirm dialog (pause / cancel) -->
-<div class="confirm-overlay" id="confirm-overlay">
+<div class="confirm-overlay" id="confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
   <div class="confirm-modal">
     <div class="confirm-title" id="confirm-title">Are you sure?</div>
     <div class="confirm-body"  id="confirm-body">This action cannot be undone.</div>
@@ -683,14 +683,17 @@
     const sidebar  = document.querySelector('.sidebar');
     const overlay  = document.getElementById('sidebar-overlay');
     const hamburger = document.getElementById('hamburger-btn');
-    sidebar.classList.toggle('open');
+    const isOpen = sidebar.classList.toggle('open');
     overlay.classList.toggle('open');
     hamburger.classList.toggle('open');
+    hamburger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
   }
   function closeNav() {
     document.querySelector('.sidebar').classList.remove('open');
     document.getElementById('sidebar-overlay').classList.remove('open');
-    document.getElementById('hamburger-btn').classList.remove('open');
+    const hamburger = document.getElementById('hamburger-btn');
+    hamburger.classList.remove('open');
+    hamburger.setAttribute('aria-expanded', 'false');
   }
 
   // ── Navigation ────────────────────────────────────────────────────────────

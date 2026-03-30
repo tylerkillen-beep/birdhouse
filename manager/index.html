@@ -121,7 +121,7 @@
 
 <div class="mobile-topbar">
   <a class="mobile-topbar-brand" href="../index.html">🏠 BIRDHOUSE</a>
-  <button class="hamburger" id="hamburger-btn" onclick="toggleNav()" aria-label="Menu">
+  <button class="hamburger" id="hamburger-btn" onclick="toggleNav()" aria-label="Menu" aria-expanded="false" aria-controls="app-sidebar">
     <span></span><span></span><span></span>
   </button>
 </div>
@@ -142,22 +142,22 @@
       <input type="password" id="login-password" placeholder="••••••••" style="width:100%;padding:0.85rem 1rem;border:1px solid var(--border-dim);border-radius:8px;background:#0d0d0d;color:var(--white);font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none" onkeydown="if(event.key==='Enter')doLogin()"/>
     </div>
     <button onclick="doLogin()" style="width:100%;padding:0.95rem;background:var(--red);color:white;border:none;border-radius:8px;font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:0.1em;cursor:pointer">SIGN IN TO MANAGER HUB →</button>
-    <div id="login-msg" style="margin-top:1rem"></div>
+    <div id="login-msg" style="margin-top:1rem" aria-live="polite"></div>
   </div>
 </div>
 
 <div id="app" style="display:none;width:100%;flex-direction:row">
-  <nav class="sidebar" aria-label="Manager navigation">
+  <nav class="sidebar" id="app-sidebar" aria-label="Manager navigation">
     <div class="logo"><a href="../index.html" style="text-decoration:none"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:0.08em;color:var(--red)">🏠 BIRDHOUSE</div></a></div>
     <div class="role-badge">Manager</div>
     <div class="nav-section">Overview</div>
-    <a class="nav-item active" onclick="showSection('overview',this)">📊 Dashboard</a>
+    <a class="nav-item active" href="#section-overview" onclick="showSection('overview',this)">📊 Dashboard</a>
     <div class="nav-section">Operations</div>
-    <a class="nav-item" onclick="showSection('schedule',this)">📅 Schedule</a>
-    <a class="nav-item" onclick="showSection('orders',this)">🧾 Active Orders</a>
-    <a class="nav-item" onclick="showSection('inventory',this)">📦 Inventory<span class="nav-badge" id="inv-nav-badge" style="display:none"></span></a>
+    <a class="nav-item" href="#section-schedule" onclick="showSection('schedule',this)">📅 Schedule</a>
+    <a class="nav-item" href="#section-orders" onclick="showSection('orders',this)">🧾 Active Orders</a>
+    <a class="nav-item" href="#section-inventory" onclick="showSection('inventory',this)">📦 Inventory<span class="nav-badge" id="inv-nav-badge" style="display:none"></span></a>
     <div class="nav-section">Students</div>
-    <a class="nav-item" onclick="showSection('scores',this)">⭐ Weekly Scores</a>
+    <a class="nav-item" href="#section-scores" onclick="showSection('scores',this)">⭐ Weekly Scores</a>
     <div class="nav-bottom">
       <div class="nav-user"><strong id="nav-name">—</strong>Manager</div>
       <button class="sign-out" onclick="doSignOut()">Sign out</button>
@@ -227,17 +227,17 @@
 </div>
 
 <!-- Add/Edit Inventory Item Modal -->
-<div class="modal-overlay" id="inv-item-modal">
+<div class="modal-overlay" id="inv-item-modal" role="dialog" aria-modal="true" aria-labelledby="inv-item-modal-title">
   <div class="modal">
-    <button class="modal-close" onclick="closeInvModal()">✕</button>
+    <button class="modal-close" onclick="closeInvModal()" aria-label="Close">✕</button>
     <div class="modal-title" id="inv-item-modal-title">Add Inventory Item</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
       <div class="form-group" style="grid-column:1/-1">
-        <label class="form-label">Item Name</label>
+        <label class="form-label" for="inv-item-name">Item Name</label>
         <input class="form-input" id="inv-item-name" placeholder="e.g. Oat Milk" />
       </div>
       <div class="form-group">
-        <label class="form-label">Category</label>
+        <label class="form-label" for="inv-item-category">Category</label>
         <select class="form-input" id="inv-item-category">
           <option value="cold_drinks">Cold Drinks</option>
           <option value="hot_drinks">Hot Drinks</option>
@@ -247,27 +247,27 @@
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">Unit</label>
+        <label class="form-label" for="inv-item-unit">Unit</label>
         <input class="form-input" id="inv-item-unit" placeholder="e.g. gallons, oz, bags" />
       </div>
       <div class="form-group">
-        <label class="form-label">Current Quantity</label>
+        <label class="form-label" for="inv-item-qty">Current Quantity</label>
         <input class="form-input" id="inv-item-qty" type="number" min="0" step="0.5" placeholder="0" />
       </div>
       <div class="form-group">
-        <label class="form-label">Par Level</label>
+        <label class="form-label" for="inv-item-par">Par Level</label>
         <input class="form-input" id="inv-item-par" type="number" min="0" step="0.5" placeholder="1" />
       </div>
       <div class="form-group">
-        <label class="form-label">Last Ordered</label>
+        <label class="form-label" for="inv-item-last-ordered">Last Ordered</label>
         <input class="form-input" id="inv-item-last-ordered" type="date" />
       </div>
       <div class="form-group">
-        <label class="form-label">Expected Arrival</label>
+        <label class="form-label" for="inv-item-expected-arrival">Expected Arrival</label>
         <input class="form-input" id="inv-item-expected-arrival" type="date" />
       </div>
       <div class="form-group" style="grid-column:1/-1">
-        <label class="form-label">Notes <span style="color:var(--gray);font-weight:400;text-transform:none">(optional)</span></label>
+        <label class="form-label" for="inv-item-notes">Notes <span style="color:var(--gray);font-weight:400;text-transform:none">(optional)</span></label>
         <input class="form-input" id="inv-item-notes" placeholder="Storage location, supplier, etc." />
       </div>
     </div>
@@ -285,14 +285,17 @@ function toggleNav(){
   const overlay=document.getElementById('sidebar-overlay');
   const hamburger=document.getElementById('hamburger-btn');
   if(!sidebar||!overlay||!hamburger)return;
-  sidebar.classList.toggle('open');
+  const isOpen=sidebar.classList.toggle('open');
   overlay.classList.toggle('open');
   hamburger.classList.toggle('open');
+  hamburger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
 }
 function closeNav(){
   document.querySelector('.sidebar')?.classList.remove('open');
   document.getElementById('sidebar-overlay')?.classList.remove('open');
-  document.getElementById('hamburger-btn')?.classList.remove('open');
+  const hamburger=document.getElementById('hamburger-btn');
+  hamburger?.classList.remove('open');
+  hamburger?.setAttribute('aria-expanded','false');
 }
 
 const sb=supabase.createClient('https://ljukrhneikqbabcmcpet.supabase.co','sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn');

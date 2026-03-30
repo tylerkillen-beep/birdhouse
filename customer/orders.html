@@ -108,10 +108,22 @@
     .summary-chip { background:var(--card); border:1px solid var(--border-dim); border-radius:10px; padding:0.85rem 1.25rem; font-size:0.82rem; color:var(--light-gray); }
     .summary-chip strong { color:var(--red-bright); font-family:'Bebas Neue',sans-serif; font-size:1.4rem; display:block; letter-spacing:0.05em; }
 
-    @media(max-width:900px){.layout{grid-template-columns:1fr}.sidebar{display:none}.main{padding:1.5rem}.order-card{grid-template-columns:1fr}}
+    .mobile-topbar { display:none; position:sticky; top:0; left:0; right:0; height:54px; background:#0d0000; border-bottom:1px solid var(--border); z-index:300; align-items:center; justify-content:space-between; padding:0 1.25rem; }
+    .mobile-topbar img { height:30px; filter:drop-shadow(0 0 6px rgba(204,0,0,0.5)); }
+    .mobile-topbar-nav { display:flex; gap:1rem; align-items:center; }
+    .mobile-topbar-nav a { font-size:0.75rem; color:var(--red-bright); text-decoration:none; text-transform:uppercase; letter-spacing:0.08em; }
+    @media(max-width:900px){.layout{grid-template-columns:1fr}.sidebar{display:none}.main{padding:1.5rem}.order-card{grid-template-columns:1fr}.mobile-topbar{display:flex}}
   </style>
 </head>
 <body>
+<div class="mobile-topbar" role="banner">
+  <a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a>
+  <nav class="mobile-topbar-nav" aria-label="Customer portal">
+    <a href="dashboard.html">Overview</a>
+    <a href="order.html">Order</a>
+    <a href="orders.html" aria-current="page">My Orders</a>
+  </nav>
+</div>
 <div class="layout">
   <aside class="sidebar" aria-label="Customer portal navigation">
     <div class="sidebar-logo"><a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a></div>
@@ -135,11 +147,11 @@
 
     <div class="summary-row" id="summary-row"></div>
 
-    <div class="filter-row">
-      <button class="filter-btn active" onclick="filterOrders('all',this)">All Orders</button>
-      <button class="filter-btn" onclick="filterOrders('active',this)">Active</button>
-      <button class="filter-btn" onclick="filterOrders('delivered',this)">Delivered</button>
-      <button class="filter-btn" onclick="filterOrders('cancelled',this)">Cancelled</button>
+    <div class="filter-row" role="group" aria-label="Filter orders">
+      <button class="filter-btn active" onclick="filterOrders('all',this)" aria-pressed="true">All Orders</button>
+      <button class="filter-btn" onclick="filterOrders('active',this)" aria-pressed="false">Active</button>
+      <button class="filter-btn" onclick="filterOrders('delivered',this)" aria-pressed="false">Delivered</button>
+      <button class="filter-btn" onclick="filterOrders('cancelled',this)" aria-pressed="false">Cancelled</button>
     </div>
 
     <div id="orders-container"><div style="color:var(--gray);text-align:center;padding:3rem">Loading your orders...</div></div>
@@ -241,8 +253,9 @@
   }
 
   function filterOrders(filter, btn) {
-    document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.filter-btn').forEach(b=>{ b.classList.remove('active'); b.setAttribute('aria-pressed','false'); });
     btn.classList.add('active');
+    btn.setAttribute('aria-pressed','true');
     renderOrders(filter);
   }
 

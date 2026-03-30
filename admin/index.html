@@ -310,14 +310,14 @@
 
 <div class="mobile-topbar">
   <a class="mobile-topbar-brand" href="../index.html">🏠 BIRDHOUSE</a>
-  <button class="hamburger" id="hamburger-btn" onclick="toggleNav()" aria-label="Menu">
+  <button class="hamburger" id="hamburger-btn" onclick="toggleNav()" aria-label="Menu" aria-expanded="false" aria-controls="sidebar">
     <span></span><span></span><span></span>
   </button>
 </div>
 <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleNav()"></div>
 
 <!-- ══════════════ SIDEBAR ══════════════ -->
-<nav id="sidebar">
+<nav id="sidebar" aria-label="Admin navigation">
   <div class="sidebar-logo">
     <a href="../index.html" style="color:inherit;text-decoration:none">The Birdhouse</a>
     <span>Admin Panel</span>
@@ -976,9 +976,9 @@
 <!-- ══════════════ MODALS ══════════════ -->
 
 <!-- Subscription Action Modal -->
-<div class="modal-overlay" id="sub-action-modal">
+<div class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="sub-modal-title" id="sub-action-modal">
   <div class="modal">
-    <button class="modal-close" onclick="closeModal('sub-action-modal')">✕</button>
+    <button class="modal-close" aria-label="Close" onclick="closeModal('sub-action-modal')">✕</button>
     <div class="modal-title" id="sub-modal-title">Manage Subscription</div>
     <div id="sub-modal-body" style="margin-bottom:1rem;color:var(--gray-mid);font-size:0.84rem;line-height:1.6"></div>
     <div class="form-actions" id="sub-modal-actions"></div>
@@ -986,9 +986,9 @@
 </div>
 
 <!-- Add/Edit Menu Item Modal -->
-<div class="modal-overlay" id="menu-item-modal">
+<div class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="menu-item-modal-title" id="menu-item-modal">
   <div class="modal" style="max-width:680px">
-    <button class="modal-close" onclick="closeModal('menu-item-modal')">✕</button>
+    <button class="modal-close" aria-label="Close" onclick="closeModal('menu-item-modal')">✕</button>
     <div class="modal-title" id="menu-item-modal-title">New Menu Item</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
       <div class="form-group">
@@ -1029,9 +1029,9 @@
 </div>
 
 <!-- Add/Edit Inventory Item Modal -->
-<div class="modal-overlay" id="inv-item-modal">
+<div class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="inv-item-modal-title" id="inv-item-modal">
   <div class="modal" style="max-width:520px">
-    <button class="modal-close" onclick="closeModal('inv-item-modal')">✕</button>
+    <button class="modal-close" aria-label="Close" onclick="closeModal('inv-item-modal')">✕</button>
     <div class="modal-title" id="inv-item-modal-title">Add Inventory Item</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
       <div class="form-group" style="grid-column:1/-1">
@@ -1082,9 +1082,9 @@
 </div>
 
 <!-- Add/Edit Plan Modal -->
-<div class="modal-overlay" id="plan-modal">
+<div class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="plan-modal-title" id="plan-modal">
   <div class="modal" style="max-width:580px">
-    <button class="modal-close" onclick="closeModal('plan-modal')">✕</button>
+    <button class="modal-close" aria-label="Close" onclick="closeModal('plan-modal')">✕</button>
     <div class="modal-title" id="plan-modal-title">New Plan</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
       <div class="form-group">
@@ -1145,9 +1145,9 @@
 </div>
 
 <!-- Staff Team Modal -->
-<div class="modal-overlay" id="staff-team-modal">
+<div class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="staff-team-modal-title" id="staff-team-modal">
   <div class="modal" style="max-width:460px">
-    <button class="modal-close" onclick="closeModal('staff-team-modal')">✕</button>
+    <button class="modal-close" aria-label="Close" onclick="closeModal('staff-team-modal')">✕</button>
     <div class="modal-title" id="staff-team-modal-title">Add Team</div>
     <div class="form-group">
       <label class="form-label">Team Name</label>
@@ -1184,10 +1184,10 @@
 
 
 <!-- Staff Student Modal -->
-<div class="modal-overlay" id="staff-student-modal">
+<div class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="staff-student-modal-title" id="staff-student-modal">
   <div class="modal" style="max-width:460px">
-    <button class="modal-close" onclick="closeModal('staff-student-modal')">✕</button>
-    <div class="modal-title">Edit Student</div>
+    <button class="modal-close" aria-label="Close" onclick="closeModal('staff-student-modal')">✕</button>
+    <div class="modal-title" id="staff-student-modal-title">Edit Student</div>
     <div style="font-size:0.82rem;color:var(--gray-mid);margin-bottom:1rem" id="staff-student-modal-name"></div>
     <div class="form-group">
       <label class="form-label">Role</label>
@@ -1205,9 +1205,9 @@
 </div>
 
 <!-- Add/Edit Rubric Category Modal -->
-<div class="modal-overlay" id="rubric-modal">
+<div class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="rubric-modal-title" id="rubric-modal">
   <div class="modal">
-    <button class="modal-close" onclick="closeModal('rubric-modal')">✕</button>
+    <button class="modal-close" aria-label="Close" onclick="closeModal('rubric-modal')">✕</button>
     <div class="modal-title" id="rubric-modal-title">Add Category</div>
     <div class="form-group">
       <label class="form-label">Category Name</label>
@@ -1239,14 +1239,14 @@
 </div>
 
 <!-- Position Assignment Modal (Schedule) -->
-<div class="modal-overlay" id="sched-pos-modal">
+<div class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="sched-pos-modal-title" id="sched-pos-modal">
   <div class="pos-modal-inner">
     <div class="pos-modal-header">
       <div>
         <div class="pos-modal-title" id="sched-pos-modal-title">Assign Positions</div>
         <div style="font-size:0.76rem;color:var(--gray);margin-top:0.15rem" id="sched-pos-modal-sub"></div>
       </div>
-      <button class="modal-close" onclick="schedClosePosModal()">✕</button>
+      <button class="modal-close" aria-label="Close" onclick="schedClosePosModal()">✕</button>
     </div>
     <div class="pos-modal-body" id="sched-pos-modal-body"></div>
     <div class="pos-modal-footer">
@@ -1373,15 +1373,27 @@ function toggleNav() {
   const sidebar   = document.getElementById('sidebar');
   const overlay   = document.getElementById('sidebar-overlay');
   const hamburger = document.getElementById('hamburger-btn');
-  sidebar.classList.toggle('open');
+  const isOpen = sidebar.classList.toggle('open');
   overlay.classList.toggle('open');
   hamburger.classList.toggle('open');
+  hamburger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
 }
 function closeNav() {
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('sidebar-overlay').classList.remove('open');
-  document.getElementById('hamburger-btn').classList.remove('open');
+  const hamburger = document.getElementById('hamburger-btn');
+  hamburger.classList.remove('open');
+  hamburger.setAttribute('aria-expanded', 'false');
 }
+
+// Keyboard accessibility for div-based nav items
+document.querySelectorAll('#sidebar .nav-item:not(a):not(button)').forEach(function(el) {
+  el.setAttribute('role', 'button');
+  el.setAttribute('tabindex', '0');
+  el.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); el.click(); }
+  });
+});
 
 // ════════════════════════════════════
 // Navigation

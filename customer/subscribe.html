@@ -223,13 +223,13 @@
 </head>
 <body>
 <div class="layout">
-  <aside class="sidebar">
+  <aside class="sidebar" aria-label="Customer portal navigation">
     <div class="sidebar-logo"><a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a></div>
     <div class="user-card" id="user-card">
       <div class="user-name" id="user-display-name">Loading...</div>
       <div class="user-points" id="user-points-badge">$0.00 toward Birdhouse Bucks</div>
     </div>
-    <nav>
+    <nav aria-label="Customer portal">
       <a class="nav-item" href="dashboard.html">📊 Overview</a>
       <a class="nav-item" href="order.html">☕ Place an Order</a>
       <a class="nav-item" href="orders.html">📋 My Orders</a>
@@ -333,7 +333,7 @@
         </div>
         <div class="delivery-grid">
           <div class="form-group">
-            <label>Delivery Day</label>
+            <label for="slot-1-day">Delivery Day</label>
             <select id="slot-1-day">
               <option value="Monday">Monday</option>
               <option value="Tuesday">Tuesday</option>
@@ -343,11 +343,11 @@
             </select>
           </div>
           <div class="form-group">
-            <label>Preferred Time</label>
+            <label for="slot-1-time">Preferred Time</label>
             <select id="slot-1-time"></select>
           </div>
           <div class="form-group">
-            <label>Room / Location</label>
+            <label for="slot-1-location">Room / Location</label>
             <input type="text" id="slot-1-location" placeholder="e.g. Room 204" />
           </div>
         </div>
@@ -362,7 +362,7 @@
         </div>
         <div class="delivery-grid">
           <div class="form-group">
-            <label>Delivery Day</label>
+            <label for="slot-2-day">Delivery Day</label>
             <select id="slot-2-day">
               <option value="Monday">Monday</option>
               <option value="Tuesday">Tuesday</option>
@@ -372,11 +372,11 @@
             </select>
           </div>
           <div class="form-group">
-            <label>Preferred Time</label>
+            <label for="slot-2-time">Preferred Time</label>
             <select id="slot-2-time"></select>
           </div>
           <div class="form-group">
-            <label>Room / Location</label>
+            <label for="slot-2-location">Room / Location</label>
             <input type="text" id="slot-2-location" placeholder="e.g. Room 204" />
           </div>
         </div>
@@ -429,7 +429,7 @@
 </div>
 
 <!-- Modifier Modal -->
-<div class="mod-overlay" id="mod-overlay">
+<div class="mod-overlay" id="mod-overlay" role="dialog" aria-modal="true" aria-labelledby="mod-title">
   <div class="mod-modal">
     <div class="mod-modal-title" id="mod-title">Customize</div>
     <div class="mod-modal-price" id="mod-base-price"></div>
@@ -644,7 +644,7 @@
         : '1 drink per week';
       const earlyLabel = p.early_access ? 'Early access to seasonal items' : null;
 
-      return `<div class="plan-card${isFeatured ? ' featured' : ''}" id="plan-card-${p.id}" onclick="selectPlan('${p.id}')">
+      return `<div class="plan-card${isFeatured ? ' featured' : ''}" id="plan-card-${p.id}" onclick="selectPlan('${p.id}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectPlan('${p.id}')}"
         ${isFeatured ? '<div class="plan-badge">Most Popular</div>' : ''}
         <div class="plan-name">${p.name}</div>
         <div class="plan-price">${priceDisplay}<span>/month</span></div>
