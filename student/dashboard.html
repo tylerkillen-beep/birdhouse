@@ -1658,11 +1658,11 @@
     peerWeekStart = getPrevWeekStart();
     const [rubricRes, teamRes, evalRes] = await Promise.all([
       sb.from('score_rubric').select('*').eq('active', true).order('sort_order'),
-      sb.from('students').select('id,first_name,last_name').eq('team_id', currentStudentRow.team_id).neq('role', 'admin').neq('role', 'manager').neq('id', currentUser.id),
+      sb.from('students').select('id,first_name,last_name').eq('team_id', currentStudentRow.team_id).neq('id', currentUser.id).order('last_name'),
       sb.from('peer_evaluations').select('evaluatee_id,rubric_id,score,comment').eq('evaluator_id', currentUser.id).eq('week_start', peerWeekStart)
     ]);
     peerRubric = rubricRes.data || [];
-    peerTeammates = teamRes.data || [];
+    peerTeammates = (teamRes.data || []).filter(s => s.id !== currentUser.id);
     peerEvalData = {};
     (evalRes.data || []).forEach(e => {
       if (!peerEvalData[e.evaluatee_id]) peerEvalData[e.evaluatee_id] = {};
@@ -1689,6 +1689,10 @@
     }
   }
 
+  function getNextUnevaluatedIndex() {
+    return peerTeammates.findIndex(t => !isTeammateEvaluated(t.id));
+  }
+
   async function loadPeerEvalSection() {
     if (!peerDataLoaded) await loadPeerEvalBanner();
     const prevMon = new Date(peerWeekStart + 'T12:00:00');
@@ -1696,42 +1700,69 @@
     prevSun.setDate(prevMon.getDate() + 6);
     const fmt = d => d.toLocaleDateString('en-US', {month:'short', day:'numeric'});
     document.getElementById('peer-eval-week-label').textContent = `${fmt(prevMon)} – ${fmt(prevSun)}`;
+    renderCurrentPeerCard();
+  }
 
+  function renderCurrentPeerCard() {
     const container = document.getElementById('peer-eval-list');
     if (!peerTeammates.length) {
       container.innerHTML = '<div style="color:var(--gray);text-align:center;padding:3rem;background:var(--card);border-radius:12px;border:1px solid var(--border-dim)">No teammates to evaluate this week.</div>';
       return;
     }
+    const nextIdx = getNextUnevaluatedIndex();
+    if (nextIdx === -1) {
+      // All done
+      container.innerHTML = `<div style="text-align:center;padding:3rem;background:var(--card);border-radius:14px;border:1px solid rgba(76,175,80,0.25)">
+        <div style="font-size:2.5rem;margin-bottom:0.75rem">✅</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:0.05em;margin-bottom:0.5rem">All Done!</div>
+        <div style="color:var(--gray);font-size:0.88rem">You've evaluated all ${peerTeammates.length} teammate${peerTeammates.length!==1?'s':''} for this week.</div>
+      </div>`;
+      return;
+    }
+    const t = peerTeammates[nextIdx];
+    const done = peerTeammates.filter(x => isTeammateEvaluated(x.id)).length;
+    const total = peerTeammates.length;
+    const existingComment = peerEvalData[t.id] ? Object.values(peerEvalData[t.id])[0]?.comment || '' : '';
 
-    container.innerHTML = peerTeammates.map(t => {
-      const done = isTeammateEvaluated(t.id);
-      const existingComment = peerEvalData[t.id] ? Object.values(peerEvalData[t.id])[0]?.comment || '' : '';
-      return `
-      <div class="score-student-card" id="peer-card-${t.id}">
-        <div class="score-student-header">
-          <div style="font-weight:600;font-size:1.05rem">${t.first_name} ${t.last_name}</div>
-          <span id="peer-saved-${t.id}" style="display:${done?'inline':'none'};color:#4caf50;font-size:0.82rem;font-weight:600">✓ Submitted</span>
-        </div>
-        ${peerRubric.map(r => {
-          const pm = peerMaxFor(r);
-          const existing = peerEvalData[t.id]?.[r.id]?.score;
-          const btns = Array.from({length: pm + 1}, (_, i) => {
-            const active = existing !== undefined && Number(existing) === i;
-            return `<button type="button" onclick="setPeerScore('${t.id}','${r.id}',${i},${pm})" id="peer-btn-${t.id}-${r.id}-${i}" style="padding:0.4rem 0.75rem;border-radius:6px;border:1px solid ${active?'var(--red-bright)':'rgba(255,255,255,0.1)'};background:${active?'rgba(204,0,0,0.2)':'rgba(255,255,255,0.04)'};color:${active?'var(--red-bright)':'var(--light-gray)'};font-family:'DM Sans',sans-serif;font-size:0.88rem;font-weight:${active?'600':'400'};cursor:pointer;transition:all 0.15s;min-width:38px">${i}</button>`;
-          }).join('');
-          return `<div class="rubric-row" style="flex-wrap:nowrap;align-items:center;gap:0.75rem;padding:0.65rem 0">
-            <div style="min-width:120px;font-size:0.84rem;color:var(--light-gray);font-weight:500">${r.name}</div>
-            <div style="flex:1;font-size:0.74rem;color:var(--gray)">${r.description || ''}</div>
-            <div style="display:flex;gap:0.35rem;flex-shrink:0">${btns}</div>
-            <input type="hidden" id="peer-score-${t.id}-${r.id}" value="${existing !== undefined ? existing : ''}">
-          </div>`;
-        }).join('')}
-        <textarea class="score-comment" id="peer-comment-${t.id}" placeholder="Comment (optional — your name will be shown)" style="margin-top:1rem">${existingComment}</textarea>
-        <div style="margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid rgba(255,255,255,0.06)">
-          <button class="score-save-btn" onclick="savePeerEval('${t.id}')" style="width:100%;padding:0.85rem;font-size:0.9rem;letter-spacing:0.08em">Save Evaluation for ${t.first_name}</button>
-        </div>
+    // Progress dots
+    const dots = peerTeammates.map((tm, i) => {
+      const isDone = isTeammateEvaluated(tm.id);
+      const isCurrent = i === nextIdx;
+      const color = isDone ? '#4caf50' : isCurrent ? 'var(--red-bright)' : 'rgba(255,255,255,0.15)';
+      return `<div title="${tm.first_name}" style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0"></div>`;
+    }).join('');
+
+    const rubricRows = peerRubric.map(r => {
+      const pm = peerMaxFor(r);
+      const existing = peerEvalData[t.id]?.[r.id]?.score;
+      const btns = Array.from({length: pm + 1}, (_, i) => {
+        const active = existing !== undefined && Number(existing) === i;
+        return `<button type="button" onclick="setPeerScore('${t.id}','${r.id}',${i},${pm})" id="peer-btn-${t.id}-${r.id}-${i}" style="padding:0.4rem 0.75rem;border-radius:6px;border:1px solid ${active?'var(--red-bright)':'rgba(255,255,255,0.1)'};background:${active?'rgba(204,0,0,0.2)':'rgba(255,255,255,0.04)'};color:${active?'var(--red-bright)':'var(--light-gray)'};font-family:'DM Sans',sans-serif;font-size:0.88rem;font-weight:${active?'600':'400'};cursor:pointer;transition:all 0.15s;min-width:38px">${i}</button>`;
+      }).join('');
+      return `<div class="rubric-row" style="flex-wrap:nowrap;align-items:center;gap:0.75rem;padding:0.65rem 0">
+        <div style="min-width:120px;font-size:0.84rem;color:var(--light-gray);font-weight:500">${r.name}</div>
+        <div style="flex:1;font-size:0.74rem;color:var(--gray)">${r.description || ''}</div>
+        <div style="display:flex;gap:0.35rem;flex-shrink:0">${btns}</div>
+        <input type="hidden" id="peer-score-${t.id}-${r.id}" value="${existing !== undefined ? existing : ''}">
       </div>`;
     }).join('');
+
+    container.innerHTML = `
+      <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:1.25rem">
+        ${dots}
+        <span style="font-size:0.78rem;color:var(--gray);margin-left:0.25rem">${done} of ${total} complete</span>
+      </div>
+      <div class="score-student-card">
+        <div class="score-student-header">
+          <div style="font-weight:600;font-size:1.1rem">${t.first_name} ${t.last_name}</div>
+          <div style="font-size:0.75rem;color:var(--gray)">${nextIdx + 1} of ${total}</div>
+        </div>
+        ${rubricRows}
+        <textarea class="score-comment" id="peer-comment-${t.id}" placeholder="Comment (optional — your name will be shown)" style="margin-top:1rem">${existingComment}</textarea>
+        <div style="margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid rgba(255,255,255,0.06)">
+          <button class="score-save-btn" id="peer-save-btn" onclick="savePeerEval('${t.id}')" style="width:100%;padding:0.85rem;font-size:0.9rem;letter-spacing:0.08em">Save &amp; Continue →</button>
+        </div>
+      </div>`;
   }
 
   function setPeerScore(evaluateeId, rubricId, value, max) {
@@ -1748,6 +1779,8 @@
   }
 
   async function savePeerEval(evaluateeId) {
+    const btn = document.getElementById('peer-save-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
     const comment = document.getElementById(`peer-comment-${evaluateeId}`)?.value || '';
     const myName = `${currentStudentRow.first_name} ${currentStudentRow.last_name}`;
     const rows = peerRubric.map(r => {
@@ -1761,12 +1794,14 @@
       if (!peerEvalData[evaluateeId]) peerEvalData[evaluateeId] = {};
       peerRubric.forEach(r => {
         const pm = peerMaxFor(r);
-        const val = Math.min(Math.max(0, parseInt(document.getElementById(`peer-score-${evaluateeId}-${r.id}`)?.value || 0)), pm);
+        const raw = document.getElementById(`peer-score-${evaluateeId}-${r.id}`)?.value;
+        const val = raw === '' ? 0 : Math.min(Math.max(0, parseInt(raw)), pm);
         peerEvalData[evaluateeId][r.id] = { score: val, comment };
       });
-      const el = document.getElementById(`peer-saved-${evaluateeId}`);
-      if (el) el.style.display = 'inline';
       refreshPeerEvalBanner();
+      renderCurrentPeerCard();
+    } else {
+      if (btn) { btn.disabled = false; btn.textContent = 'Save & Continue →'; }
     }
   }
 
