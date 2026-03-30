@@ -1781,7 +1781,31 @@
   async function savePeerEval(evaluateeId) {
     const btn = document.getElementById('peer-save-btn');
     if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
-    const comment = document.getElementById(`peer-comment-${evaluateeId}`)?.value || '';
+    const comment = document.getElementById(`peer-comment-${evaluateeId}`)?.value.trim() || '';
+
+    // Calculate total score (all rubric items scale to sum of 10)
+    const totalScore = peerRubric.reduce((sum, r) => {
+      const raw = document.getElementById(`peer-score-${evaluateeId}-${r.id}`)?.value;
+      return sum + (raw === '' ? 0 : Math.min(Math.max(0, parseInt(raw)), peerMaxFor(r)));
+    }, 0);
+
+    if (totalScore < 8 && !comment) {
+      const commentEl = document.getElementById(`peer-comment-${evaluateeId}`);
+      if (commentEl) {
+        commentEl.style.borderColor = 'var(--red-bright)';
+        commentEl.placeholder = 'Comment is required when giving an overall score below 8 — please explain your rating.';
+        commentEl.focus();
+      }
+      if (btn) { btn.disabled = false; btn.textContent = 'Save & Continue →'; }
+      return;
+    }
+
+    // Reset comment border if valid
+    const commentEl = document.getElementById(`peer-comment-${evaluateeId}`);
+    if (commentEl) {
+      commentEl.style.borderColor = '';
+      commentEl.placeholder = 'Comment (optional — your name will be shown)';
+    }
     const myName = `${currentStudentRow.first_name} ${currentStudentRow.last_name}`;
     const rows = peerRubric.map(r => {
       const pm = peerMaxFor(r);
