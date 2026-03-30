@@ -374,6 +374,11 @@
     <span class="nav-icon">★</span> Reviews
   </div>
 
+  <div class="nav-section">Integrations</div>
+  <div class="nav-item" onclick="showSection('canvas')" id="nav-canvas">
+    <span class="nav-icon">🎓</span> Canvas LMS
+  </div>
+
   <div class="nav-section">Financials</div>
   <div class="nav-item" onclick="showSection('sales-report')" id="nav-sales-report">
     <span class="nav-icon">💰</span> Sales Report
@@ -550,6 +555,7 @@
       <div style="display:flex;gap:0.5rem;align-items:center">
         <button class="btn btn-ghost btn-sm" onclick="loadAdminScores(-1)">← Prev</button>
         <button class="btn btn-ghost btn-sm" onclick="loadAdminScores(1)">Next →</button>
+        <button class="btn btn-primary btn-sm" onclick="openCanvasSync('manager')" style="margin-left:0.5rem">Sync to Canvas</button>
       </div>
     </div>
     <div id="admin-scores-content"><div class="empty-state"><div class="empty-icon">📋</div>Loading scores…</div></div>
@@ -563,9 +569,78 @@
       <div style="display:flex;gap:0.5rem;align-items:center">
         <button class="btn btn-ghost btn-sm" onclick="loadAdminPeerEvals(-1)">← Prev</button>
         <button class="btn btn-ghost btn-sm" onclick="loadAdminPeerEvals(1)">Next →</button>
+        <button class="btn btn-primary btn-sm" onclick="openCanvasSync('peer')" style="margin-left:0.5rem">Sync to Canvas</button>
       </div>
     </div>
     <div id="admin-peer-evals-content"><div class="empty-state"><div class="empty-icon">👥</div>Loading…</div></div>
+  </div>
+
+  <!-- ── CANVAS LMS ── -->
+  <div class="section-panel" id="section-canvas">
+    <div class="page-header"><h1>Canvas LMS</h1><p>Configure Canvas integration and sync weekly grades</p></div>
+
+    <!-- Settings Card -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin-bottom:2rem;max-width:560px">
+      <div class="section-title" style="margin-bottom:1.25rem">Connection Settings</div>
+      <div class="form-group" style="margin-bottom:1rem">
+        <label class="form-label">Canvas Domain</label>
+        <input class="form-input" id="canvas-domain" placeholder="nixa.instructure.com" />
+        <div style="font-size:0.72rem;color:var(--gray);margin-top:0.3rem">Your Canvas instance domain — no https://</div>
+      </div>
+      <div class="form-group" style="margin-bottom:1rem">
+        <label class="form-label">Course ID</label>
+        <input class="form-input" id="canvas-course-id" placeholder="e.g. 12345" />
+        <div style="font-size:0.72rem;color:var(--gray);margin-top:0.3rem">Found in the Canvas course URL: /courses/<strong>12345</strong></div>
+      </div>
+      <div class="section-title" style="margin:1.25rem 0 1rem;font-size:0.75rem">Assignment IDs</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div class="form-group">
+          <label class="form-label">Manager Score Assignment ID</label>
+          <input class="form-input" id="canvas-mgr-assignment" placeholder="e.g. 67890" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Peer Eval Assignment ID</label>
+          <input class="form-input" id="canvas-peer-assignment" placeholder="e.g. 67891" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Manager Assignment Points</label>
+          <input class="form-input" id="canvas-mgr-points" type="number" placeholder="100" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Peer Eval Assignment Points</label>
+          <input class="form-input" id="canvas-peer-points" type="number" placeholder="100" />
+        </div>
+      </div>
+      <div style="font-size:0.75rem;color:var(--gray);margin-bottom:1rem;padding:0.75rem;background:rgba(255,255,255,0.03);border-radius:8px;line-height:1.6">
+        The <strong style="color:var(--text)">CANVAS_ACCESS_TOKEN</strong> secret must be set via the Supabase dashboard under Edge Function secrets. Generate a token in Canvas → Account → Settings → New Access Token.
+      </div>
+      <div id="canvas-settings-msg" style="display:none;margin-bottom:0.75rem;font-size:0.82rem"></div>
+      <button class="btn btn-primary" onclick="saveCanvasSettings()">Save Settings</button>
+    </div>
+
+    <!-- Sync Tool -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.5rem;max-width:560px">
+      <div class="section-title" style="margin-bottom:1.25rem">Sync Grades to Canvas</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div class="form-group">
+          <label class="form-label">Week (Monday date)</label>
+          <input class="form-input" id="canvas-sync-week" type="date" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Grade Type</label>
+          <select class="form-input" id="canvas-sync-type" style="background:#0d0d0d">
+            <option value="both">Both (Manager + Peer)</option>
+            <option value="manager">Manager Scores only</option>
+            <option value="peer">Peer Evaluations only</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:0.75rem;margin-bottom:1.25rem">
+        <button class="btn btn-ghost" onclick="syncCanvasGrades(true)">Preview (Dry Run)</button>
+        <button class="btn btn-primary" onclick="syncCanvasGrades(false)">Sync to Canvas</button>
+      </div>
+      <div id="canvas-sync-results" style="display:none"></div>
+    </div>
   </div>
 
   <!-- ── SUBSCRIPTIONS ── -->
@@ -1427,6 +1502,7 @@ function showSection(id) {
     'closed-days': loadClosedDays,
     reviews: loadReviews,
     'peer-evals': () => loadAdminPeerEvals(0),
+    canvas: loadCanvasSettings,
   };
   if (loaders[id]) loaders[id]();
 }
@@ -4108,6 +4184,130 @@ async function deleteReview(reviewId, btn) {
   allReviews = allReviews.filter(r => r.id !== reviewId);
   renderReviewStats(allReviews);
   filterReviews();
+}
+
+// ════════════════════════════════════
+// Canvas LMS
+// ════════════════════════════════════
+async function loadCanvasSettings() {
+  const { data } = await sb.from('store_config').select('value').eq('key', 'canvas_config').single();
+  const cfg = data?.value || {};
+  document.getElementById('canvas-domain').value = cfg.domain || '';
+  document.getElementById('canvas-course-id').value = cfg.course_id || '';
+  document.getElementById('canvas-mgr-assignment').value = cfg.manager_assignment_id || '';
+  document.getElementById('canvas-peer-assignment').value = cfg.peer_assignment_id || '';
+  document.getElementById('canvas-mgr-points').value = cfg.manager_points ?? 100;
+  document.getElementById('canvas-peer-points').value = cfg.peer_points ?? 100;
+
+  // Default sync week to last Monday
+  if (!document.getElementById('canvas-sync-week').value) {
+    const now = new Date();
+    const day = now.getDay();
+    const lastMonday = new Date(now);
+    lastMonday.setDate(now.getDate() - (day === 0 ? 6 : day - 1) - 7);
+    document.getElementById('canvas-sync-week').value = lastMonday.toISOString().slice(0, 10);
+  }
+}
+
+async function saveCanvasSettings() {
+  const cfg = {
+    domain: document.getElementById('canvas-domain').value.trim().replace(/^https?:\/\//, ''),
+    course_id: document.getElementById('canvas-course-id').value.trim(),
+    manager_assignment_id: document.getElementById('canvas-mgr-assignment').value.trim(),
+    peer_assignment_id: document.getElementById('canvas-peer-assignment').value.trim(),
+    manager_points: parseInt(document.getElementById('canvas-mgr-points').value) || 100,
+    peer_points: parseInt(document.getElementById('canvas-peer-points').value) || 100,
+  };
+  const msg = document.getElementById('canvas-settings-msg');
+  const { error } = await sb.from('store_config').upsert({ key: 'canvas_config', value: cfg }, { onConflict: 'key' });
+  msg.style.display = 'block';
+  if (error) {
+    msg.style.color = '#e05a4a';
+    msg.textContent = 'Error saving: ' + error.message;
+  } else {
+    msg.style.color = '#4cd07d';
+    msg.textContent = 'Settings saved.';
+    setTimeout(() => { msg.style.display = 'none'; }, 2500);
+  }
+}
+
+// Called from the "Sync to Canvas" buttons on Manager Scores / Peer Evals sections.
+// Pre-fills the Canvas section with the correct type and current week, then navigates there.
+function openCanvasSync(type) {
+  showSection('canvas');
+  loadCanvasSettings().then(() => {
+    // Set the week to match whichever section triggered this
+    const offset = type === 'peer' ? adminPeerWeekOffset : adminScoreWeekOffset;
+    const now = new Date();
+    const day = now.getDay();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1) + (offset * 7));
+    document.getElementById('canvas-sync-week').value = monday.toISOString().slice(0, 10);
+    document.getElementById('canvas-sync-type').value = type;
+  });
+}
+
+async function syncCanvasGrades(dryRun) {
+  const weekStart = document.getElementById('canvas-sync-week').value;
+  const type = document.getElementById('canvas-sync-type').value;
+  const resultsEl = document.getElementById('canvas-sync-results');
+
+  if (!weekStart) { alert('Please select a week.'); return; }
+
+  resultsEl.style.display = 'block';
+  resultsEl.innerHTML = '<div style="color:var(--gray);font-size:0.85rem">Syncing…</div>';
+
+  const { data: { session } } = await sb.auth.getSession();
+  const token = session?.access_token;
+
+  let resp, result;
+  try {
+    resp = await fetch(`${sb.supabaseUrl}/functions/v1/sync-canvas-grades`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ week_start: weekStart, type, dry_run: dryRun }),
+    });
+    result = await resp.json();
+  } catch (e) {
+    resultsEl.innerHTML = `<div style="color:#e05a4a;font-size:0.85rem">Network error: ${e.message}</div>`;
+    return;
+  }
+
+  if (!result.success) {
+    resultsEl.innerHTML = `<div style="color:#e05a4a;font-size:0.85rem">Error: ${result.error}</div>`;
+    return;
+  }
+
+  const { summary, manager_results = [], peer_results = [] } = result;
+  const label = dryRun ? 'Preview (not submitted)' : 'Sync complete';
+  const statusColor = r => r.canvas_status === 'submitted' ? '#4cd07d' : r.canvas_status === 'dry_run' ? '#c8a96e' : r.canvas_status === 'error' ? '#e05a4a' : 'var(--gray)';
+  const statusLabel = r => r.canvas_status === 'submitted' ? 'Submitted' : r.canvas_status === 'dry_run' ? `Preview: ${r.grade} pts` : r.canvas_status === 'error' ? `Error: ${r.canvas_error}` : `Skipped: ${r.canvas_error || ''}`;
+
+  const renderTable = (rows, title) => {
+    if (!rows.length) return '';
+    return `
+      <div style="margin-bottom:1.5rem">
+        <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);margin-bottom:0.5rem">${title}</div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Student</th><th>Email</th><th style="text-align:right">Grade</th><th>Status</th></tr></thead>
+          <tbody>${rows.map(r => `<tr>
+            <td>${r.name}</td>
+            <td style="color:var(--gray-mid);font-size:0.8rem">${r.email}</td>
+            <td style="text-align:right;font-weight:500">${r.canvas_status !== 'skipped' && r.canvas_status !== 'error' ? r.grade : '—'}</td>
+            <td style="font-size:0.8rem;color:${statusColor(r)}">${statusLabel(r)}</td>
+          </tr>`).join('')}</tbody>
+        </table></div>
+      </div>`;
+  };
+
+  resultsEl.innerHTML = `
+    <div style="padding:0.75rem 1rem;background:rgba(255,255,255,0.03);border-radius:8px;margin-bottom:1rem;font-size:0.85rem">
+      <strong>${label}</strong> &mdash; Week of ${weekStart} &mdash;
+      ${dryRun ? `${summary.dry_run} students previewed` : `${summary.submitted} submitted, ${summary.errors} errors`}
+    </div>
+    ${renderTable(manager_results, 'Manager Scores')}
+    ${renderTable(peer_results, 'Peer Evaluations')}
+  `;
 }
 </script>
 </body>
