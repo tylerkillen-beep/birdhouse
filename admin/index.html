@@ -592,25 +592,6 @@
         <input class="form-input" id="canvas-course-id" placeholder="e.g. 12345" />
         <div style="font-size:0.72rem;color:var(--gray);margin-top:0.3rem">Found in the Canvas course URL: /courses/<strong>12345</strong></div>
       </div>
-      <div class="section-title" style="margin:1.25rem 0 1rem;font-size:0.75rem">Assignment IDs</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
-        <div class="form-group">
-          <label class="form-label">Manager Score Assignment ID</label>
-          <input class="form-input" id="canvas-mgr-assignment" placeholder="e.g. 67890" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">Peer Eval Assignment ID</label>
-          <input class="form-input" id="canvas-peer-assignment" placeholder="e.g. 67891" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">Manager Assignment Points</label>
-          <input class="form-input" id="canvas-mgr-points" type="number" placeholder="100" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">Peer Eval Assignment Points</label>
-          <input class="form-input" id="canvas-peer-points" type="number" placeholder="100" />
-        </div>
-      </div>
       <div style="font-size:0.75rem;color:var(--gray);margin-bottom:1rem;padding:0.75rem;background:rgba(255,255,255,0.03);border-radius:8px;line-height:1.6">
         The <strong style="color:var(--text)">CANVAS_ACCESS_TOKEN</strong> secret must be set via the Supabase dashboard under Edge Function secrets. Generate a token in Canvas → Account → Settings → New Access Token.
       </div>
@@ -621,20 +602,79 @@
     <!-- Sync Tool -->
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.5rem;">
       <div class="section-title" style="margin-bottom:1.25rem">Sync Grades to Canvas</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;max-width:560px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem;max-width:640px">
         <div class="form-group">
           <label class="form-label">Week (Monday date)</label>
           <input class="form-input" id="canvas-sync-week" type="date" />
         </div>
         <div class="form-group">
           <label class="form-label">Grade Type</label>
-          <select class="form-input" id="canvas-sync-type" style="background:#0d0d0d">
-            <option value="both">Both (Manager + Peer)</option>
-            <option value="manager">Manager Scores only</option>
-            <option value="peer">Peer Evaluations only</option>
+          <select class="form-input" id="canvas-sync-type" style="background:#0d0d0d" onchange="onCanvasSyncTypeChange()">
+            <option value="manager">Manager Scores</option>
+            <option value="peer">Peer Evaluations</option>
+            <option value="product">Product Performance</option>
+            <option value="both">Manager + Peer</option>
+            <option value="all">All Three</option>
           </select>
         </div>
       </div>
+
+      <!-- Per-type assignment ID + points fields (shown based on selected type) -->
+      <div style="max-width:640px;margin-bottom:1.25rem">
+        <div id="canvas-mgr-fields" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:0.75rem">
+          <div class="form-group">
+            <label class="form-label">Manager Assignment ID</label>
+            <input class="form-input" id="canvas-mgr-assignment" placeholder="e.g. 67890" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Points Possible</label>
+            <input class="form-input" id="canvas-mgr-points" type="number" placeholder="100" />
+          </div>
+        </div>
+        <div id="canvas-peer-fields" style="display:none;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:0.75rem">
+          <div class="form-group">
+            <label class="form-label">Peer Eval Assignment ID</label>
+            <input class="form-input" id="canvas-peer-assignment" placeholder="e.g. 67891" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Points Possible</label>
+            <input class="form-input" id="canvas-peer-points" type="number" placeholder="100" />
+          </div>
+        </div>
+        <div id="canvas-product-fields" style="display:none;gap:1rem;margin-bottom:0.75rem">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:0.75rem">
+            <div class="form-group">
+              <label class="form-label">Product Performance Assignment ID</label>
+              <input class="form-input" id="canvas-product-assignment" placeholder="e.g. 67892" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Points Possible</label>
+              <input class="form-input" id="canvas-product-points" type="number" placeholder="10" />
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:flex-end">
+            <div class="form-group">
+              <label class="form-label">Profit Threshold ($)</label>
+              <input class="form-input" id="canvas-product-threshold" type="number" step="0.01" min="0" placeholder="e.g. 35.00" />
+              <div style="font-size:0.72rem;color:var(--gray);margin-top:0.3rem">Score = team profit ÷ threshold × 10, capped at 10</div>
+            </div>
+            <div>
+              <button class="btn btn-ghost" onclick="loadProductSyncPreview()" style="width:100%">Load Sales Data</button>
+            </div>
+          </div>
+          <!-- Team score preview table -->
+          <div id="canvas-product-preview" style="display:none;margin-top:1rem">
+            <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);margin-bottom:0.5rem">Team Scores Preview</div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Team</th><th>Product</th><th>Profit</th><th>Threshold</th><th style="text-align:right">Score (/ 10)</th></tr></thead>
+                <tbody id="canvas-product-preview-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div style="display:flex;gap:0.75rem;margin-bottom:1.25rem">
         <button class="btn btn-ghost" onclick="syncCanvasGrades(true)">Preview (Dry Run)</button>
         <button class="btn btn-primary" onclick="syncCanvasGrades(false)">Sync to Canvas</button>
@@ -4196,8 +4236,10 @@ async function loadCanvasSettings() {
   document.getElementById('canvas-course-id').value = cfg.course_id || '';
   document.getElementById('canvas-mgr-assignment').value = cfg.manager_assignment_id || '';
   document.getElementById('canvas-peer-assignment').value = cfg.peer_assignment_id || '';
+  document.getElementById('canvas-product-assignment').value = cfg.product_assignment_id || '';
   document.getElementById('canvas-mgr-points').value = cfg.manager_points ?? 100;
   document.getElementById('canvas-peer-points').value = cfg.peer_points ?? 100;
+  document.getElementById('canvas-product-points').value = cfg.product_points ?? 10;
 
   // Default sync week to last Monday
   if (!document.getElementById('canvas-sync-week').value) {
@@ -4207,16 +4249,41 @@ async function loadCanvasSettings() {
     lastMonday.setDate(now.getDate() - (day === 0 ? 6 : day - 1) - 7);
     document.getElementById('canvas-sync-week').value = lastMonday.toISOString().slice(0, 10);
   }
+
+  onCanvasSyncTypeChange();
+}
+
+// Show/hide per-type assignment ID fields based on selected grade type.
+function onCanvasSyncTypeChange() {
+  const type = document.getElementById('canvas-sync-type').value;
+  const showMgr = type === 'manager' || type === 'both' || type === 'all';
+  const showPeer = type === 'peer' || type === 'both' || type === 'all';
+  const showProduct = type === 'product' || type === 'all';
+
+  const mgrEl = document.getElementById('canvas-mgr-fields');
+  const peerEl = document.getElementById('canvas-peer-fields');
+  const productEl = document.getElementById('canvas-product-fields');
+
+  mgrEl.style.display = showMgr ? 'grid' : 'none';
+  peerEl.style.display = showPeer ? 'grid' : 'none';
+  productEl.style.display = showProduct ? 'flex' : 'none';
+  productEl.style.flexDirection = showProduct ? 'column' : '';
+
+  // Reset product preview when type changes
+  if (!showProduct) {
+    document.getElementById('canvas-product-preview').style.display = 'none';
+    window._canvasProductTeamScores = null;
+  }
 }
 
 async function saveCanvasSettings() {
+  // Read current config first to preserve any fields not in the connection settings form
+  const { data: existing } = await sb.from('store_config').select('value').eq('key', 'canvas_config').single();
+  const existingCfg = existing?.value || {};
   const cfg = {
+    ...existingCfg,
     domain: document.getElementById('canvas-domain').value.trim().replace(/^https?:\/\//, ''),
     course_id: document.getElementById('canvas-course-id').value.trim(),
-    manager_assignment_id: document.getElementById('canvas-mgr-assignment').value.trim(),
-    peer_assignment_id: document.getElementById('canvas-peer-assignment').value.trim(),
-    manager_points: parseInt(document.getElementById('canvas-mgr-points').value) || 100,
-    peer_points: parseInt(document.getElementById('canvas-peer-points').value) || 100,
   };
   const msg = document.getElementById('canvas-settings-msg');
   const { error } = await sb.from('store_config').upsert({ key: 'canvas_config', value: cfg }, { onConflict: 'key' });
@@ -4229,6 +4296,19 @@ async function saveCanvasSettings() {
     msg.textContent = 'Settings saved.';
     setTimeout(() => { msg.style.display = 'none'; }, 2500);
   }
+}
+
+// Saves the assignment IDs + points currently entered in the sync form to store_config.
+async function saveCanvasSyncAssignmentIds() {
+  const { data: existing } = await sb.from('store_config').select('value').eq('key', 'canvas_config').single();
+  const cfg = existing?.value || {};
+  cfg.manager_assignment_id = document.getElementById('canvas-mgr-assignment').value.trim();
+  cfg.peer_assignment_id = document.getElementById('canvas-peer-assignment').value.trim();
+  cfg.product_assignment_id = document.getElementById('canvas-product-assignment').value.trim();
+  cfg.manager_points = parseInt(document.getElementById('canvas-mgr-points').value) || 100;
+  cfg.peer_points = parseInt(document.getElementById('canvas-peer-points').value) || 100;
+  cfg.product_points = parseInt(document.getElementById('canvas-product-points').value) || 10;
+  await sb.from('store_config').upsert({ key: 'canvas_config', value: cfg }, { onConflict: 'key' });
 }
 
 // Called from the "Sync to Canvas" buttons on Manager Scores / Peer Evals sections.
@@ -4244,7 +4324,87 @@ function openCanvasSync(type) {
     monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1) + (offset * 7));
     document.getElementById('canvas-sync-week').value = monday.toISOString().slice(0, 10);
     document.getElementById('canvas-sync-type').value = type;
+    onCanvasSyncTypeChange();
   });
+}
+
+// Loads sales data for the selected week and builds the team score preview table.
+async function loadProductSyncPreview() {
+  const weekStart = document.getElementById('canvas-sync-week').value;
+  const threshold = parseFloat(document.getElementById('canvas-product-threshold').value);
+
+  if (!weekStart) { alert('Please select a week first.'); return; }
+  if (!threshold || threshold <= 0) { alert('Please enter a profit threshold greater than $0.'); return; }
+
+  const previewEl = document.getElementById('canvas-product-preview');
+  const tbody = document.getElementById('canvas-product-preview-tbody');
+  previewEl.style.display = 'block';
+  tbody.innerHTML = '<tr><td colspan="5" style="color:var(--gray);padding:1rem">Loading sales data…</td></tr>';
+  window._canvasProductTeamScores = null;
+
+  try {
+    // Week range: Monday 00:00 to Sunday 23:59:59
+    const monday = new Date(weekStart + 'T00:00:00');
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+
+    let { data: { session } } = await sb.auth.getSession();
+    if (session?.expires_at && Date.now() / 1000 >= session.expires_at - 30) {
+      const { data: refreshed } = await sb.auth.refreshSession();
+      session = refreshed?.session ?? null;
+    }
+    if (!session) { alert('Session expired. Please sign in again.'); window.location.href = 'login.html'; return; }
+
+    const res = await fetch(REPORT_FN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': REPORT_ANON_KEY, 'Authorization': `Bearer ${session.access_token}` },
+      body: JSON.stringify({ startDate: monday.toISOString(), endDate: sunday.toISOString() }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || `HTTP ${res.status}`);
+
+    const { data: teams } = await sb.from('teams').select('id,name,product_name,cost_cents').order('name');
+    const assignedTeams = (teams || []).filter(t => t.product_name);
+
+    if (!assignedTeams.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="color:var(--gray);text-align:center;padding:1rem">No teams have a product assigned.</td></tr>';
+      return;
+    }
+
+    const salesByName = {};
+    for (const item of data.topItems || []) salesByName[item.name.toLowerCase()] = item;
+
+    const teamScores = [];
+    const rows = assignedTeams.map(team => {
+      const sales = salesByName[team.product_name.toLowerCase()];
+      const units = sales?.quantity ?? 0;
+      const revCents = sales?.revenueCents ?? 0;
+      const feeCents = sales?.processingFeeCents ?? 0;
+      const cogsCents = (team.cost_cents ?? 0) * units;
+      const profitCents = revCents - feeCents - cogsCents;
+      const profitDollars = profitCents / 100;
+      const score = Math.min(10, Math.round((profitDollars / threshold) * 10 * 100) / 100);
+
+      teamScores.push({ team_id: team.id, score });
+
+      const scoreColor = score >= 9 ? '#4cd07d' : score >= 7 ? '#c8a96e' : '#e57373';
+      const profitColor = profitCents >= 0 ? '#4cd07d' : '#e57373';
+      return `<tr>
+        <td><strong>${team.name}</strong></td>
+        <td style="color:var(--gray-mid)">${team.product_name}</td>
+        <td style="color:${profitColor}">$${profitDollars.toFixed(2)}</td>
+        <td style="color:var(--gray-mid)">$${threshold.toFixed(2)}</td>
+        <td style="text-align:right;font-weight:600;color:${scoreColor}">${score.toFixed(2)}</td>
+      </tr>`;
+    });
+
+    window._canvasProductTeamScores = teamScores;
+    tbody.innerHTML = rows.join('');
+  } catch (err) {
+    console.error('Product sync preview error:', err);
+    tbody.innerHTML = `<tr><td colspan="5" style="color:#e57373;padding:1rem">${err.message}</td></tr>`;
+  }
 }
 
 async function syncCanvasGrades(dryRun) {
@@ -4254,18 +4414,30 @@ async function syncCanvasGrades(dryRun) {
 
   if (!weekStart) { alert('Please select a week.'); return; }
 
+  const includesProduct = type === 'product' || type === 'all';
+  if (includesProduct && !window._canvasProductTeamScores) {
+    alert('Please load sales data first by clicking "Load Sales Data".');
+    return;
+  }
+
   resultsEl.style.display = 'block';
   resultsEl.innerHTML = '<div style="color:var(--gray);font-size:0.85rem">Syncing…</div>';
 
+  // Save the assignment IDs entered in the form so they become the new defaults
+  await saveCanvasSyncAssignmentIds();
+
   const { data: { session } } = await sb.auth.getSession();
   const token = session?.access_token;
+
+  const payload = { week_start: weekStart, type, dry_run: dryRun };
+  if (includesProduct) payload.team_scores = window._canvasProductTeamScores;
 
   let resp, result;
   try {
     resp = await fetch(`${sb.supabaseUrl}/functions/v1/sync-canvas-grades`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ week_start: weekStart, type, dry_run: dryRun }),
+      body: JSON.stringify(payload),
     });
     result = await resp.json();
   } catch (e) {
@@ -4278,7 +4450,7 @@ async function syncCanvasGrades(dryRun) {
     return;
   }
 
-  const { summary, manager_results = [], peer_results = [] } = result;
+  const { summary, manager_results = [], peer_results = [], product_results = [] } = result;
   const label = dryRun ? 'Preview (not submitted)' : 'Sync complete';
   const statusColor = r => r.canvas_status === 'submitted' ? '#4cd07d' : r.canvas_status === 'dry_run' ? '#c8a96e' : r.canvas_status === 'error' ? '#e05a4a' : 'var(--gray)';
   const statusLabel = r => r.canvas_status === 'submitted' ? 'Submitted' : r.canvas_status === 'dry_run' ? `Preview: ${r.grade} pts` : r.canvas_status === 'error' ? `Error: ${r.canvas_error}` : `Skipped: ${r.canvas_error || ''}`;
@@ -4313,6 +4485,7 @@ async function syncCanvasGrades(dryRun) {
     </div>
     ${renderTable(manager_results, 'Manager Scores')}
     ${renderTable(peer_results, 'Peer Evaluations')}
+    ${renderTable(product_results, 'Product Performance')}
   `;
 }
 </script>
