@@ -1072,8 +1072,9 @@
       '10:30 AM','11:00 AM','11:30 AM','12:00 PM','12:30 PM','1:00 PM','1:30 PM',
     ];
 
-    // Load blocked dates
-    const { data: blockedData } = await sb.from('blocked_dates').select('date,reason');
+    // Load blocked dates — Mathews users have their own closure table
+    const blockedTable = customerType === 'mathews' ? 'mathews_blocked_dates' : 'blocked_dates';
+    const { data: blockedData } = await sb.from(blockedTable).select('date,reason');
     blockedDatesSet = new Set((blockedData || []).map(b => b.date));
     blockedReasonsMap = {};
     (blockedData || []).forEach(b => { blockedReasonsMap[b.date] = b.reason; });

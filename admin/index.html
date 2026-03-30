@@ -337,6 +337,9 @@
   <div class="nav-item" onclick="showSection('closed-days')" id="nav-closed-days">
     <span class="nav-icon">🚫</span> Closed Days
   </div>
+  <div class="nav-item" onclick="showSection('mathews-closed-days')" id="nav-mathews-closed-days">
+    <span class="nav-icon">🏫</span> Mathews Closed Days
+  </div>
 
   <div class="nav-section">Staff & Teams</div>
   <div class="nav-item" onclick="showSection('staff')" id="nav-staff">
@@ -658,6 +661,39 @@
       <table>
         <thead><tr><th>Date</th><th>Day</th><th>Reason</th><th>Added</th><th>Actions</th></tr></thead>
         <tbody id="closed-days-tbody"><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── MATHEWS CLOSED DAYS ── -->
+  <div class="section-panel" id="section-mathews-closed-days">
+    <div class="page-header">
+      <h1>Mathews Closed Days</h1>
+      <p>Block specific M/W/F dates for the Mathews location. Dates are added automatically when you close a Monday, Wednesday, or Friday on the main Closed Days page.</p>
+    </div>
+    <div class="section-header">
+      <div class="section-title">Add Mathews Closed Day</div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin-bottom:2rem;max-width:480px">
+      <div class="form-group" style="margin-bottom:1rem">
+        <label class="form-label">Date <span style="color:var(--gray);font-weight:300;text-transform:none;letter-spacing:0">(Mondays, Wednesdays &amp; Fridays only)</span></label>
+        <input type="text" id="mathews-closed-day-date-input" class="form-input" placeholder="Select a date…" readonly style="cursor:pointer" />
+      </div>
+      <div class="form-group" style="margin-bottom:1rem">
+        <label class="form-label">Reason <span style="color:var(--gray);font-weight:300;text-transform:none;letter-spacing:0">(optional)</span></label>
+        <input type="text" id="mathews-closed-day-reason" class="form-input" placeholder="e.g. School holiday, Teacher workday…" />
+      </div>
+      <button class="btn btn-primary" onclick="addMathewsClosedDay()">+ Block This Day</button>
+      <div id="mathews-closed-day-msg" style="margin-top:0.75rem;font-size:0.82rem;display:none"></div>
+    </div>
+
+    <div class="section-header">
+      <div class="section-title">Upcoming Mathews Blocked Dates</div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Day</th><th>Reason</th><th>Added</th><th>Actions</th></tr></thead>
+        <tbody id="mathews-closed-days-tbody"><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -1408,7 +1444,8 @@ function showSection(id) {
     'sales-report': initSalesReport,
     'product-performance': initProductPerformance,
     'library-split': initLibrarySplit,
-    'closed-days': loadClosedDays,
+    'closed-days': () => { loadClosedDays(); loadMathewsClosedDays(); },
+    'mathews-closed-days': loadMathewsClosedDays,
     reviews: loadReviews,
   };
   if (loaders[id]) loaders[id]();
@@ -3317,15 +3354,20 @@ async function loadClosedDays() {
       <td style="color:var(--gray-mid)">${dayName}</td>
       <td>${r.reason || '<span style="color:var(--gray)">—</span>'}</td>
       <td style="color:var(--gray-mid)">${added}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="removeClosedDay('${r.id}','${displayDate}')">Remove</button></td>
+      <td><button class="btn btn-danger btn-sm" onclick="removeClosedDay('${r.id}','${displayDate}','${r.date}')">Remove</button></td>
     </tr>`;
   }).join('');
+}
+
+function isMathewsDay(dateStr) {
+  // Returns true if the date falls on Monday (1), Wednesday (3), or Friday (5)
+  const d = new Date(dateStr + 'T12:00:00');
+  return [1, 3, 5].includes(d.getDay());
 }
 
 async function addClosedDay() {
   const dateVal = document.getElementById('closed-day-date-input').value;
   const reason  = document.getElementById('closed-day-reason').value.trim();
-  const msgEl   = document.getElementById('closed-day-msg');
 
   if (!dateVal) { showClosedDayMsg('Please select a date.', 'error'); return; }
 
@@ -3335,21 +3377,127 @@ async function addClosedDay() {
     return;
   }
 
+  // Auto-close Mathews when the blocked date falls on a day they operate (M/W/F)
+  let mathewsMsg = '';
+  if (isMathewsDay(dateVal)) {
+    const { error: mErr } = await sb.from('mathews_blocked_dates').insert({ date: dateVal, reason: reason || null });
+    if (mErr && mErr.code !== '23505') {
+      mathewsMsg = ' (Note: could not auto-close Mathews — ' + mErr.message + ')';
+    } else {
+      mathewsMsg = ' Mathews also closed for that day.';
+    }
+  }
+
   closedDayPicker.clear();
   document.getElementById('closed-day-reason').value = '';
-  showClosedDayMsg('Date blocked successfully.', 'success');
+  showClosedDayMsg('Date blocked successfully.' + mathewsMsg, 'success');
   loadClosedDays();
+  loadMathewsClosedDays();
 }
 
-async function removeClosedDay(id, displayDate) {
+async function removeClosedDay(id, displayDate, dateVal) {
   if (!confirm(`Remove the block for ${displayDate}? Customers will be able to order for that day again.`)) return;
   const { error } = await sb.from('blocked_dates').delete().eq('id', id);
   if (error) { alert('Error removing date: ' + error.message); return; }
+  // Also remove from Mathews if it was a M/W/F closure
+  if (dateVal && isMathewsDay(dateVal)) {
+    await sb.from('mathews_blocked_dates').delete().eq('date', dateVal);
+  }
   loadClosedDays();
+  loadMathewsClosedDays();
 }
 
 function showClosedDayMsg(text, type) {
   const el = document.getElementById('closed-day-msg');
+  el.textContent = text;
+  el.style.display = 'block';
+  el.style.color = type === 'error' ? 'var(--danger)' : 'var(--success)';
+  setTimeout(() => { el.style.display = 'none'; }, 4000);
+}
+
+// ════════════════════════════════════
+// Mathews Closed Days
+// ════════════════════════════════════
+let mathewsClosedDayPicker = null;
+
+function initMathewsClosedDayPicker() {
+  if (mathewsClosedDayPicker) return;
+  mathewsClosedDayPicker = flatpickr('#mathews-closed-day-date-input', {
+    minDate: 'today',
+    dateFormat: 'Y-m-d',
+    disableMobile: true,
+    disable: [
+      function(date) { return ![1, 3, 5].includes(date.getDay()); }, // only M/W/F
+    ],
+  });
+}
+
+async function loadMathewsClosedDays() {
+  initMathewsClosedDayPicker();
+  const tbody = document.getElementById('mathews-closed-days-tbody');
+  tbody.innerHTML = '<tr class="loading-row"><td colspan="5">Loading…</td></tr>';
+
+  const { data, error } = await sb
+    .from('mathews_blocked_dates')
+    .select('id,date,reason,created_at')
+    .order('date', { ascending: true });
+
+  if (error) {
+    tbody.innerHTML = `<tr><td colspan="5" style="color:var(--danger);padding:1.5rem">${error.message}</td></tr>`;
+    return;
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const rows = (data || []).filter(r => r.date >= today);
+
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray);padding:2rem">No upcoming Mathews blocked dates.</td></tr>';
+    return;
+  }
+
+  const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  tbody.innerHTML = rows.map(r => {
+    const d = new Date(r.date + 'T12:00:00');
+    const dayName = dayNames[d.getDay()];
+    const displayDate = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    const added = new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return `<tr>
+      <td>${displayDate}</td>
+      <td style="color:var(--gray-mid)">${dayName}</td>
+      <td>${r.reason || '<span style="color:var(--gray)">—</span>'}</td>
+      <td style="color:var(--gray-mid)">${added}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="removeMathewsClosedDay('${r.id}','${displayDate}')">Remove</button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function addMathewsClosedDay() {
+  const dateVal = document.getElementById('mathews-closed-day-date-input').value;
+  const reason  = document.getElementById('mathews-closed-day-reason').value.trim();
+
+  if (!dateVal) { showMathewsClosedDayMsg('Please select a date.', 'error'); return; }
+
+  const { error } = await sb.from('mathews_blocked_dates').insert({ date: dateVal, reason: reason || null });
+  if (error) {
+    showMathewsClosedDayMsg(error.code === '23505' ? 'That date is already blocked.' : error.message, 'error');
+    return;
+  }
+
+  mathewsClosedDayPicker.clear();
+  document.getElementById('mathews-closed-day-reason').value = '';
+  showMathewsClosedDayMsg('Mathews date blocked successfully.', 'success');
+  loadMathewsClosedDays();
+}
+
+async function removeMathewsClosedDay(id, displayDate) {
+  if (!confirm(`Remove the Mathews block for ${displayDate}?`)) return;
+  const { error } = await sb.from('mathews_blocked_dates').delete().eq('id', id);
+  if (error) { alert('Error removing date: ' + error.message); return; }
+  loadMathewsClosedDays();
+}
+
+function showMathewsClosedDayMsg(text, type) {
+  const el = document.getElementById('mathews-closed-day-msg');
   el.textContent = text;
   el.style.display = 'block';
   el.style.color = type === 'error' ? 'var(--danger)' : 'var(--success)';
