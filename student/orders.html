@@ -255,22 +255,22 @@
   // ── Audio alert ────────────────────────────────────────────────────────────
   let audioCtx = null;
   let audioEnabled = true;
-  let knownOrderIds = null; // null on first load; Set<string> thereafter
+  let audioUnlocked = false; // true once user has interacted with the page
+  let knownOrderIds = null;  // null on first load; Set<string> thereafter
 
-  // Unlock AudioContext on first user interaction (browser autoplay policy)
-  document.addEventListener('click', function unlockAudio() {
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    document.removeEventListener('click', unlockAudio);
+  // Unlock AudioContext on first user interaction (browser autoplay policy).
+  // We must create and resume the context here — inside the click handler —
+  // so it's guaranteed to be running before any alert tries to play.
+  document.addEventListener('click', function() {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    audioCtx.resume().then(() => { audioUnlocked = true; });
   }, { once: true });
 
   function playNewOrderAlert() {
-    if (!audioEnabled) return;
+    // Only play if the AudioContext was created and resumed via user interaction.
+    // This prevents notes scheduled during a suspended context from firing later.
+    if (!audioEnabled || !audioUnlocked || !audioCtx) return;
     try {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      if (audioCtx.state === 'suspended') audioCtx.resume();
       // Two-tone rising chime
       [880, 1108].forEach((freq, i) => {
         const osc  = audioCtx.createOscillator();
