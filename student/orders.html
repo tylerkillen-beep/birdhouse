@@ -171,6 +171,7 @@
       <h1 class="page-title">Order Queue</h1>
       <div class="refresh-row">
         <span class="last-updated" id="last-updated-label">—</span>
+        <button class="refresh-btn" id="mute-btn" onclick="toggleAudio()" title="Toggle audio alerts" aria-label="Toggle audio alerts">🔔 Audio On</button>
         <button class="refresh-btn" id="refresh-btn" onclick="loadOrders(true)">↻ Refresh</button>
       </div>
     </div>
@@ -250,6 +251,51 @@
   let filterStatus = 'active';    // 'active' | 'pending' | 'paid' | 'delivered' | 'cancelled' | 'all'
   let filterDate   = todayStr();  // 'YYYY-MM-DD' or null (all dates)
   let pollTimer    = null;
+
+  // ── Audio alert ────────────────────────────────────────────────────────────
+  let audioCtx = null;
+  let audioEnabled = true;
+  let knownOrderIds = null; // null on first load; Set<string> thereafter
+
+  // Unlock AudioContext on first user interaction (browser autoplay policy)
+  document.addEventListener('click', function unlockAudio() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    document.removeEventListener('click', unlockAudio);
+  }, { once: true });
+
+  function playNewOrderAlert() {
+    if (!audioEnabled) return;
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      // Two-tone rising chime
+      [880, 1108].forEach((freq, i) => {
+        const osc  = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        const t = audioCtx.currentTime + i * 0.18;
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(0.28, t + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+        osc.start(t);
+        osc.stop(t + 0.55);
+      });
+    } catch (e) {
+      console.warn('Audio alert failed:', e);
+    }
+  }
+
+  function toggleAudio() {
+    audioEnabled = !audioEnabled;
+    const btn = document.getElementById('mute-btn');
+    btn.textContent = audioEnabled ? '🔔 Audio On' : '🔕 Audio Off';
+  }
 
   function todayStr() {
     return new Date().toISOString().split('T')[0];
@@ -394,7 +440,13 @@
         .limit(500);
 
       if (!error) {
-        allOrders = data || [];
+        const newData = data || [];
+        if (knownOrderIds !== null) {
+          const newOnes = newData.filter(o => !knownOrderIds.has(o.id));
+          if (newOnes.length > 0) playNewOrderAlert();
+        }
+        knownOrderIds = new Set(newData.map(o => o.id));
+        allOrders = newData;
       }
     } catch (e) {
       console.error('Failed to fetch orders:', e);
