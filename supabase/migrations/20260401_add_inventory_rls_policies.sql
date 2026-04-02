@@ -35,11 +35,20 @@ for all
 using (public.is_owner_or_staff())
 with check (public.is_owner_or_staff());
 
--- inventory_log: staff can insert audit entries and read the full log.
-create policy inventory_log_staff_insert_policy
+-- inventory: any authenticated user (student/staff) can update existing items
+-- (quantity, par_level counts). Inserts and deletes remain staff-only above.
+create policy inventory_authenticated_update_policy
+on public.inventory
+for update
+using (auth.uid() is not null)
+with check (auth.uid() is not null);
+
+-- inventory_log: any authenticated user can insert audit entries (needed when
+-- students save a count); only staff can read the full log.
+create policy inventory_log_authenticated_insert_policy
 on public.inventory_log
 for insert
-with check (public.is_owner_or_staff());
+with check (auth.uid() is not null);
 
 create policy inventory_log_staff_select_policy
 on public.inventory_log
