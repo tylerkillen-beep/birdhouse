@@ -274,6 +274,13 @@
         if (email.endsWith('@nixaschools.net')) {
           await checkTeacherLocation(session);
         } else {
+          const user = session.user;
+          const meta = user.user_metadata || {};
+          await sb.from('profiles').upsert({
+            id:        user.id,
+            email:     user.email,
+            full_name: [meta.first_name, meta.last_name].filter(Boolean).join(' ') || user.email,
+          }, { onConflict: 'id' });
           window.location.href = getPostLoginDestination();
         }
       }
