@@ -3373,6 +3373,7 @@ function renderInvGrid() {
       ${item.notes ? `<div style="font-size:0.72rem;color:var(--gray);margin-bottom:0.5rem">📝 ${item.notes}</div>` : ''}
       <div style="font-size:0.7rem;color:var(--gray);margin-bottom:0.6rem;display:flex;flex-direction:column;gap:0.15rem">
         <span>📅 Last ordered: ${item.last_ordered_at ? new Date(item.last_ordered_at + 'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'}</span>
+        ${item.ordered_quantity ? `<span style="color:#60a5fa">📦 On order: ${item.ordered_quantity} ${item.unit}</span>` : ''}
         <span>🚚 Expected arrival: ${item.expected_arrival ? new Date(item.expected_arrival + 'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'}</span>
       </div>
       <div style="border-top:1px solid var(--border-dim);padding-top:0.6rem;margin-bottom:0.5rem">
@@ -3420,7 +3421,7 @@ async function logInvOrder(id, name, currentQty) {
   if (orderQty <= 0) { alert('Please enter the quantity ordered.'); return; }
   const changedByName = document.getElementById('admin-name').textContent || 'Admin';
   const today = new Date().toISOString().split('T')[0];
-  await sb.from('inventory').update({ last_ordered_at: today, expected_arrival: expectedArrival, updated_at: new Date().toISOString() }).eq('id', id);
+  await sb.from('inventory').update({ last_ordered_at: today, expected_arrival: expectedArrival, ordered_quantity: orderQty, updated_at: new Date().toISOString() }).eq('id', id);
   await sb.from('inventory_log').insert({
     inventory_id: id, item_name: name,
     previous_quantity: currentQty, new_quantity: currentQty, change_amount: orderQty,

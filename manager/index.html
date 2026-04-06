@@ -463,7 +463,7 @@ function renderInventory(){
       </div>
       <div style="font-size:0.7rem;color:var(--gray);margin-top:0.35rem">Par: ${item.par_level} ${item.unit}</div>
       ${item.notes?`<div style="font-size:0.7rem;color:var(--gray);margin-top:0.25rem">📝 ${item.notes}</div>`:''}
-      <div class="inv-order-info"><span>📅 Last ordered: ${fmtDate(item.last_ordered_at)}</span><span>🚚 Expected arrival: ${fmtDate(item.expected_arrival)}</span></div>
+      <div class="inv-order-info"><span>📅 Last ordered: ${fmtDate(item.last_ordered_at)}</span>${item.ordered_quantity?`<span style="color:#60a5fa">📦 On order: ${item.ordered_quantity} ${item.unit}</span>`:''}<span>🚚 Expected arrival: ${fmtDate(item.expected_arrival)}</span></div>
       <div style="border-top:1px solid var(--border-dim);padding-top:0.6rem;margin-top:0.5rem">
         <div style="font-size:0.62rem;color:var(--gray);text-transform:uppercase;letter-spacing:0.08em;font-weight:600;margin-bottom:0.45rem">Log Order</div>
         <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.4rem">
@@ -501,7 +501,7 @@ async function logInvOrder(id,name,currentQty){
   if(orderQty<=0){alert('Please enter the quantity ordered.');return;}
   const managerName=(currentUser.user_metadata?.first_name||'')+' '+(currentUser.user_metadata?.last_name||'');
   const today=new Date().toISOString().split('T')[0];
-  await sb.from('inventory').update({last_ordered_at:today,expected_arrival:expectedArrival,updated_at:new Date().toISOString()}).eq('id',id);
+  await sb.from('inventory').update({last_ordered_at:today,expected_arrival:expectedArrival,ordered_quantity:orderQty,updated_at:new Date().toISOString()}).eq('id',id);
   await sb.from('inventory_log').insert({inventory_id:id,item_name:name,previous_quantity:currentQty,new_quantity:currentQty,change_amount:orderQty,change_type:'order',changed_by_id:currentUser.id,changed_by_name:managerName});
   const m=document.getElementById('inv-msg');m.textContent=`✓ Order logged for ${name} (${orderQty})`;m.className='msg success';m.style.display='block';
   setTimeout(()=>{m.style.display='none';},2500);
