@@ -3371,12 +3371,26 @@ function renderInvGrid() {
         ${item.unit}
       </div>
       ${item.notes ? `<div style="font-size:0.72rem;color:var(--gray);margin-bottom:0.5rem">📝 ${item.notes}</div>` : ''}
-      <div style="font-size:0.7rem;color:var(--gray);margin-bottom:0.5rem;display:flex;flex-direction:column;gap:0.15rem">
+      <div style="font-size:0.7rem;color:var(--gray);margin-bottom:0.6rem;display:flex;flex-direction:column;gap:0.15rem">
         <span>📅 Last ordered: ${item.last_ordered_at ? new Date(item.last_ordered_at + 'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'}</span>
         <span>🚚 Expected arrival: ${item.expected_arrival ? new Date(item.expected_arrival + 'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'}</span>
       </div>
+      <div style="border-top:1px solid var(--border-dim);padding-top:0.6rem;margin-bottom:0.5rem">
+        <div style="font-size:0.62rem;color:var(--gray);text-transform:uppercase;letter-spacing:0.08em;font-weight:600;margin-bottom:0.45rem">Log Order</div>
+        <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.4rem">
+          <input type="number" id="inv-ord-qty-${item.id}" placeholder="Qty ordered" min="0" step="0.5"
+            style="flex:1;background:#0d0d0d;border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.78rem;padding:0.35rem 0.5rem;outline:none" />
+          <span style="font-size:0.72rem;color:var(--gray);white-space:nowrap">${item.unit}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.45rem">
+          <label style="font-size:0.7rem;color:var(--gray);white-space:nowrap">Expected arrival:</label>
+          <input type="date" id="inv-ord-date-${item.id}"
+            style="flex:1;background:#0d0d0d;border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.72rem;padding:0.3rem 0.45rem;outline:none;color-scheme:dark" />
+        </div>
+        <button class="btn btn-primary btn-sm" style="width:100%" onclick="logInvOrder('${item.id}','${item.name.replace(/'/g,"\\'")}',${item.quantity})">Log Order</button>
+      </div>
       <div class="inv-actions">
-        <button class="btn btn-primary btn-sm" style="flex:1" onclick="saveInvItem('${item.id}','${item.name.replace(/'/g,"\\'")}',${item.quantity})">Save Count</button>
+        <button class="btn btn-ghost btn-sm" style="flex:1" onclick="saveInvItem('${item.id}','${item.name.replace(/'/g,"\\'")}',${item.quantity})">Save Count</button>
         <button class="btn btn-ghost btn-sm" onclick="openEditInvItemModal('${item.id}')">✏️ Edit</button>
         <button class="btn btn-danger btn-sm" onclick="deleteInvItem('${item.id}','${item.name.replace(/'/g,"\\'")}')">🗑</button>
       </div>
@@ -3396,6 +3410,21 @@ async function saveInvItem(id, name, prevQty) {
     inventory_id: id, item_name: name,
     previous_quantity: prevQty, new_quantity: newQty, change_amount: change,
     change_type: changeType, changed_by_id: currentUser.id, changed_by_name: changedByName,
+  });
+  loadInventory();
+}
+
+async function logInvOrder(id, name, currentQty) {
+  const orderQty = parseFloat(document.getElementById('inv-ord-qty-' + id).value) || 0;
+  const expectedArrival = document.getElementById('inv-ord-date-' + id).value || null;
+  if (orderQty <= 0) { alert('Please enter the quantity ordered.'); return; }
+  const changedByName = document.getElementById('admin-name').textContent || 'Admin';
+  const today = new Date().toISOString().split('T')[0];
+  await sb.from('inventory').update({ last_ordered_at: today, expected_arrival: expectedArrival, updated_at: new Date().toISOString() }).eq('id', id);
+  await sb.from('inventory_log').insert({
+    inventory_id: id, item_name: name,
+    previous_quantity: currentQty, new_quantity: currentQty, change_amount: orderQty,
+    change_type: 'order', changed_by_id: currentUser.id, changed_by_name: changedByName,
   });
   loadInventory();
 }
@@ -3475,7 +3504,7 @@ async function loadInvLog() {
     body.innerHTML = '<div style="color:var(--gray);font-size:0.82rem;padding:1.25rem">No changes logged yet.</div>';
     return;
   }
-  const typeLabel = { restock: 'Restocked', usage: 'Used', adjustment: 'Adjusted', count: 'Count update' };
+  const typeLabel = { restock: 'Restocked', usage: 'Used', adjustment: 'Adjusted', count: 'Count update', order: 'Order placed' };
   body.innerHTML = data.map(row => {
     const change = row.change_amount;
     const sign = change > 0 ? '+' : '';
