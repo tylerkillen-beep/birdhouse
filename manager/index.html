@@ -450,7 +450,6 @@ function renderInventory(){
     const bc=st==='ok'?'#4caf50':st==='low'?'#ff9800':'#cc0000';
     const safeN=item.name.replace(/'/g,"\\'");
     const fmtDate=d=>d?new Date(d+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—';
-    const orderInfo=`<div class="inv-order-info"><span>📅 Last ordered: ${fmtDate(item.last_ordered_at)}</span><span>🚚 Expected arrival: ${fmtDate(item.expected_arrival)}</span></div>`;
     return `<div class="inv-card ${st}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.4rem">
         <div><div style="font-weight:500;font-size:0.92rem">${item.name}</div><div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray)">${CAT[item.category]||item.category}</div></div>
@@ -460,11 +459,25 @@ function renderInventory(){
       <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.4rem">
         <input class="inv-qty-input" type="number" id="inv-${item.id}" value="${item.quantity}" min="0" step="0.5"/>
         <span style="font-size:0.78rem;color:var(--gray)">${item.unit}</span>
-        <button class="inv-save-btn" onclick="saveInv('${item.id}','${safeN}',${item.quantity})">Save</button>
+        <button class="inv-save-btn" onclick="saveInv('${item.id}','${safeN}',${item.quantity})">Save Count</button>
       </div>
       <div style="font-size:0.7rem;color:var(--gray);margin-top:0.35rem">Par: ${item.par_level} ${item.unit}</div>
       ${item.notes?`<div style="font-size:0.7rem;color:var(--gray);margin-top:0.25rem">📝 ${item.notes}</div>`:''}
-      ${orderInfo}
+      <div class="inv-order-info"><span>📅 Last ordered: ${fmtDate(item.last_ordered_at)}</span><span>🚚 Expected arrival: ${fmtDate(item.expected_arrival)}</span></div>
+      <div style="border-top:1px solid var(--border-dim);padding-top:0.6rem;margin-top:0.5rem">
+        <div style="font-size:0.62rem;color:var(--gray);text-transform:uppercase;letter-spacing:0.08em;font-weight:600;margin-bottom:0.45rem">Log Order</div>
+        <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.4rem">
+          <input type="number" id="inv-ord-qty-${item.id}" placeholder="Qty ordered" min="0" step="0.5"
+            style="flex:1;background:#0d0d0d;border:1px solid var(--border-dim);border-radius:6px;color:var(--white);font-family:'DM Sans',sans-serif;font-size:0.78rem;padding:0.35rem 0.5rem;outline:none" />
+          <span style="font-size:0.72rem;color:var(--gray);white-space:nowrap">${item.unit}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.45rem">
+          <label style="font-size:0.7rem;color:var(--gray);white-space:nowrap">Expected arrival:</label>
+          <input type="date" id="inv-ord-date-${item.id}"
+            style="flex:1;background:#0d0d0d;border:1px solid var(--border-dim);border-radius:6px;color:var(--white);font-family:'DM Sans',sans-serif;font-size:0.72rem;padding:0.3rem 0.45rem;outline:none;color-scheme:dark" />
+        </div>
+        <button class="inv-save-btn" style="width:100%;background:var(--red)" onclick="logInvOrder('${item.id}','${safeN}',${item.quantity})">Log Order</button>
+      </div>
       <div class="inv-actions">
         <button class="btn btn-ghost btn-sm" style="flex:1" onclick="openEditInvModal('${item.id}')">✏️ Edit</button>
         <button class="btn btn-danger btn-sm" onclick="deleteInvItem('${item.id}','${safeN}')">🗑</button>
@@ -479,6 +492,18 @@ async function saveInv(id,name,prev){
   await sb.from('inventory').update({quantity:newQty,updated_at:new Date().toISOString()}).eq('id',id);
   await sb.from('inventory_log').insert({inventory_id:id,item_name:name,previous_quantity:prev,new_quantity:newQty,change_amount:change,change_type:change>0?'restock':change<0?'usage':'count',changed_by_id:currentUser.id,changed_by_name:managerName});
   const m=document.getElementById('inv-msg');m.textContent=`✓ ${name} updated to ${newQty}`;m.className='msg success';m.style.display='block';
+  setTimeout(()=>{m.style.display='none';},2500);
+  loadInventory();
+}
+async function logInvOrder(id,name,currentQty){
+  const orderQty=parseFloat(document.getElementById('inv-ord-qty-'+id).value)||0;
+  const expectedArrival=document.getElementById('inv-ord-date-'+id).value||null;
+  if(orderQty<=0){alert('Please enter the quantity ordered.');return;}
+  const managerName=(currentUser.user_metadata?.first_name||'')+' '+(currentUser.user_metadata?.last_name||'');
+  const today=new Date().toISOString().split('T')[0];
+  await sb.from('inventory').update({last_ordered_at:today,expected_arrival:expectedArrival,updated_at:new Date().toISOString()}).eq('id',id);
+  await sb.from('inventory_log').insert({inventory_id:id,item_name:name,previous_quantity:currentQty,new_quantity:currentQty,change_amount:orderQty,change_type:'order',changed_by_id:currentUser.id,changed_by_name:managerName});
+  const m=document.getElementById('inv-msg');m.textContent=`✓ Order logged for ${name} (${orderQty})`;m.className='msg success';m.style.display='block';
   setTimeout(()=>{m.style.display='none';},2500);
   loadInventory();
 }
