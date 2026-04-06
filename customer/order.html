@@ -54,7 +54,7 @@
     .page-title { font-family:'Bebas Neue',sans-serif; font-size:2.5rem; letter-spacing:0.04em; margin-bottom:0.4rem; }
     .page-sub { color:var(--light-gray); font-size:0.88rem; margin-bottom:2rem; line-height:1.6; }
 
-    .steps { display:flex; align-items:center; margin-bottom:2.5rem; }
+    .steps { display:flex; align-items:center; margin-bottom:2.5rem; list-style:none; padding:0; }
     .step { display:flex; align-items:center; gap:0.6rem; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--gray); white-space:nowrap; }
     .step.active { color:var(--red-bright); }
     .step.done { color:var(--light-gray); }
@@ -231,13 +231,13 @@
 <body>
 <div class="mobile-topbar">
   <a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a>
-  <button class="hamburger" id="hamburger-btn" onclick="toggleNav()" aria-label="Menu">
+  <button class="hamburger" id="hamburger-btn" onclick="toggleNav()" aria-label="Menu" aria-expanded="false">
     <span></span><span></span><span></span>
   </button>
 </div>
-<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleNav()"></div>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleNav()" aria-hidden="true"></div>
 <div class="layout">
-  <aside class="sidebar">
+  <aside class="sidebar" aria-label="Customer portal navigation">
     <div class="sidebar-logo"><a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a></div>
     <div class="user-card" id="user-card">
       <div class="user-name" id="user-display-name">Loading...</div>
@@ -259,13 +259,13 @@
     <h1 class="page-title">Place an Order</h1>
     <p class="page-sub">Add drinks to your cart, then fill in delivery details and pay.</p>
 
-    <div class="steps">
-      <div class="step active" id="step-ind-1"><div class="step-num">1</div> Build Cart</div>
-      <div class="step-line"></div>
-      <div class="step" id="step-ind-2"><div class="step-num">2</div> Order Info</div>
-      <div class="step-line"></div>
-      <div class="step" id="step-ind-3"><div class="step-num">3</div> Payment</div>
-    </div>
+    <ol class="steps" aria-label="Order steps">
+      <li class="step active" id="step-ind-1" aria-current="step"><div class="step-num" aria-hidden="true">1</div> Build Cart</li>
+      <li class="step-line" aria-hidden="true"></li>
+      <li class="step" id="step-ind-2"><div class="step-num" aria-hidden="true">2</div> Order Info</li>
+      <li class="step-line" aria-hidden="true"></li>
+      <li class="step" id="step-ind-3"><div class="step-num" aria-hidden="true">3</div> Payment</li>
+    </ol>
 
     <!-- Step 1: Menu -->
     <div class="step-panel active" id="panel-1">
@@ -368,21 +368,21 @@
 </div>
 
 <!-- Reviews Popup Modal -->
-<div class="reviews-overlay" id="reviews-overlay" onclick="if(event.target===this)closeReviewsModal()">
+<div class="reviews-overlay" id="reviews-overlay" role="dialog" aria-modal="true" aria-labelledby="reviews-modal-title" onclick="if(event.target===this)closeReviewsModal()">
   <div class="reviews-modal">
     <div class="reviews-modal-header">
       <div>
         <div class="reviews-modal-title" id="reviews-modal-title">Reviews</div>
         <div class="reviews-modal-avg" id="reviews-modal-avg"></div>
       </div>
-      <button class="reviews-modal-close" onclick="closeReviewsModal()">✕</button>
+      <button class="reviews-modal-close" onclick="closeReviewsModal()" aria-label="Close reviews">✕</button>
     </div>
     <div class="reviews-list" id="reviews-list"></div>
   </div>
 </div>
 
 <!-- Modifier Selection Modal -->
-<div class="mod-overlay" id="mod-overlay">
+<div class="mod-overlay" id="mod-overlay" role="dialog" aria-modal="true" aria-labelledby="mod-title">
   <div class="mod-modal">
     <div class="mod-modal-title" id="mod-title">Customize</div>
     <div class="mod-modal-price" id="mod-base-price"></div>
@@ -406,6 +406,7 @@
     sidebar.classList.toggle('open');
     overlay.classList.toggle('open');
     hamburger.classList.toggle('open');
+    hamburger.setAttribute('aria-expanded', sidebar.classList.contains('open') ? 'true' : 'false');
   }
 
   const SUPABASE_URL  = 'https://ljukrhneikqbabcmcpet.supabase.co';
@@ -1263,8 +1264,9 @@
     for (let i = 1; i <= 3; i++) {
       const el = document.getElementById('step-ind-' + i);
       if (!el) continue;
-      if (active === 'success') { el.className = 'step done'; continue; }
+      if (active === 'success') { el.className = 'step done'; el.removeAttribute('aria-current'); continue; }
       el.className = 'step' + (i === active ? ' active' : i < active ? ' done' : '');
+      if (i === active) { el.setAttribute('aria-current', 'step'); } else { el.removeAttribute('aria-current'); }
     }
   }
 

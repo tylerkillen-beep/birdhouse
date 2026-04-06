@@ -60,7 +60,7 @@
       border-bottom: 1px solid var(--border);
     }
     .menu-category-icon { font-size: 1.1rem; }
-    .menu-category-name { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 0.06em; color: var(--white); }
+    .menu-category-name { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 0.06em; color: var(--white); font-weight: normal; margin: 0; }
     .menu-category-count { font-size: 0.7rem; color: var(--gray); letter-spacing: 0.1em; margin-left: auto; }
     .menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
     .menu-item-card {
@@ -166,7 +166,7 @@
               <div class="menu-category">
                 <div class="menu-category-header">
                   <span class="menu-category-icon" aria-hidden="true">${c.icon}</span>
-                  <span class="menu-category-name">${c.title}</span>
+                  <h2 class="menu-category-name">${c.title}</h2>
                   <span class="menu-category-count">${groups[c.key].length} item${groups[c.key].length !== 1 ? 's' : ''}</span>
                 </div>
                 <div class="menu-grid">

@@ -310,11 +310,11 @@
 
 <div class="mobile-topbar">
   <a class="mobile-topbar-brand" href="../index.html">🏠 BIRDHOUSE</a>
-  <button class="hamburger" id="hamburger-btn" onclick="toggleNav()" aria-label="Menu">
+  <button class="hamburger" id="hamburger-btn" onclick="toggleNav()" aria-label="Menu" aria-expanded="false">
     <span></span><span></span><span></span>
   </button>
 </div>
-<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleNav()"></div>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleNav()" aria-hidden="true"></div>
 
 <!-- ══════════════ SIDEBAR ══════════════ -->
 <nav id="sidebar">
@@ -1507,6 +1507,7 @@ function toggleNav() {
   sidebar.classList.toggle('open');
   overlay.classList.toggle('open');
   hamburger.classList.toggle('open');
+  hamburger.setAttribute('aria-expanded', sidebar.classList.contains('open') ? 'true' : 'false');
 }
 function closeNav() {
   document.getElementById('sidebar').classList.remove('open');

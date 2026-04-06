@@ -29,6 +29,7 @@
     .user-points { font-size: 0.72rem; color: var(--red-bright); margin-top: 0.25rem; letter-spacing: 0.05em; }
     nav { flex: 1; }
     .nav-item { display: flex; align-items: center; gap: 0.7rem; padding: 0.7rem 0.9rem; border-radius: 7px; color: var(--gray); font-size: 0.85rem; text-decoration: none; cursor: pointer; transition: all 0.2s; margin-bottom: 0.2rem; border: 1px solid transparent; }
+    button.nav-item { background: none; width: 100%; text-align: left; font-family: 'DM Sans', sans-serif; }
     .nav-item:hover { color: var(--white); background: rgba(255,255,255,0.04); }
     .nav-item.active { background: rgba(204,0,0,0.12); color: var(--red-bright); border-color: rgba(204,0,0,0.25); }
     .signout-btn { background: none; border: 1px solid rgba(255,255,255,0.08); border-radius: 7px; padding: 0.65rem 1rem; color: var(--gray); font-size: 0.8rem; cursor: pointer; width: 100%; text-align: left; transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem; font-family: 'DM Sans', sans-serif; }
@@ -121,7 +122,7 @@
     .confirm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; display: none; align-items: center; justify-content: center; }
     .confirm-overlay.open { display: flex; }
     .confirm-modal { background: #111; border: 1px solid var(--border); border-radius: 16px; padding: 2rem; width: 400px; max-width: 90%; }
-    .confirm-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; letter-spacing: 0.04em; margin-bottom: 0.5rem; }
+    .confirm-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; letter-spacing: 0.04em; margin-bottom: 0.5rem; font-weight: normal; }
     .confirm-body  { font-size: 0.88rem; color: var(--light-gray); line-height: 1.6; margin-bottom: 1.5rem; }
     .confirm-btns  { display: flex; gap: 0.75rem; }
 
@@ -157,11 +158,11 @@
 <body>
 <div class="mobile-topbar">
   <a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a>
-  <button class="hamburger" id="hamburger-btn" onclick="toggleNav()" aria-label="Menu">
+  <button class="hamburger" id="hamburger-btn" onclick="toggleNav()" aria-label="Menu" aria-expanded="false">
     <span></span><span></span><span></span>
   </button>
 </div>
-<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleNav()"></div>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleNav()" aria-hidden="true"></div>
 <div class="layout">
   <aside class="sidebar" aria-label="Customer portal navigation">
     <div class="sidebar-logo"><a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a></div>
@@ -170,11 +171,11 @@
       <div class="user-points" id="user-points-badge">$0.00 toward Birdhouse Bucks</div>
     </div>
     <nav aria-label="Customer portal">
-      <a class="nav-item active" onclick="showSection('overview',this)">📊 Overview</a>
+      <button class="nav-item active" onclick="showSection('overview',this)">📊 Overview</button>
       <a class="nav-item" href="order.html">☕ Place an Order</a>
       <a class="nav-item" href="orders.html">📋 Order History</a>
-      <a class="nav-item" onclick="showSection('subscription',this)">📦 My Subscription</a>
-      <a class="nav-item" onclick="showSection('loyalty',this)">⭐ Birdhouse Bucks</a>
+      <button class="nav-item" onclick="showSection('subscription',this)">📦 My Subscription</button>
+      <button class="nav-item" onclick="showSection('loyalty',this)">⭐ Birdhouse Bucks</button>
     </nav>
     <button class="signout-btn" onclick="signOut()">← Sign Out</button>
   </aside>
@@ -266,9 +267,9 @@
 </div>
 
 <!-- Confirm dialog (pause / cancel) -->
-<div class="confirm-overlay" id="confirm-overlay">
+<div class="confirm-overlay" id="confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-body">
   <div class="confirm-modal">
-    <div class="confirm-title" id="confirm-title">Are you sure?</div>
+    <h2 class="confirm-title" id="confirm-title">Are you sure?</h2>
     <div class="confirm-body"  id="confirm-body">This action cannot be undone.</div>
     <div class="confirm-btns">
       <button class="btn-ghost"   style="flex:1" onclick="closeConfirm()">Cancel</button>
@@ -598,7 +599,11 @@
     const btn = document.getElementById('confirm-action-btn');
     btn.textContent = isCancel ? 'Yes, Cancel' : 'Yes, Pause';
     btn.onclick = () => isCancel ? cancelSubscription() : pauseSubscription();
-    document.getElementById('confirm-overlay').classList.add('open');
+    const overlay = document.getElementById('confirm-overlay');
+    overlay.classList.add('open');
+    // Move focus into modal for keyboard/screen reader users
+    const firstBtn = overlay.querySelector('button');
+    if (firstBtn) firstBtn.focus();
   }
 
   function closeConfirm() {
@@ -686,11 +691,14 @@
     sidebar.classList.toggle('open');
     overlay.classList.toggle('open');
     hamburger.classList.toggle('open');
+    hamburger.setAttribute('aria-expanded', sidebar.classList.contains('open') ? 'true' : 'false');
   }
   function closeNav() {
     document.querySelector('.sidebar').classList.remove('open');
     document.getElementById('sidebar-overlay').classList.remove('open');
-    document.getElementById('hamburger-btn').classList.remove('open');
+    const hamburger = document.getElementById('hamburger-btn');
+    hamburger.classList.remove('open');
+    hamburger.setAttribute('aria-expanded', 'false');
   }
 
   // ── Navigation ────────────────────────────────────────────────────────────
@@ -711,6 +719,9 @@
 
   document.getElementById('confirm-overlay').addEventListener('click', function(e) {
     if (e.target === this) closeConfirm();
+  });
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && document.getElementById('confirm-overlay').classList.contains('open')) closeConfirm();
   });
 
   async function signOut() { await sb.auth.signOut(); window.location.href = 'index.html'; }

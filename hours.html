@@ -43,13 +43,13 @@
     .hours-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(3rem, 6vw, 5rem); line-height: 1; letter-spacing: 0.03em; margin-bottom: 0.5rem; }
     .hours-subtitle { font-size: 1rem; color: var(--light-gray); font-weight: 300; margin-bottom: 3rem; }
 
-    .hours-cards { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+    .hours-cards { display: flex; gap: 1.5rem; flex-wrap: wrap; margin: 0; padding: 0; }
     .hours-card {
       background: var(--card); border: 1px solid var(--border); border-radius: 14px;
       padding: 2rem 2.5rem; text-align: center; min-width: 160px; flex: 1; max-width: 220px;
     }
-    .hours-card-label { font-size: 0.63rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gray); margin-bottom: 0.5rem; }
-    .hours-card-time { font-family: 'Bebas Neue', sans-serif; font-size: 2.2rem; color: var(--white); letter-spacing: 0.05em; }
+    .hours-card-label { font-size: 0.63rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gray); margin-bottom: 0.5rem; margin-left: 0; }
+    .hours-card-time { font-family: 'Bebas Neue', sans-serif; font-size: 2.2rem; color: var(--white); letter-spacing: 0.05em; margin-left: 0; }
 
     .hours-note {
       margin-top: 3rem; padding: 1.25rem 1.5rem;
@@ -89,16 +89,16 @@
       <h1 class="hours-title">Monday – Friday</h1>
       <p class="hours-subtitle">During school hours · Closed on weekends &amp; breaks</p>
 
-      <div class="hours-cards" aria-label="Opening and closing times">
+      <dl class="hours-cards">
         <div class="hours-card">
-          <div class="hours-card-label">Opens</div>
-          <div class="hours-card-time">7:30 AM</div>
+          <dt class="hours-card-label">Opens</dt>
+          <dd class="hours-card-time">7:30 AM</dd>
         </div>
         <div class="hours-card">
-          <div class="hours-card-label">Last Order</div>
-          <div class="hours-card-time">1:30 PM</div>
+          <dt class="hours-card-label">Last Order</dt>
+          <dd class="hours-card-time">1:30 PM</dd>
         </div>
-      </div>
+      </dl>
 
       <div class="hours-note">
         <strong>Heads up:</strong> Hours may vary on early release days, school events, or holidays. Follow us for any same-day changes.

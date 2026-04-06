@@ -141,11 +141,11 @@
 <body>
 <div class="mobile-topbar">
   <a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a>
-  <button class="hamburger" id="hamburger-btn" onclick="toggleNav()" aria-label="Menu">
+  <button class="hamburger" id="hamburger-btn" onclick="toggleNav()" aria-label="Menu" aria-expanded="false">
     <span></span><span></span><span></span>
   </button>
 </div>
-<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleNav()"></div>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleNav()" aria-hidden="true"></div>
 <div class="layout">
   <aside class="sidebar" aria-label="Team hub navigation">
     <div class="sidebar-logo"><a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a></div>
@@ -211,12 +211,12 @@
       <div class="filter-row">
         <span class="filter-label">Date</span>
         <div class="date-controls">
-          <button class="date-nav-btn" onclick="shiftDate(-1)" title="Previous day">‹</button>
-          <button class="date-display-btn" id="date-display-btn" onclick="openDatePicker()">
+          <button class="date-nav-btn" onclick="shiftDate(-1)" title="Previous day" aria-label="Previous day">‹</button>
+          <button class="date-display-btn" id="date-display-btn" onclick="openDatePicker()" aria-label="Select date">
             <span id="date-display-label">Today</span>
-            <input type="date" id="date-picker-input" onchange="onDatePickerChange(this.value)" />
+            <input type="date" id="date-picker-input" onchange="onDatePickerChange(this.value)" aria-label="Date picker" />
           </button>
-          <button class="date-nav-btn" onclick="shiftDate(1)" title="Next day">›</button>
+          <button class="date-nav-btn" onclick="shiftDate(1)" title="Next day" aria-label="Next day">›</button>
           <button class="filter-pill" id="all-dates-pill" onclick="setAllDates()" style="margin-left:0.25rem">All Dates</button>
         </div>
       </div>
@@ -340,6 +340,7 @@
     sidebar.classList.toggle('open');
     overlay.classList.toggle('open');
     hamburger.classList.toggle('open');
+    hamburger.setAttribute('aria-expanded', sidebar.classList.contains('open') ? 'true' : 'false');
   }
 
   async function signOut() {
