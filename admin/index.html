@@ -3410,7 +3410,8 @@ async function schedSavePositions() {
       if (pos) rows.push({ assignment_id: assignmentId, student_id: s.id, shift_date: dateStr, position: pos });
     });
   });
-  await sb.from('daily_positions').upsert(rows, { onConflict: 'student_id,shift_date' });
+  const { error } = await sb.from('daily_positions').upsert(rows, { onConflict: 'student_id,shift_date' });
+  if (error) { schedShowMsg(`Error saving positions: ${error.message}`, 'error'); return; }
   await schedLoadPositionSummary(schedGetMonday(schedWeekOffset));
   schedRenderPeriods();
   schedClosePosModal();
