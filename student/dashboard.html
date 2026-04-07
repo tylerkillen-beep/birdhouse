@@ -735,7 +735,7 @@
     menu:     {icon:'📋', label:'Menu Planning',  desc:'Prepping next week\'s menu · In class all week', days:[], color:'#cc8800'},
     inclass:  {icon:'📚', label:'In Class',       desc:'Classroom activities all week', days:[], color:'#6600cc'},
   };
-  const POS_LABELS = {cashier:'Cashier',barista:'Barista',stocker:'Stocker',custodian:'Custodian',deliverer:'Deliverer'};
+  const POS_LABELS = {cashier:'Cashier',barista:'Barista',stocker:'Stocker',custodian:'Custodian',deliverer:'Deliverer',front_desk:'Front Desk'};
 
   let scheduleWeekOffset = 0;
 
@@ -1540,6 +1540,22 @@
           { text: 'Sweep floors', subs: [] },
           { text: 'Wash dirty dishes', subs: [] },
           { text: 'Clean Freezer', subs: ['Pull everything out','Clean spills','Wipe down interior','Use rag to dry everything','Restock — newest in bottom'] },
+        ]
+      }
+    },
+    front_desk: {
+      label: 'Front Desk', focus: 'Customer Flow',
+      desc: 'Manage the line at the front door, control the flow of customers into the library, and hand out ticket numbers so customers can join the ordering queue in an orderly fashion.',
+      tasks: {
+        default: [
+          { text: 'Set up ticket number system before service begins', subs: ['Confirm tickets are available and in order','Establish a clear starting number for the day'] },
+          { text: 'Position yourself at the front door entrance', subs: [] },
+          { text: 'Greet each customer as they arrive', subs: [] },
+          { text: 'Hand each customer a ticket number for the ordering queue', subs: [] },
+          { text: 'Regulate the flow — only allow customers in when there is space', subs: [] },
+          { text: 'Keep the line organized and orderly outside the door', subs: [] },
+          { text: 'Communicate wait times to customers when possible', subs: [] },
+          { text: 'Notify cashier when the next ticket number should be called', subs: [] },
         ]
       }
     }
