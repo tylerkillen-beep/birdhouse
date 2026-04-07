@@ -3074,9 +3074,10 @@ const SCHED_ROLES = [
   { key:'menu',      label:'Menu Prep', icon:'📋', days:'In Class',  hasPositions:false },
   { key:'inclass',   label:'In Class',  icon:'📚', days:'All week',  hasPositions:false },
 ];
-const BIRDHOUSE_POSITIONS = ['cashier','barista','stocker','custodian'];
-const MATHEWS_POSITIONS   = ['deliverer','barista','stocker','custodian'];
-const POSITION_LABELS     = { cashier:'Cashier', barista:'Barista', stocker:'Stocker', custodian:'Custodian', deliverer:'Deliverer' };
+const BIRDHOUSE_POSITIONS      = ['cashier','barista','stocker','custodian'];
+const BIRDHOUSE_POSITIONS_6TH  = ['cashier','barista','stocker','custodian','front_desk'];
+const MATHEWS_POSITIONS        = ['deliverer','barista','stocker','custodian'];
+const POSITION_LABELS          = { cashier:'Cashier', barista:'Barista', stocker:'Stocker', custodian:'Custodian', deliverer:'Deliverer', front_desk:'Front Desk' };
 
 let schedWeekOffset  = 0;
 let schedTeams       = [];
@@ -3349,7 +3350,8 @@ async function schedOpenPosModal(teamId, roleKey, e) {
   const posMap = {};
   (existing||[]).forEach(p => { posMap[`${p.student_id}_${p.shift_date}`] = p.position; });
 
-  const posSet = roleKey === 'mathews' ? MATHEWS_POSITIONS : BIRDHOUSE_POSITIONS;
+  const posSet = roleKey === 'mathews' ? MATHEWS_POSITIONS
+    : (team.period === '6th Hour' ? BIRDHOUSE_POSITIONS_6TH : BIRDHOUSE_POSITIONS);
 
   if (!existing?.length) {
     const numStudents = students.length;
@@ -3433,7 +3435,8 @@ async function schedAutoAssignPositions(teamId, roleKey, monday) {
     .in('student_id', students.map(s => s.id));
   if (existing?.length) return;
 
-  const posSet = roleKey === 'mathews' ? MATHEWS_POSITIONS : BIRDHOUSE_POSITIONS;
+  const posSet = roleKey === 'mathews' ? MATHEWS_POSITIONS
+    : (team.period === '6th Hour' ? BIRDHOUSE_POSITIONS_6TH : BIRDHOUSE_POSITIONS);
   const numStudents = students.length;
   function buildDayRoles(posArr, count) {
     const roles = [...posArr];
