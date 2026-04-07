@@ -330,6 +330,9 @@
   <div class="nav-item" onclick="showSection('menu')" id="nav-menu">
     <span class="nav-icon">☕</span> Menu
   </div>
+  <div class="nav-item" onclick="showSection('modifiers')" id="nav-modifiers">
+    <span class="nav-icon">⚙️</span> Modifier Sets
+  </div>
   <div class="nav-item" onclick="showSection('inventory')" id="nav-inventory">
     <span class="nav-icon">📦</span> Inventory
     <span class="nav-badge" id="badge-inventory" style="display:none"></span>
@@ -894,6 +897,56 @@
     </div>
   </div>
 
+  <!-- ── MODIFIER SETS ── -->
+  <div class="section-panel" id="section-modifiers">
+    <div class="page-header"><h1>Modifier Sets</h1><p>Create and manage customization options that can be attached to menu items.</p></div>
+    <div class="section-header">
+      <div class="section-title">All Modifier Sets</div>
+      <button class="btn btn-primary btn-sm" onclick="openAddModifierSetModal()">+ New Modifier Set</button>
+    </div>
+    <div id="modifier-sets-container">
+      <p style="color:var(--gray);padding:1rem 0">Loading modifier sets…</p>
+    </div>
+  </div>
+
+  <!-- Add/Edit Modifier Set Modal -->
+  <div class="modal-overlay" id="mod-set-modal">
+    <div class="modal" style="max-width:480px">
+      <button class="modal-close" onclick="closeModal('mod-set-modal')">✕</button>
+      <div class="modal-title" id="mod-set-modal-title">New Modifier Set</div>
+      <div class="form-group">
+        <label class="form-label">Set Name</label>
+        <input class="form-input" id="mod-set-name" placeholder="e.g. Soda Types, Milk Options" />
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-ghost" onclick="closeModal('mod-set-modal')">Cancel</button>
+        <button class="btn btn-primary" id="mod-set-save-btn" onclick="saveModifierSet()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add/Edit Modifier Option Modal -->
+  <div class="modal-overlay" id="mod-option-modal">
+    <div class="modal" style="max-width:480px">
+      <button class="modal-close" onclick="closeModal('mod-option-modal')">✕</button>
+      <div class="modal-title" id="mod-option-modal-title">Add Option</div>
+      <input type="hidden" id="mod-option-list-id" />
+      <input type="hidden" id="mod-option-editing-id" />
+      <div class="form-group">
+        <label class="form-label">Option Name</label>
+        <input class="form-input" id="mod-option-name" placeholder="e.g. Coke, Sprite, Dr Pepper" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Extra Price ($)</label>
+        <input class="form-input" id="mod-option-price" type="number" step="0.01" min="0" placeholder="0.00" />
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-ghost" onclick="closeModal('mod-option-modal')">Cancel</button>
+        <button class="btn btn-primary" id="mod-option-save-btn" onclick="saveModifierOption()">Save</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ── SALES REPORT ── -->
   <div class="section-panel" id="section-sales-report">
     <div class="page-header">
@@ -1138,9 +1191,11 @@
         <label class="form-label">Sort Order</label>
         <input class="form-input" id="menu-item-sort" type="number" placeholder="1" />
       </div>
-      <div class="form-group">
-        <label class="form-label">Square Modifier List IDs (comma-separated)</label>
-        <input class="form-input" id="menu-item-mod-list-ids" placeholder="MOD_LIST_1, MOD_LIST_2" />
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="form-label">Modifier Sets</label>
+        <div id="menu-item-mod-checkboxes" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.25rem;min-height:2rem;align-items:center">
+          <span style="color:var(--gray);font-size:0.83rem">Loading…</span>
+        </div>
       </div>
     </div>
     <div class="form-group">
@@ -1534,6 +1589,7 @@ function showSection(id) {
     customers: loadCustomers,
     plans: loadPlans,
     menu: loadMenuSection,
+    modifiers: loadModifierSets,
     dashboard: loadDashboard,
     schedule: schedInit,
     inventory: loadInventory,
@@ -2626,16 +2682,14 @@ async function loadMenuItems() {
   }).join('');
 }
 
-function parseModifierListIds(raw) {
-  return (raw || '').split(',').map(v => v.trim()).filter(Boolean);
-}
-
 function menuItemPayloadFromForm() {
   const name = document.getElementById('menu-item-name').value.trim();
   const price = parseFloat(document.getElementById('menu-item-price').value || '0');
   const category = document.getElementById('menu-item-category').value.trim();
   if (!name) throw new Error('Menu item name is required.');
   if (isNaN(price) || price < 0) throw new Error('Enter a valid non-negative price.');
+  const checkedBoxes = document.querySelectorAll('#menu-item-mod-checkboxes input[type=checkbox]:checked');
+  const square_modifier_list_ids = Array.from(checkedBoxes).map(cb => cb.value);
   return {
     name,
     description: document.getElementById('menu-item-description').value.trim(),
@@ -2644,10 +2698,26 @@ function menuItemPayloadFromForm() {
     is_iced: document.getElementById('menu-item-iced').checked,
     available: document.getElementById('menu-item-available').checked,
     sort_order: parseInt(document.getElementById('menu-item-sort').value || '1', 10) || 1,
-    square_modifier_list_ids: parseModifierListIds(document.getElementById('menu-item-mod-list-ids').value),
+    square_modifier_list_ids,
     base_price: price.toFixed(2),
     base_price_cents: Math.round(price * 100),
   };
+}
+
+async function loadModifierCheckboxes(selectedSquareIds) {
+  const container = document.getElementById('menu-item-mod-checkboxes');
+  const { data: lists } = await sb.from('modifier_lists').select('id, square_id, name').order('name');
+  if (!lists || lists.length === 0) {
+    container.innerHTML = '<span style="color:var(--gray);font-size:0.83rem">No modifier sets found. <button class="btn btn-ghost btn-sm" style="padding:0.1rem 0.5rem;font-size:0.78rem" onclick="showSection(\'modifiers\')">Create one</button></span>';
+    return;
+  }
+  container.innerHTML = lists.map(ml => {
+    const checked = (selectedSquareIds || []).includes(ml.square_id) ? 'checked' : '';
+    return `<label style="display:flex;align-items:center;gap:0.35rem;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:6px;padding:0.3rem 0.65rem;cursor:pointer;font-size:0.83rem;color:var(--gray-mid)">
+      <input type="checkbox" value="${ml.square_id}" ${checked} style="accent-color:var(--accent)" />
+      ${ml.name}
+    </label>`;
+  }).join('');
 }
 
 function resetMenuItemModal() {
@@ -2660,10 +2730,10 @@ function resetMenuItemModal() {
   document.getElementById('menu-item-category').value = 'Coffee';
   document.getElementById('menu-item-price').value = '';
   document.getElementById('menu-item-sort').value = '1';
-  document.getElementById('menu-item-mod-list-ids').value = '';
   document.getElementById('menu-item-hot').checked = true;
   document.getElementById('menu-item-iced').checked = false;
   document.getElementById('menu-item-available').checked = true;
+  loadModifierCheckboxes([]);
 }
 
 function openAddMenuItemModal() {
@@ -2684,10 +2754,10 @@ function editMenuItem(id) {
   categoryInput.value = getMenuCategoryLabel(item.category);
   document.getElementById('menu-item-price').value = ((item.base_price_cents ?? Math.round((parseFloat(item.base_price) || 0) * 100)) / 100).toFixed(2);
   document.getElementById('menu-item-sort').value = item.sort_order || 1;
-  document.getElementById('menu-item-mod-list-ids').value = (item.square_modifier_list_ids || []).join(', ');
   document.getElementById('menu-item-hot').checked = item.is_hot !== false;
   document.getElementById('menu-item-iced').checked = item.is_iced === true;
   document.getElementById('menu-item-available').checked = item.available !== false;
+  loadModifierCheckboxes(item.square_modifier_list_ids || []);
   document.getElementById('menu-item-modal').classList.add('open');
 }
 
@@ -2804,6 +2874,195 @@ async function rejectMenuSubmission(id) {
   const { error } = await sb.from('menu_submissions').update({ status: 'rejected', admin_note: adminNote }).eq('id', id);
   if (error) { alert(error.message); return; }
   await loadMenuSubmissions();
+}
+
+// ════════════════════════════════════
+// Modifier Sets
+// ════════════════════════════════════
+let editingModifierSetId = null;
+
+async function loadModifierSets() {
+  const container = document.getElementById('modifier-sets-container');
+  container.innerHTML = '<p style="color:var(--gray);padding:1rem 0">Loading…</p>';
+
+  const [{ data: lists, error: listsErr }, { data: options }] = await Promise.all([
+    sb.from('modifier_lists').select('*').order('name'),
+    sb.from('modifier_options').select('*').order('sort_order'),
+  ]);
+
+  if (listsErr) {
+    container.innerHTML = `<p style="color:#ff6b6b">${listsErr.message}</p>`;
+    return;
+  }
+
+  if (!lists || lists.length === 0) {
+    container.innerHTML = '<p style="color:var(--gray);padding:1rem 0">No modifier sets yet. Create one to allow customers to customize their orders.</p>';
+    return;
+  }
+
+  const optionsByList = {};
+  (options || []).forEach(opt => {
+    if (!optionsByList[opt.modifier_list_id]) optionsByList[opt.modifier_list_id] = [];
+    optionsByList[opt.modifier_list_id].push(opt);
+  });
+
+  container.innerHTML = lists.map(ml => {
+    const opts = optionsByList[ml.id] || [];
+    const optRows = opts.length
+      ? opts.map(opt => `
+        <tr>
+          <td style="padding:0.45rem 0.75rem">${opt.name}</td>
+          <td style="padding:0.45rem 0.75rem">${opt.price_cents > 0 ? `+$${(opt.price_cents / 100).toFixed(2)}` : 'Free'}</td>
+          <td style="padding:0.45rem 0.75rem">
+            <button class="btn btn-ghost btn-sm" onclick="openEditOptionModal('${opt.id}', '${ml.id}')">Edit</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteModifierOption('${opt.id}', '${ml.id}')">Delete</button>
+          </td>
+        </tr>`).join('')
+      : '<tr><td colspan="3" style="padding:0.6rem 0.75rem;color:var(--gray);font-size:0.83rem">No options yet.</td></tr>';
+
+    return `
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:1.25rem;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:0.85rem 1.1rem;border-bottom:1px solid var(--border-dim)">
+          <div>
+            <strong>${ml.name}</strong>
+            <span style="margin-left:0.6rem;font-size:0.72rem;color:var(--gray);font-family:monospace">${ml.square_id}</span>
+          </div>
+          <div style="display:flex;gap:0.5rem">
+            <button class="btn btn-ghost btn-sm" onclick="openEditModifierSetModal('${ml.id}')">Rename</button>
+            <button class="btn btn-primary btn-sm" onclick="openAddOptionModal('${ml.id}', '${ml.name.replace(/'/g, "\\'")}')">+ Add Option</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteModifierSet('${ml.id}')">Delete Set</button>
+          </div>
+        </div>
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="background:#0d0d0d">
+            <th style="padding:0.45rem 0.75rem;text-align:left;font-size:0.72rem;color:var(--gray-mid)">Option</th>
+            <th style="padding:0.45rem 0.75rem;text-align:left;font-size:0.72rem;color:var(--gray-mid)">Price</th>
+            <th style="padding:0.45rem 0.75rem;text-align:left;font-size:0.72rem;color:var(--gray-mid)">Actions</th>
+          </tr></thead>
+          <tbody>${optRows}</tbody>
+        </table>
+      </div>`;
+  }).join('');
+}
+
+function openAddModifierSetModal() {
+  editingModifierSetId = null;
+  document.getElementById('mod-set-modal-title').textContent = 'New Modifier Set';
+  document.getElementById('mod-set-name').value = '';
+  document.getElementById('mod-set-save-btn').textContent = 'Create';
+  document.getElementById('mod-set-modal').classList.add('open');
+}
+
+function openEditModifierSetModal(id) {
+  const container = document.getElementById('modifier-sets-container');
+  const nameEl = container.querySelector(`[data-set-id="${id}"]`);
+  editingModifierSetId = id;
+  document.getElementById('mod-set-modal-title').textContent = 'Rename Modifier Set';
+  document.getElementById('mod-set-name').value = '';
+  document.getElementById('mod-set-save-btn').textContent = 'Save';
+  document.getElementById('mod-set-modal').classList.add('open');
+}
+
+async function saveModifierSet() {
+  const name = document.getElementById('mod-set-name').value.trim();
+  if (!name) { alert('Please enter a name.'); return; }
+  const btn = document.getElementById('mod-set-save-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    if (editingModifierSetId) {
+      const { error } = await sb.from('modifier_lists').update({ name }).eq('id', editingModifierSetId);
+      if (error) throw error;
+    } else {
+      const square_id = 'local_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+      const { error } = await sb.from('modifier_lists').insert({ name, square_id });
+      if (error) throw error;
+    }
+    closeModal('mod-set-modal');
+    await loadModifierSets();
+  } catch (err) {
+    alert(err.message || 'Unable to save.');
+  } finally {
+    btn.disabled = false; btn.textContent = editingModifierSetId ? 'Save' : 'Create';
+  }
+}
+
+async function deleteModifierSet(id) {
+  if (!confirm('Delete this modifier set and all its options? This cannot be undone.')) return;
+  const { error } = await sb.from('modifier_lists').delete().eq('id', id);
+  if (error) { alert(error.message); return; }
+  await loadModifierSets();
+}
+
+let addingOptionToListId = null;
+let editingOptionId = null;
+
+function openAddOptionModal(listId, listName) {
+  addingOptionToListId = listId;
+  editingOptionId = null;
+  document.getElementById('mod-option-modal-title').textContent = `Add Option to "${listName}"`;
+  document.getElementById('mod-option-name').value = '';
+  document.getElementById('mod-option-price').value = '0';
+  document.getElementById('mod-option-save-btn').textContent = 'Add';
+  document.getElementById('mod-option-modal').classList.add('open');
+}
+
+async function openEditOptionModal(optId, listId) {
+  addingOptionToListId = listId;
+  editingOptionId = optId;
+  const { data: opt } = await sb.from('modifier_options').select('*').eq('id', optId).single();
+  if (!opt) return;
+  document.getElementById('mod-option-modal-title').textContent = 'Edit Option';
+  document.getElementById('mod-option-name').value = opt.name;
+  document.getElementById('mod-option-price').value = (opt.price_cents / 100).toFixed(2);
+  document.getElementById('mod-option-save-btn').textContent = 'Save';
+  document.getElementById('mod-option-modal').classList.add('open');
+}
+
+async function saveModifierOption() {
+  const name = document.getElementById('mod-option-name').value.trim();
+  const price = parseFloat(document.getElementById('mod-option-price').value || '0');
+  if (!name) { alert('Please enter an option name.'); return; }
+  if (isNaN(price) || price < 0) { alert('Enter a valid price.'); return; }
+  const btn = document.getElementById('mod-option-save-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    if (editingOptionId) {
+      const { error } = await sb.from('modifier_options')
+        .update({ name, price_cents: Math.round(price * 100) })
+        .eq('id', editingOptionId);
+      if (error) throw error;
+    } else {
+      const square_id = 'local_opt_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+      const { data: maxRow } = await sb.from('modifier_options')
+        .select('sort_order')
+        .eq('modifier_list_id', addingOptionToListId)
+        .order('sort_order', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const sort_order = (maxRow?.sort_order ?? -1) + 1;
+      const { error } = await sb.from('modifier_options').insert({
+        modifier_list_id: addingOptionToListId,
+        square_id,
+        name,
+        price_cents: Math.round(price * 100),
+        sort_order,
+      });
+      if (error) throw error;
+    }
+    closeModal('mod-option-modal');
+    await loadModifierSets();
+  } catch (err) {
+    alert(err.message || 'Unable to save option.');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function deleteModifierOption(optId, listId) {
+  if (!confirm('Delete this option?')) return;
+  const { error } = await sb.from('modifier_options').delete().eq('id', optId);
+  if (error) { alert(error.message); return; }
+  await loadModifierSets();
 }
 
 // ════════════════════════════════════
