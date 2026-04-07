@@ -920,6 +920,10 @@
           ${item.unit}
         </div>
         ${item.notes?`<div style="font-size:0.72rem;color:var(--gray);margin-bottom:0.5rem">📝 ${item.notes}</div>`:''}
+        ${(item.last_ordered_at||item.expected_arrival)?`<div style="font-size:0.72rem;color:var(--gray);margin-bottom:0.5rem;display:flex;gap:0.75rem;flex-wrap:wrap">
+          ${item.last_ordered_at?`<span>📅 Ordered: ${new Date(item.last_ordered_at+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>`:''}
+          ${item.expected_arrival?`<span>🚚 Arrives: ${new Date(item.expected_arrival+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>`:''}
+        </div>`:''}
         <div class="inv-actions">
           <button class="inv-save-btn" onclick="saveInventoryItem('${item.id}','${item.name}',${item.quantity})">Save Count</button>
           <button class="inv-edit-btn" onclick="openEditItemModal('${item.id}')">✏️</button>
@@ -935,7 +939,7 @@
     const changeType = change>0?'restock':change<0?'usage':'count';
     const studentName = currentUser.user_metadata?.first_name+' '+currentUser.user_metadata?.last_name;
 
-    await sb.from('inventory').update({quantity:newQty, par_level:newPar, updated_at:new Date().toISOString()}).eq('id',id);
+    await sb.from('inventory').update({quantity:newQty, par_level:newPar, last_ordered_at:null, expected_arrival:null, updated_at:new Date().toISOString()}).eq('id',id);
     await sb.from('inventory_log').insert({
       inventory_id:id, item_name:name,
       previous_quantity:prevQty, new_quantity:newQty, change_amount:change,
