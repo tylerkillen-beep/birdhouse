@@ -1048,8 +1048,12 @@
     const isToday = selectedDate.toDateString() === now.toDateString();
     const cutoffMinutes = now.getHours() * 60 + now.getMinutes() + 20;
 
+    const timesToShow = customerType === 'mathews'
+      ? ['8:15 AM', '12:00 PM']
+      : allDeliveryTimes;
+
     let anyAdded = false;
-    allDeliveryTimes.forEach(t => {
+    timesToShow.forEach(t => {
       if (isToday && parseTimeToMinutes(t) <= cutoffMinutes) return;
       const opt = document.createElement('option');
       opt.value = t;
@@ -1176,18 +1180,19 @@
           creditUsedCents,
           deliveryMethod: selectedDeliveryMethod,
           customerInfo: {
-            customerName: (firstName + ' ' + lastName).trim(),
-            email:        (currentUser.email || '').trim().toLowerCase(),
-            room:         roomValue,
-            deliveryDay:  document.getElementById('delivery-date').value,
-            deliveryDate: deliveryDatePicker?.selectedDates[0]
+            customerName:     (firstName + ' ' + lastName).trim(),
+            email:            (currentUser.email || '').trim().toLowerCase(),
+            room:             roomValue,
+            deliveryDay:      document.getElementById('delivery-date').value,
+            deliveryDate:     deliveryDatePicker?.selectedDates[0]
               ? (() => {
                   const d = deliveryDatePicker.selectedDates[0];
                   return [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-');
                 })()
               : null,
-            deliveryTime: document.getElementById('delivery-time').value,
-            notes:        document.getElementById('backup-location').value,
+            deliveryTime:     document.getElementById('delivery-time').value,
+            notes:            document.getElementById('backup-location').value,
+            customerLocation: customerType,
           },
         }),
       });

@@ -225,6 +225,7 @@ serve(async (req) => {
         delivery_date: customerInfo.deliveryDate || null,
         delivery_time: customerInfo.deliveryTime,
         special_instructions: customerInfo.notes || null,
+        customer_location: customerInfo.customerLocation || null,
         status: "paid",
         points_earned: 0,
         credit_used_cents: creditUsedCents,
