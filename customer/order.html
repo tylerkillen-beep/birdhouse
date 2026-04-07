@@ -447,7 +447,7 @@
 
   function discountRate() {
     if (hasEmployeeDiscount()) return EMPLOYEE_DISCOUNT;
-    if (isTeacher()) return TEACHER_DISCOUNT;
+    if (customerType === 'teacher') return TEACHER_DISCOUNT;
     return 0;
   }
 
@@ -458,7 +458,7 @@
 
   function discountLabel() {
     if (hasEmployeeDiscount()) return '💼 Employee Discount (50%)';
-    if (isTeacher()) return '🍎 Teacher Discount (25%)';
+    if (customerType === 'teacher') return '🍎 Teacher Discount (25%)';
     return '';
   }
 
