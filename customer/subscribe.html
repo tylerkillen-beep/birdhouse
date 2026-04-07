@@ -533,7 +533,7 @@
     if (isTeacher()) {
       const badge = document.createElement('div');
       badge.style.cssText = 'font-size:0.68rem;color:#f5c842;margin-top:0.3rem;letter-spacing:0.04em';
-      badge.textContent = customerType === 'mathews' ? '⭐ Mathews — 25% off' : '🍎 Teacher — 25% off';
+      badge.textContent = customerType === 'mathews' ? '⭐ Mathews' : '🍎 Teacher — 25% off';
       const userCard = document.getElementById('user-card');
       if (userCard) userCard.appendChild(badge);
       else console.warn('user-card element not found; skipping teacher badge render');
@@ -631,7 +631,7 @@
       const isFeatured = p.name === 'Regular';
       const fullPrice      = (p.price_cents / 100).toFixed(2);
       const discPrice      = (discountedCents(p.price_cents) / 100).toFixed(2);
-      const priceDisplay   = isTeacher()
+      const priceDisplay   = customerType === 'teacher'
         ? `<span style="text-decoration:line-through;font-size:0.9rem;color:var(--gray)">$${fullPrice}</span> $${discPrice}<span style="color:#f5c842;font-size:0.7rem;margin-left:0.3rem">25% off</span>`
         : `$${fullPrice}`;
       const modLabel = p.free_modifier_count === -1
@@ -926,10 +926,10 @@
       lines += `<div class="summary-line"><span class="summary-key">Location 2</span><span class="summary-val">${document.getElementById('slot-2-location').value || '—'}</span></div>`;
     }
 
-    const finalPrice = isTeacher()
+    const finalPrice = customerType === 'teacher'
       ? (discountedCents(selectedPlan.price_cents) / 100).toFixed(2)
       : price;
-    const billingLine = isTeacher()
+    const billingLine = customerType === 'teacher'
       ? `<div class="summary-line"><span class="summary-key" style="color:#f5c842">🍎 Teacher Discount (25%)</span><span class="summary-val" style="color:#f5c842">−$${(parseFloat(price) - parseFloat(finalPrice)).toFixed(2)}</span></div>
          <div class="summary-line"><span class="summary-key">Billed monthly</span><span class="summary-val">$${finalPrice}/mo</span></div>`
       : `<div class="summary-line"><span class="summary-key">Billed monthly</span><span class="summary-val">$${price}/mo</span></div>`;
@@ -1011,7 +1011,7 @@ const res = await fetch(`${SUPABASE_URL}/functions/v1/save-card`, {
           sourceId:     result.token,
           userId:       currentUser.id,
           planId:       selectedPlan.id,
-          discountPct:  isTeacher() ? 25 : 0,
+          discountPct:  customerType === 'teacher' ? 25 : 0,
           customerInfo: {
             firstName,
             lastName,
@@ -1025,7 +1025,7 @@ const res = await fetch(`${SUPABASE_URL}/functions/v1/save-card`, {
       if (!data.success) throw new Error(data.error || 'Subscription failed');
 
       // Write discount_pct to the subscription record if teacher
-      if (isTeacher() && data.subscriptionId) {
+      if (customerType === 'teacher' && data.subscriptionId) {
         await sb.from('subscriptions').update({ discount_pct: 25 }).eq('id', data.subscriptionId);
       }
 
@@ -1042,7 +1042,7 @@ const res = await fetch(`${SUPABASE_URL}/functions/v1/save-card`, {
       errEl.textContent = err.message;
       errEl.style.display = 'block';
       btn.disabled = false;
-      const resetPrice = isTeacher()
+      const resetPrice = customerType === 'teacher'
         ? (discountedCents(selectedPlan.price_cents)/100).toFixed(2)
         : (selectedPlan.price_cents/100).toFixed(2);
       btn.innerHTML = `🔒 Start Subscription — <span id="subscribe-btn-amount">$${resetPrice}</span>/mo`;
