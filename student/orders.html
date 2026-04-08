@@ -211,6 +211,15 @@
           <button class="filter-pill" data-val="all" onclick="setStatusFilter('all', this)">All</button>
         </div>
       </div>
+      <!-- Location -->
+      <div class="filter-row">
+        <span class="filter-label">Location</span>
+        <div class="filter-pills" id="location-pills">
+          <button class="filter-pill active" data-val="all" onclick="setLocationFilter('all', this)">All</button>
+          <button class="filter-pill" data-val="birdhouse" onclick="setLocationFilter('birdhouse', this)">🏠 Birdhouse</button>
+          <button class="filter-pill" data-val="mathews" onclick="setLocationFilter('mathews', this)">🏫 Mathews</button>
+        </div>
+      </div>
       <!-- Date -->
       <div class="filter-row">
         <span class="filter-label">Date</span>
@@ -250,10 +259,11 @@
 
   // ── State ──────────────────────────────────────────────────────────────────
   let allOrders = [];
-  let filterSort   = 'scheduled'; // 'scheduled' | 'placed'
-  let filterMethod = 'all';       // 'all' | 'delivery' | 'pickup'
-  let filterStatus = 'active';    // 'active' | 'pending' | 'paid' | 'delivered' | 'cancelled' | 'all'
-  let filterDate   = todayStr();  // 'YYYY-MM-DD' or null (all dates)
+  let filterSort     = 'scheduled'; // 'scheduled' | 'placed'
+  let filterMethod   = 'all';       // 'all' | 'delivery' | 'pickup'
+  let filterStatus   = 'active';    // 'active' | 'pending' | 'paid' | 'delivered' | 'cancelled' | 'all'
+  let filterDate     = todayStr();  // 'YYYY-MM-DD' or null (all dates)
+  let filterLocation = 'all';       // 'all' | 'birdhouse' | 'mathews'
   let pollTimer    = null;
 
   // ── Audio alert ────────────────────────────────────────────────────────────
@@ -429,6 +439,13 @@
     renderOrders();
   }
 
+  function setLocationFilter(val, btn) {
+    filterLocation = val;
+    document.querySelectorAll('#location-pills .filter-pill').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderOrders();
+  }
+
   // ── Data loading ───────────────────────────────────────────────────────────
   async function loadOrders(manual = false) {
     if (manual) {
@@ -513,6 +530,10 @@
 
     // Delivery method filter
     if (filterMethod !== 'all')          orders = orders.filter(o => o.delivery_method === filterMethod);
+
+    // Location filter
+    if (filterLocation === 'mathews')    orders = orders.filter(o => o.customer_location === 'mathews');
+    else if (filterLocation === 'birdhouse') orders = orders.filter(o => o.customer_location !== 'mathews');
 
     // Sort
     if (filterSort === 'scheduled') {
