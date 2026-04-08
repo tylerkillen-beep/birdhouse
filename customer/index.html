@@ -213,19 +213,15 @@
         .eq('id', session.user.id)
         .maybeSingle();
 
-      if (!profile?.location) {
-        // First-time teacher — show location picker
-        pendingSession = session;
-        const overlay = document.getElementById('loc-overlay');
-        overlay.classList.add('open');
-        // Move focus into modal for keyboard/screen reader users
-        const firstBtn = document.getElementById('loc-hs');
-        if (firstBtn) firstBtn.focus();
-        // Trap focus within modal
-        overlay.addEventListener('keydown', trapFocus);
-      } else {
-        window.location.href = getPostLoginDestination();
-      }
+      // Always show location picker so teachers can correct a wrong location.
+      // Pre-select their saved value so returning teachers just hit Continue.
+      pendingSession = session;
+      if (profile?.location) selectLocation(profile.location);
+      const overlay = document.getElementById('loc-overlay');
+      overlay.classList.add('open');
+      const firstBtn = document.getElementById('loc-hs');
+      if (firstBtn) firstBtn.focus();
+      overlay.addEventListener('keydown', trapFocus);
     }
 
     // ── Session check on page load ────────────────────────────────────────────
