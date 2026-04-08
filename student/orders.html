@@ -512,6 +512,12 @@
   }
 
   // ── Rendering ──────────────────────────────────────────────────────────────
+  function isMathewsOrder(order) {
+    if (order.customer_location === 'mathews') return true;
+    if (order.room && order.room.toLowerCase().includes('mathews')) return true;
+    return false;
+  }
+
   function applyFilters() {
     let orders = [...allOrders];
 
@@ -532,8 +538,8 @@
     if (filterMethod !== 'all')          orders = orders.filter(o => o.delivery_method === filterMethod);
 
     // Location filter
-    if (filterLocation === 'mathews')    orders = orders.filter(o => o.customer_location === 'mathews');
-    else if (filterLocation === 'birdhouse') orders = orders.filter(o => o.customer_location !== 'mathews');
+    if (filterLocation === 'mathews')        orders = orders.filter(o => isMathewsOrder(o));
+    else if (filterLocation === 'birdhouse') orders = orders.filter(o => !isMathewsOrder(o));
 
     // Sort
     if (filterSort === 'scheduled') {
@@ -583,8 +589,8 @@
       const statusLabel = { pending: '⏳ Pending', paid: '💳 Paid', delivered: '✅ Delivered', cancelled: '✕ Cancelled' }[order.status] || order.status;
       const methodLabel = order.delivery_method === 'pickup' ? '🏠 Pickup' : '🚚 Delivery';
       const methodClass = order.delivery_method === 'pickup' ? 'method-pickup' : 'method-delivery';
-      const isMathewsOrder = order.customer_location === 'mathews';
-      const mathewsBadge = isMathewsOrder ? `<span class="method-badge badge-mathews">Mathews</span>` : '';
+      const isMathews = isMathewsOrder(order);
+      const mathewsBadge = isMathews ? `<span class="method-badge badge-mathews">Mathews</span>` : '';
 
       // Customer name
       const customerName = order.customer_name || 'Unknown';
@@ -644,7 +650,7 @@
           ${total ? `<div class="order-total">${total}</div>` : ''}
         </div>`;
 
-      return `<div class="order-card status-${order.status}${isMathewsOrder ? ' location-mathews' : ''}" id="order-card-${order.id}">
+      return `<div class="order-card status-${order.status}${isMathews ? ' location-mathews' : ''}" id="order-card-${order.id}">
         <div>
           <div class="order-top">
             <span class="order-customer">${escHtml(customerName)}</span>
