@@ -211,6 +211,15 @@
           <button class="filter-pill" data-val="all" onclick="setStatusFilter('all', this)">All</button>
         </div>
       </div>
+      <!-- Location -->
+      <div class="filter-row">
+        <span class="filter-label">Location</span>
+        <div class="filter-pills" id="location-pills">
+          <button class="filter-pill active" data-val="all" onclick="setLocationFilter('all', this)">All</button>
+          <button class="filter-pill" data-val="birdhouse" onclick="setLocationFilter('birdhouse', this)">🏠 Birdhouse</button>
+          <button class="filter-pill" data-val="mathews" onclick="setLocationFilter('mathews', this)">🏫 Mathews</button>
+        </div>
+      </div>
       <!-- Date -->
       <div class="filter-row">
         <span class="filter-label">Date</span>
@@ -250,10 +259,11 @@
 
   // ── State ──────────────────────────────────────────────────────────────────
   let allOrders = [];
-  let filterSort   = 'scheduled'; // 'scheduled' | 'placed'
-  let filterMethod = 'all';       // 'all' | 'delivery' | 'pickup'
-  let filterStatus = 'active';    // 'active' | 'pending' | 'paid' | 'delivered' | 'cancelled' | 'all'
-  let filterDate   = todayStr();  // 'YYYY-MM-DD' or null (all dates)
+  let filterSort     = 'scheduled'; // 'scheduled' | 'placed'
+  let filterMethod   = 'all';       // 'all' | 'delivery' | 'pickup'
+  let filterStatus   = 'active';    // 'active' | 'pending' | 'paid' | 'delivered' | 'cancelled' | 'all'
+  let filterDate     = todayStr();  // 'YYYY-MM-DD' or null (all dates)
+  let filterLocation = 'all';       // 'all' | 'birdhouse' | 'mathews'
   let pollTimer    = null;
 
   // ── Audio alert ────────────────────────────────────────────────────────────
@@ -429,6 +439,13 @@
     renderOrders();
   }
 
+  function setLocationFilter(val, btn) {
+    filterLocation = val;
+    document.querySelectorAll('#location-pills .filter-pill').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderOrders();
+  }
+
   // ── Data loading ───────────────────────────────────────────────────────────
   async function loadOrders(manual = false) {
     if (manual) {
@@ -495,6 +512,12 @@
   }
 
   // ── Rendering ──────────────────────────────────────────────────────────────
+  function isMathewsOrder(order) {
+    if (order.customer_location === 'mathews') return true;
+    if (order.room && order.room.toLowerCase().includes('mathews')) return true;
+    return false;
+  }
+
   function applyFilters() {
     let orders = [...allOrders];
 
@@ -513,6 +536,10 @@
 
     // Delivery method filter
     if (filterMethod !== 'all')          orders = orders.filter(o => o.delivery_method === filterMethod);
+
+    // Location filter
+    if (filterLocation === 'mathews')        orders = orders.filter(o => isMathewsOrder(o));
+    else if (filterLocation === 'birdhouse') orders = orders.filter(o => !isMathewsOrder(o));
 
     // Sort
     if (filterSort === 'scheduled') {
@@ -562,8 +589,8 @@
       const statusLabel = { pending: '⏳ Pending', paid: '💳 Paid', delivered: '✅ Delivered', cancelled: '✕ Cancelled' }[order.status] || order.status;
       const methodLabel = order.delivery_method === 'pickup' ? '🏠 Pickup' : '🚚 Delivery';
       const methodClass = order.delivery_method === 'pickup' ? 'method-pickup' : 'method-delivery';
-      const isMathewsOrder = order.customer_location === 'mathews';
-      const mathewsBadge = isMathewsOrder ? `<span class="method-badge badge-mathews">Mathews</span>` : '';
+      const isMathews = isMathewsOrder(order);
+      const mathewsBadge = isMathews ? `<span class="method-badge badge-mathews">Mathews</span>` : '';
 
       // Customer name
       const customerName = order.customer_name || 'Unknown';
@@ -623,7 +650,7 @@
           ${total ? `<div class="order-total">${total}</div>` : ''}
         </div>`;
 
-      return `<div class="order-card status-${order.status}${isMathewsOrder ? ' location-mathews' : ''}" id="order-card-${order.id}">
+      return `<div class="order-card status-${order.status}${isMathews ? ' location-mathews' : ''}" id="order-card-${order.id}">
         <div>
           <div class="order-top">
             <span class="order-customer">${escHtml(customerName)}</span>
