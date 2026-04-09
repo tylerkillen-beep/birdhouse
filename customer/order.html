@@ -1471,6 +1471,68 @@
     { label: '3rd Floor Work Room',                     value: '312'      },
   ];
 
+  const MATHEWS_LOCATIONS = [
+    // Teachers (Last, First — Grade/Role : Room value)
+    { label: 'Agans, Kayla — 1st Grade',               value: '199'          },
+    { label: 'Anderson, Jennifer — Kindergarten',       value: '202'          },
+    { label: 'Bax, Elizabeth — Reading',                value: '212'          },
+    { label: 'Bergin, Rachel — 1st Grade',              value: '205'          },
+    { label: 'Bowen, Devon — 4th Grade',                value: '300'          },
+    { label: 'Bracker, Ashley — 3rd Grade',             value: '303'          },
+    { label: 'Brammer, Robyn — Kindergarten',           value: '196'          },
+    { label: 'Brock, Shayne — Counselor',               value: 'Office'       },
+    { label: 'Brower, Sarah — Instructional Coach',     value: 'Office'       },
+    { label: 'Carter, Litishia — Process Coord.',       value: 'Office'       },
+    { label: 'Carter, McKensie — 4th Grade',            value: '306'          },
+    { label: 'Eason, Elizabeth — Reading',              value: '322'          },
+    { label: 'Edwards, Rebecca — Reading',              value: '212'          },
+    { label: 'Gerkin, Erika — 4th Grade',               value: '304'          },
+    { label: 'Gilley, Aspen — Building Sub',            value: 'Office'       },
+    { label: 'Gray, Alicia — ELL',                      value: 'ELL Room'     },
+    { label: 'Hartzler, Lauren — Resource',             value: '210'          },
+    { label: 'Herrold, Lakynn — 1st Grade',             value: '197'          },
+    { label: 'Hurn, Janelle — Music',                   value: 'Music Room'   },
+    { label: 'Johnson, Carol — Resource',               value: '215'          },
+    { label: 'Keller, Leandra — Office Mgr.',           value: 'Office'       },
+    { label: 'Lea, Paitlyn — 3rd Grade',                value: '308'          },
+    { label: 'Lindsey, Emalie — Library',               value: 'Library'      },
+    { label: 'Mancusi, Sarah — 3rd Grade',              value: '309'          },
+    { label: 'Mancusi, Vinny — Technician',             value: 'Office'       },
+    { label: 'Mathie, Teal — SLP',                      value: '201'          },
+    { label: 'McCollum, Peyton — Kindergarten',         value: '198'          },
+    { label: 'McLain, Kelli — PT',                      value: '203'          },
+    { label: 'Miesner, Sarah — Asst. Principal',        value: 'Office'       },
+    { label: 'Nickerson, Zach — 3rd Grade',             value: '305'          },
+    { label: 'Noskowiak, Aimee — 2nd Grade',            value: '310'          },
+    { label: 'Piwko, Tami — Nurse',                     value: "Nurse's Office" },
+    { label: 'Poivre, Brooke — PE',                     value: 'Gym'          },
+    { label: 'Quackenbush, Becky — Principal',          value: 'Office'       },
+    { label: 'Ramsey, Brittany — OT',                   value: '203'          },
+    { label: 'Richardson, Gwyneth — Library Aide',      value: 'Library'      },
+    { label: 'Richardson, Megan — SLP',                 value: '201'          },
+    { label: 'Roach, Rachel — 2nd Grade',               value: '316'          },
+    { label: 'Sackman, Melissa — 1st Grade',            value: '207'          },
+    { label: 'Schatzer, Chelsea — HN',                  value: '206'          },
+    { label: 'Shelton, Nicole — 2nd Grade',             value: '314'          },
+    { label: 'Shiver, Delbert — 4th Grade',             value: '302'          },
+    { label: 'Smith, Stephanie — 4th Grade',            value: '301'          },
+    { label: 'Stech, Lynsey — Resource',                value: '319'          },
+    { label: 'Stricklin, Kelli — Art',                  value: 'Art Room'     },
+    { label: 'Swearengin, Ashley — Kindergarten',       value: '204'          },
+    { label: 'Tapken, Judy — Media',                    value: 'Media Center' },
+    { label: 'Tyler, Jasmine — Kindergarten',           value: '200'          },
+    { label: 'Weaver, Jennifer — 2nd Grade',            value: '315'          },
+    { label: 'Wehling, Laurin — 3rd Grade',             value: '307'          },
+    // Mathews Locations
+    { label: 'Art Room',                                value: 'Art Room'     },
+    { label: 'Gym',                                     value: 'Gym'          },
+    { label: 'Kitchen',                                 value: 'Kitchen'      },
+    { label: 'Library / Media Center',                  value: 'Library'      },
+    { label: 'Music Room',                              value: 'Music Room'   },
+    { label: "Nurse's Office",                          value: "Nurse's Office" },
+    { label: 'Office',                                  value: 'Office'       },
+  ];
+
   function initLocationAutocomplete(inputId) {
     const input    = document.getElementById(inputId);
     const dropdown = document.getElementById('ac-' + inputId);
@@ -1481,7 +1543,8 @@
       const q = query.trim().toLowerCase();
       if (!q) return [];
       const tokens = q.split(/\s+/);
-      return NHS_LOCATIONS
+      const locations = customerType === 'mathews' ? MATHEWS_LOCATIONS : NHS_LOCATIONS;
+      return locations
         .map(entry => {
           const haystack = (entry.label + ' ' + entry.value).toLowerCase();
           if (!tokens.every(t => haystack.includes(t))) return null;
