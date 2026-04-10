@@ -463,12 +463,36 @@
 
       if (!error) {
         const newData = data || [];
+
+        // Fetch profile locations for orders that lack customer_location so
+        // the queue correctly shows Mathews vs Birdhouse using the location
+        // the customer selected before ordering.
+        const missingLocationIds = [...new Set(
+          newData
+            .filter(o => !o.customer_location && o.user_id)
+            .map(o => o.user_id)
+        )];
+        let profileLocationMap = {};
+        if (missingLocationIds.length > 0) {
+          const { data: profiles } = await sb
+            .from('profiles')
+            .select('id, location')
+            .in('id', missingLocationIds);
+          if (profiles) {
+            profileLocationMap = Object.fromEntries(profiles.map(p => [p.id, p.location]));
+          }
+        }
+        const ordersWithLocation = newData.map(o => ({
+          ...o,
+          _profile_location: profileLocationMap[o.user_id] ?? null,
+        }));
+
         if (knownOrderIds !== null) {
-          const newOnes = newData.filter(o => !knownOrderIds.has(o.id));
+          const newOnes = ordersWithLocation.filter(o => !knownOrderIds.has(o.id));
           if (newOnes.length > 0) playNewOrderAlert();
         }
-        knownOrderIds = new Set(newData.map(o => o.id));
-        allOrders = newData;
+        knownOrderIds = new Set(ordersWithLocation.map(o => o.id));
+        allOrders = ordersWithLocation;
       }
     } catch (e) {
       console.error('Failed to fetch orders:', e);
@@ -514,6 +538,7 @@
   // ── Rendering ──────────────────────────────────────────────────────────────
   function isMathewsOrder(order) {
     if (order.customer_location === 'mathews') return true;
+    if (order._profile_location === 'mathews') return true;
     if (order.room && order.room.toLowerCase().includes('mathews')) return true;
     return false;
   }
