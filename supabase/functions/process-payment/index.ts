@@ -124,7 +124,7 @@ serve(async (req) => {
     const meta = user.user_metadata || {};
     const { data: profileLoyalty } = await supabase
       .from("profiles")
-      .select("loyalty_spend_cents, loyalty_credit_cents")
+      .select("loyalty_spend_cents, loyalty_credit_cents, location")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -225,7 +225,13 @@ serve(async (req) => {
         delivery_date: customerInfo.deliveryDate || null,
         delivery_time: customerInfo.deliveryTime,
         special_instructions: customerInfo.notes || null,
-        customer_location: customerInfo.customerLocation || null,
+        // Derive location from the authenticated profile (server-side) so the
+        // order queue always shows the correct campus regardless of what the
+        // client sends.  Teachers default to 'high_school' in profiles, so this
+        // correctly distinguishes Mathews from high-school orders.
+        customer_location: isTeacherEmail
+          ? (profileLoyalty?.location === 'mathews' ? 'mathews' : 'teacher')
+          : 'student',
         status: "paid",
         points_earned: 0,
         credit_used_cents: creditUsedCents,
