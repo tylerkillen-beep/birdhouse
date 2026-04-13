@@ -568,7 +568,8 @@
     <div id="section-peer-eval" style="display:none">
       <div class="page-eyebrow">Team Evaluations</div>
       <h1 class="page-title">Peer Evals</h1>
-      <div style="font-size:0.85rem;color:var(--gray);margin-bottom:1.5rem">Rate your teammates for the week of <strong id="peer-eval-week-label" style="color:var(--light-gray)">—</strong>. Scores are anonymous; comments show your name.</div>
+      <div style="font-size:0.85rem;color:var(--gray);margin-bottom:1rem">Rate your teammates for the week of <strong id="peer-eval-week-label" style="color:var(--light-gray)">—</strong>. Scores are anonymous; comments show your name.</div>
+      <div id="peer-eval-week-nav" style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1.5rem"></div>
       <div id="peer-eval-list"><div style="color:var(--gray);text-align:center;padding:3rem">Loading…</div></div>
     </div>
 
@@ -1649,18 +1650,17 @@
   let peerRubric = [];
   let peerTeammates = [];
   let peerWeekStart = '';
+  let peerWeekOffset = -1;
   let peerEvalData = {};
   let peerDataLoaded = false;
 
-  function getPrevWeekStart() {
+  function getWeekStartForOffset(offset) {
     const today = new Date();
     const day = today.getDay();
     const daysToMon = day === 0 ? 6 : day - 1;
     const thisMon = new Date(today);
-    thisMon.setDate(today.getDate() - daysToMon);
-    const prevMon = new Date(thisMon);
-    prevMon.setDate(thisMon.getDate() - 7);
-    return prevMon.toISOString().slice(0, 10);
+    thisMon.setDate(today.getDate() - daysToMon + offset * 7);
+    return thisMon.toISOString().slice(0, 10);
   }
 
   function peerMaxFor(r) {
@@ -1676,7 +1676,7 @@
 
   async function loadPeerEvalBanner() {
     if (!currentStudentRow?.team_id) return;
-    peerWeekStart = getPrevWeekStart();
+    peerWeekStart = getWeekStartForOffset(-1);
     const [rubricRes, teamRes, evalRes] = await Promise.all([
       sb.from('score_rubric').select('*').eq('active', true).order('sort_order'),
       sb.from('students').select('id,first_name,last_name').eq('team_id', currentStudentRow.team_id).neq('id', currentUser.id).order('last_name'),
@@ -1716,11 +1716,42 @@
 
   async function loadPeerEvalSection() {
     if (!peerDataLoaded) await loadPeerEvalBanner();
-    const prevMon = new Date(peerWeekStart + 'T12:00:00');
-    const prevSun = new Date(prevMon);
-    prevSun.setDate(prevMon.getDate() + 6);
+    renderPeerEvalSectionNav();
+    renderCurrentPeerCard();
+  }
+
+  function renderPeerEvalSectionNav() {
+    const mon = new Date(peerWeekStart + 'T12:00:00');
+    const sun = new Date(mon);
+    sun.setDate(mon.getDate() + 6);
     const fmt = d => d.toLocaleDateString('en-US', {month:'short', day:'numeric'});
-    document.getElementById('peer-eval-week-label').textContent = `${fmt(prevMon)} – ${fmt(prevSun)}`;
+    document.getElementById('peer-eval-week-label').textContent = `${fmt(mon)} – ${fmt(sun)}`;
+    const navEl = document.getElementById('peer-eval-week-nav');
+    if (!navEl) return;
+    const nextDisabled = peerWeekOffset >= 0;
+    navEl.innerHTML = `<button class="btn-secondary" style="padding:0.45rem 1rem;font-size:0.82rem" onclick="loadPeerEvalWeek(-1)">← Prev</button><button class="btn-secondary" style="padding:0.45rem 1rem;font-size:0.82rem${nextDisabled ? ';opacity:0.4' : ''}" ${nextDisabled ? 'disabled' : ''} onclick="loadPeerEvalWeek(1)">Next →</button>`;
+  }
+
+  async function loadPeerEvalWeek(offsetDelta) {
+    if (!currentStudentRow?.team_id) return;
+    peerWeekOffset += offsetDelta;
+    if (peerWeekOffset > 0) peerWeekOffset = 0;
+    peerWeekStart = getWeekStartForOffset(peerWeekOffset);
+    const container = document.getElementById('peer-eval-list');
+    if (container) container.innerHTML = '<div style="color:var(--gray);text-align:center;padding:3rem">Loading…</div>';
+    const [rubricRes, teamRes, evalRes] = await Promise.all([
+      sb.from('score_rubric').select('*').eq('active', true).order('sort_order'),
+      sb.from('students').select('id,first_name,last_name').eq('team_id', currentStudentRow.team_id).neq('id', currentUser.id).order('last_name'),
+      sb.from('peer_evaluations').select('evaluatee_id,rubric_id,score,comment').eq('evaluator_id', currentUser.id).eq('week_start', peerWeekStart)
+    ]);
+    peerRubric = rubricRes.data || [];
+    peerTeammates = (teamRes.data || []).filter(s => s.id !== currentUser.id);
+    peerEvalData = {};
+    (evalRes.data || []).forEach(e => {
+      if (!peerEvalData[e.evaluatee_id]) peerEvalData[e.evaluatee_id] = {};
+      peerEvalData[e.evaluatee_id][e.rubric_id] = { score: e.score, comment: e.comment };
+    });
+    renderPeerEvalSectionNav();
     renderCurrentPeerCard();
   }
 
@@ -1843,7 +1874,7 @@
         const val = raw === '' ? 0 : Math.min(Math.max(0, parseInt(raw)), pm);
         peerEvalData[evaluateeId][r.id] = { score: val, comment };
       });
-      refreshPeerEvalBanner();
+      if (peerWeekOffset === -1) refreshPeerEvalBanner();
       renderCurrentPeerCard();
     } else {
       if (btn) { btn.disabled = false; btn.textContent = 'Save & Continue →'; }
