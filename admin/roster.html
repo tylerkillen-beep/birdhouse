@@ -239,10 +239,10 @@
       <div style="background:var(--card);border:1px solid var(--border-dim);border-radius:14px;overflow:hidden">
         <table style="width:100%;border-collapse:collapse">
           <thead><tr>
-            <th style="text-align:left;padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--light-gray)">Name</th>
-            <th style="text-align:left;padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--light-gray)">Email</th>
-            <th style="text-align:left;padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--light-gray)">Team</th>
-            <th style="text-align:left;padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--light-gray)">Period</th>
+            <th scope="col" style="text-align:left;padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--light-gray)">Name</th>
+            <th scope="col" style="text-align:left;padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--light-gray)">Email</th>
+            <th scope="col" style="text-align:left;padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--light-gray)">Team</th>
+            <th scope="col" style="text-align:left;padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--light-gray)">Period</th>
             <th style="padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim)"></th>
           </tr></thead>
           <tbody id="all-students-tbody"><tr><td colspan="5" class="empty-state">Loading...</td></tr></tbody>
@@ -353,7 +353,7 @@
     const preview = `<div style="font-size:0.75rem;color:var(--gray);margin-top:0.75rem;margin-bottom:0.4rem">${parsedCSV.length} student${parsedCSV.length!==1?'s':''} ready to import</div>
     <div class="preview-wrap">
       <table class="preview-table">
-        <thead><tr><th>Name</th><th>Email</th><th>Team</th></tr></thead>
+        <thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Team</th></tr></thead>
         <tbody>${parsedCSV.slice(0,10).map(r=>`<tr><td>${r.first_name} ${r.last_name}</td><td style="color:var(--gray)">${r.email}</td><td><span style="background:rgba(204,0,0,0.1);color:var(--red-bright);padding:0.1rem 0.5rem;border-radius:4px;font-size:0.75rem">Team ${r.team||'?'}</span></td></tr>`).join('')}
         ${parsedCSV.length>10?`<tr><td colspan="3" style="text-align:center;color:var(--gray);padding:0.5rem">...and ${parsedCSV.length-10} more</td></tr>`:''}</tbody>
       </table>

@@ -17,6 +17,8 @@
       --card: #141414; --border: rgba(204,0,0,0.18); --border-dim: rgba(255,255,255,0.07);
     }
     body { background: var(--black); color: var(--white); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+    .skip-link { position: absolute; top: -100%; left: 1rem; background: var(--red-bright); color: #000; padding: 0.5rem 1rem; border-radius: 0 0 6px 6px; font-size: 0.85rem; font-weight: 500; text-decoration: none; z-index: 9999; }
+    .skip-link:focus { top: 0; }
     :focus-visible { outline: 2px solid var(--red-bright); outline-offset: 3px; border-radius: 3px; }
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; } }
     .layout { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
@@ -30,6 +32,7 @@
     .nav-item { display: flex; align-items: center; gap: 0.7rem; padding: 0.7rem 0.9rem; border-radius: 7px; color: var(--gray); font-size: 0.85rem; text-decoration: none; cursor: pointer; transition: all 0.2s; margin-bottom: 0.2rem; border: 1px solid transparent; }
     .nav-item:hover { color: var(--white); background: rgba(255,255,255,0.04); }
     .nav-item.active { background: rgba(204,0,0,0.12); color: var(--red-bright); border-color: rgba(204,0,0,0.25); }
+    button.nav-item { background: none; border: 1px solid transparent; width: 100%; text-align: left; font-family: 'DM Sans', sans-serif; }
     .signout-btn { background: none; border: 1px solid rgba(255,255,255,0.08); border-radius: 7px; padding: 0.65rem 1rem; color: var(--gray); font-size: 0.8rem; cursor: pointer; width: 100%; text-align: left; transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem; font-family: 'DM Sans', sans-serif; }
     .signout-btn:hover { color: var(--white); }
 
@@ -219,6 +222,7 @@
   </style>
 </head>
 <body>
+<a class="skip-link" href="#main-content">Skip to main content</a>
 <div class="mobile-topbar">
   <a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a>
   <button class="hamburger" id="hamburger-btn" onclick="toggleNav()" aria-label="Menu" aria-expanded="false">
@@ -234,21 +238,21 @@
       <div class="user-role" id="user-role-badge">Student Staff</div>
     </div>
     <nav aria-label="Team hub">
-      <a class="nav-item active" onclick="showSection('overview',this)">📊 Overview</a>
+      <button class="nav-item active" onclick="showSection('overview',this)">📊 Overview</button>
       <a class="nav-item" href="orders.html" style="justify-content:space-between">🧾 Order Queue <span id="pending-badge" style="display:none;background:var(--red);color:white;font-size:0.6rem;padding:0.1rem 0.45rem;border-radius:10px"></span></a>
-      <a class="nav-item" onclick="showSection('schedule',this)">🗓️ My Schedule</a>
-      <a class="nav-item" onclick="showSection('inventory',this)">📦 Inventory</a>
-      <a class="nav-item" onclick="showSection('sales',this)">📈 Sales Data</a>
-      <a class="nav-item" onclick="showSection('menu',this)">☕ Menu Availability</a>
-      <a class="nav-item" onclick="showSection('summary',this)">📝 Weekly Summary</a>
-      <a class="nav-item" onclick="showSection('peer-eval',this)" style="justify-content:space-between">👥 Peer Evals <span id="peer-eval-badge" style="display:none;background:var(--red);color:white;font-size:0.6rem;padding:0.1rem 0.45rem;border-radius:10px"></span></a>
-      <a class="nav-item" onclick="showSection('my-scores',this)">⭐ My Scores</a>
-      <a class="nav-item" onclick="showSection('bio',this)">🪪 My Bio</a>
+      <button class="nav-item" onclick="showSection('schedule',this)">🗓️ My Schedule</button>
+      <button class="nav-item" onclick="showSection('inventory',this)">📦 Inventory</button>
+      <button class="nav-item" onclick="showSection('sales',this)">📈 Sales Data</button>
+      <button class="nav-item" onclick="showSection('menu',this)">☕ Menu Availability</button>
+      <button class="nav-item" onclick="showSection('summary',this)">📝 Weekly Summary</button>
+      <button class="nav-item" onclick="showSection('peer-eval',this)" style="justify-content:space-between">👥 Peer Evals <span id="peer-eval-badge" style="display:none;background:var(--red);color:white;font-size:0.6rem;padding:0.1rem 0.45rem;border-radius:10px"></span></button>
+      <button class="nav-item" onclick="showSection('my-scores',this)">⭐ My Scores</button>
+      <button class="nav-item" onclick="showSection('bio',this)">🪪 My Bio</button>
     </nav>
     <button class="signout-btn" onclick="signOut()">← Sign Out</button>
   </aside>
 
-  <main class="main">
+  <main class="main" id="main-content">
     <!-- Overview -->
     <div id="section-overview">
       <div class="page-eyebrow">Team Hub</div>
@@ -259,9 +263,9 @@
         <div class="stat-card"><div class="stat-label">Low Stock Items</div><div class="stat-value" id="stat-low-stock">—</div><div class="stat-sub">Need restocking</div></div>
       </div>
       <!-- Peer eval notification banner -->
-      <div id="peer-eval-banner" style="display:none;background:rgba(204,0,0,0.08);border:1px solid rgba(204,0,0,0.25);border-radius:10px;padding:0.85rem 1.25rem;margin-bottom:1.25rem;font-size:0.85rem;color:var(--red-bright);cursor:pointer" onclick="showSection('peer-eval',document.querySelector('[onclick*=peer-eval]'))">
+      <button id="peer-eval-banner" style="display:none;background:rgba(204,0,0,0.08);border:1px solid rgba(204,0,0,0.25);border-radius:10px;padding:0.85rem 1.25rem;margin-bottom:1.25rem;font-size:0.85rem;color:var(--red-bright);cursor:pointer;width:100%;text-align:left;font-family:'DM Sans',sans-serif" onclick="showSection('peer-eval',document.querySelector('[onclick*=peer-eval]'))">
         ⚠️ <span id="peer-eval-banner-text"></span>
-      </div>
+      </button>
 
       <div class="section">
         <div class="section-title">Quick Actions</div>
@@ -277,12 +281,12 @@
     <div id="section-orders" style="display:none">
       <div class="page-eyebrow">Team Hub</div>
       <h1 class="page-title">Active Orders</h1>
-      <div class="order-filter-row">
-        <button class="order-filter active" onclick="filterOrders('active',this)">🔴 Active</button>
-        <button class="order-filter" onclick="filterOrders('paid',this)">💳 Paid</button>
-        <button class="order-filter" onclick="filterOrders('pending',this)">⏳ Pending Payment</button>
-        <button class="order-filter" onclick="filterOrders('delivered',this)">✅ Delivered</button>
-        <button class="order-filter" onclick="filterOrders('all',this)">All</button>
+      <div class="order-filter-row" role="group" aria-label="Filter orders">
+        <button class="order-filter active" onclick="filterOrders('active',this)" aria-pressed="true">🔴 Active</button>
+        <button class="order-filter" onclick="filterOrders('paid',this)" aria-pressed="false">💳 Paid</button>
+        <button class="order-filter" onclick="filterOrders('pending',this)" aria-pressed="false">⏳ Pending Payment</button>
+        <button class="order-filter" onclick="filterOrders('delivered',this)" aria-pressed="false">✅ Delivered</button>
+        <button class="order-filter" onclick="filterOrders('all',this)" aria-pressed="false">All</button>
       </div>
       <div id="orders-container"><div style="color:var(--gray);text-align:center;padding:3rem">Loading orders...</div></div>
     </div>
@@ -346,14 +350,14 @@
       </div>
 
       <!-- Category filter tabs -->
-      <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:1.25rem" id="inv-category-tabs">
-        <button class="inv-cat-btn active" onclick="filterInventory('all',this)">All</button>
-        <button class="inv-cat-btn" onclick="filterInventory('cold_drinks',this)">🧊 Cold Drinks</button>
-        <button class="inv-cat-btn" onclick="filterInventory('hot_drinks',this)">☕ Hot Drinks</button>
-        <button class="inv-cat-btn" onclick="filterInventory('flavors',this)">🍬 Flavors</button>
-        <button class="inv-cat-btn" onclick="filterInventory('supplies',this)">📦 Supplies</button>
-        <button class="inv-cat-btn" onclick="filterInventory('baked_goods',this)">🍪 Baked Goods</button>
-        <button class="inv-cat-btn" onclick="filterInventory('low',this)" id="low-tab">🔴 Low Stock</button>
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:1.25rem" id="inv-category-tabs" role="group" aria-label="Filter inventory by category">
+        <button class="inv-cat-btn active" onclick="filterInventory('all',this)" aria-pressed="true">All</button>
+        <button class="inv-cat-btn" onclick="filterInventory('cold_drinks',this)" aria-pressed="false">🧊 Cold Drinks</button>
+        <button class="inv-cat-btn" onclick="filterInventory('hot_drinks',this)" aria-pressed="false">☕ Hot Drinks</button>
+        <button class="inv-cat-btn" onclick="filterInventory('flavors',this)" aria-pressed="false">🍬 Flavors</button>
+        <button class="inv-cat-btn" onclick="filterInventory('supplies',this)" aria-pressed="false">📦 Supplies</button>
+        <button class="inv-cat-btn" onclick="filterInventory('baked_goods',this)" aria-pressed="false">🍪 Baked Goods</button>
+        <button class="inv-cat-btn" onclick="filterInventory('low',this)" id="low-tab" aria-pressed="false">🔴 Low Stock</button>
       </div>
 
       <!-- Inventory grid -->
@@ -401,7 +405,7 @@
       <!-- Bar chart -->
       <div class="section">
         <div class="section-title">Revenue by Day</div>
-        <div id="srpt-chart" class="sales-chart" style="align-items:flex-end;gap:0.4rem;overflow-x:auto">
+        <div id="srpt-chart" class="sales-chart" style="align-items:flex-end;gap:0.4rem;overflow-x:auto" role="img" aria-label="Revenue by day bar chart">
           <span style="color:var(--gray);font-size:0.82rem;align-self:center;margin:auto">Loading…</span>
         </div>
       </div>
@@ -410,7 +414,7 @@
       <div class="section">
         <div class="section-title">Top Items</div>
         <div class="table-wrap">
-          <table><thead><tr><th>#</th><th>Item</th><th>Units Sold</th><th>Revenue</th><th>Discounts</th><th>Sq. Fees</th></tr></thead>
+          <table><thead><tr><th scope="col">#</th><th scope="col">Item</th><th scope="col">Units Sold</th><th scope="col">Revenue</th><th scope="col">Discounts</th><th scope="col">Sq. Fees</th></tr></thead>
           <tbody id="srpt-items"><tr><td colspan="6" style="text-align:center;color:var(--gray);padding:1.5rem">Loading…</td></tr></tbody></table>
         </div>
       </div>
@@ -439,7 +443,7 @@
             <span style="font-size:0.65rem;padding:0.2rem 0.6rem;border-radius:20px;background:rgba(255,100,0,0.1);color:#ff9944;border:1px solid rgba(255,100,0,0.25)">12 oz</span>
           </div>
           <div class="table-wrap">
-            <table><thead><tr><th>Item</th><th>Description</th><th>Available</th><th>Suggest Edit</th></tr></thead>
+            <table><thead><tr><th scope="col">Item</th><th scope="col">Description</th><th scope="col">Available</th><th scope="col">Suggest Edit</th></tr></thead>
             <tbody id="menu-hot-body"><tr><td colspan="4" style="text-align:center;color:var(--gray);padding:1.5rem">Loading...</td></tr></tbody></table>
           </div>
         </div>
@@ -450,7 +454,7 @@
             <span style="font-size:0.65rem;padding:0.2rem 0.6rem;border-radius:20px;background:rgba(80,160,255,0.1);color:#66aaff;border:1px solid rgba(80,160,255,0.25)">16 oz</span>
           </div>
           <div class="table-wrap">
-            <table><thead><tr><th>Item</th><th>Description</th><th>Available</th><th>Suggest Edit</th></tr></thead>
+            <table><thead><tr><th scope="col">Item</th><th scope="col">Description</th><th scope="col">Available</th><th scope="col">Suggest Edit</th></tr></thead>
             <tbody id="menu-iced-body"><tr><td colspan="4" style="text-align:center;color:var(--gray);padding:1.5rem">Loading...</td></tr></tbody></table>
           </div>
         </div>
@@ -461,7 +465,7 @@
             <span style="font-size:0.65rem;padding:0.2rem 0.6rem;border-radius:20px;background:rgba(0,100,204,0.1);color:#66aaff;border:1px solid rgba(0,100,204,0.25)">Elementary</span>
           </div>
           <div class="table-wrap">
-            <table><thead><tr><th>Item</th><th>Description</th><th>Available</th><th>Suggest Edit</th></tr></thead>
+            <table><thead><tr><th scope="col">Item</th><th scope="col">Description</th><th scope="col">Available</th><th scope="col">Suggest Edit</th></tr></thead>
             <tbody id="menu-mathews-body"><tr><td colspan="4" style="text-align:center;color:var(--gray);padding:1.5rem">Loading...</td></tr></tbody></table>
           </div>
         </div>
@@ -655,8 +659,9 @@
 
   function filterOrders(filter, btn) {
     currentOrderFilter = filter;
-    document.querySelectorAll('.order-filter').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.order-filter').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed','false'); });
     btn.classList.add('active');
+    btn.setAttribute('aria-pressed','true');
     renderOrders(filter);
   }
 
@@ -881,8 +886,9 @@
 
   function filterInventory(cat, btn) {
     currentInvFilter = cat;
-    document.querySelectorAll('.inv-cat-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.inv-cat-btn').forEach(b=>{ b.classList.remove('active'); b.setAttribute('aria-pressed','false'); });
     btn.classList.add('active');
+    btn.setAttribute('aria-pressed','true');
     renderInventoryGrid();
   }
 
@@ -1178,7 +1184,9 @@
           <td style="color:var(--gray);font-size:0.82rem">${item.description||'—'}</td>
           <td>
             <button class="avail-toggle ${item.available?'on':''}" id="menu-toggle-${item.id}"
-              onclick="toggleMenuAvail('${item.id}', ${item.available})">
+              onclick="toggleMenuAvail('${item.id}', ${item.available})"
+              role="switch" aria-checked="${item.available?'true':'false'}"
+              aria-label="${item.name} availability">
             </button>
             <span style="font-size:0.75rem;color:var(--gray);margin-left:0.6rem">${item.available?'Available':'Unavailable'}</span>
           </td>
@@ -1208,6 +1216,7 @@
     const btn = document.getElementById('menu-toggle-'+id);
     if(btn){
       btn.classList.toggle('on', newVal);
+      btn.setAttribute('aria-checked', String(newVal));
       const label = btn.nextElementSibling;
       if(label) label.textContent = newVal?'Available':'Unavailable';
       btn.setAttribute('onclick',`toggleMenuAvail('${id}', ${newVal})`);

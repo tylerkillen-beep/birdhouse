@@ -47,6 +47,7 @@
     }
     .nav-item:hover { color: var(--text); background: rgba(255,255,255,0.03); }
     .nav-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(200,169,110,0.06); }
+    button.nav-item { background: none; border: none; border-left: 2px solid transparent; width: 100%; text-align: left; font-family: 'DM Sans', sans-serif; }
     .nav-icon { width: 16px; text-align: center; font-size: 0.9rem; }
     .nav-badge {
       margin-left: auto; background: var(--danger); color: #fff; font-size: 0.6rem;
@@ -317,81 +318,81 @@
 <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleNav()" aria-hidden="true"></div>
 
 <!-- ══════════════ SIDEBAR ══════════════ -->
-<nav id="sidebar">
+<nav id="sidebar" aria-label="Admin navigation">
   <div class="sidebar-logo">
     <a href="../index.html" style="color:inherit;text-decoration:none">The Birdhouse</a>
     <span>Admin Panel</span>
   </div>
 
   <div class="nav-section">Operations</div>
-  <div class="nav-item active" onclick="showSection('dashboard')" id="nav-dashboard">
+  <button class="nav-item active" onclick="showSection('dashboard')" id="nav-dashboard">
     <span class="nav-icon">📊</span> Dashboard
-  </div>
-  <div class="nav-item" onclick="showSection('menu')" id="nav-menu">
+  </button>
+  <button class="nav-item" onclick="showSection('menu')" id="nav-menu">
     <span class="nav-icon">☕</span> Menu
-  </div>
-  <div class="nav-item" onclick="showSection('modifiers')" id="nav-modifiers">
+  </button>
+  <button class="nav-item" onclick="showSection('modifiers')" id="nav-modifiers">
     <span class="nav-icon">⚙️</span> Modifier Sets
-  </div>
-  <div class="nav-item" onclick="showSection('inventory')" id="nav-inventory">
+  </button>
+  <button class="nav-item" onclick="showSection('inventory')" id="nav-inventory">
     <span class="nav-icon">📦</span> Inventory
     <span class="nav-badge" id="badge-inventory" style="display:none"></span>
-  </div>
-  <div class="nav-item" onclick="showSection('closed-days')" id="nav-closed-days">
+  </button>
+  <button class="nav-item" onclick="showSection('closed-days')" id="nav-closed-days">
     <span class="nav-icon">🚫</span> Closed Days
-  </div>
+  </button>
 
   <div class="nav-section">Staff & Teams</div>
-  <div class="nav-item" onclick="showSection('staff')" id="nav-staff">
+  <button class="nav-item" onclick="showSection('staff')" id="nav-staff">
     <span class="nav-icon">👥</span> Staff
     <span class="nav-badge" id="badge-staff" style="display:none"></span>
-  </div>
-  <div class="nav-item" onclick="showSection('schedule')" id="nav-schedule">
+  </button>
+  <button class="nav-item" onclick="showSection('schedule')" id="nav-schedule">
     <span class="nav-icon">📅</span> Schedule
-  </div>
-  <div class="nav-item" onclick="showSection('scores')" id="nav-scores">
+  </button>
+  <button class="nav-item" onclick="showSection('scores')" id="nav-scores">
     <span class="nav-icon">⭐</span> Score Rubric
-  </div>
-  <div class="nav-item" onclick="showSection('manager-scores')" id="nav-manager-scores">
+  </button>
+  <button class="nav-item" onclick="showSection('manager-scores')" id="nav-manager-scores">
     <span class="nav-icon">📋</span> Manager Scores
-  </div>
-  <div class="nav-item" onclick="showSection('peer-evals')" id="nav-peer-evals">
+  </button>
+  <button class="nav-item" onclick="showSection('peer-evals')" id="nav-peer-evals">
     <span class="nav-icon">👥</span> Peer Evals
-  </div>
+  </button>
 
   <div class="nav-section">Customers</div>
-  <div class="nav-item" onclick="showSection('orders')" id="nav-orders">
+  <button class="nav-item" onclick="showSection('orders')" id="nav-orders">
     <span class="nav-icon">🧾</span> Orders
     <span class="nav-badge" id="badge-orders" style="display:none"></span>
-  </div>
-  <div class="nav-item" onclick="showSection('plans')" id="nav-plans">
+  </button>
+  <button class="nav-item" onclick="showSection('plans')" id="nav-plans">
     <span class="nav-icon">💎</span> Plan Manager
-  </div>
-  <div class="nav-item" onclick="showSection('subscriptions')" id="nav-subscriptions">
+  </button>
+  <button class="nav-item" onclick="showSection('subscriptions')" id="nav-subscriptions">
     <span class="nav-icon">🔄</span> Subscriptions
-  </div>
-  <div class="nav-item" onclick="showSection('customers')" id="nav-customers">
+  </button>
+  <button class="nav-item" onclick="showSection('customers')" id="nav-customers">
     <span class="nav-icon">🎓</span> Customers
-  </div>
-  <div class="nav-item" onclick="showSection('reviews')" id="nav-reviews">
+  </button>
+  <button class="nav-item" onclick="showSection('reviews')" id="nav-reviews">
     <span class="nav-icon">★</span> Reviews
-  </div>
+  </button>
 
   <div class="nav-section">Integrations</div>
-  <div class="nav-item" onclick="showSection('canvas')" id="nav-canvas">
+  <button class="nav-item" onclick="showSection('canvas')" id="nav-canvas">
     <span class="nav-icon">🎓</span> Canvas LMS
-  </div>
+  </button>
 
   <div class="nav-section">Financials</div>
-  <div class="nav-item" onclick="showSection('sales-report')" id="nav-sales-report">
+  <button class="nav-item" onclick="showSection('sales-report')" id="nav-sales-report">
     <span class="nav-icon">💰</span> Sales Report
-  </div>
-  <div class="nav-item" onclick="showSection('product-performance')" id="nav-product-performance">
+  </button>
+  <button class="nav-item" onclick="showSection('product-performance')" id="nav-product-performance">
     <span class="nav-icon">📈</span> Product Performance
-  </div>
-  <div class="nav-item" onclick="showSection('library-split')" id="nav-library-split">
+  </button>
+  <button class="nav-item" onclick="showSection('library-split')" id="nav-library-split">
     <span class="nav-icon">📚</span> Library Split
-  </div>
+  </button>
 
   <div class="sidebar-bottom">
     <div class="admin-badge">
@@ -420,7 +421,7 @@
     <div class="section-header"><div class="section-title">Recent Orders</div></div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Date/Time</th><th>Customer</th><th>Items</th><th>Total</th><th>Status</th></tr></thead>
+        <thead><tr><th scope="col">Date/Time</th><th scope="col">Customer</th><th scope="col">Items</th><th scope="col">Total</th><th scope="col">Status</th></tr></thead>
         <tbody id="dash-recent-orders"><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
       </table>
     </div>
@@ -430,15 +431,15 @@
   <div class="section-panel" id="section-orders">
     <div class="page-header"><h1>Orders</h1><p>View and manage all orders</p></div>
     <div class="filter-bar">
-      <input class="filter-input" id="orders-search" placeholder="Search customer, item…" oninput="filterOrders()" style="flex:1;min-width:200px" />
-      <select class="filter-select" id="orders-status-filter" onchange="filterOrders()">
+      <input class="filter-input" id="orders-search" placeholder="Search customer, item…" oninput="filterOrders()" style="flex:1;min-width:200px" aria-label="Search orders" />
+      <select class="filter-select" id="orders-status-filter" onchange="filterOrders()" aria-label="Filter by status">
         <option value="">All Statuses</option>
         <option value="pending">Pending</option>
         <option value="in_progress">In Progress</option>
         <option value="ready">Ready</option>
         <option value="delivered">Delivered</option>
       </select>
-      <select class="filter-select" id="orders-day-filter" onchange="filterOrders()">
+      <select class="filter-select" id="orders-day-filter" onchange="filterOrders()" aria-label="Filter by day">
         <option value="">All Days</option>
         <option value="Monday">Monday</option>
         <option value="Tuesday">Tuesday</option>
@@ -449,7 +450,7 @@
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Date</th><th>Customer</th><th>Items</th><th>Delivery / Pickup</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
+        <thead><tr><th scope="col">Date</th><th scope="col">Customer</th><th scope="col">Items</th><th scope="col">Delivery / Pickup</th><th scope="col">Total</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
         <tbody id="orders-tbody"><tr class="loading-row"><td colspan="7">Loading…</td></tr></tbody>
       </table>
     </div>
@@ -516,7 +517,7 @@
     </div>
     <div class="table-wrap" style="margin-bottom:2rem">
       <table>
-        <thead><tr><th>Name</th><th>Email</th><th>Joined</th><th>Actions</th></tr></thead>
+        <thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Joined</th><th scope="col">Actions</th></tr></thead>
         <tbody id="pending-tbody"><tr class="loading-row"><td colspan="4">Loading…</td></tr></tbody>
       </table>
     </div>
@@ -544,7 +545,7 @@
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Order</th><th>Category</th><th>Description</th><th>Max Points</th><th>Active</th><th>Actions</th></tr></thead>
+        <thead><tr><th scope="col">Order</th><th scope="col">Category</th><th scope="col">Description</th><th scope="col">Max Points</th><th scope="col">Active</th><th scope="col">Actions</th></tr></thead>
         <tbody id="rubric-tbody"><tr class="loading-row"><td colspan="6">Loading…</td></tr></tbody>
       </table>
     </div>
@@ -670,7 +671,7 @@
             <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);margin-bottom:0.5rem">Team Scores Preview</div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>Team</th><th>Product</th><th>Profit</th><th>Threshold</th><th style="text-align:right">Score (/ 10)</th></tr></thead>
+                <thead><tr><th scope="col">Team</th><th scope="col">Product</th><th scope="col">Profit</th><th scope="col">Threshold</th><th scope="col" style="text-align:right">Score (/ 10)</th></tr></thead>
                 <tbody id="canvas-product-preview-tbody"></tbody>
               </table>
             </div>
@@ -696,15 +697,15 @@
       <div class="stat-card"><div class="stat-label">MRR</div><div class="stat-value accent" id="sub-stat-mrr">—</div></div>
     </div>
     <div class="filter-bar">
-      <input class="filter-input" id="sub-search" placeholder="Search by name or email…" oninput="filterSubscriptions()" style="flex:1;min-width:200px" />
-      <select class="filter-select" id="sub-status-filter" onchange="filterSubscriptions()">
+      <input class="filter-input" id="sub-search" placeholder="Search by name or email…" oninput="filterSubscriptions()" style="flex:1;min-width:200px" aria-label="Search subscriptions" />
+      <select class="filter-select" id="sub-status-filter" onchange="filterSubscriptions()" aria-label="Filter by status">
         <option value="">All Statuses</option>
         <option value="active">Active</option>
         <option value="paused">Paused</option>
         <option value="cancelled">Cancelled</option>
         <option value="past_due">Past Due</option>
       </select>
-      <select class="filter-select" id="sub-plan-filter" onchange="filterSubscriptions()">
+      <select class="filter-select" id="sub-plan-filter" onchange="filterSubscriptions()" aria-label="Filter by plan">
         <option value="">All Plans</option>
       </select>
     </div>
@@ -712,7 +713,7 @@
       <table>
         <thead>
           <tr>
-            <th>Customer</th><th>Plan</th><th>Status</th><th>Next Billing</th><th>Drinks/Wk</th><th>Started</th><th>Actions</th>
+            <th scope="col">Customer</th><th scope="col">Plan</th><th scope="col">Status</th><th scope="col">Next Billing</th><th scope="col">Drinks/Wk</th><th scope="col">Started</th><th scope="col">Actions</th>
           </tr>
         </thead>
         <tbody id="sub-tbody"><tr class="loading-row"><td colspan="7">Loading…</td></tr></tbody>
@@ -725,7 +726,7 @@
     <div class="page-header"><h1>Customers</h1><p>View all customer accounts</p></div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Name</th><th>Email</th><th>Loyalty</th><th>Orders</th><th>Joined</th></tr></thead>
+        <thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Loyalty</th><th scope="col">Orders</th><th scope="col">Joined</th></tr></thead>
         <tbody id="customers-tbody"><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
       </table>
     </div>
@@ -738,8 +739,8 @@
       <p>All drink reviews submitted by customers. Delete any review that is inappropriate.</p>
     </div>
     <div class="filter-bar">
-      <input class="filter-input" id="reviews-search" placeholder="Search by name, drink, or review…" oninput="filterReviews()" style="flex:1;min-width:200px" />
-      <select class="filter-select" id="reviews-rating-filter" onchange="filterReviews()">
+      <input class="filter-input" id="reviews-search" placeholder="Search by name, drink, or review…" oninput="filterReviews()" style="flex:1;min-width:200px" aria-label="Search reviews" />
+      <select class="filter-select" id="reviews-rating-filter" onchange="filterReviews()" aria-label="Filter by rating">
         <option value="">All Ratings</option>
         <option value="5">5 Stars</option>
         <option value="4">4 Stars</option>
@@ -756,7 +757,7 @@
     <div class="table-wrap">
       <table>
         <thead>
-          <tr><th>Date</th><th>Reviewer</th><th>Drink</th><th>Rating</th><th>Review</th><th>Actions</th></tr>
+          <tr><th scope="col">Date</th><th scope="col">Reviewer</th><th scope="col">Drink</th><th scope="col">Rating</th><th scope="col">Review</th><th scope="col">Actions</th></tr>
         </thead>
         <tbody id="reviews-tbody"><tr class="loading-row"><td colspan="6">Loading reviews…</td></tr></tbody>
       </table>
@@ -790,7 +791,7 @@
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Date</th><th>Day</th><th>Reason</th><th>Added</th><th>Actions</th></tr></thead>
+        <thead><tr><th scope="col">Date</th><th scope="col">Day</th><th scope="col">Reason</th><th scope="col">Added</th><th scope="col">Actions</th></tr></thead>
         <tbody id="closed-days-tbody"><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
       </table>
     </div>
@@ -811,7 +812,7 @@
       <table>
         <thead>
           <tr>
-            <th>Name</th><th>Price / Mo</th><th>Drinks / Wk</th><th>Cookies / Wk</th><th>Free Modifiers</th><th>Early Access</th><th>Active</th><th>Subscribers</th><th>Actions</th>
+            <th scope="col">Name</th><th scope="col">Price / Mo</th><th scope="col">Drinks / Wk</th><th scope="col">Cookies / Wk</th><th scope="col">Free Modifiers</th><th scope="col">Early Access</th><th scope="col">Active</th><th scope="col">Subscribers</th><th scope="col">Actions</th>
           </tr>
         </thead>
         <tbody id="plans-tbody"><tr class="loading-row"><td colspan="9">Loading…</td></tr></tbody>
@@ -877,7 +878,7 @@
     <div class="table-wrap">
       <table>
         <thead>
-          <tr><th>Name</th><th>Category</th><th>Temp</th><th>Price</th><th>Availability</th><th>Actions</th></tr>
+          <tr><th scope="col">Name</th><th scope="col">Category</th><th scope="col">Temp</th><th scope="col">Price</th><th scope="col">Availability</th><th scope="col">Actions</th></tr>
         </thead>
         <tbody id="menu-items-tbody"><tr class="loading-row"><td colspan="6">Loading menu items…</td></tr></tbody>
       </table>
@@ -890,7 +891,7 @@
     <div class="table-wrap">
       <table>
         <thead>
-          <tr><th>Submitted</th><th>Student</th><th>Type</th><th>Proposed Item</th><th>Details</th><th>Status</th><th>Actions</th></tr>
+          <tr><th scope="col">Submitted</th><th scope="col">Student</th><th scope="col">Type</th><th scope="col">Proposed Item</th><th scope="col">Details</th><th scope="col">Status</th><th scope="col">Actions</th></tr>
         </thead>
         <tbody id="menu-submissions-tbody"><tr class="loading-row"><td colspan="7">Loading suggestions…</td></tr></tbody>
       </table>
@@ -912,7 +913,7 @@
   <!-- Add/Edit Modifier Set Modal -->
   <div class="modal-overlay" id="mod-set-modal">
     <div class="modal" style="max-width:480px">
-      <button class="modal-close" onclick="closeModal('mod-set-modal')">✕</button>
+      <button class="modal-close" onclick="closeModal('mod-set-modal')" aria-label="Close">✕</button>
       <div class="modal-title" id="mod-set-modal-title">New Modifier Set</div>
       <div class="form-group">
         <label class="form-label">Set Name</label>
@@ -928,7 +929,7 @@
   <!-- Add/Edit Modifier Option Modal -->
   <div class="modal-overlay" id="mod-option-modal">
     <div class="modal" style="max-width:480px">
-      <button class="modal-close" onclick="closeModal('mod-option-modal')">✕</button>
+      <button class="modal-close" onclick="closeModal('mod-option-modal')" aria-label="Close">✕</button>
       <div class="modal-title" id="mod-option-modal-title">Add Option</div>
       <input type="hidden" id="mod-option-list-id" />
       <input type="hidden" id="mod-option-editing-id" />
@@ -992,7 +993,7 @@
     <div class="section-header"><div class="section-title">Top Items</div></div>
     <div class="table-wrap" style="max-height:420px;overflow-y:auto;">
       <table>
-        <thead style="position:sticky;top:0;z-index:1;"><tr><th>#</th><th>Item</th><th>Units Sold</th><th>Revenue</th><th>Discounts</th><th>Sq. Fees</th></tr></thead>
+        <thead style="position:sticky;top:0;z-index:1;"><tr><th scope="col">#</th><th scope="col">Item</th><th scope="col">Units Sold</th><th scope="col">Revenue</th><th scope="col">Discounts</th><th scope="col">Sq. Fees</th></tr></thead>
         <tbody id="report-items-tbody"><tr class="loading-row"><td colspan="6" style="text-align:center;color:var(--text-muted)">Select a range to load report</td></tr></tbody>
       </table>
     </div>
@@ -1029,16 +1030,16 @@
     <div class="table-wrap">
       <table>
         <thead><tr>
-          <th>Team</th>
-          <th>Product</th>
-          <th>Period</th>
-          <th>Units Sold</th>
-          <th>Revenue</th>
-          <th>Discounts</th>
-          <th>Sq. Fees</th>
-          <th>COGS</th>
-          <th>Profit</th>
-          <th>Margin</th>
+          <th scope="col">Team</th>
+          <th scope="col">Product</th>
+          <th scope="col">Period</th>
+          <th scope="col">Units Sold</th>
+          <th scope="col">Revenue</th>
+          <th scope="col">Discounts</th>
+          <th scope="col">Sq. Fees</th>
+          <th scope="col">COGS</th>
+          <th scope="col">Profit</th>
+          <th scope="col">Margin</th>
         </tr></thead>
         <tbody id="pp-tbody">
           <tr class="loading-row"><td colspan="10" style="text-align:center;color:var(--text-muted)">Select a range to load report</td></tr>
@@ -1139,14 +1140,14 @@
     <div class="table-wrap">
       <table>
         <thead><tr>
-          <th>Date</th>
-          <th>Day</th>
-          <th>Lib %</th>
-          <th>Total Gross</th>
-          <th>Library Gross</th>
-          <th>Sq. Fees</th>
-          <th>COGS</th>
-          <th>Net</th>
+          <th scope="col">Date</th>
+          <th scope="col">Day</th>
+          <th scope="col">Lib %</th>
+          <th scope="col">Total Gross</th>
+          <th scope="col">Library Gross</th>
+          <th scope="col">Sq. Fees</th>
+          <th scope="col">COGS</th>
+          <th scope="col">Net</th>
         </tr></thead>
         <tbody id="lib-tbody">
           <tr class="loading-row"><td colspan="8" style="text-align:center;color:var(--text-muted)">Select a range to load report</td></tr>
@@ -1162,7 +1163,7 @@
 <!-- Subscription Action Modal -->
 <div class="modal-overlay" id="sub-action-modal">
   <div class="modal">
-    <button class="modal-close" onclick="closeModal('sub-action-modal')">✕</button>
+    <button class="modal-close" onclick="closeModal('sub-action-modal')" aria-label="Close">✕</button>
     <div class="modal-title" id="sub-modal-title">Manage Subscription</div>
     <div id="sub-modal-body" style="margin-bottom:1rem;color:var(--gray-mid);font-size:0.84rem;line-height:1.6"></div>
     <div class="form-actions" id="sub-modal-actions"></div>
@@ -1172,7 +1173,7 @@
 <!-- Add/Edit Menu Item Modal -->
 <div class="modal-overlay" id="menu-item-modal">
   <div class="modal" style="max-width:680px">
-    <button class="modal-close" onclick="closeModal('menu-item-modal')">✕</button>
+    <button class="modal-close" onclick="closeModal('menu-item-modal')" aria-label="Close">✕</button>
     <div class="modal-title" id="menu-item-modal-title">New Menu Item</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
       <div class="form-group">
@@ -1217,7 +1218,7 @@
 <!-- Add/Edit Inventory Item Modal -->
 <div class="modal-overlay" id="inv-item-modal">
   <div class="modal" style="max-width:520px">
-    <button class="modal-close" onclick="closeModal('inv-item-modal')">✕</button>
+    <button class="modal-close" onclick="closeModal('inv-item-modal')" aria-label="Close">✕</button>
     <div class="modal-title" id="inv-item-modal-title">Add Inventory Item</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
       <div class="form-group" style="grid-column:1/-1">
@@ -1270,7 +1271,7 @@
 <!-- Add/Edit Plan Modal -->
 <div class="modal-overlay" id="plan-modal">
   <div class="modal" style="max-width:580px">
-    <button class="modal-close" onclick="closeModal('plan-modal')">✕</button>
+    <button class="modal-close" onclick="closeModal('plan-modal')" aria-label="Close">✕</button>
     <div class="modal-title" id="plan-modal-title">New Plan</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
       <div class="form-group">
@@ -1333,7 +1334,7 @@
 <!-- Staff Team Modal -->
 <div class="modal-overlay" id="staff-team-modal">
   <div class="modal" style="max-width:460px">
-    <button class="modal-close" onclick="closeModal('staff-team-modal')">✕</button>
+    <button class="modal-close" onclick="closeModal('staff-team-modal')" aria-label="Close">✕</button>
     <div class="modal-title" id="staff-team-modal-title">Add Team</div>
     <div class="form-group">
       <label class="form-label">Team Name</label>
@@ -1372,7 +1373,7 @@
 <!-- Staff Student Modal -->
 <div class="modal-overlay" id="staff-student-modal">
   <div class="modal" style="max-width:460px">
-    <button class="modal-close" onclick="closeModal('staff-student-modal')">✕</button>
+    <button class="modal-close" onclick="closeModal('staff-student-modal')" aria-label="Close">✕</button>
     <div class="modal-title">Edit Student</div>
     <div style="font-size:0.82rem;color:var(--gray-mid);margin-bottom:1rem" id="staff-student-modal-name"></div>
     <div class="form-group">
@@ -1393,7 +1394,7 @@
 <!-- Add/Edit Rubric Category Modal -->
 <div class="modal-overlay" id="rubric-modal">
   <div class="modal">
-    <button class="modal-close" onclick="closeModal('rubric-modal')">✕</button>
+    <button class="modal-close" onclick="closeModal('rubric-modal')" aria-label="Close">✕</button>
     <div class="modal-title" id="rubric-modal-title">Add Category</div>
     <div class="form-group">
       <label class="form-label">Category Name</label>
@@ -1432,7 +1433,7 @@
         <div class="pos-modal-title" id="sched-pos-modal-title">Assign Positions</div>
         <div style="font-size:0.76rem;color:var(--gray);margin-top:0.15rem" id="sched-pos-modal-sub"></div>
       </div>
-      <button class="modal-close" onclick="schedClosePosModal()">✕</button>
+      <button class="modal-close" onclick="schedClosePosModal()" aria-label="Close">✕</button>
     </div>
     <div class="pos-modal-body" id="sched-pos-modal-body"></div>
     <div class="pos-modal-footer">
@@ -2148,9 +2149,9 @@ async function loadAdminScores(offsetDelta) {
 
   c.innerHTML = `<div class="table-wrap"><table>
     <thead><tr>
-      <th>Student</th>
-      ${(rubric||[]).map(r => `<th style="text-align:center">${r.name}<br/><span style="font-size:0.6rem;color:#333">/${r.max_points}</span></th>`).join('')}
-      <th>Total</th><th>Comment</th><th>Scored By</th>
+      <th scope="col">Student</th>
+      ${(rubric||[]).map(r => `<th scope="col" style="text-align:center">${r.name}<br/><span style="font-size:0.6rem;color:#333">/${r.max_points}</span></th>`).join('')}
+      <th scope="col">Total</th><th scope="col">Comment</th><th scope="col">Scored By</th>
     </tr></thead>
     <tbody>
     ${(students||[]).filter(s => byStudent[s.id]).map(s => {
@@ -2259,11 +2260,11 @@ async function loadAdminPeerEvals(offsetDelta) {
 
   c.innerHTML = `<div class="table-wrap"><table>
     <thead><tr>
-      <th>Student</th>
-      <th style="text-align:center">Avg Score / ${totalPeerMax}</th>
-      <th style="text-align:center">Evaluators</th>
-      <th>Comments (with name)</th>
-      <th>Missing Evals</th>
+      <th scope="col">Student</th>
+      <th scope="col" style="text-align:center">Avg Score / ${totalPeerMax}</th>
+      <th scope="col" style="text-align:center">Evaluators</th>
+      <th scope="col">Comments (with name)</th>
+      <th scope="col">Missing Evals</th>
     </tr></thead>
     <tbody>${rows || '<tr><td colspan="5" style="text-align:center;color:var(--gray);padding:2rem">No data</td></tr>'}</tbody>
   </table></div>`;
@@ -2935,9 +2936,9 @@ async function loadModifierSets() {
         </div>
         <table style="width:100%;border-collapse:collapse">
           <thead><tr style="background:#0d0d0d">
-            <th style="padding:0.45rem 0.75rem;text-align:left;font-size:0.72rem;color:var(--gray-mid)">Option</th>
-            <th style="padding:0.45rem 0.75rem;text-align:left;font-size:0.72rem;color:var(--gray-mid)">Price</th>
-            <th style="padding:0.45rem 0.75rem;text-align:left;font-size:0.72rem;color:var(--gray-mid)">Actions</th>
+            <th scope="col" style="padding:0.45rem 0.75rem;text-align:left;font-size:0.72rem;color:var(--gray-mid)">Option</th>
+            <th scope="col" style="padding:0.45rem 0.75rem;text-align:left;font-size:0.72rem;color:var(--gray-mid)">Price</th>
+            <th scope="col" style="padding:0.45rem 0.75rem;text-align:left;font-size:0.72rem;color:var(--gray-mid)">Actions</th>
           </tr></thead>
           <tbody>${optRows}</tbody>
         </table>
@@ -4759,7 +4760,7 @@ async function syncCanvasGrades(dryRun) {
             <col style="width:80px" />
             <col />
           </colgroup>
-          <thead><tr><th>Student</th><th>Email</th><th style="text-align:right">Grade</th><th>Status</th></tr></thead>
+          <thead><tr><th scope="col">Student</th><th scope="col">Email</th><th scope="col" style="text-align:right">Grade</th><th scope="col">Status</th></tr></thead>
           <tbody>${rows.map(r => `<tr>
             <td style="white-space:nowrap">${r.name}</td>
             <td style="color:var(--gray-mid);font-size:0.8rem;word-break:break-all">${r.email}</td>

@@ -163,11 +163,11 @@
 
     <div class="summary-row" id="summary-row"></div>
 
-    <div class="filter-row">
-      <button class="filter-btn active" onclick="filterOrders('all',this)">All Orders</button>
-      <button class="filter-btn" onclick="filterOrders('active',this)">Active</button>
-      <button class="filter-btn" onclick="filterOrders('delivered',this)">Delivered</button>
-      <button class="filter-btn" onclick="filterOrders('cancelled',this)">Cancelled</button>
+    <div class="filter-row" role="group" aria-label="Filter orders">
+      <button class="filter-btn active" onclick="filterOrders('all',this)" aria-pressed="true">All Orders</button>
+      <button class="filter-btn" onclick="filterOrders('active',this)" aria-pressed="false">Active</button>
+      <button class="filter-btn" onclick="filterOrders('delivered',this)" aria-pressed="false">Delivered</button>
+      <button class="filter-btn" onclick="filterOrders('cancelled',this)" aria-pressed="false">Cancelled</button>
     </div>
 
     <div id="orders-container"><div style="color:var(--gray);text-align:center;padding:3rem">Loading your orders...</div></div>
@@ -269,8 +269,9 @@
   }
 
   function filterOrders(filter, btn) {
-    document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.filter-btn').forEach(b=>{ b.classList.remove('active'); b.setAttribute('aria-pressed','false'); });
     btn.classList.add('active');
+    btn.setAttribute('aria-pressed','true');
     renderOrders(filter);
   }
 

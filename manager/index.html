@@ -11,6 +11,8 @@
   :root{--red:#cc0000;--red-bright:#ff1a1a;--black:#0a0a0a;--card:#111;--border:rgba(204,0,0,0.18);--border-dim:rgba(255,255,255,0.06);--gray:#888;--light-gray:#999;--white:#f0f0f0}
   *{margin:0;padding:0;box-sizing:border-box}
   body{background:var(--black);color:var(--white);font-family:'DM Sans',sans-serif;min-height:100vh;display:flex}
+  .skip-link{position:absolute;top:-100%;left:1rem;background:var(--red-bright);color:#000;padding:0.5rem 1rem;border-radius:0 0 6px 6px;font-size:0.85rem;font-weight:500;text-decoration:none;z-index:9999}
+  .skip-link:focus{top:0}
   :focus-visible{outline:2px solid var(--red-bright);outline-offset:3px;border-radius:3px}
   @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important}}
   .sidebar{width:220px;min-height:100vh;background:#0d0d0d;border-right:1px solid var(--border-dim);padding:1.5rem 0;flex-shrink:0;display:flex;flex-direction:column}
@@ -93,6 +95,7 @@
   @media(max-width:500px){.stats-grid{grid-template-columns:1fr}}
   .nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:0.6rem;padding:0.1rem 0.4rem;border-radius:20px;font-weight:500;min-width:18px;text-align:center}
   .nav-item{display:flex;align-items:center;gap:0.4rem}
+  button.nav-item{background:none;border:none;border-left:2px solid transparent;width:100%;font-family:'DM Sans',sans-serif;font-size:0.84rem;padding:0.6rem 1.25rem}
   .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;align-items:center;justify-content:center}
   .modal-overlay.open{display:flex}
   .modal{background:#111;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:2rem;width:90%;max-width:520px;position:relative;max-height:90vh;overflow-y:auto}
@@ -118,6 +121,7 @@
 </style>
 </head>
 <body>
+<a class="skip-link" href="#main-content">Skip to main content</a>
 
 <div class="mobile-topbar">
   <a class="mobile-topbar-brand" href="../index.html">🏠 BIRDHOUSE</a>
@@ -151,19 +155,19 @@
     <div class="logo"><a href="../index.html" style="text-decoration:none"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:0.08em;color:var(--red)">🏠 BIRDHOUSE</div></a></div>
     <div class="role-badge">Manager</div>
     <div class="nav-section">Overview</div>
-    <a class="nav-item active" onclick="showSection('overview',this)">📊 Dashboard</a>
+    <button class="nav-item active" onclick="showSection('overview',this)">📊 Dashboard</button>
     <div class="nav-section">Operations</div>
-    <a class="nav-item" onclick="showSection('schedule',this)">📅 Schedule</a>
-    <a class="nav-item" onclick="showSection('orders',this)">🧾 Active Orders</a>
-    <a class="nav-item" onclick="showSection('inventory',this)">📦 Inventory<span class="nav-badge" id="inv-nav-badge" style="display:none"></span></a>
+    <button class="nav-item" onclick="showSection('schedule',this)">📅 Schedule</button>
+    <button class="nav-item" onclick="showSection('orders',this)">🧾 Active Orders</button>
+    <button class="nav-item" onclick="showSection('inventory',this)">📦 Inventory<span class="nav-badge" id="inv-nav-badge" style="display:none"></span></button>
     <div class="nav-section">Students</div>
-    <a class="nav-item" onclick="showSection('scores',this)">⭐ Weekly Scores</a>
+    <button class="nav-item" onclick="showSection('scores',this)">⭐ Weekly Scores</button>
     <div class="nav-bottom">
       <div class="nav-user"><strong id="nav-name">—</strong>Manager</div>
       <button class="sign-out" onclick="doSignOut()">Sign out</button>
     </div>
   </nav>
-  <main class="main">
+  <main class="main" id="main-content">
 
     <div class="section active" id="section-overview">
       <div class="page-eyebrow">Manager Hub</div>
@@ -186,12 +190,12 @@
     <div class="section" id="section-orders">
       <div class="page-eyebrow">Operations</div>
       <h1 class="page-title">ACTIVE ORDERS</h1>
-      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.25rem" id="order-filter-btns">
-        <button class="cat-btn active" onclick="filterOrders('all',this)">All</button>
-        <button class="cat-btn" onclick="filterOrders('pending',this)">Pending</button>
-        <button class="cat-btn" onclick="filterOrders('preparing',this)">Preparing</button>
-        <button class="cat-btn" onclick="filterOrders('ready',this)">Ready</button>
-        <button class="cat-btn" onclick="filterOrders('delivered',this)">Delivered</button>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.25rem" id="order-filter-btns" role="group" aria-label="Filter orders by status">
+        <button class="cat-btn active" onclick="filterOrders('all',this)" aria-pressed="true">All</button>
+        <button class="cat-btn" onclick="filterOrders('pending',this)" aria-pressed="false">Pending</button>
+        <button class="cat-btn" onclick="filterOrders('preparing',this)" aria-pressed="false">Preparing</button>
+        <button class="cat-btn" onclick="filterOrders('ready',this)" aria-pressed="false">Ready</button>
+        <button class="cat-btn" onclick="filterOrders('delivered',this)" aria-pressed="false">Delivered</button>
       </div>
       <div id="orders-content"></div>
     </div>
@@ -201,14 +205,14 @@
       <h1 class="page-title">INVENTORY</h1>
       <div id="low-banner" style="display:none;background:rgba(255,152,0,0.08);border:1px solid rgba(255,152,0,0.25);border-radius:10px;padding:0.85rem 1.25rem;margin-bottom:1.25rem;font-size:0.85rem;color:#ff9800"></div>
       <div class="section-header">
-        <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
-          <button class="cat-btn active" onclick="filterInv('all',this)">All</button>
-          <button class="cat-btn" onclick="filterInv('cold_drinks',this)">🧊 Cold Drinks</button>
-          <button class="cat-btn" onclick="filterInv('hot_drinks',this)">☕ Hot Drinks</button>
-          <button class="cat-btn" onclick="filterInv('flavors',this)">🍬 Flavors</button>
-          <button class="cat-btn" onclick="filterInv('supplies',this)">📦 Supplies</button>
-          <button class="cat-btn" onclick="filterInv('baked_goods',this)">🍪 Baked Goods</button>
-          <button class="cat-btn" onclick="filterInv('low',this)" id="inv-low-tab">🔴 Low Stock</button>
+        <div style="display:flex;gap:0.4rem;flex-wrap:wrap" role="group" aria-label="Filter inventory by category">
+          <button class="cat-btn active" onclick="filterInv('all',this)" aria-pressed="true">All</button>
+          <button class="cat-btn" onclick="filterInv('cold_drinks',this)" aria-pressed="false">🧊 Cold Drinks</button>
+          <button class="cat-btn" onclick="filterInv('hot_drinks',this)" aria-pressed="false">☕ Hot Drinks</button>
+          <button class="cat-btn" onclick="filterInv('flavors',this)" aria-pressed="false">🍬 Flavors</button>
+          <button class="cat-btn" onclick="filterInv('supplies',this)" aria-pressed="false">📦 Supplies</button>
+          <button class="cat-btn" onclick="filterInv('baked_goods',this)" aria-pressed="false">🍪 Baked Goods</button>
+          <button class="cat-btn" onclick="filterInv('low',this)" id="inv-low-tab" aria-pressed="false">🔴 Low Stock</button>
         </div>
         <button class="btn btn-primary btn-sm" onclick="openAddInvModal()">+ Add Item</button>
       </div>
@@ -227,17 +231,17 @@
 </div>
 
 <!-- Add/Edit Inventory Item Modal -->
-<div class="modal-overlay" id="inv-item-modal">
+<div class="modal-overlay" id="inv-item-modal" role="dialog" aria-modal="true" aria-labelledby="inv-item-modal-title">
   <div class="modal">
-    <button class="modal-close" onclick="closeInvModal()">✕</button>
+    <button class="modal-close" onclick="closeInvModal()" aria-label="Close">✕</button>
     <div class="modal-title" id="inv-item-modal-title">Add Inventory Item</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
       <div class="form-group" style="grid-column:1/-1">
-        <label class="form-label">Item Name</label>
+        <label class="form-label" for="inv-item-name">Item Name</label>
         <input class="form-input" id="inv-item-name" placeholder="e.g. Oat Milk" />
       </div>
       <div class="form-group">
-        <label class="form-label">Category</label>
+        <label class="form-label" for="inv-item-category">Category</label>
         <select class="form-input" id="inv-item-category">
           <option value="cold_drinks">Cold Drinks</option>
           <option value="hot_drinks">Hot Drinks</option>
@@ -247,27 +251,27 @@
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">Unit</label>
+        <label class="form-label" for="inv-item-unit">Unit</label>
         <input class="form-input" id="inv-item-unit" placeholder="e.g. gallons, oz, bags" />
       </div>
       <div class="form-group">
-        <label class="form-label">Current Quantity</label>
+        <label class="form-label" for="inv-item-qty">Current Quantity</label>
         <input class="form-input" id="inv-item-qty" type="number" min="0" step="0.5" placeholder="0" />
       </div>
       <div class="form-group">
-        <label class="form-label">Par Level</label>
+        <label class="form-label" for="inv-item-par">Par Level</label>
         <input class="form-input" id="inv-item-par" type="number" min="0" step="0.5" placeholder="1" />
       </div>
       <div class="form-group">
-        <label class="form-label">Last Ordered</label>
+        <label class="form-label" for="inv-item-last-ordered">Last Ordered</label>
         <input class="form-input" id="inv-item-last-ordered" type="date" />
       </div>
       <div class="form-group">
-        <label class="form-label">Expected Arrival</label>
+        <label class="form-label" for="inv-item-expected-arrival">Expected Arrival</label>
         <input class="form-input" id="inv-item-expected-arrival" type="date" />
       </div>
       <div class="form-group" style="grid-column:1/-1">
-        <label class="form-label">Notes <span style="color:var(--gray);font-weight:400;text-transform:none">(optional)</span></label>
+        <label class="form-label" for="inv-item-notes">Notes <span style="color:var(--gray);font-weight:400;text-transform:none">(optional)</span></label>
         <input class="form-input" id="inv-item-notes" placeholder="Storage location, supplier, etc." />
       </div>
     </div>
@@ -411,7 +415,7 @@ async function loadOrders(){
   const {data}=await sb.from('orders').select('*').order('created_at',{ascending:false}).limit(100);
   allOrders=data||[];renderOrders();
 }
-function filterOrders(f,btn){orderFilter=f;document.querySelectorAll('#order-filter-btns .cat-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderOrders();}
+function filterOrders(f,btn){orderFilter=f;document.querySelectorAll('#order-filter-btns .cat-btn').forEach(b=>{b.classList.remove('active');b.setAttribute('aria-pressed','false');});btn.classList.add('active');btn.setAttribute('aria-pressed','true');renderOrders();}
 function renderOrders(){
   const el=document.getElementById('orders-content');
   let orders=allOrders;
@@ -436,7 +440,7 @@ async function loadInventory(){
   if(badge){if(low.length){badge.textContent=low.length;badge.style.display='';}else{badge.style.display='none';}}
   renderInventory();
 }
-function filterInv(f,btn){invFilter=f;document.querySelectorAll('#section-inventory .cat-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderInventory();}
+function filterInv(f,btn){invFilter=f;document.querySelectorAll('#section-inventory .cat-btn').forEach(b=>{b.classList.remove('active');b.setAttribute('aria-pressed','false');});btn.classList.add('active');btn.setAttribute('aria-pressed','true');renderInventory();}
 function renderInventory(){
   const el=document.getElementById('inventory-content');
   let items=allInventory;

@@ -184,40 +184,40 @@
     <div class="filter-bar">
       <!-- Sort by -->
       <div class="filter-row">
-        <span class="filter-label">Sort by</span>
-        <div class="filter-pills" id="sort-pills">
-          <button class="filter-pill active" data-val="scheduled" onclick="setSortFilter('scheduled', this)">⏰ Scheduled</button>
-          <button class="filter-pill" data-val="placed" onclick="setSortFilter('placed', this)">🕐 Placed</button>
+        <span class="filter-label" id="label-sort">Sort by</span>
+        <div class="filter-pills" id="sort-pills" role="group" aria-labelledby="label-sort">
+          <button class="filter-pill active" data-val="scheduled" onclick="setSortFilter('scheduled', this)" aria-pressed="true">⏰ Scheduled</button>
+          <button class="filter-pill" data-val="placed" onclick="setSortFilter('placed', this)" aria-pressed="false">🕐 Placed</button>
         </div>
       </div>
       <!-- Delivery method -->
       <div class="filter-row">
-        <span class="filter-label">Delivery</span>
-        <div class="filter-pills" id="method-pills">
-          <button class="filter-pill active" data-val="all" onclick="setMethodFilter('all', this)">All</button>
-          <button class="filter-pill" data-val="delivery" onclick="setMethodFilter('delivery', this)">🚚 Delivery</button>
-          <button class="filter-pill" data-val="pickup" onclick="setMethodFilter('pickup', this)">🏠 Pickup</button>
+        <span class="filter-label" id="label-delivery">Delivery</span>
+        <div class="filter-pills" id="method-pills" role="group" aria-labelledby="label-delivery">
+          <button class="filter-pill active" data-val="all" onclick="setMethodFilter('all', this)" aria-pressed="true">All</button>
+          <button class="filter-pill" data-val="delivery" onclick="setMethodFilter('delivery', this)" aria-pressed="false">🚚 Delivery</button>
+          <button class="filter-pill" data-val="pickup" onclick="setMethodFilter('pickup', this)" aria-pressed="false">🏠 Pickup</button>
         </div>
       </div>
       <!-- Status -->
       <div class="filter-row">
-        <span class="filter-label">Status</span>
-        <div class="filter-pills" id="status-pills">
-          <button class="filter-pill active" data-val="active" onclick="setStatusFilter('active', this)">🔴 Active</button>
-          <button class="filter-pill" data-val="pending" onclick="setStatusFilter('pending', this)">⏳ Pending</button>
-          <button class="filter-pill" data-val="paid" onclick="setStatusFilter('paid', this)">💳 Paid</button>
-          <button class="filter-pill" data-val="delivered" onclick="setStatusFilter('delivered', this)">✅ Delivered</button>
-          <button class="filter-pill" data-val="cancelled" onclick="setStatusFilter('cancelled', this)">✕ Cancelled</button>
-          <button class="filter-pill" data-val="all" onclick="setStatusFilter('all', this)">All</button>
+        <span class="filter-label" id="label-status">Status</span>
+        <div class="filter-pills" id="status-pills" role="group" aria-labelledby="label-status">
+          <button class="filter-pill active" data-val="active" onclick="setStatusFilter('active', this)" aria-pressed="true">🔴 Active</button>
+          <button class="filter-pill" data-val="pending" onclick="setStatusFilter('pending', this)" aria-pressed="false">⏳ Pending</button>
+          <button class="filter-pill" data-val="paid" onclick="setStatusFilter('paid', this)" aria-pressed="false">💳 Paid</button>
+          <button class="filter-pill" data-val="delivered" onclick="setStatusFilter('delivered', this)" aria-pressed="false">✅ Delivered</button>
+          <button class="filter-pill" data-val="cancelled" onclick="setStatusFilter('cancelled', this)" aria-pressed="false">✕ Cancelled</button>
+          <button class="filter-pill" data-val="all" onclick="setStatusFilter('all', this)" aria-pressed="false">All</button>
         </div>
       </div>
       <!-- Location -->
       <div class="filter-row">
-        <span class="filter-label">Location</span>
-        <div class="filter-pills" id="location-pills">
-          <button class="filter-pill active" data-val="all" onclick="setLocationFilter('all', this)">All</button>
-          <button class="filter-pill" data-val="birdhouse" onclick="setLocationFilter('birdhouse', this)">🏠 Birdhouse</button>
-          <button class="filter-pill" data-val="mathews" onclick="setLocationFilter('mathews', this)">🏫 Mathews</button>
+        <span class="filter-label" id="label-location">Location</span>
+        <div class="filter-pills" id="location-pills" role="group" aria-labelledby="label-location">
+          <button class="filter-pill active" data-val="all" onclick="setLocationFilter('all', this)" aria-pressed="true">All</button>
+          <button class="filter-pill" data-val="birdhouse" onclick="setLocationFilter('birdhouse', this)" aria-pressed="false">🏠 Birdhouse</button>
+          <button class="filter-pill" data-val="mathews" onclick="setLocationFilter('mathews', this)" aria-pressed="false">🏫 Mathews</button>
         </div>
       </div>
       <!-- Date -->
@@ -420,29 +420,33 @@
   // ── Filter setters ─────────────────────────────────────────────────────────
   function setSortFilter(val, btn) {
     filterSort = val;
-    document.querySelectorAll('#sort-pills .filter-pill').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#sort-pills .filter-pill').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed','false'); });
     btn.classList.add('active');
+    btn.setAttribute('aria-pressed','true');
     renderOrders();
   }
 
   function setMethodFilter(val, btn) {
     filterMethod = val;
-    document.querySelectorAll('#method-pills .filter-pill').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#method-pills .filter-pill').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed','false'); });
     btn.classList.add('active');
+    btn.setAttribute('aria-pressed','true');
     renderOrders();
   }
 
   function setStatusFilter(val, btn) {
     filterStatus = val;
-    document.querySelectorAll('#status-pills .filter-pill').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#status-pills .filter-pill').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed','false'); });
     btn.classList.add('active');
+    btn.setAttribute('aria-pressed','true');
     renderOrders();
   }
 
   function setLocationFilter(val, btn) {
     filterLocation = val;
-    document.querySelectorAll('#location-pills .filter-pill').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#location-pills .filter-pill').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed','false'); });
     btn.classList.add('active');
+    btn.setAttribute('aria-pressed','true');
     renderOrders();
   }
 

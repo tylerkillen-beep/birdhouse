@@ -244,9 +244,9 @@
       <div class="user-points" id="user-points-badge">$0.00 toward Birdhouse Bucks</div>
       <div class="guest-signin-cta" id="guest-signin-cta" style="display:none">Sign in to place orders</div>
     </div>
-    <nav>
+    <nav aria-label="Customer portal">
       <a class="nav-item" href="dashboard.html">📊 Overview</a>
-      <a class="nav-item active" href="order.html">☕ Place an Order</a>
+      <a class="nav-item active" href="order.html" aria-current="page">☕ Place an Order</a>
       <a class="nav-item" href="orders.html">📋 My Orders</a>
       <a class="nav-item" href="dashboard.html#subscription">📦 My Subscription</a>
       <a class="nav-item" href="dashboard.html#loyalty">⭐ Birdhouse Bucks</a>
@@ -282,35 +282,35 @@
       <div class="delivery-form">
         <!-- Pickup/Delivery toggle — students only -->
         <div class="form-group" id="delivery-method-group" style="display:none">
-          <label>Order Type</label>
-          <div class="method-toggle">
+          <label id="order-type-label">Order Type</label>
+          <div class="method-toggle" role="group" aria-labelledby="order-type-label">
             <button class="method-btn active" id="btn-method-delivery" onclick="setDeliveryMethod('delivery')">🚚 Delivery (+$1.00)</button>
             <button class="method-btn" id="btn-method-pickup" onclick="setDeliveryMethod('pickup')">🏠 Pickup (Free)</button>
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label>Delivery Date</label>
+            <label for="delivery-date">Delivery Date</label>
             <input type="text" id="delivery-date" placeholder="Select a date…" readonly style="cursor:pointer" />
           </div>
           <div class="form-group">
-            <label>Preferred Time</label>
+            <label for="delivery-time">Preferred Time</label>
             <select id="delivery-time"><option value="">Select a date first…</option></select>
           </div>
         </div>
         <div class="form-group" id="room-group">
-          <label id="room-label">Room / Location</label>
+          <label id="room-label" for="delivery-room">Room / Location</label>
           <div class="autocomplete-wrapper">
             <input type="text" id="delivery-room" placeholder="Type a name or room number…" autocomplete="off" />
-            <div class="autocomplete-dropdown" id="ac-delivery-room"></div>
+            <div class="autocomplete-dropdown" id="ac-delivery-room" role="listbox" aria-label="Room suggestions"></div>
           </div>
           <div class="pickup-note" id="pickup-location-note" style="display:none">📍 Birdhouse — Library</div>
         </div>
         <div class="form-group">
-          <label>Backup Location <span style="color:var(--gray);font-weight:300">(optional)</span></label>
+          <label for="backup-location">Backup Location <span style="color:var(--gray);font-weight:300">(optional)</span></label>
           <div class="autocomplete-wrapper">
             <input type="text" id="backup-location" placeholder="Type a name or room number…" autocomplete="off" />
-            <div class="autocomplete-dropdown" id="ac-backup-location"></div>
+            <div class="autocomplete-dropdown" id="ac-backup-location" role="listbox" aria-label="Backup location suggestions"></div>
           </div>
         </div>
       </div>
