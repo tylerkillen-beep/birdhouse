@@ -425,6 +425,7 @@
   let allDeliveryTimes = [];
   let blockedDatesSet = new Set();
   let blockedReasonsMap = {};
+  let blockedSlotsMap = {}; // date string -> Set of blocked time strings
   let deliveryDatePicker = null;
   let availableCreditCents = 0; // current loyalty credit balance
   let applyLoyaltyCredit = false; // whether the credit checkbox is checked
@@ -1052,9 +1053,18 @@
       ? ['8:15 AM', '12:00 PM']
       : allDeliveryTimes;
 
+    // Build a date key to look up any blocked slots for this specific date
+    const dateKey = [
+      selectedDate.getFullYear(),
+      String(selectedDate.getMonth() + 1).padStart(2, '0'),
+      String(selectedDate.getDate()).padStart(2, '0'),
+    ].join('-');
+    const blockedTimesForDate = blockedSlotsMap[dateKey] || new Set();
+
     let anyAdded = false;
     timesToShow.forEach(t => {
       if (isToday && parseTimeToMinutes(t) <= cutoffMinutes) return;
+      if (blockedTimesForDate.has(t)) return;
       const opt = document.createElement('option');
       opt.value = t;
       opt.textContent = t;
@@ -1084,6 +1094,18 @@
     (blockedData || []).forEach(b => { blockedReasonsMap[b.date] = b.reason; });
 
     const isMathewsUser = customerType === 'mathews';
+
+    // Load blocked slots (partial-day closures for specific location + time combinations)
+    if (isMathewsUser) {
+      const { data: slotsData } = await sb.from('blocked_slots')
+        .select('date,time')
+        .eq('location', 'mathews');
+      blockedSlotsMap = {};
+      (slotsData || []).forEach(s => {
+        if (!blockedSlotsMap[s.date]) blockedSlotsMap[s.date] = new Set();
+        blockedSlotsMap[s.date].add(s.time);
+      });
+    }
     const maxDate = new Date();
     maxDate.setDate(maxDate.getDate() + 7);
 
