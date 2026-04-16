@@ -38,6 +38,7 @@ interface SquarePayment {
   id: string;
   created_at: string;
   status: string;
+  order_id?: string;
   amount_money?: { amount: number; currency: string };
   processing_fee?: Array<{ amount_money?: { amount: number; currency: string } }>;
 }
@@ -54,6 +55,7 @@ interface SquareOrder {
   id: string;
   state: string;
   created_at: string;
+  source?: { name?: string };
   line_items?: SquareLineItem[];
 }
 
@@ -236,6 +238,34 @@ serve(async (req) => {
       }
     }
 
+    // ── Classify Square payments as In-Store vs Square Online ────────────────
+    // Payments that have a matching Square Order record are POS or Online.
+    // Payments with no Square Order record are bare in-app payments (Birdhouse app).
+    const squareOrderSourceMap: Record<string, 'online' | 'instore'> = {};
+    for (const order of squareOrders) {
+      const name = (order.source?.name || '').toLowerCase();
+      squareOrderSourceMap[order.id] = name.includes('online') ? 'online' : 'instore';
+    }
+
+    const dailyInStoreMap: Record<string, { revenueCents: number; orderCount: number }> = {};
+    const dailyOnlineMap: Record<string, { revenueCents: number; orderCount: number }> = {};
+
+    for (const payment of allPayments) {
+      const amount = payment.amount_money?.amount ?? 0;
+      const day = payment.created_at.slice(0, 10);
+      const src = payment.order_id ? squareOrderSourceMap[payment.order_id] : undefined;
+      if (src === 'online') {
+        if (!dailyOnlineMap[day]) dailyOnlineMap[day] = { revenueCents: 0, orderCount: 0 };
+        dailyOnlineMap[day].revenueCents += amount;
+        dailyOnlineMap[day].orderCount += 1;
+      } else if (src === 'instore') {
+        if (!dailyInStoreMap[day]) dailyInStoreMap[day] = { revenueCents: 0, orderCount: 0 };
+        dailyInStoreMap[day].revenueCents += amount;
+        dailyInStoreMap[day].orderCount += 1;
+      }
+      // src === undefined → in-app bare payment, captured via Supabase orders below
+    }
+
     // ── Fetch item detail from Supabase orders (in-app sales) ─────────────────
     const { data: orders } = await serviceClient
       .from("orders")
@@ -282,14 +312,18 @@ serve(async (req) => {
     const dailyBreakdown = Object.entries(dailyMap)
       .map(([date, d]) => {
         const inApp = inAppDailyMap[date] || { revenueCents: 0, orderCount: 0 };
+        const inStore = dailyInStoreMap[date] || { revenueCents: 0, orderCount: 0 };
+        const online = dailyOnlineMap[date] || { revenueCents: 0, orderCount: 0 };
         return {
           date,
           revenueCents: d.revenueCents,
           orderCount: d.orderCount,
+          inStoreRevenueCents: inStore.revenueCents,
+          inStoreOrderCount: inStore.orderCount,
+          onlineRevenueCents: online.revenueCents,
+          onlineOrderCount: online.orderCount,
           inAppRevenueCents: inApp.revenueCents,
           inAppOrderCount: inApp.orderCount,
-          squareRevenueCents: Math.max(0, d.revenueCents - inApp.revenueCents),
-          squareOrderCount: Math.max(0, d.orderCount - inApp.orderCount),
         };
       })
       .sort((a, b) => a.date.localeCompare(b.date));
