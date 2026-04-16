@@ -3,8 +3,10 @@
 //
 // Revenue source of truth: Square Payments API (/v2/payments)
 // Item detail — Square POS/Online sales: Square Orders API (/v2/orders/search) line_items
-// Item detail — In-app sales: Supabase orders.cart_items JSONB
-//   (In-app orders are bare Square payments with no Square Order record, so no double-counting)
+// Item detail — Birdhouse App sales: Supabase orders.cart_items JSONB
+//   (App payments only send the dollar amount to Square, not line items.
+//    Square auto-creates a shadow order with no line items for these payments.
+//    We skip those shadow orders and use cart_items from Supabase instead.)
 //
 // Required Supabase secrets:
 //   SQUARE_ACCESS_TOKEN  — access token from Square Developer Dashboard
@@ -218,14 +220,40 @@ serve(async (req) => {
       dailyMap[day].orderCount += 1;
     }
 
-    // ── Fetch item detail from Square Orders API (POS/Online sales) ───────────
-    // Square Orders have full line_items. In-app orders are bare payments (no Order
-    // record in Square), so fetching both sources gives complete coverage without overlap.
+    // ── Fetch Birdhouse App orders from Supabase ──────────────────────────────
+    // Include all active statuses so items for in-progress/delivered orders are counted.
+    // App payments only send the dollar amount to Square — line items live in cart_items.
+    const { data: appOrders } = await serviceClient
+      .from("orders")
+      .select("id, cart_items, total_amount, created_at, square_payment_id")
+      .gte("created_at", startDate)
+      .lte("created_at", endDate)
+      .in("status", ["paid", "preparing", "ready", "delivered"]);
+
+    // Set of Square payment IDs that originated from the Birdhouse App.
+    const birdhousePaymentIds = new Set<string>(
+      (appOrders || []).map((o: { square_payment_id: string | null }) => o.square_payment_id).filter(Boolean)
+    );
+
+    // Map Square order_id → Square payment_id so we can identify shadow orders.
+    // When process-payment charges a bare payment, Square auto-creates an order with no
+    // line items. We detect these by matching the payment ID to a known app payment.
+    const paymentIdBySquareOrderId: Record<string, string> = {};
+    for (const payment of allPayments) {
+      if (payment.order_id) paymentIdBySquareOrderId[payment.order_id] = payment.id;
+    }
+
+    // ── Fetch item detail from Square Orders API (POS / Square Online only) ───
     const squareOrders = await fetchSquareOrders(squareBaseUrl, squareHeaders, locationId, startDate, endDate);
 
     const itemMap: Record<string, { quantity: number; revenueCents: number; discountCents: number }> = {};
 
     for (const order of squareOrders) {
+      // Skip shadow orders auto-created by Square for Birdhouse App payments.
+      // These have no real line items and would appear as "Unknown Item".
+      const matchedPaymentId = paymentIdBySquareOrderId[order.id];
+      if (matchedPaymentId && birdhousePaymentIds.has(matchedPaymentId)) continue;
+
       for (const lineItem of order.line_items || []) {
         const name = lineItem.name || "Unknown Item";
         const qty = parseInt(lineItem.quantity || "1", 10);
@@ -238,48 +266,56 @@ serve(async (req) => {
       }
     }
 
-    // ── Classify Square payments as In-Store vs Square Online ────────────────
-    // Payments that have a matching Square Order record are POS or Online.
-    // Payments with no Square Order record are bare in-app payments (Birdhouse app).
+    // ── Classify Square payments as In-Store vs Square Online vs Birdhouse App ─
     const squareOrderSourceMap: Record<string, 'online' | 'instore'> = {};
     for (const order of squareOrders) {
+      const matchedPaymentId = paymentIdBySquareOrderId[order.id];
+      if (matchedPaymentId && birdhousePaymentIds.has(matchedPaymentId)) continue;
       const name = (order.source?.name || '').toLowerCase();
       squareOrderSourceMap[order.id] = name.includes('online') ? 'online' : 'instore';
     }
 
     const dailyInStoreMap: Record<string, { revenueCents: number; orderCount: number }> = {};
     const dailyOnlineMap: Record<string, { revenueCents: number; orderCount: number }> = {};
+    const inAppDailyMap: Record<string, { revenueCents: number; orderCount: number }> = {};
 
     for (const payment of allPayments) {
       const amount = payment.amount_money?.amount ?? 0;
       const day = payment.created_at.slice(0, 10);
-      const src = payment.order_id ? squareOrderSourceMap[payment.order_id] : undefined;
-      if (src === 'online') {
-        if (!dailyOnlineMap[day]) dailyOnlineMap[day] = { revenueCents: 0, orderCount: 0 };
-        dailyOnlineMap[day].revenueCents += amount;
-        dailyOnlineMap[day].orderCount += 1;
-      } else if (src === 'instore') {
-        if (!dailyInStoreMap[day]) dailyInStoreMap[day] = { revenueCents: 0, orderCount: 0 };
-        dailyInStoreMap[day].revenueCents += amount;
-        dailyInStoreMap[day].orderCount += 1;
+
+      if (birdhousePaymentIds.has(payment.id)) {
+        // Birdhouse App payment — revenue already totalled above, just track daily split
+        if (!inAppDailyMap[day]) inAppDailyMap[day] = { revenueCents: 0, orderCount: 0 };
+        inAppDailyMap[day].revenueCents += amount;
+        inAppDailyMap[day].orderCount += 1;
+      } else {
+        const src = payment.order_id ? squareOrderSourceMap[payment.order_id] : undefined;
+        if (src === 'online') {
+          if (!dailyOnlineMap[day]) dailyOnlineMap[day] = { revenueCents: 0, orderCount: 0 };
+          dailyOnlineMap[day].revenueCents += amount;
+          dailyOnlineMap[day].orderCount += 1;
+        } else if (src === 'instore') {
+          if (!dailyInStoreMap[day]) dailyInStoreMap[day] = { revenueCents: 0, orderCount: 0 };
+          dailyInStoreMap[day].revenueCents += amount;
+          dailyInStoreMap[day].orderCount += 1;
+        }
       }
-      // src === undefined → in-app bare payment, captured via Supabase orders below
     }
 
-    // ── Fetch item detail from Supabase orders (in-app sales) ─────────────────
-    const { data: orders } = await serviceClient
-      .from("orders")
-      .select("cart_items, total_amount, created_at")
-      .gte("created_at", startDate)
-      .lte("created_at", endDate)
-      .eq("status", "paid");
+    // Credit-only app orders ($0 Square charge, square_payment_id is null) still need
+    // to appear in the in-app daily count.
+    for (const order of appOrders || []) {
+      if (order.square_payment_id) continue; // already counted via Square payment above
+      const orderRevCents = Math.round((order.total_amount || 0) * 100);
+      const day = (order.created_at as string).slice(0, 10);
+      if (!inAppDailyMap[day]) inAppDailyMap[day] = { revenueCents: 0, orderCount: 0 };
+      inAppDailyMap[day].revenueCents += orderRevCents;
+      inAppDailyMap[day].orderCount += 1;
+    }
 
-    // Also build a per-day in-app revenue map for the stacked bar chart
-    const inAppDailyMap: Record<string, { revenueCents: number; orderCount: number }> = {};
-
-    for (const order of orders || []) {
+    // ── Aggregate item detail from Supabase cart_items (Birdhouse App orders) ─
+    for (const order of appOrders || []) {
       const items: CartItem[] = Array.isArray(order.cart_items) ? order.cart_items : [];
-      let orderRevCents = 0;
       for (const item of items) {
         const name = item.name || "Unknown Item";
         const qty = Number(item.quantity) || 1;
@@ -287,13 +323,8 @@ serve(async (req) => {
         if (!itemMap[name]) itemMap[name] = { quantity: 0, revenueCents: 0, discountCents: 0 };
         itemMap[name].quantity += qty;
         itemMap[name].revenueCents += rev;
-        // In-app orders don't carry discount data; discountCents stays 0
-        orderRevCents += rev;
+        // In-app orders don't carry Square discount data; discountCents stays 0
       }
-      const day = (order.created_at as string).slice(0, 10);
-      if (!inAppDailyMap[day]) inAppDailyMap[day] = { revenueCents: 0, orderCount: 0 };
-      inAppDailyMap[day].revenueCents += orderRevCents;
-      inAppDailyMap[day].orderCount += 1;
     }
 
     // Prorate processing fees to each item by its share of total revenue
@@ -344,7 +375,7 @@ serve(async (req) => {
       avgOrderValue: (avgOrderValueCents / 100).toFixed(2),
       topItems,
       squareOrderCount: squareOrders.length,
-      appOrderCount: (orders || []).length,
+      appOrderCount: (appOrders || []).length,
       dailyBreakdown,
     });
   } catch (e) {
