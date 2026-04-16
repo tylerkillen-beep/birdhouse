@@ -1057,8 +1057,9 @@
     <div class="section-header"><div class="section-title">Revenue by Day</div></div>
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.25rem 1.25rem 0.5rem;margin-bottom:1.5rem">
       <div id="report-chart-legend" style="display:none;gap:1rem;align-items:center;font-size:0.7rem;color:var(--text-muted);margin-bottom:0.75rem;flex-wrap:wrap">
-        <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:10px;height:10px;background:var(--accent);border-radius:2px"></span>In-Store / Square Online</span>
-        <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:10px;height:10px;background:#7eb8c9;border-radius:2px"></span>In-App Orders</span>
+        <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:10px;height:10px;background:var(--accent);border-radius:2px"></span>In-Store</span>
+        <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:10px;height:10px;background:#7eb8c9;border-radius:2px"></span>Square Online</span>
+        <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:10px;height:10px;background:#9b8fd4;border-radius:2px"></span>Birdhouse App</span>
       </div>
       <div id="report-chart-wrap" style="min-height:140px;display:flex;align-items:flex-end;gap:0.5rem;overflow-x:auto">
         <span style="color:var(--text-muted);font-size:0.85rem;align-self:center;margin:auto">Select a range to load report</span>
@@ -4137,27 +4138,36 @@ function renderSalesReport(data) {
   } else {
     const MAX_H = 120;
     const maxRev = Math.max(...data.dailyBreakdown.map(d => d.revenueCents), 1);
-    const hasInApp = data.dailyBreakdown.some(d => (d.inAppRevenueCents ?? 0) > 0);
-    chartLegend.style.display = hasInApp ? 'flex' : 'none';
+    const hasBreakdown = data.dailyBreakdown.some(d =>
+      (d.inStoreRevenueCents ?? 0) > 0 || (d.onlineRevenueCents ?? 0) > 0 || (d.inAppRevenueCents ?? 0) > 0
+    );
+    chartLegend.style.display = hasBreakdown ? 'flex' : 'none';
     chartWrap.innerHTML = data.dailyBreakdown.map(d => {
-      const squareCents = d.squareRevenueCents ?? d.revenueCents;
-      const inAppCents = d.inAppRevenueCents ?? 0;
-      const totalCents = d.revenueCents;
-      const squareH = Math.round(squareCents / maxRev * MAX_H);
-      const inAppH = Math.round(inAppCents / maxRev * MAX_H);
-      const label = new Date(d.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const totalStr = `$${(totalCents / 100).toFixed(2)}`;
-      const squareStr = `$${(squareCents / 100).toFixed(2)}`;
-      const inAppStr = `$${(inAppCents / 100).toFixed(2)}`;
-      const tooltip = hasInApp
-        ? `${d.orderCount} orders · ${totalStr}\nIn-Store/Online: ${squareStr} (${d.squareOrderCount ?? 0})\nIn-App: ${inAppStr} (${d.inAppOrderCount ?? 0})`
-        : `${d.orderCount} orders · ${totalStr}`;
+      const inStoreCents = d.inStoreRevenueCents ?? 0;
+      const onlineCents  = d.onlineRevenueCents  ?? 0;
+      const inAppCents   = d.inAppRevenueCents   ?? 0;
+      const totalCents   = d.revenueCents;
+      const inStoreH = Math.round(inStoreCents / maxRev * MAX_H);
+      const onlineH  = Math.round(onlineCents  / maxRev * MAX_H);
+      const inAppH   = Math.round(inAppCents   / maxRev * MAX_H);
+      const fallbackH = Math.round(totalCents  / maxRev * MAX_H);
+      const label    = new Date(d.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const fmt = c => `$${(c / 100).toFixed(2)}`;
+      const lines = [`${d.orderCount} orders · ${fmt(totalCents)}`];
+      if (inStoreCents > 0) lines.push(`In-Store: ${fmt(inStoreCents)} (${d.inStoreOrderCount ?? 0})`);
+      if (onlineCents  > 0) lines.push(`Square Online: ${fmt(onlineCents)} (${d.onlineOrderCount ?? 0})`);
+      if (inAppCents   > 0) lines.push(`Birdhouse App: ${fmt(inAppCents)} (${d.inAppOrderCount ?? 0})`);
+      const tooltip = lines.join('\n');
+      const hasSegments = inStoreH > 0 || onlineH > 0 || inAppH > 0;
       return `<div style="display:flex;flex-direction:column;align-items:center;gap:0.3rem;flex:1;min-width:40px" title="${tooltip}">
-        <div style="font-size:0.65rem;color:var(--text-muted)">${totalStr}</div>
+        <div style="font-size:0.65rem;color:var(--text-muted)">${fmt(totalCents)}</div>
         <div style="width:100%;height:${MAX_H}px;display:flex;align-items:flex-end">
           <div style="width:100%;display:flex;flex-direction:column;border-radius:4px 4px 0 0;overflow:hidden">
-            ${inAppH > 0 ? `<div style="width:100%;background:#7eb8c9;height:${inAppH}px;transition:height 0.3s"></div>` : ''}
-            ${squareH > 0 ? `<div style="width:100%;background:var(--accent);height:${squareH}px;transition:height 0.3s"></div>` : `<div style="width:100%;background:var(--accent);height:2px"></div>`}
+            ${hasSegments ? [
+              inAppH   > 0 ? `<div style="width:100%;background:#9b8fd4;height:${inAppH}px;transition:height 0.3s"></div>`   : '',
+              onlineH  > 0 ? `<div style="width:100%;background:#7eb8c9;height:${onlineH}px;transition:height 0.3s"></div>`  : '',
+              inStoreH > 0 ? `<div style="width:100%;background:var(--accent);height:${inStoreH}px;transition:height 0.3s"></div>` : '',
+            ].join('') : `<div style="width:100%;background:var(--accent);height:${Math.max(fallbackH,2)}px;transition:height 0.3s"></div>`}
           </div>
         </div>
         <div style="font-size:0.65rem;color:var(--text-muted);text-align:center;white-space:nowrap">${label}<br>${d.orderCount}</div>
