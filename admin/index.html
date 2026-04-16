@@ -36,7 +36,7 @@
     #sidebar {
       width: 220px; min-height: 100vh; background: #0d0d0d; border-right: 1px solid var(--border);
       display: flex; flex-direction: column; padding: 1.5rem 0; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100;
-      transition: width 0.25s ease; overflow: hidden;
+      transition: width 0.25s ease; overflow-x: hidden; overflow-y: auto;
     }
     .sidebar-logo { font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; letter-spacing: 0.08em; color: var(--accent); padding: 0 0.75rem 1.5rem 1.4rem; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; justify-content: space-between; white-space: nowrap; }
     .sidebar-logo-content { overflow: hidden; min-width: 0; }
@@ -44,7 +44,13 @@
     .sidebar-toggle-btn { flex-shrink: 0; background: rgba(255,255,255,0.06); border: 1px solid var(--border); border-radius: 6px; color: var(--gray-mid); cursor: pointer; display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; transition: color 0.15s, border-color 0.15s, background 0.15s; margin-top: 0.1rem; }
     .sidebar-toggle-btn:hover { color: var(--accent); border-color: var(--accent); background: rgba(200,169,110,0.08); }
     .toggle-chevron { transition: transform 0.25s ease; }
-    .nav-section { padding: 1.2rem 1.4rem 0.4rem; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--gray); }
+    .nav-section { padding: 1.1rem 1.4rem 0.35rem; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--gray); display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+    .nav-section:hover { color: var(--gray-mid); }
+    .group-chevron { flex-shrink: 0; opacity: 0.5; transition: transform 0.2s ease, opacity 0.15s; }
+    .nav-section:hover .group-chevron { opacity: 0.8; }
+    .nav-group.expanded .group-chevron { transform: rotate(180deg); }
+    .nav-group-items { max-height: 0; overflow: hidden; transition: max-height 0.25s ease; }
+    .nav-group.expanded .nav-group-items { max-height: 500px; }
     .nav-item {
       display: flex; align-items: center; gap: 0.6rem; padding: 0.65rem 1.4rem;
       color: var(--gray-mid); cursor: pointer; transition: all 0.15s; font-size: 0.84rem; position: relative;
@@ -64,15 +70,16 @@
     .sign-out-btn { margin-top: 0.75rem; width: 100%; padding: 0.5rem; background: none; border: 1px solid var(--border); border-radius: 7px; color: var(--gray); cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 0.78rem; transition: all 0.15s; }
     .sign-out-btn:hover { border-color: var(--danger); color: var(--danger); }
 
-    /* ── Collapsed sidebar ── */
+    /* ── Collapsed sidebar (icon rail) ── */
     #sidebar.collapsed { width: 60px; }
     #sidebar.collapsed .sidebar-logo { padding: 0 0 1.5rem; justify-content: center; }
     #sidebar.collapsed .sidebar-logo-content { display: none; }
     #sidebar.collapsed .toggle-chevron { transform: rotate(180deg); }
     #sidebar.collapsed .nav-section { display: none; }
     #sidebar.collapsed .nav-label { display: none; }
-    #sidebar.collapsed .nav-item { padding: 0.65rem 0; justify-content: center; }
     #sidebar.collapsed .nav-badge { display: none; }
+    #sidebar.collapsed .nav-group-items { max-height: none; overflow: visible; }
+    #sidebar.collapsed .nav-item { padding: 0.65rem 0; justify-content: center; }
     #sidebar.collapsed .sidebar-bottom { display: none; }
 
     /* Hover-to-peek when collapsed */
@@ -80,10 +87,12 @@
     #sidebar.collapsed:hover .sidebar-logo { padding: 0 0.75rem 1.5rem 1.4rem; justify-content: space-between; }
     #sidebar.collapsed:hover .sidebar-logo-content { display: block; }
     #sidebar.collapsed:hover .toggle-chevron { transform: rotate(180deg); }
-    #sidebar.collapsed:hover .nav-section { display: block; }
+    #sidebar.collapsed:hover .nav-section { display: flex; }
     #sidebar.collapsed:hover .nav-label { display: inline; }
-    #sidebar.collapsed:hover .nav-item { padding: 0.65rem 1.4rem; justify-content: flex-start; }
     #sidebar.collapsed:hover .nav-badge { display: inline-flex; }
+    #sidebar.collapsed:hover .nav-group-items { max-height: 0; overflow: hidden; }
+    #sidebar.collapsed:hover .nav-group.expanded .nav-group-items { max-height: 500px; }
+    #sidebar.collapsed:hover .nav-item { padding: 0.65rem 1.4rem; justify-content: flex-start; }
     #sidebar.collapsed:hover .sidebar-bottom { display: block; }
 
     /* ── Main ── */
@@ -356,74 +365,109 @@
     </button>
   </div>
 
-  <div class="nav-section">Operations</div>
-  <div class="nav-item active" onclick="showSection('dashboard')" id="nav-dashboard">
-    <span class="nav-icon">📊</span><span class="nav-label"> Dashboard</span>
-  </div>
-  <div class="nav-item" onclick="showSection('menu')" id="nav-menu">
-    <span class="nav-icon">☕</span><span class="nav-label"> Menu</span>
-  </div>
-  <div class="nav-item" onclick="showSection('modifiers')" id="nav-modifiers">
-    <span class="nav-icon">⚙️</span><span class="nav-label"> Modifier Sets</span>
-  </div>
-  <div class="nav-item" onclick="showSection('inventory')" id="nav-inventory">
-    <span class="nav-icon">📦</span><span class="nav-label"> Inventory</span>
-    <span class="nav-badge" id="badge-inventory" style="display:none"></span>
-  </div>
-  <div class="nav-item" onclick="showSection('closed-days')" id="nav-closed-days">
-    <span class="nav-icon">🚫</span><span class="nav-label"> Closed Days</span>
-  </div>
-
-  <div class="nav-section">Staff &amp; Teams</div>
-  <div class="nav-item" onclick="showSection('staff')" id="nav-staff">
-    <span class="nav-icon">👥</span><span class="nav-label"> Staff</span>
-    <span class="nav-badge" id="badge-staff" style="display:none"></span>
-  </div>
-  <div class="nav-item" onclick="showSection('schedule')" id="nav-schedule">
-    <span class="nav-icon">📅</span><span class="nav-label"> Schedule</span>
-  </div>
-  <div class="nav-item" onclick="showSection('scores')" id="nav-scores">
-    <span class="nav-icon">⭐</span><span class="nav-label"> Score Rubric</span>
-  </div>
-  <div class="nav-item" onclick="showSection('manager-scores')" id="nav-manager-scores">
-    <span class="nav-icon">📋</span><span class="nav-label"> Manager Scores</span>
-  </div>
-  <div class="nav-item" onclick="showSection('peer-evals')" id="nav-peer-evals">
-    <span class="nav-icon">👥</span><span class="nav-label"> Peer Evals</span>
+  <div class="nav-group" id="navgroup-operations">
+    <div class="nav-section" onclick="toggleNavGroup('operations')">
+      <span>Operations</span>
+      <svg class="group-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    </div>
+    <div class="nav-group-items">
+      <div class="nav-item active" onclick="showSection('dashboard')" id="nav-dashboard">
+        <span class="nav-icon">📊</span><span class="nav-label"> Dashboard</span>
+      </div>
+      <div class="nav-item" onclick="showSection('menu')" id="nav-menu">
+        <span class="nav-icon">☕</span><span class="nav-label"> Menu</span>
+      </div>
+      <div class="nav-item" onclick="showSection('modifiers')" id="nav-modifiers">
+        <span class="nav-icon">⚙️</span><span class="nav-label"> Modifier Sets</span>
+      </div>
+      <div class="nav-item" onclick="showSection('inventory')" id="nav-inventory">
+        <span class="nav-icon">📦</span><span class="nav-label"> Inventory</span>
+        <span class="nav-badge" id="badge-inventory" style="display:none"></span>
+      </div>
+      <div class="nav-item" onclick="showSection('closed-days')" id="nav-closed-days">
+        <span class="nav-icon">🚫</span><span class="nav-label"> Closed Days</span>
+      </div>
+    </div>
   </div>
 
-  <div class="nav-section">Customers</div>
-  <div class="nav-item" onclick="showSection('orders')" id="nav-orders">
-    <span class="nav-icon">🧾</span><span class="nav-label"> Orders</span>
-    <span class="nav-badge" id="badge-orders" style="display:none"></span>
-  </div>
-  <div class="nav-item" onclick="showSection('plans')" id="nav-plans">
-    <span class="nav-icon">💎</span><span class="nav-label"> Plan Manager</span>
-  </div>
-  <div class="nav-item" onclick="showSection('subscriptions')" id="nav-subscriptions">
-    <span class="nav-icon">🔄</span><span class="nav-label"> Subscriptions</span>
-  </div>
-  <div class="nav-item" onclick="showSection('customers')" id="nav-customers">
-    <span class="nav-icon">🎓</span><span class="nav-label"> Customers</span>
-  </div>
-  <div class="nav-item" onclick="showSection('reviews')" id="nav-reviews">
-    <span class="nav-icon">★</span><span class="nav-label"> Reviews</span>
+  <div class="nav-group" id="navgroup-staff">
+    <div class="nav-section" onclick="toggleNavGroup('staff')">
+      <span>Staff &amp; Teams</span>
+      <svg class="group-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    </div>
+    <div class="nav-group-items">
+      <div class="nav-item" onclick="showSection('staff')" id="nav-staff">
+        <span class="nav-icon">👥</span><span class="nav-label"> Staff</span>
+        <span class="nav-badge" id="badge-staff" style="display:none"></span>
+      </div>
+      <div class="nav-item" onclick="showSection('schedule')" id="nav-schedule">
+        <span class="nav-icon">📅</span><span class="nav-label"> Schedule</span>
+      </div>
+      <div class="nav-item" onclick="showSection('scores')" id="nav-scores">
+        <span class="nav-icon">⭐</span><span class="nav-label"> Score Rubric</span>
+      </div>
+      <div class="nav-item" onclick="showSection('manager-scores')" id="nav-manager-scores">
+        <span class="nav-icon">📋</span><span class="nav-label"> Manager Scores</span>
+      </div>
+      <div class="nav-item" onclick="showSection('peer-evals')" id="nav-peer-evals">
+        <span class="nav-icon">👥</span><span class="nav-label"> Peer Evals</span>
+      </div>
+    </div>
   </div>
 
-  <div class="nav-section">Integrations</div>
-  <div class="nav-item" onclick="showSection('canvas')" id="nav-canvas">
-    <span class="nav-icon">🎓</span><span class="nav-label"> Canvas LMS</span>
+  <div class="nav-group" id="navgroup-customers">
+    <div class="nav-section" onclick="toggleNavGroup('customers')">
+      <span>Customers</span>
+      <svg class="group-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    </div>
+    <div class="nav-group-items">
+      <div class="nav-item" onclick="showSection('orders')" id="nav-orders">
+        <span class="nav-icon">🧾</span><span class="nav-label"> Orders</span>
+        <span class="nav-badge" id="badge-orders" style="display:none"></span>
+      </div>
+      <div class="nav-item" onclick="showSection('plans')" id="nav-plans">
+        <span class="nav-icon">💎</span><span class="nav-label"> Plan Manager</span>
+      </div>
+      <div class="nav-item" onclick="showSection('subscriptions')" id="nav-subscriptions">
+        <span class="nav-icon">🔄</span><span class="nav-label"> Subscriptions</span>
+      </div>
+      <div class="nav-item" onclick="showSection('customers')" id="nav-customers">
+        <span class="nav-icon">🎓</span><span class="nav-label"> Customers</span>
+      </div>
+      <div class="nav-item" onclick="showSection('reviews')" id="nav-reviews">
+        <span class="nav-icon">★</span><span class="nav-label"> Reviews</span>
+      </div>
+    </div>
   </div>
 
-  <div class="nav-section">Financials</div>
-  <div class="nav-item" onclick="showSection('sales-report')" id="nav-sales-report">
-    <span class="nav-icon">💰</span><span class="nav-label"> Sales Report</span>
+  <div class="nav-group" id="navgroup-integrations">
+    <div class="nav-section" onclick="toggleNavGroup('integrations')">
+      <span>Integrations</span>
+      <svg class="group-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    </div>
+    <div class="nav-group-items">
+      <div class="nav-item" onclick="showSection('canvas')" id="nav-canvas">
+        <span class="nav-icon">🎓</span><span class="nav-label"> Canvas LMS</span>
+      </div>
+    </div>
   </div>
-  <div class="nav-item" onclick="showSection('product-performance')" id="nav-product-performance">
-    <span class="nav-icon">📈</span><span class="nav-label"> Product Performance</span>
-  </div>
-  <div class="nav-item" onclick="showSection('library-split')" id="nav-library-split">
-    <span class="nav-icon">📚</span><span class="nav-label"> Library Split</span>
+
+  <div class="nav-group" id="navgroup-financials">
+    <div class="nav-section" onclick="toggleNavGroup('financials')">
+      <span>Financials</span>
+      <svg class="group-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    </div>
+    <div class="nav-group-items">
+      <div class="nav-item" onclick="showSection('sales-report')" id="nav-sales-report">
+        <span class="nav-icon">💰</span><span class="nav-label"> Sales Report</span>
+      </div>
+      <div class="nav-item" onclick="showSection('product-performance')" id="nav-product-performance">
+        <span class="nav-icon">📈</span><span class="nav-label"> Product Performance</span>
+      </div>
+      <div class="nav-item" onclick="showSection('library-split')" id="nav-library-split">
+        <span class="nav-icon">📚</span><span class="nav-label"> Library Split</span>
+      </div>
+    </div>
   </div>
 
   <div class="sidebar-bottom">
@@ -1611,8 +1655,31 @@ function toggleSidebar() {
   localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
 }
 
-// Restore sidebar collapse state from localStorage
+function toggleNavGroup(id) {
+  const group = document.getElementById('navgroup-' + id);
+  if (!group) return;
+  const isExpanded = group.classList.toggle('expanded');
+  const states = JSON.parse(localStorage.getItem('navGroupStates') || '{}');
+  states[id] = isExpanded;
+  localStorage.setItem('navGroupStates', JSON.stringify(states));
+}
+
+function initNavGroups() {
+  const states = JSON.parse(localStorage.getItem('navGroupStates') || '{}');
+  ['operations', 'staff', 'customers', 'integrations', 'financials'].forEach(id => {
+    const group = document.getElementById('navgroup-' + id);
+    if (!group) return;
+    if (id in states) {
+      if (states[id]) group.classList.add('expanded');
+    } else {
+      if (group.querySelector('.nav-item.active')) group.classList.add('expanded');
+    }
+  });
+}
+
+// Restore sidebar state on load
 (function() {
+  initNavGroups();
   if (localStorage.getItem('sidebarCollapsed') === '1') {
     const sidebar = document.getElementById('sidebar');
     const main = document.getElementById('main');
@@ -1630,7 +1697,18 @@ function showSection(id) {
   document.querySelectorAll('.section-panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('section-' + id)?.classList.add('active');
-  document.getElementById('nav-' + id)?.classList.add('active');
+  const activeNavItem = document.getElementById('nav-' + id);
+  if (activeNavItem) {
+    activeNavItem.classList.add('active');
+    const group = activeNavItem.closest('.nav-group');
+    if (group && !group.classList.contains('expanded')) {
+      const groupId = group.id.replace('navgroup-', '');
+      group.classList.add('expanded');
+      const states = JSON.parse(localStorage.getItem('navGroupStates') || '{}');
+      states[groupId] = true;
+      localStorage.setItem('navGroupStates', JSON.stringify(states));
+    }
+  }
   closeNav();
 
   const loaders = {
