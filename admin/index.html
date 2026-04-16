@@ -36,30 +36,57 @@
     #sidebar {
       width: 220px; min-height: 100vh; background: #0d0d0d; border-right: 1px solid var(--border);
       display: flex; flex-direction: column; padding: 1.5rem 0; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100;
+      transition: width 0.25s ease; overflow: hidden;
     }
-    .sidebar-logo { font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; letter-spacing: 0.08em; color: var(--accent); padding: 0 1.4rem 1.5rem; border-bottom: 1px solid var(--border); }
-    .sidebar-logo span { display: block; font-size: 0.6rem; font-family: 'DM Sans', sans-serif; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gray); margin-top: 0.1rem; }
-    .nav-section { padding: 1.2rem 1.4rem 0.4rem; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--gray); }
+    .sidebar-logo { font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; letter-spacing: 0.08em; color: var(--accent); padding: 0 0.75rem 1.5rem 1.4rem; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; justify-content: space-between; white-space: nowrap; }
+    .sidebar-logo-content { overflow: hidden; min-width: 0; }
+    .sidebar-logo span { display: block; font-size: 0.6rem; font-family: 'DM Sans', sans-serif; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gray); margin-top: 0.1rem; white-space: nowrap; }
+    .sidebar-toggle-btn { flex-shrink: 0; background: none; border: 1px solid transparent; border-radius: 6px; color: var(--gray); cursor: pointer; font-size: 1.1rem; line-height: 1; padding: 0.2rem 0.4rem; transition: color 0.15s, border-color 0.15s, transform 0.25s ease; margin-top: 0.1rem; }
+    .sidebar-toggle-btn:hover { color: var(--accent); border-color: var(--border); }
+    .nav-section { padding: 1.2rem 1.4rem 0.4rem; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--gray); white-space: nowrap; overflow: hidden; transition: height 0.2s, padding 0.2s, opacity 0.15s; }
     .nav-item {
       display: flex; align-items: center; gap: 0.6rem; padding: 0.65rem 1.4rem;
       color: var(--gray-mid); cursor: pointer; transition: all 0.15s; font-size: 0.84rem; position: relative;
-      border-left: 2px solid transparent;
+      border-left: 2px solid transparent; white-space: nowrap;
     }
     .nav-item:hover { color: var(--text); background: rgba(255,255,255,0.03); }
     .nav-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(200,169,110,0.06); }
-    .nav-icon { width: 16px; text-align: center; font-size: 0.9rem; }
+    .nav-icon { width: 16px; text-align: center; font-size: 0.9rem; flex-shrink: 0; }
+    .nav-label { overflow: hidden; transition: opacity 0.15s; }
     .nav-badge {
       margin-left: auto; background: var(--danger); color: #fff; font-size: 0.6rem;
       padding: 0.1rem 0.4rem; border-radius: 20px; font-weight: 500; min-width: 18px; text-align: center;
     }
-    .sidebar-bottom { margin-top: auto; padding: 1rem 1.4rem; border-top: 1px solid var(--border); }
+    .sidebar-bottom { margin-top: auto; padding: 1rem 1.4rem; border-top: 1px solid var(--border); white-space: nowrap; overflow: hidden; transition: height 0.2s, padding 0.2s, opacity 0.15s; }
     .admin-badge { font-size: 0.7rem; color: var(--gray); }
     .admin-badge strong { color: var(--accent); display: block; font-size: 0.78rem; }
     .sign-out-btn { margin-top: 0.75rem; width: 100%; padding: 0.5rem; background: none; border: 1px solid var(--border); border-radius: 7px; color: var(--gray); cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 0.78rem; transition: all 0.15s; }
     .sign-out-btn:hover { border-color: var(--danger); color: var(--danger); }
 
+    /* ── Collapsed sidebar ── */
+    #sidebar.collapsed { width: 60px; }
+    #sidebar.collapsed .sidebar-logo { padding: 0 0 1.5rem; justify-content: center; }
+    #sidebar.collapsed .sidebar-logo-content { display: none; }
+    #sidebar.collapsed .sidebar-toggle-btn { transform: rotate(180deg); margin-top: 0; }
+    #sidebar.collapsed .nav-section { height: 0; padding-top: 0; padding-bottom: 0; opacity: 0; }
+    #sidebar.collapsed .nav-label { display: none; }
+    #sidebar.collapsed .nav-item { padding: 0.65rem 0; justify-content: center; }
+    #sidebar.collapsed .nav-badge { display: none; }
+    #sidebar.collapsed .sidebar-bottom { height: 0; padding-top: 0; padding-bottom: 0; opacity: 0; border-top: none; }
+
+    /* Hover-to-peek when collapsed */
+    #sidebar.collapsed:hover { width: 220px; box-shadow: 6px 0 28px rgba(0,0,0,0.55); }
+    #sidebar.collapsed:hover .sidebar-logo { padding: 0 0.75rem 1.5rem 1.4rem; justify-content: space-between; }
+    #sidebar.collapsed:hover .sidebar-logo-content { display: block; }
+    #sidebar.collapsed:hover .sidebar-toggle-btn { transform: rotate(180deg); margin-top: 0.1rem; }
+    #sidebar.collapsed:hover .nav-section { height: auto; padding: 1.2rem 1.4rem 0.4rem; opacity: 1; }
+    #sidebar.collapsed:hover .nav-label { display: inline; }
+    #sidebar.collapsed:hover .nav-item { padding: 0.65rem 1.4rem; justify-content: flex-start; }
+    #sidebar.collapsed:hover .nav-badge { display: inline-flex; }
+    #sidebar.collapsed:hover .sidebar-bottom { height: auto; padding: 1rem 1.4rem; opacity: 1; border-top: 1px solid var(--border); }
+
     /* ── Main ── */
-    #main { margin-left: 220px; flex: 1; padding: 2rem 2.5rem; min-height: 100vh; }
+    #main { margin-left: 220px; flex: 1; padding: 2rem 2.5rem; min-height: 100vh; transition: margin-left 0.25s ease; }
     .page-header { margin-bottom: 2rem; }
     .page-header h1 { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; letter-spacing: 0.06em; color: var(--text); }
     .page-header p { color: var(--gray-mid); font-size: 0.83rem; margin-top: 0.2rem; }
@@ -319,78 +346,81 @@
 <!-- ══════════════ SIDEBAR ══════════════ -->
 <nav id="sidebar">
   <div class="sidebar-logo">
-    <a href="../index.html" style="color:inherit;text-decoration:none">The Birdhouse</a>
-    <span>Admin Panel</span>
+    <div class="sidebar-logo-content">
+      <a href="../index.html" style="color:inherit;text-decoration:none">The Birdhouse</a>
+      <span>Admin Panel</span>
+    </div>
+    <button class="sidebar-toggle-btn" id="sidebar-toggle-btn" onclick="toggleSidebar()" aria-label="Toggle navigation">&#8249;</button>
   </div>
 
   <div class="nav-section">Operations</div>
   <div class="nav-item active" onclick="showSection('dashboard')" id="nav-dashboard">
-    <span class="nav-icon">📊</span> Dashboard
+    <span class="nav-icon">📊</span><span class="nav-label"> Dashboard</span>
   </div>
   <div class="nav-item" onclick="showSection('menu')" id="nav-menu">
-    <span class="nav-icon">☕</span> Menu
+    <span class="nav-icon">☕</span><span class="nav-label"> Menu</span>
   </div>
   <div class="nav-item" onclick="showSection('modifiers')" id="nav-modifiers">
-    <span class="nav-icon">⚙️</span> Modifier Sets
+    <span class="nav-icon">⚙️</span><span class="nav-label"> Modifier Sets</span>
   </div>
   <div class="nav-item" onclick="showSection('inventory')" id="nav-inventory">
-    <span class="nav-icon">📦</span> Inventory
+    <span class="nav-icon">📦</span><span class="nav-label"> Inventory</span>
     <span class="nav-badge" id="badge-inventory" style="display:none"></span>
   </div>
   <div class="nav-item" onclick="showSection('closed-days')" id="nav-closed-days">
-    <span class="nav-icon">🚫</span> Closed Days
+    <span class="nav-icon">🚫</span><span class="nav-label"> Closed Days</span>
   </div>
 
-  <div class="nav-section">Staff & Teams</div>
+  <div class="nav-section">Staff &amp; Teams</div>
   <div class="nav-item" onclick="showSection('staff')" id="nav-staff">
-    <span class="nav-icon">👥</span> Staff
+    <span class="nav-icon">👥</span><span class="nav-label"> Staff</span>
     <span class="nav-badge" id="badge-staff" style="display:none"></span>
   </div>
   <div class="nav-item" onclick="showSection('schedule')" id="nav-schedule">
-    <span class="nav-icon">📅</span> Schedule
+    <span class="nav-icon">📅</span><span class="nav-label"> Schedule</span>
   </div>
   <div class="nav-item" onclick="showSection('scores')" id="nav-scores">
-    <span class="nav-icon">⭐</span> Score Rubric
+    <span class="nav-icon">⭐</span><span class="nav-label"> Score Rubric</span>
   </div>
   <div class="nav-item" onclick="showSection('manager-scores')" id="nav-manager-scores">
-    <span class="nav-icon">📋</span> Manager Scores
+    <span class="nav-icon">📋</span><span class="nav-label"> Manager Scores</span>
   </div>
   <div class="nav-item" onclick="showSection('peer-evals')" id="nav-peer-evals">
-    <span class="nav-icon">👥</span> Peer Evals
+    <span class="nav-icon">👥</span><span class="nav-label"> Peer Evals</span>
   </div>
 
   <div class="nav-section">Customers</div>
   <div class="nav-item" onclick="showSection('orders')" id="nav-orders">
-    <span class="nav-icon">🧾</span> Orders
+    <span class="nav-icon">🧾</span><span class="nav-label"> Orders</span>
     <span class="nav-badge" id="badge-orders" style="display:none"></span>
   </div>
   <div class="nav-item" onclick="showSection('plans')" id="nav-plans">
-    <span class="nav-icon">💎</span> Plan Manager
+    <span class="nav-icon">💎</span><span class="nav-label"> Plan Manager</span>
   </div>
   <div class="nav-item" onclick="showSection('subscriptions')" id="nav-subscriptions">
-    <span class="nav-icon">🔄</span> Subscriptions
+    <span class="nav-icon">🔄</span><span class="nav-label"> Subscriptions</span>
   </div>
   <div class="nav-item" onclick="showSection('customers')" id="nav-customers">
-    <span class="nav-icon">🎓</span> Customers
+    <span class="nav-icon">🎓</span><span class="nav-label"> Customers</span>
   </div>
   <div class="nav-item" onclick="showSection('reviews')" id="nav-reviews">
-    <span class="nav-icon">★</span> Reviews
+    <span class="nav-icon">★</span><span class="nav-label"> Reviews</span>
   </div>
 
   <div class="nav-section">Integrations</div>
   <div class="nav-item" onclick="showSection('canvas')" id="nav-canvas">
-    <span class="nav-icon">🎓</span> Canvas LMS
+    <span class="nav-icon">🎓</span><span class="nav-label"> Canvas LMS</span>
   </div>
 
   <div class="nav-section">Financials</div>
   <div class="nav-item" onclick="showSection('sales-report')" id="nav-sales-report">
-    <span class="nav-icon">💰</span> Sales Report
+    <span class="nav-icon">💰</span><span class="nav-label"> Sales Report</span>
   </div>
   <div class="nav-item" onclick="showSection('product-performance')" id="nav-product-performance">
-    <span class="nav-icon">📈</span> Product Performance
+    <span class="nav-icon">📈</span><span class="nav-label"> Product Performance</span>
   </div>
   <div class="nav-item" onclick="showSection('library-split')" id="nav-library-split">
-    <span class="nav-icon">📚</span> Library Split
+    <span class="nav-icon">📚</span><span class="nav-label"> Library Split</span>
   </div>
 
   <div class="sidebar-bottom">
@@ -1569,6 +1599,26 @@ function closeNav() {
   document.getElementById('sidebar-overlay').classList.remove('open');
   document.getElementById('hamburger-btn').classList.remove('open');
 }
+
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const main = document.getElementById('main');
+  const collapsed = sidebar.classList.toggle('collapsed');
+  main.style.marginLeft = collapsed ? '60px' : '220px';
+  localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
+}
+
+// Restore sidebar collapse state from localStorage
+(function() {
+  if (localStorage.getItem('sidebarCollapsed') === '1') {
+    const sidebar = document.getElementById('sidebar');
+    const main = document.getElementById('main');
+    if (sidebar && main) {
+      sidebar.classList.add('collapsed');
+      main.style.marginLeft = '60px';
+    }
+  }
+})();
 
 // ════════════════════════════════════
 // Navigation
