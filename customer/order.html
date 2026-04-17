@@ -1048,8 +1048,16 @@
     const isToday = selectedDate.toDateString() === now.toDateString();
     const cutoffMinutes = now.getHours() * 60 + now.getMinutes() + 15;
 
+    const MATHEWS_MORNING_BLOCKED = new Set([
+      '2026-04-17', '2026-04-24', '2026-04-29', '2026-05-01',
+    ]);
+    const selDateStr = [
+      selectedDate.getFullYear(),
+      String(selectedDate.getMonth() + 1).padStart(2, '0'),
+      String(selectedDate.getDate()).padStart(2, '0'),
+    ].join('-');
     const timesToShow = customerType === 'mathews'
-      ? ['8:15 AM', '12:00 PM']
+      ? (MATHEWS_MORNING_BLOCKED.has(selDateStr) ? ['12:00 PM'] : ['8:15 AM', '12:00 PM'])
       : allDeliveryTimes;
 
     let anyAdded = false;

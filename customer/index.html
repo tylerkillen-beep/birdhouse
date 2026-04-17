@@ -213,10 +213,12 @@
         .eq('id', session.user.id)
         .maybeSingle();
 
-      // Always show location picker so teachers can correct a wrong location.
-      // Pre-select their saved value so returning teachers just hit Continue.
+      if (profile?.location) {
+        window.location.href = getPostLoginDestination();
+        return;
+      }
+
       pendingSession = session;
-      if (profile?.location) selectLocation(profile.location);
       const overlay = document.getElementById('loc-overlay');
       overlay.classList.add('open');
       const firstBtn = document.getElementById('loc-hs');
