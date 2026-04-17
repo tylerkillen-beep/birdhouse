@@ -1775,13 +1775,16 @@ async function loadDashboard() {
   const startDate = new Date();
   const todayIso = startDate.toISOString().slice(0, 10);
   const [{ data: todayOrdersRaw }, { data: subscribers }, { data: pending }, { data: recentOrders }] = await Promise.all([
-    sb.from('orders').select('id,total_amount,created_at').order('created_at', { ascending: false }).limit(500),
+    sb.from('orders').select('id,total_amount,created_at,status').order('created_at', { ascending: false }).limit(500),
     sb.from('subscriptions').select('id').eq('status','active'),
     sb.from('students').select('id').is('role', null),
     sb.from('orders').select('*').order('created_at', { ascending: false }).limit(8),
   ]);
 
-  const ordersToday = (todayOrdersRaw || []).filter(o => (o.created_at || '').slice(0, 10) === todayIso);
+  const ordersToday = (todayOrdersRaw || []).filter(o =>
+    (o.created_at || '').slice(0, 10) === todayIso &&
+    ['paid', 'preparing', 'ready', 'delivered'].includes(o.status)
+  );
 
   document.getElementById('stat-orders-today').textContent = ordersToday?.length ?? 0;
   document.getElementById('stat-subscribers').textContent = subscribers?.length ?? 0;
