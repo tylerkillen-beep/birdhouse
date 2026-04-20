@@ -6,7 +6,7 @@
   <title>The Birdhouse — Team Login</title>
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/lib/supabase.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -128,15 +128,18 @@
         const m = document.getElementById('login-msg');
         m.textContent = 'Sign-in timed out — please check your connection and try again.';
         m.className = 'msg error';
+        console.error('[auth] signInWithOAuth timed out after 10s');
       }, 10000);
 
-      const { error } = await sb.auth.signInWithOAuth({
+      console.log('[auth] calling signInWithOAuth…');
+      const { data, error } = await sb.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/student/index.html`,
           queryParams: { hd: 'nixaschools.net' }
         }
       });
+      console.log('[auth] signInWithOAuth returned', { data, error });
       clearTimeout(redirectTimeout);
       if (error) {
         const m = document.getElementById('login-msg');
