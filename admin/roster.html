@@ -133,6 +133,7 @@
     .empty-state { color:var(--gray); text-align:center; padding:2.5rem; font-size:0.88rem; }
 
     @media(max-width:1100px){.layout{grid-template-columns:1fr}.sidebar{display:none}.main{padding:1.5rem}.import-wrap{grid-template-columns:1fr}.schedule-layout{grid-template-columns:1fr}.sched-grid{grid-template-columns:1fr 1fr}}
+    .visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
   </style>
 </head>
 <body class="auth-pending">
@@ -156,10 +157,10 @@
     <div class="page-eyebrow">Super Admin</div>
     <h1 class="page-title">Roster & Teams</h1>
 
-    <div class="tabs">
-      <button class="tab active" onclick="switchTab('import',this)">⬆️ Import Students</button>
-      <button class="tab" onclick="switchTab('teams',this)">👥 Teams</button>
-      <button class="tab" onclick="switchTab('all-students',this)">📋 All Students</button>
+    <div class="tabs" role="tablist" aria-label="Roster sections">
+      <button class="tab active" role="tab" aria-selected="true" aria-controls="tab-import" onclick="switchTab('import',this)">⬆️ Import Students</button>
+      <button class="tab" role="tab" aria-selected="false" aria-controls="tab-teams" onclick="switchTab('teams',this)">👥 Teams</button>
+      <button class="tab" role="tab" aria-selected="false" aria-controls="tab-all-students" onclick="switchTab('all-students',this)">📋 All Students</button>
     </div>
 
     <!-- ── Import Tab ── -->
@@ -169,21 +170,22 @@
           <div class="import-title">Upload CSV</div>
           <p style="font-size:0.83rem;color:var(--gray);margin-bottom:1.25rem;line-height:1.6">Upload your student roster CSV. Required columns: <code style="background:rgba(255,255,255,0.06);padding:0.1rem 0.4rem;border-radius:4px">first_name, last_name, email, team</code></p>
 
-          <div class="dropzone" id="dropzone" onclick="document.getElementById('csv-file').click()">
-            <div class="dropzone-icon">📄</div>
+          <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="Upload CSV file — click to browse or drag and drop" onclick="document.getElementById('csv-file').click()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('csv-file').click()}">
+            <div class="dropzone-icon" aria-hidden="true">📄</div>
             <div class="dropzone-text">Click to upload or drag & drop</div>
             <div class="dropzone-sub">CSV files only</div>
           </div>
-          <input type="file" id="csv-file" accept=".csv" style="display:none" onchange="handleFile(this)" />
+          <input type="file" id="csv-file" accept=".csv" aria-label="Upload CSV file" style="display:none" onchange="handleFile(this)" />
 
           <div style="text-align:center;color:var(--gray);font-size:0.78rem;margin:0.75rem 0">— or paste CSV directly —</div>
 
-          <textarea class="csv-paste" id="csv-paste" placeholder="first_name,last_name,email,team&#10;Jaisa,Brockman,student@school.net,A&#10;..." oninput="previewCSV()"></textarea>
+          <label for="csv-paste" class="visually-hidden">Paste CSV content</label>
+          <textarea class="csv-paste" id="csv-paste" placeholder="first_name,last_name,email,team&#10;Jaisa,Brockman,student@school.net,A&#10;..." oninput="previewCSV()" aria-label="Paste CSV content"></textarea>
 
           <div id="csv-preview"></div>
           <div class="msg" id="import-msg"></div>
           <div style="margin-bottom:1rem;margin-top:1rem">
-            <label style="display:block;font-size:0.68rem;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:var(--gray);margin-bottom:0.4rem">Temporary Password for All Students</label>
+            <label for="temp-password" style="display:block;font-size:0.68rem;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:var(--gray);margin-bottom:0.4rem">Temporary Password for All Students</label>
             <input type="text" id="temp-password" value="Birdhouse2025!" style="width:100%;padding:0.78rem 1rem;border:1px solid var(--border-dim);border-radius:8px;background:#0d0d0d;font-family:'DM Sans',sans-serif;font-size:0.9rem;color:var(--white);outline:none" />
             <div style="font-size:0.72rem;color:var(--gray);margin-top:0.35rem">All students will log in with this password. Tell them to change it after first login.</div>
           </div>
@@ -226,10 +228,12 @@
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
         <p style="color:var(--gray);font-size:0.88rem">All <span id="student-count">—</span> students. Click a student to reassign their team.</p>
         <div style="display:flex;gap:0.6rem">
-          <select id="filter-team" onchange="filterStudents()" style="padding:0.45rem 0.85rem;background:#0d0d0d;border:1px solid var(--border-dim);border-radius:7px;color:var(--white);font-size:0.82rem;font-family:'DM Sans',sans-serif">
+          <label for="filter-team" class="visually-hidden">Filter by team</label>
+          <select id="filter-team" aria-label="Filter by team" onchange="filterStudents()" style="padding:0.45rem 0.85rem;background:#0d0d0d;border:1px solid var(--border-dim);border-radius:7px;color:var(--white);font-size:0.82rem;font-family:'DM Sans',sans-serif">
             <option value="">All Teams</option>
           </select>
-          <select id="filter-period" onchange="filterStudents()" style="padding:0.45rem 0.85rem;background:#0d0d0d;border:1px solid var(--border-dim);border-radius:7px;color:var(--white);font-size:0.82rem;font-family:'DM Sans',sans-serif">
+          <label for="filter-period" class="visually-hidden">Filter by period</label>
+          <select id="filter-period" aria-label="Filter by period" onchange="filterStudents()" style="padding:0.45rem 0.85rem;background:#0d0d0d;border:1px solid var(--border-dim);border-radius:7px;color:var(--white);font-size:0.82rem;font-family:'DM Sans',sans-serif">
             <option value="">All Periods</option>
             <option value="1st Hour">1st Hour</option>
             <option value="6th Hour">6th Hour</option>
@@ -253,19 +257,19 @@
 </div>
 
 <!-- New Team Modal -->
-<div id="team-modal" style="position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:100;display:none;align-items:center;justify-content:center">
+<div id="team-modal" role="dialog" aria-modal="true" aria-labelledby="team-modal-title" style="position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:100;display:none;align-items:center;justify-content:center">
   <div style="background:#111;border:1px solid var(--border);border-radius:16px;padding:2rem;width:420px;max-width:95vw">
     <div style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:0.05em;margin-bottom:1.5rem" id="team-modal-title">New Team</div>
-    <div class="form-group"><label>Team Name</label><input type="text" id="team-name" placeholder="e.g. Team A, Team H" /></div>
+    <div class="form-group"><label for="team-name">Team Name</label><input type="text" id="team-name" placeholder="e.g. Team A, Team H" /></div>
     <div class="form-group">
-      <label>Class Period</label>
+      <label for="team-period">Class Period</label>
       <select id="team-period">
         <option value="1st Hour">1st Hour</option>
         <option value="6th Hour">6th Hour</option>
       </select>
     </div>
     <div class="form-group">
-      <label>Color</label>
+      <label for="team-color">Color</label>
       <input type="text" id="team-color" placeholder="#cc0000" value="#cc0000" />
     </div>
     <div class="msg" id="team-msg"></div>
@@ -277,11 +281,11 @@
 </div>
 
 <!-- Reassign Student Modal -->
-<div id="reassign-modal" style="position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:100;display:none;align-items:center;justify-content:center">
+<div id="reassign-modal" role="dialog" aria-modal="true" aria-labelledby="reassign-modal-title" style="position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:100;display:none;align-items:center;justify-content:center">
   <div style="background:#111;border:1px solid var(--border);border-radius:16px;padding:2rem;width:380px;max-width:95vw">
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:0.05em;margin-bottom:0.4rem">Reassign Student</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:0.05em;margin-bottom:0.4rem" id="reassign-modal-title">Reassign Student</div>
     <div style="font-size:0.88rem;color:var(--gray);margin-bottom:1.5rem" id="reassign-student-name"></div>
-    <div class="form-group"><label>Move to Team</label><select id="reassign-team-select"></select></div>
+    <div class="form-group"><label for="reassign-team-select">Move to Team</label><select id="reassign-team-select"></select></div>
     <div class="msg" id="reassign-msg"></div>
     <div style="display:flex;gap:1rem;margin-top:1.5rem">
       <button class="btn-ghost" onclick="closeReassignModal()">Cancel</button>
@@ -556,9 +560,10 @@
 
   // ── Tabs ──
   function switchTab(name,btn) {
-    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t=>{t.classList.remove('active');t.setAttribute('aria-selected','false');});
     document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
     btn.classList.add('active');
+    btn.setAttribute('aria-selected','true');
     document.getElementById('tab-'+name).classList.add('active');
     if(name==='teams') renderTeams();
     if(name==='all-students') loadAllStudents();

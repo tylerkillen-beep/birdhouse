@@ -1976,12 +1976,12 @@
   init();
 </script>
 <!-- Add/Edit Item Modal -->
-<div id="item-modal" style="position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:100;display:none;align-items:center;justify-content:center">
+<div id="item-modal" role="dialog" aria-modal="true" aria-labelledby="item-modal-title" style="position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:100;display:none;align-items:center;justify-content:center">
   <div style="background:#111;border:1px solid rgba(204,0,0,0.18);border-radius:16px;padding:2rem;width:420px;max-width:95vw;max-height:90vh;overflow-y:auto">
     <div style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:0.05em;margin-bottom:1.5rem" id="item-modal-title">Add Item</div>
-    <div style="margin-bottom:1rem"><label style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Item Name</label>
+    <div style="margin-bottom:1rem"><label for="item-name" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Item Name</label>
       <input type="text" id="item-name" placeholder="e.g. Vanilla Syrup" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/></div>
-    <div style="margin-bottom:1rem"><label style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Category</label>
+    <div style="margin-bottom:1rem"><label for="item-category" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Category</label>
       <select id="item-category" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none">
         <option value="cold_drinks">🧊 Cold Drinks</option>
         <option value="hot_drinks">☕ Hot Drinks</option>
@@ -1990,14 +1990,14 @@
         <option value="baked_goods">🍪 Baked Goods</option>
       </select></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem">
-      <div><label style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Quantity</label>
+      <div><label for="item-qty" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Quantity</label>
         <input type="number" id="item-qty" value="0" min="0" step="0.5" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/></div>
-      <div><label style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Unit</label>
+      <div><label for="item-unit" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Unit</label>
         <input type="text" id="item-unit" placeholder="bottles, lbs, units..." style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/></div>
     </div>
-    <div style="margin-bottom:1rem"><label style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Par Level (reorder when below this)</label>
+    <div style="margin-bottom:1rem"><label for="item-par" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Par Level (reorder when below this)</label>
       <input type="number" id="item-par" value="1" min="0" step="0.5" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/></div>
-    <div style="margin-bottom:1.25rem"><label style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Notes <span style="color:#444;font-weight:300">(optional)</span></label>
+    <div style="margin-bottom:1.25rem"><label for="item-notes" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Notes <span aria-hidden="true" style="color:#444;font-weight:300">(optional)</span></label>
       <input type="text" id="item-notes" placeholder="Storage location, special instructions..." style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/></div>
     <div class="msg" id="item-modal-msg"></div>
     <div style="display:flex;gap:0.75rem;margin-top:1.25rem">

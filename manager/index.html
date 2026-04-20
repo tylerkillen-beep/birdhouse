@@ -227,17 +227,17 @@
 </div>
 
 <!-- Add/Edit Inventory Item Modal -->
-<div class="modal-overlay" id="inv-item-modal">
+<div class="modal-overlay" id="inv-item-modal" role="dialog" aria-modal="true" aria-labelledby="inv-item-modal-title">
   <div class="modal">
-    <button class="modal-close" onclick="closeInvModal()">✕</button>
+    <button class="modal-close" aria-label="Close" onclick="closeInvModal()">✕</button>
     <div class="modal-title" id="inv-item-modal-title">Add Inventory Item</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
       <div class="form-group" style="grid-column:1/-1">
-        <label class="form-label">Item Name</label>
+        <label class="form-label" for="inv-item-name">Item Name</label>
         <input class="form-input" id="inv-item-name" placeholder="e.g. Oat Milk" />
       </div>
       <div class="form-group">
-        <label class="form-label">Category</label>
+        <label class="form-label" for="inv-item-category">Category</label>
         <select class="form-input" id="inv-item-category">
           <option value="cold_drinks">Cold Drinks</option>
           <option value="hot_drinks">Hot Drinks</option>
@@ -247,27 +247,27 @@
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">Unit</label>
+        <label class="form-label" for="inv-item-unit">Unit</label>
         <input class="form-input" id="inv-item-unit" placeholder="e.g. gallons, oz, bags" />
       </div>
       <div class="form-group">
-        <label class="form-label">Current Quantity</label>
+        <label class="form-label" for="inv-item-qty">Current Quantity</label>
         <input class="form-input" id="inv-item-qty" type="number" min="0" step="0.5" placeholder="0" />
       </div>
       <div class="form-group">
-        <label class="form-label">Par Level</label>
+        <label class="form-label" for="inv-item-par">Par Level</label>
         <input class="form-input" id="inv-item-par" type="number" min="0" step="0.5" placeholder="1" />
       </div>
       <div class="form-group">
-        <label class="form-label">Last Ordered</label>
+        <label class="form-label" for="inv-item-last-ordered">Last Ordered</label>
         <input class="form-input" id="inv-item-last-ordered" type="date" />
       </div>
       <div class="form-group">
-        <label class="form-label">Expected Arrival</label>
+        <label class="form-label" for="inv-item-expected-arrival">Expected Arrival</label>
         <input class="form-input" id="inv-item-expected-arrival" type="date" />
       </div>
       <div class="form-group" style="grid-column:1/-1">
-        <label class="form-label">Notes <span style="color:var(--gray);font-weight:400;text-transform:none">(optional)</span></label>
+        <label class="form-label" for="inv-item-notes">Notes <span aria-hidden="true" style="color:var(--gray);font-weight:400;text-transform:none">(optional)</span></label>
         <input class="form-input" id="inv-item-notes" placeholder="Storage location, supplier, etc." />
       </div>
     </div>
