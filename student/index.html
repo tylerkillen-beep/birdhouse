@@ -123,8 +123,7 @@
       const { error } = await sb.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/student/index.html`,
-          queryParams: { hd: 'nixaschools.net' }
+          redirectTo: `${window.location.origin}/student/index.html`
         }
       });
       if (error) {
