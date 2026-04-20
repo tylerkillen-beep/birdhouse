@@ -120,6 +120,16 @@
       btn.dataset.originalLabel = originalLabel;
       btn.disabled = true;
       btn.lastChild.textContent = ' Redirecting...';
+
+      // If the redirect never fires (e.g. network issues), re-enable after 10s
+      const redirectTimeout = setTimeout(() => {
+        btn.disabled = false;
+        btn.lastChild.textContent = ` ${originalLabel}`;
+        const m = document.getElementById('login-msg');
+        m.textContent = 'Sign-in timed out — please check your connection and try again.';
+        m.className = 'msg error';
+      }, 10000);
+
       const { error } = await sb.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -127,6 +137,7 @@
           queryParams: { hd: 'nixaschools.net' }
         }
       });
+      clearTimeout(redirectTimeout);
       if (error) {
         const m = document.getElementById('login-msg');
         m.textContent = error.message; m.className = 'msg error';
