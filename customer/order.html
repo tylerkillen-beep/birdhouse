@@ -926,7 +926,7 @@
   }
 
   function deliveryFeeDollars() {
-    if (isTeacher() || selectedDeliveryMethod !== 'delivery') return 0;
+    if (isTeacher() || hasEmployeeDiscount() || selectedDeliveryMethod !== 'delivery') return 0;
     return 1.00;
   }
 
