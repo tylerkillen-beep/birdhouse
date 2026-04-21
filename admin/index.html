@@ -117,8 +117,8 @@
     .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; min-width: 500px; }
     thead tr { background: #0d0d0d; }
-    th { padding: 0.85rem 1.1rem; text-align: left; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--gray); border-bottom: 1px solid var(--border-dim); white-space: nowrap; }
-    td { padding: 0.85rem 1.1rem; border-bottom: 1px solid var(--border-dim); font-size: 0.84rem; vertical-align: middle; }
+    th { padding: 0.6rem 1.1rem; text-align: left; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--gray); border-bottom: 1px solid var(--border-dim); white-space: nowrap; }
+    td { padding: 0.55rem 1.1rem; border-bottom: 1px solid var(--border-dim); font-size: 0.84rem; vertical-align: middle; }
     tbody tr:last-child td { border-bottom: none; }
     tbody tr:hover { background: rgba(255,255,255,0.015); }
     .order-main-row { cursor: pointer; }
@@ -2610,21 +2610,28 @@ async function updateSubStatus(id, newStatus) {
 // Customers
 // ════════════════════════════════════
 async function loadCustomers() {
-  const { data } = await sb.from('profiles').select('*').order('created_at', { ascending: false }).limit(300);
+  const [{ data: profiles }, { data: orderRows }] = await Promise.all([
+    sb.from('profiles').select('*').order('created_at', { ascending: false }).limit(300),
+    sb.from('orders').select('user_id'),
+  ]);
   const tbody = document.getElementById('customers-tbody');
-  if (!data?.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray);padding:2rem">No customers yet.</td></tr>'; return; }
-  tbody.innerHTML = (data||[]).map(c => {
+  if (!profiles?.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray);padding:2rem">No customers yet.</td></tr>'; return; }
+  const orderCountByUser = {};
+  (orderRows || []).forEach(o => { orderCountByUser[o.user_id] = (orderCountByUser[o.user_id] || 0) + 1; });
+  tbody.innerHTML = (profiles).map(c => {
     const spendCents  = c.loyalty_spend_cents  || 0;
     const creditCents = c.loyalty_credit_cents || 0;
     const spendTowardNext = spendCents % 2500;
-    const creditDisplay = creditCents > 0 ? `<span style="color:#f5c842">$${(creditCents/100).toFixed(2)} credit</span>` : '—';
-    const spendDisplay  = `$${(spendTowardNext/100).toFixed(2)} / $25`;
+    const spendDisplay = `$${(spendTowardNext / 100).toFixed(2)} / $25 toward next`;
+    const loyaltyDisplay = creditCents > 0
+      ? `<span style="color:#f5c842">$${(creditCents/100).toFixed(2)} credit</span> <span style="color:var(--gray-mid);font-size:0.75rem">· ${spendDisplay}</span>`
+      : `<span style="color:var(--gray-mid)">${spendDisplay}</span>`;
     return `
     <tr>
       <td>${c.full_name || '—'}</td>
       <td style="color:var(--gray-mid)">${c.email||'—'}</td>
-      <td style="font-size:0.82rem">${creditDisplay}<br/><span style="color:var(--gray-mid);font-size:0.75rem">${spendDisplay} toward next</span></td>
-      <td style="color:var(--gray-mid)">${c.order_count ?? 0}</td>
+      <td style="font-size:0.82rem">${loyaltyDisplay}</td>
+      <td style="color:var(--gray-mid)">${orderCountByUser[c.id] ?? 0}</td>
       <td style="color:var(--gray-mid);font-size:0.78rem">${new Date(c.created_at).toLocaleDateString()}</td>
     </tr>`;
   }).join('');
