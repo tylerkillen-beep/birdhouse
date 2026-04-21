@@ -121,6 +121,18 @@
     td { padding: 0.85rem 1.1rem; border-bottom: 1px solid var(--border-dim); font-size: 0.84rem; vertical-align: middle; }
     tbody tr:last-child td { border-bottom: none; }
     tbody tr:hover { background: rgba(255,255,255,0.015); }
+    .order-main-row { cursor: pointer; }
+    .order-main-row:hover { background: rgba(255,255,255,0.025) !important; }
+    .order-chevron { display: inline-block; font-size: 0.65rem; color: var(--gray); margin-right: 0.45rem; transition: transform 0.15s; line-height: 1; }
+    .order-chevron.open { transform: rotate(90deg); color: var(--accent); }
+    .order-detail-row > td { padding: 0; background: rgba(200,169,110,0.03); border-bottom: 1px solid var(--border-dim); }
+    .order-detail-panel { padding: 1rem 1.4rem 1.2rem; display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+    @media (max-width: 700px) { .order-detail-panel { grid-template-columns: 1fr; } }
+    .order-detail-section-label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--gray); margin-bottom: 0.5rem; margin-top: 0.9rem; }
+    .order-detail-section-label:first-child { margin-top: 0; }
+    .order-detail-line { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.82rem; padding: 0.18rem 0; gap: 1rem; }
+    .order-detail-line .line-label { color: var(--gray-mid); }
+    .order-detail-divider { border: none; border-top: 1px solid var(--border-dim); margin: 0.45rem 0; }
 
     /* ── Buttons ── */
     .btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.5rem 1.1rem; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 0.82rem; font-weight: 500; cursor: pointer; transition: all 0.15s; border: none; }
@@ -1834,19 +1846,21 @@ function renderOrders(list) {
   const tbody = document.getElementById('orders-tbody');
   if (!list.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gray);padding:2rem">No orders found.</td></tr>'; return; }
   tbody.innerHTML = list.map(o => `
-    <tr>
-      <td style="color:var(--gray-mid);font-size:0.78rem">${new Date(o.created_at).toLocaleDateString()}</td>
-      <td>${o.customer_name || '—'}</td>
-      <td>${o.item_name || o.drink_name || '—'}</td>
+    <tr class="order-main-row" onclick="toggleOrderDetail('${o.id}')">
+      <td style="color:var(--gray-mid);font-size:0.78rem">
+        <span class="order-chevron" id="chev-${o.id}">&#9658;</span>${new Date(o.created_at).toLocaleDateString()}
+      </td>
+      <td>${escHtml(o.customer_name) || '—'}</td>
+      <td>${escHtml(o.item_name || o.drink_name) || '—'}</td>
       <td>
         ${o.delivery_method === 'pickup'
           ? `<span class="pill pill-blue">🏠 Pickup</span>`
-          : `<span class="pill pill-gray">🚚 ${o.room || '—'}</span>`
+          : `<span class="pill pill-gray">🚚 ${escHtml(o.room) || '—'}</span>`
         }
       </td>
       <td>$${(getOrderTotalCents(o)/100).toFixed(2)}</td>
       <td>${statusPill(o.status)}</td>
-      <td>
+      <td onclick="event.stopPropagation()">
         <select onchange="updateOrderStatus('${o.id}', this.value)" style="background:#0d0d0d;border:1px solid var(--border);border-radius:6px;padding:0.3rem 0.5rem;color:var(--text);font-size:0.76rem;cursor:pointer">
           <option value="">Change…</option>
           <option value="pending">Pending</option>
@@ -1855,7 +1869,91 @@ function renderOrders(list) {
           <option value="delivered">Delivered</option>
         </select>
       </td>
+    </tr>
+    <tr class="order-detail-row" id="detail-${o.id}" style="display:none">
+      <td colspan="7">${buildOrderDetailHtml(o)}</td>
     </tr>`).join('');
+}
+
+function toggleOrderDetail(id) {
+  const row = document.getElementById('detail-' + id);
+  const chev = document.getElementById('chev-' + id);
+  if (!row) return;
+  const open = row.style.display === 'none' || row.style.display === '';
+  row.style.display = open ? 'table-row' : 'none';
+  if (chev) chev.classList.toggle('open', open);
+}
+
+function escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function buildOrderDetailHtml(o) {
+  const cartItems = Array.isArray(o.cart_items) ? o.cart_items : [];
+  const creditCents = o.credit_used_cents || 0;
+  const totalCents = getOrderTotalCents(o);
+
+  // ── Items column ──
+  let itemsHtml = '';
+  if (cartItems.length) {
+    itemsHtml = cartItems.map(item => {
+      const mods = Array.isArray(item.selectedModifiers) ? item.selectedModifiers : [];
+      const unitCents = typeof item.priceCents === 'number' ? item.priceCents : Math.round((item.price || 0) * 100);
+      const modCents = mods.reduce((s, m) => s + (m.priceCents || 0), 0);
+      const lineCents = (unitCents + modCents) * (item.quantity || 1);
+      const tempLabel = item.temp ? ` <span style="color:var(--gray);font-size:0.74rem">(${item.temp})</span>` : '';
+      const modText = mods.length ? mods.map(m => escHtml(m.name) + (m.priceCents ? ` +$${(m.priceCents/100).toFixed(2)}` : '')).join(', ') : '';
+      return `<div class="order-detail-line">
+        <span class="line-label">${item.quantity > 1 ? `${item.quantity}× ` : ''}${escHtml(item.name)}${tempLabel}${modText ? `<br><span style="color:var(--gray);font-size:0.75rem">${modText}</span>` : ''}</span>
+        <span>$${(lineCents/100).toFixed(2)}</span>
+      </div>`;
+    }).join('');
+  } else {
+    itemsHtml = `<div style="color:var(--gray-mid)">${escHtml(o.item_name || o.drink_name) || '—'}</div>`;
+  }
+
+  // ── Pricing breakdown ──
+  let pricingHtml = '';
+  if (creditCents > 0) {
+    pricingHtml += `<div class="order-detail-line"><span class="line-label" style="color:#4cd07d">Loyalty credit applied</span><span style="color:#4cd07d">−$${(creditCents/100).toFixed(2)}</span></div>`;
+  }
+  pricingHtml += `<hr class="order-detail-divider"><div class="order-detail-line" style="font-weight:500"><span>Total charged</span><span>$${(totalCents/100).toFixed(2)}</span></div>`;
+
+  // ── Delivery / metadata column ──
+  const typeMap = { student: 'Student', teacher: 'Teacher (25% off)', mathews: 'Mathews Teacher (25% off)' };
+  const typeLabel = typeMap[o.customer_location] || o.customer_location || null;
+
+  const deliveryDate = o.delivery_date
+    ? new Date(o.delivery_date + 'T12:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' })
+    : null;
+
+  const deliveryLines = [
+    deliveryDate       && ['Date',   deliveryDate],
+    o.delivery_time    && ['Time',   o.delivery_time],
+    o.delivery_method  && ['Method', o.delivery_method.charAt(0).toUpperCase() + o.delivery_method.slice(1)],
+    o.room && o.delivery_method !== 'pickup' && ['Room', escHtml(o.room)],
+    o.special_instructions && ['Note', escHtml(o.special_instructions)],
+  ].filter(Boolean);
+
+  const deliveryHtml = deliveryLines.map(([label, val]) =>
+    `<div class="order-detail-line"><span class="line-label">${label}</span><span>${val}</span></div>`
+  ).join('');
+
+  return `<div class="order-detail-panel">
+    <div>
+      <div class="order-detail-section-label">Items</div>
+      ${itemsHtml}
+      <div class="order-detail-section-label" style="margin-top:0.9rem">Pricing</div>
+      ${pricingHtml}
+    </div>
+    <div>
+      ${deliveryLines.length ? `<div class="order-detail-section-label">Delivery</div>${deliveryHtml}` : ''}
+      ${typeLabel ? `<div class="order-detail-section-label">Customer type</div>
+        <div style="font-size:0.82rem">${typeLabel}</div>` : ''}
+      ${o.square_payment_id ? `<div class="order-detail-section-label">Payment ID</div>
+        <div style="font-size:0.73rem;color:var(--gray);font-family:monospace;word-break:break-all">${escHtml(o.square_payment_id)}</div>` : ''}
+    </div>
+  </div>`;
 }
 
 async function updateOrderStatus(id, status) {
