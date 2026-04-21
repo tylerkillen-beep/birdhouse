@@ -95,9 +95,15 @@ serve(async (req) => {
 
     const orderDeliveryMethod = (deliveryMethod === 'pickup') ? 'pickup' : 'delivery';
 
-    // Students pay $1 for delivery; teachers always get free delivery
+    // Teachers and staff always get free delivery; other students pay $1
     const isTeacherEmail = (user.email || '').endsWith('@nixaschools.net');
-    const deliveryFeeCents = (!isTeacherEmail && orderDeliveryMethod === 'delivery') ? 100 : 0;
+    const { data: staffRecord } = await supabase
+      .from("students")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+    const isStaff = ['student', 'manager', 'admin'].includes(staffRecord?.role);
+    const deliveryFeeCents = (!isTeacherEmail && !isStaff && orderDeliveryMethod === 'delivery') ? 100 : 0;
 
     // ── Calculate order total ──────────────────────────────────────────────
     interface CartItem {
