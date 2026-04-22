@@ -17,7 +17,7 @@ serve(async (req) => {
     if (!file) return json({ error: "No file provided" }, 400);
 
     const buf = await file.arrayBuffer();
-    const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+    const b64 = btoa(new Uint8Array(buf).reduce((s, b) => s + String.fromCharCode(b), ''));
 
     const prompt = `Extract all ordered items from this receipt. Return ONLY a JSON object — no explanation, no markdown — with this exact structure:
 {
