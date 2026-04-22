@@ -4101,6 +4101,8 @@ const REPORT_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 // Closed Days
 // ════════════════════════════════════
 let closedDayPicker = null;
+let poOrderDatePicker = null;
+let poArrivalPicker = null;
 
 function initClosedDayPicker() {
   if (closedDayPicker) return;
@@ -5173,10 +5175,12 @@ async function handleReceiptFile(file) {
 }
 
 function openReceiptModal(parsed) {
+  if (!poOrderDatePicker) poOrderDatePicker = flatpickr('#po-order-date', { dateFormat: 'Y-m-d', disableMobile: true });
+  if (!poArrivalPicker) poArrivalPicker = flatpickr('#po-expected-arrival', { dateFormat: 'Y-m-d', disableMobile: true });
   document.getElementById('po-vendor').value = parsed.vendor || 'other';
   document.getElementById('po-order-number').value = parsed.order_number || '';
-  document.getElementById('po-order-date').value = parsed.order_date || '';
-  document.getElementById('po-expected-arrival').value = parsed.expected_arrival || '';
+  poOrderDatePicker.setDate(parsed.order_date || null, false);
+  poArrivalPicker.setDate(parsed.expected_arrival || null, false);
   document.getElementById('po-total').value = parsed.total_cents ? (parsed.total_cents / 100).toFixed(2) : '';
   document.getElementById('po-notes').value = '';
   document.getElementById('receipt-modal-msg').style.display = 'none';
@@ -5198,12 +5202,23 @@ function renderPOItemsForReview(items) {
       </select>
     </div>`;
   }).join('');
+  const skipWords = new Set(['great','value','country','time','kroger','store','brand','the','a','an','of','and','with','for','oz','lb','lbs','gallon','gal','pack','count','ct','mix','drink','zero','original','classic','natural','organic','fresh','size','fl','pk','reduced','fat','extra','heavy','sugar','free','low','diet','pure','premium','select','choice']);
   items.forEach((item, i) => {
     const sel = document.getElementById('poi-inv-' + i);
     if (!sel) return;
     const nm = item.name.toLowerCase();
-    const match = allInventory.find(inv => nm.includes(inv.name.toLowerCase()) || inv.name.toLowerCase().includes(nm.split(' ')[0]));
-    if (match) sel.value = match.id;
+    const words = nm.split(/[\s,./\-]+/).filter(w => w.length > 2 && !skipWords.has(w) && isNaN(w));
+    let bestMatch = null, bestScore = 0;
+    for (const inv of allInventory) {
+      const invNm = inv.name.toLowerCase();
+      let score = 0;
+      if (nm.includes(invNm)) score += 10;
+      for (const w of words) { if (invNm.includes(w)) score += 3; }
+      const invWords = invNm.split(/[\s,./\-]+/).filter(w => w.length > 2 && !skipWords.has(w) && isNaN(w));
+      for (const w of invWords) { if (nm.includes(w)) score += 3; }
+      if (score > bestScore) { bestScore = score; bestMatch = inv; }
+    }
+    if (bestMatch && bestScore >= 3) sel.value = bestMatch.id;
   });
 }
 
@@ -5404,11 +5419,11 @@ async function deleteRecipe(id, name) {
       </div>
       <div class="form-group">
         <label class="form-label">Order Date</label>
-        <input class="form-input" id="po-order-date" type="date"/>
+        <input class="form-input" id="po-order-date" type="text" placeholder="YYYY-MM-DD" readonly/>
       </div>
       <div class="form-group">
         <label class="form-label">Expected Arrival</label>
-        <input class="form-input" id="po-expected-arrival" type="date"/>
+        <input class="form-input" id="po-expected-arrival" type="text" placeholder="YYYY-MM-DD" readonly/>
       </div>
       <div class="form-group">
         <label class="form-label">Order Total ($)</label>
