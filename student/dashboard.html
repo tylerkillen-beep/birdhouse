@@ -940,7 +940,7 @@
     const changeType = change>0?'restock':change<0?'usage':'count';
     const studentName = currentUser.user_metadata?.first_name+' '+currentUser.user_metadata?.last_name;
 
-    await sb.from('inventory').update({quantity:newQty, par_level:newPar, last_ordered_at:null, expected_arrival:null, updated_at:new Date().toISOString()}).eq('id',id);
+    await sb.from('inventory').update({quantity:newQty, par_level:newPar, updated_at:new Date().toISOString()}).eq('id',id);
     await sb.from('inventory_log').insert({
       inventory_id:id, item_name:name,
       previous_quantity:prevQty, new_quantity:newQty, change_amount:change,
