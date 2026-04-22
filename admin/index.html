@@ -5167,6 +5167,7 @@ async function handleReceiptFile(file) {
     const parsed = await res.json();
     if (parsed.error) throw new Error(parsed.error);
     status.textContent = '';
+    if (!allInventory.length) await loadInventory();
     currentParsedReceipt = parsed;
     openReceiptModal(parsed);
   } catch (err) {
