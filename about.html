@@ -56,7 +56,7 @@
     .team-card:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(204,0,0,0.15); }
     .team-card-avatar { width: 56px; height: 56px; border-radius: 50%; border: 1px solid var(--border); margin-bottom: 1rem; object-fit: cover; display:block; }
     .team-card-initials { width: 56px; height: 56px; border-radius: 50%; background: rgba(204,0,0,0.15); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; color: var(--red-bright); margin-bottom: 1rem; letter-spacing: 0.05em; }
-    .team-card-name { font-weight: 500; font-size: 1rem; color: var(--white); margin-bottom: 0.5rem; }
+    .team-card-name { font-weight: 500; font-size: 1rem; color: var(--white); margin-bottom: 0.5rem; margin: 0 0 0.5rem; }
     .team-card-bio { font-size: 0.85rem; color: var(--gray); line-height: 1.65; font-weight: 300; }
     .team-empty { color: var(--gray); font-size: 0.88rem; text-align: center; padding: 3rem; background: var(--card); border: 1px solid var(--border); border-radius: 14px; }
 
@@ -113,17 +113,21 @@
         return;
       }
 
+      function escHtml(str) {
+        return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+      }
+
       grid.innerHTML = data.map(s => {
-        const initials = `${(s.first_name||'?')[0]}${(s.last_name||'?')[0]}`.toUpperCase();
-        const name = `${s.first_name||''} ${s.last_name||''}`.trim();
+        const initials = escHtml(`${(s.first_name||'?')[0]}${(s.last_name||'?')[0]}`.toUpperCase());
+        const name = escHtml(`${s.first_name||''} ${s.last_name||''}`.trim());
         const avatar = s.bio_photo_url
-          ? `<img class="team-card-avatar" src="${s.bio_photo_url}" alt="${name} profile photo" loading="lazy" />`
-          : `<div class="team-card-initials">${initials}</div>`;
+          ? `<img class="team-card-avatar" src="${escHtml(s.bio_photo_url)}" alt="${name} profile photo" loading="lazy" />`
+          : `<div class="team-card-initials" aria-hidden="true">${initials}</div>`;
         return `
           <div class="team-card">
             ${avatar}
-            <div class="team-card-name">${name}</div>
-            <div class="team-card-bio">${s.bio}</div>
+            <h3 class="team-card-name">${name}</h3>
+            <p class="team-card-bio">${escHtml(s.bio)}</p>
           </div>`;
       }).join('');
     })();

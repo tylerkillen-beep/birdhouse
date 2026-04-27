@@ -171,13 +171,13 @@
       <div class="user-points" id="user-points-badge">$0.00 toward Birdhouse Bucks</div>
     </div>
     <nav aria-label="Customer portal">
-      <button class="nav-item active" onclick="showSection('overview',this)">📊 Overview</button>
-      <a class="nav-item" href="order.html">☕ Place an Order</a>
-      <a class="nav-item" href="orders.html">📋 Order History</a>
-      <button class="nav-item" onclick="showSection('subscription',this)">📦 My Subscription</button>
-      <button class="nav-item" onclick="showSection('loyalty',this)">⭐ Birdhouse Bucks</button>
+      <button class="nav-item active" onclick="showSection('overview',this)"><span aria-hidden="true">📊</span> Overview</button>
+      <a class="nav-item" href="order.html"><span aria-hidden="true">☕</span> Place an Order</a>
+      <a class="nav-item" href="orders.html"><span aria-hidden="true">📋</span> Order History</a>
+      <button class="nav-item" onclick="showSection('subscription',this)"><span aria-hidden="true">📦</span> My Subscription</button>
+      <button class="nav-item" onclick="showSection('loyalty',this)"><span aria-hidden="true">⭐</span> Birdhouse Bucks</button>
     </nav>
-    <button class="signout-btn" onclick="signOut()">← Sign Out</button>
+    <button class="signout-btn" onclick="signOut()"><span aria-hidden="true">←</span> Sign Out</button>
   </aside>
 
   <main class="main">
@@ -192,7 +192,7 @@
           <div class="stat-label">Toward Next Birdhouse Bucks</div>
           <div class="stat-value" id="stat-points">$0.00</div>
           <div class="stat-sub" id="stat-points-sub">$25.00 to earn $3 credit</div>
-          <div class="points-bar"><div class="points-fill" id="points-fill" style="width:0%"></div></div>
+          <div class="points-bar" role="progressbar" aria-label="Progress toward next Birdhouse Bucks credit" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" id="points-bar"><div class="points-fill" id="points-fill" style="width:0%"></div></div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Total Orders</div>
@@ -258,7 +258,7 @@
           <span id="loyalty-bar-label">$0.00 / $25.00</span>
           <span>🎁 $3 credit</span>
         </div>
-        <div class="reward-bar"><div class="reward-fill" id="loyalty-bar-fill" style="width:0%"></div></div>
+        <div class="reward-bar" role="progressbar" aria-label="Spending progress toward $3 Birdhouse Bucks credit" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" id="loyalty-bar"><div class="reward-fill" id="loyalty-bar-fill" style="width:0%"></div></div>
         <p class="reward-desc">Every $25 you spend on menu orders earns a $3 credit. Credits apply to any menu item at checkout — if your item costs more than the credit, you pay the difference. Credits don't apply to subscriptions, and subscription payments don't count toward earning credits.</p>
       </div>
     </div>
@@ -357,10 +357,12 @@
     document.getElementById('stat-points').textContent     = spendDisplay;
     document.getElementById('stat-points-sub').textContent = `$${((2500 - spendTowardNext) / 100).toFixed(2)} to earn $3 credit`;
     document.getElementById('points-fill').style.width     = pct + '%';
+    document.getElementById('points-bar').setAttribute('aria-valuenow', pct);
 
     document.getElementById('loyalty-spend-progress').textContent = spendDisplay;
     document.getElementById('loyalty-credit-balance').textContent = creditDisplay;
     document.getElementById('loyalty-bar-fill').style.width       = pct + '%';
+    document.getElementById('loyalty-bar').setAttribute('aria-valuenow', pct);
     document.getElementById('loyalty-bar-label').textContent      = `${spendDisplay} / $25.00`;
 
     await Promise.all([loadSubscription(), loadOrders()]);
@@ -589,7 +591,23 @@
     </div>`;
   }
 
+  // ── Focus trap for confirm modal ──────────────────────────────────────────
+  function trapConfirmFocus(e) {
+    if (e.key === 'Tab') {
+      const modal = document.querySelector('.confirm-modal');
+      const focusable = Array.from(modal.querySelectorAll('button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'));
+      const first = focusable[0];
+      const last  = focusable[focusable.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    }
+  }
+
   // ── Pause / Resume / Cancel ───────────────────────────────────────────────
+  let _confirmOpener = null;
   function confirmAction(action) {
     const isCancel = action === 'cancel';
     document.getElementById('confirm-title').textContent = isCancel ? 'Cancel Subscription?' : 'Pause Subscription?';
@@ -599,15 +617,21 @@
     const btn = document.getElementById('confirm-action-btn');
     btn.textContent = isCancel ? 'Yes, Cancel' : 'Yes, Pause';
     btn.onclick = () => isCancel ? cancelSubscription() : pauseSubscription();
+    _confirmOpener = document.activeElement;
     const overlay = document.getElementById('confirm-overlay');
     overlay.classList.add('open');
+    overlay.addEventListener('keydown', trapConfirmFocus);
     // Move focus into modal for keyboard/screen reader users
     const firstBtn = overlay.querySelector('button');
     if (firstBtn) firstBtn.focus();
   }
 
   function closeConfirm() {
-    document.getElementById('confirm-overlay').classList.remove('open');
+    const overlay = document.getElementById('confirm-overlay');
+    overlay.classList.remove('open');
+    overlay.removeEventListener('keydown', trapConfirmFocus);
+    // Return focus to the element that opened the modal
+    if (_confirmOpener) { _confirmOpener.focus(); _confirmOpener = null; }
   }
 
   async function pauseSubscription() {
@@ -704,7 +728,8 @@
   // ── Navigation ────────────────────────────────────────────────────────────
   function showSection(name, el) {
     document.querySelectorAll('[id^="section-"]').forEach(s => s.style.display = 'none');
-    document.getElementById('section-' + name).style.display = 'block';
+    const section = document.getElementById('section-' + name);
+    section.style.display = 'block';
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     if (el) el.classList.add('active');
     // Mark correct nav item active when triggered programmatically
@@ -715,6 +740,12 @@
     }
     closeNav();
     window.scrollTo(0, 0);
+    // Move focus to section heading so screen reader users know content changed
+    const heading = section.querySelector('h1');
+    if (heading) {
+      heading.setAttribute('tabindex', '-1');
+      heading.focus({ preventScroll: true });
+    }
   }
 
   document.getElementById('confirm-overlay').addEventListener('click', function(e) {

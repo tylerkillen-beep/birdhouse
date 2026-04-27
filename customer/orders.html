@@ -148,13 +148,13 @@
       <div class="user-points" id="user-points-badge">$0.00 toward Birdhouse Bucks</div>
     </div>
     <nav aria-label="Customer portal">
-      <a class="nav-item" href="dashboard.html">📊 Overview</a>
-      <a class="nav-item" href="order.html">☕ Place an Order</a>
-      <a class="nav-item active" href="orders.html" aria-current="page">📋 My Orders</a>
-      <a class="nav-item" href="dashboard.html#subscription">📦 My Subscription</a>
-      <a class="nav-item" href="dashboard.html#loyalty">⭐ Birdhouse Bucks</a>
+      <a class="nav-item" href="dashboard.html"><span aria-hidden="true">📊</span> Overview</a>
+      <a class="nav-item" href="order.html"><span aria-hidden="true">☕</span> Place an Order</a>
+      <a class="nav-item active" href="orders.html" aria-current="page"><span aria-hidden="true">📋</span> My Orders</a>
+      <a class="nav-item" href="dashboard.html#subscription"><span aria-hidden="true">📦</span> My Subscription</a>
+      <a class="nav-item" href="dashboard.html#loyalty"><span aria-hidden="true">⭐</span> Birdhouse Bucks</a>
     </nav>
-    <button class="signout-btn" onclick="signOut()">← Sign Out</button>
+    <button class="signout-btn" onclick="signOut()"><span aria-hidden="true">←</span> Sign Out</button>
   </aside>
 
   <main class="main" id="main-content">
@@ -163,11 +163,11 @@
 
     <div class="summary-row" id="summary-row"></div>
 
-    <div class="filter-row">
-      <button class="filter-btn active" onclick="filterOrders('all',this)">All Orders</button>
-      <button class="filter-btn" onclick="filterOrders('active',this)">Active</button>
-      <button class="filter-btn" onclick="filterOrders('delivered',this)">Delivered</button>
-      <button class="filter-btn" onclick="filterOrders('cancelled',this)">Cancelled</button>
+    <div class="filter-row" role="group" aria-label="Filter orders">
+      <button class="filter-btn active" onclick="filterOrders('all',this)" aria-pressed="true">All Orders</button>
+      <button class="filter-btn" onclick="filterOrders('active',this)" aria-pressed="false">Active</button>
+      <button class="filter-btn" onclick="filterOrders('delivered',this)" aria-pressed="false">Delivered</button>
+      <button class="filter-btn" onclick="filterOrders('cancelled',this)" aria-pressed="false">Cancelled</button>
     </div>
 
     <div id="orders-container"><div style="color:var(--gray);text-align:center;padding:3rem">Loading your orders...</div></div>
@@ -269,8 +269,12 @@
   }
 
   function filterOrders(filter, btn) {
-    document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.filter-btn').forEach(b => {
+      b.classList.remove('active');
+      b.setAttribute('aria-pressed', 'false');
+    });
     btn.classList.add('active');
+    btn.setAttribute('aria-pressed', 'true');
     renderOrders(filter);
   }
 
@@ -359,6 +363,21 @@
 
   // ── Review Modal ──────────────────────────────────────────────────────────
   let reviewPendingItemId = null, reviewPendingOrderId = null, reviewRating = 0;
+  let _reviewOpener = null;
+
+  function trapReviewFocus(e) {
+    if (e.key === 'Escape') { closeReviewModal(); return; }
+    if (e.key !== 'Tab') return;
+    const modal = document.querySelector('.review-modal');
+    const focusable = Array.from(modal.querySelectorAll('button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'));
+    const first = focusable[0];
+    const last  = focusable[focusable.length - 1];
+    if (e.shiftKey) {
+      if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+    } else {
+      if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  }
 
   function openReviewModal(menuItemId, menuItemName, orderId) {
     reviewPendingItemId  = menuItemId;
@@ -370,13 +389,23 @@
     document.getElementById('review-msg').style.display = 'none';
     setReviewStar(0);
     document.getElementById('review-submit-btn').disabled = true;
-    document.getElementById('review-overlay').classList.add('open');
+    _reviewOpener = document.activeElement;
+    const overlay = document.getElementById('review-overlay');
+    overlay.classList.add('open');
+    overlay.addEventListener('keydown', trapReviewFocus);
+    // Focus first star so keyboard users can rate immediately
+    const firstStar = document.querySelector('#star-selector .star');
+    if (firstStar) firstStar.focus();
   }
 
   function closeReviewModal() {
-    document.getElementById('review-overlay').classList.remove('open');
+    const overlay = document.getElementById('review-overlay');
+    overlay.classList.remove('open');
+    overlay.removeEventListener('keydown', trapReviewFocus);
     reviewPendingItemId = reviewPendingOrderId = null;
     reviewRating = 0;
+    // Return focus to the element that opened the modal
+    if (_reviewOpener) { _reviewOpener.focus(); _reviewOpener = null; }
   }
 
   function setReviewStar(val) {
