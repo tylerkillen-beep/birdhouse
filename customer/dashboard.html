@@ -17,6 +17,8 @@
     }
     body { background: var(--black); color: var(--white); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
     body::before { content:''; position:fixed; inset:0; background-image:linear-gradient(rgba(204,0,0,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(204,0,0,0.03) 1px,transparent 1px); background-size:40px 40px; pointer-events:none; z-index:0; }
+    .skip-link { position: absolute; top: -100%; left: 1rem; background: var(--red-bright); color: #000; padding: 0.5rem 1rem; border-radius: 0 0 6px 6px; font-size: 0.85rem; font-weight: 500; text-decoration: none; z-index: 9999; }
+    .skip-link:focus { top: 0; }
     :focus-visible { outline: 2px solid var(--red-bright); outline-offset: 3px; border-radius: 3px; }
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; } }
 
@@ -156,6 +158,7 @@
   </style>
 </head>
 <body>
+<a class="skip-link" href="#main-content">Skip to main content</a>
 <div class="mobile-topbar">
   <a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a>
   <button class="hamburger" id="hamburger-btn" onclick="toggleNav()" aria-label="Menu" aria-expanded="false">
@@ -180,7 +183,7 @@
     <button class="signout-btn" onclick="signOut()"><span aria-hidden="true">←</span> Sign Out</button>
   </aside>
 
-  <main class="main">
+  <main class="main" id="main-content">
 
     <!-- ── Overview ─────────────────────────────────────────────────────── -->
     <div id="section-overview">

@@ -15,6 +15,8 @@
       --card:#141414; --border:rgba(204,0,0,0.18); --border-dim:rgba(255,255,255,0.07);
     }
     body { background:var(--black); color:var(--white); font-family:'DM Sans',sans-serif; min-height:100vh; }
+    .skip-link { position: absolute; top: -100%; left: 1rem; background: var(--red-bright); color: #000; padding: 0.5rem 1rem; border-radius: 0 0 6px 6px; font-size: 0.85rem; font-weight: 500; text-decoration: none; z-index: 10000; }
+    .skip-link:focus { top: 0; }
     :focus-visible { outline: 2px solid var(--red-bright); outline-offset: 3px; border-radius: 3px; }
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; } }
     body.auth-pending .layout { display:none; }
@@ -137,34 +139,37 @@
   </style>
 </head>
 <body class="auth-pending">
+<a class="skip-link" href="#main-content">Skip to main content</a>
 <div class="auth-gate">Checking access…</div>
 <div class="layout">
-  <aside class="sidebar">
+  <aside class="sidebar" aria-label="Admin navigation">
     <div style="margin-bottom:0.5rem"><a href="../index.html"><img src="../logo.png" alt="The Birdhouse" style="height:40px;filter:drop-shadow(0 0 10px rgba(204,0,0,0.6))" /></a></div>
-    <div class="admin-badge">⚙ Super Admin</div>
-    <div class="nav-section">Overview</div>
-    <a class="nav-item" href="index.html">📊 Dashboard</a>
-    <div class="nav-section">Team</div>
-    <a class="nav-item active" href="roster.html">👥 Roster & Teams</a>
-    <a class="nav-item" href="schedule.html">🗓️ Schedule Builder</a>
-    <a class="nav-item" href="index.html#summaries">📝 Weekly Summaries</a>
-    <div class="nav-section">Menu</div>
-    <a class="nav-item" href="index.html#menu">☕ Menu Manager</a>
-    <button class="signout-btn" onclick="signOut()">← Sign Out</button>
+    <div class="admin-badge"><span aria-hidden="true">⚙</span> Super Admin</div>
+    <nav aria-label="Admin">
+      <div class="nav-section">Overview</div>
+      <a class="nav-item" href="index.html"><span aria-hidden="true">📊</span> Dashboard</a>
+      <div class="nav-section">Team</div>
+      <a class="nav-item active" href="roster.html" aria-current="page"><span aria-hidden="true">👥</span> Roster & Teams</a>
+      <a class="nav-item" href="schedule.html"><span aria-hidden="true">🗓️</span> Schedule Builder</a>
+      <a class="nav-item" href="index.html#summaries"><span aria-hidden="true">📝</span> Weekly Summaries</a>
+      <div class="nav-section">Menu</div>
+      <a class="nav-item" href="index.html#menu"><span aria-hidden="true">☕</span> Menu Manager</a>
+    </nav>
+    <button class="signout-btn" onclick="signOut()"><span aria-hidden="true">←</span> Sign Out</button>
   </aside>
 
-  <main class="main">
+  <main class="main" id="main-content">
     <div class="page-eyebrow">Super Admin</div>
     <h1 class="page-title">Roster & Teams</h1>
 
     <div class="tabs" role="tablist" aria-label="Roster sections">
-      <button class="tab active" role="tab" aria-selected="true" aria-controls="tab-import" onclick="switchTab('import',this)">⬆️ Import Students</button>
-      <button class="tab" role="tab" aria-selected="false" aria-controls="tab-teams" onclick="switchTab('teams',this)">👥 Teams</button>
-      <button class="tab" role="tab" aria-selected="false" aria-controls="tab-all-students" onclick="switchTab('all-students',this)">📋 All Students</button>
+      <button class="tab active" role="tab" id="tab-btn-import" aria-selected="true" aria-controls="tab-import" onclick="switchTab('import',this)"><span aria-hidden="true">⬆️</span> Import Students</button>
+      <button class="tab" role="tab" id="tab-btn-teams" aria-selected="false" aria-controls="tab-teams" onclick="switchTab('teams',this)"><span aria-hidden="true">👥</span> Teams</button>
+      <button class="tab" role="tab" id="tab-btn-all-students" aria-selected="false" aria-controls="tab-all-students" onclick="switchTab('all-students',this)"><span aria-hidden="true">📋</span> All Students</button>
     </div>
 
     <!-- ── Import Tab ── -->
-    <div class="tab-panel active" id="tab-import">
+    <div class="tab-panel active" id="tab-import" role="tabpanel" aria-labelledby="tab-btn-import">
       <div class="import-wrap">
         <div class="import-card">
           <div class="import-title">Upload CSV</div>
@@ -215,7 +220,7 @@
     </div>
 
     <!-- ── Teams Tab ── -->
-    <div class="tab-panel" id="tab-teams">
+    <div class="tab-panel" id="tab-teams" role="tabpanel" aria-labelledby="tab-btn-teams">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
         <p style="color:var(--gray);font-size:0.88rem">Set each team's period and manage their members.</p>
         <button class="btn-primary btn-sm" onclick="openNewTeamModal()">+ New Team</button>
@@ -224,7 +229,7 @@
     </div>
 
     <!-- ── All Students Tab ── -->
-    <div class="tab-panel" id="tab-all-students">
+    <div class="tab-panel" id="tab-all-students" role="tabpanel" aria-labelledby="tab-btn-all-students">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
         <p style="color:var(--gray);font-size:0.88rem">All <span id="student-count">—</span> students. Click a student to reassign their team.</p>
         <div style="display:flex;gap:0.6rem">

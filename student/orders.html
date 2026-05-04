@@ -143,6 +143,7 @@
   </style>
 </head>
 <body>
+<a class="skip-link" href="#main-content">Skip to main content</a>
 <div class="mobile-topbar">
   <a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a>
   <button class="hamburger" id="hamburger-btn" onclick="toggleNav()" aria-label="Menu" aria-expanded="false">
@@ -158,18 +159,18 @@
       <div class="user-role" id="user-role-badge">Staff</div>
     </div>
     <nav aria-label="Team hub">
-      <a class="nav-item" href="dashboard.html">📊 Overview</a>
-      <a class="nav-item active" href="orders.html" aria-current="page">🧾 Order Queue</a>
-      <a class="nav-item" href="dashboard.html#schedule">🗓️ My Schedule</a>
-      <a class="nav-item" href="dashboard.html#inventory">📦 Inventory</a>
-      <a class="nav-item" href="dashboard.html#sales">📈 Sales Data</a>
-      <a class="nav-item" href="dashboard.html#menu">☕ Menu Availability</a>
-      <a class="nav-item" href="dashboard.html#summary">📝 Weekly Summary</a>
+      <a class="nav-item" href="dashboard.html"><span aria-hidden="true">📊</span> Overview</a>
+      <a class="nav-item active" href="orders.html" aria-current="page"><span aria-hidden="true">🧾</span> Order Queue</a>
+      <a class="nav-item" href="dashboard.html#schedule"><span aria-hidden="true">🗓️</span> My Schedule</a>
+      <a class="nav-item" href="dashboard.html#inventory"><span aria-hidden="true">📦</span> Inventory</a>
+      <a class="nav-item" href="dashboard.html#sales"><span aria-hidden="true">📈</span> Sales Data</a>
+      <a class="nav-item" href="dashboard.html#menu"><span aria-hidden="true">☕</span> Menu Availability</a>
+      <a class="nav-item" href="dashboard.html#summary"><span aria-hidden="true">📝</span> Weekly Summary</a>
     </nav>
-    <button class="signout-btn" onclick="signOut()">← Sign Out</button>
+    <button class="signout-btn" onclick="signOut()"><span aria-hidden="true">←</span> Sign Out</button>
   </aside>
 
-  <main class="main">
+  <main class="main" id="main-content">
     <div class="page-eyebrow">Team Hub</div>
     <div class="page-header">
       <h1 class="page-title">Order Queue</h1>

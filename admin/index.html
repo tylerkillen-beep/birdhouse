@@ -26,6 +26,8 @@
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.92rem; min-height: 100vh; display: flex; }
+    .skip-link { position: absolute; top: -100%; left: 1rem; background: var(--accent); color: #0a0a0a; padding: 0.5rem 1rem; border-radius: 0 0 6px 6px; font-size: 0.85rem; font-weight: 500; text-decoration: none; z-index: 10000; }
+    .skip-link:focus { top: 0; }
     :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; } }
     body.auth-pending #sidebar, body.auth-pending #main { display: none; }
@@ -376,6 +378,7 @@
   </style>
 </head>
 <body class="auth-pending">
+<a class="skip-link" href="#main">Skip to main content</a>
 <div class="auth-gate">Checking access…</div>
 
 <div class="mobile-topbar">
@@ -1062,9 +1065,9 @@
   </div>
 
   <!-- Add/Edit Modifier Set Modal -->
-  <div class="modal-overlay" id="mod-set-modal">
+  <div class="modal-overlay" id="mod-set-modal" role="dialog" aria-modal="true" aria-labelledby="mod-set-modal-title">
     <div class="modal" style="max-width:480px">
-      <button class="modal-close" onclick="closeModal('mod-set-modal')">✕</button>
+      <button class="modal-close" onclick="closeModal('mod-set-modal')" aria-label="Close">✕</button>
       <div class="modal-title" id="mod-set-modal-title">New Modifier Set</div>
       <div class="form-group">
         <label class="form-label">Set Name</label>
@@ -1078,9 +1081,9 @@
   </div>
 
   <!-- Add/Edit Modifier Option Modal -->
-  <div class="modal-overlay" id="mod-option-modal">
+  <div class="modal-overlay" id="mod-option-modal" role="dialog" aria-modal="true" aria-labelledby="mod-option-modal-title">
     <div class="modal" style="max-width:480px">
-      <button class="modal-close" onclick="closeModal('mod-option-modal')">✕</button>
+      <button class="modal-close" onclick="closeModal('mod-option-modal')" aria-label="Close">✕</button>
       <div class="modal-title" id="mod-option-modal-title">Add Option</div>
       <input type="hidden" id="mod-option-list-id" />
       <input type="hidden" id="mod-option-editing-id" />
@@ -1313,9 +1316,9 @@
 <!-- ══════════════ MODALS ══════════════ -->
 
 <!-- Subscription Action Modal -->
-<div class="modal-overlay" id="sub-action-modal">
+<div class="modal-overlay" id="sub-action-modal" role="dialog" aria-modal="true" aria-labelledby="sub-modal-title">
   <div class="modal">
-    <button class="modal-close" onclick="closeModal('sub-action-modal')">✕</button>
+    <button class="modal-close" onclick="closeModal('sub-action-modal')" aria-label="Close">✕</button>
     <div class="modal-title" id="sub-modal-title">Manage Subscription</div>
     <div id="sub-modal-body" style="margin-bottom:1rem;color:var(--gray-mid);font-size:0.84rem;line-height:1.6"></div>
     <div class="form-actions" id="sub-modal-actions"></div>
@@ -1323,9 +1326,9 @@
 </div>
 
 <!-- Add/Edit Menu Item Modal -->
-<div class="modal-overlay" id="menu-item-modal">
+<div class="modal-overlay" id="menu-item-modal" role="dialog" aria-modal="true" aria-labelledby="menu-item-modal-title">
   <div class="modal" style="max-width:680px">
-    <button class="modal-close" onclick="closeModal('menu-item-modal')">✕</button>
+    <button class="modal-close" onclick="closeModal('menu-item-modal')" aria-label="Close">✕</button>
     <div class="modal-title" id="menu-item-modal-title">New Menu Item</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
       <div class="form-group">
@@ -1368,9 +1371,9 @@
 </div>
 
 <!-- Add/Edit Inventory Item Modal -->
-<div class="modal-overlay" id="inv-item-modal">
+<div class="modal-overlay" id="inv-item-modal" role="dialog" aria-modal="true" aria-labelledby="inv-item-modal-title">
   <div class="modal" style="max-width:520px">
-    <button class="modal-close" onclick="closeModal('inv-item-modal')">✕</button>
+    <button class="modal-close" onclick="closeModal('inv-item-modal')" aria-label="Close">✕</button>
     <div class="modal-title" id="inv-item-modal-title">Add Inventory Item</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
       <div class="form-group" style="grid-column:1/-1">
@@ -1421,9 +1424,9 @@
 </div>
 
 <!-- Add/Edit Plan Modal -->
-<div class="modal-overlay" id="plan-modal">
+<div class="modal-overlay" id="plan-modal" role="dialog" aria-modal="true" aria-labelledby="plan-modal-title">
   <div class="modal" style="max-width:580px">
-    <button class="modal-close" onclick="closeModal('plan-modal')">✕</button>
+    <button class="modal-close" onclick="closeModal('plan-modal')" aria-label="Close">✕</button>
     <div class="modal-title" id="plan-modal-title">New Plan</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
       <div class="form-group">
@@ -1484,9 +1487,9 @@
 </div>
 
 <!-- Staff Team Modal -->
-<div class="modal-overlay" id="staff-team-modal">
+<div class="modal-overlay" id="staff-team-modal" role="dialog" aria-modal="true" aria-labelledby="staff-team-modal-title">
   <div class="modal" style="max-width:460px">
-    <button class="modal-close" onclick="closeModal('staff-team-modal')">✕</button>
+    <button class="modal-close" onclick="closeModal('staff-team-modal')" aria-label="Close">✕</button>
     <div class="modal-title" id="staff-team-modal-title">Add Team</div>
     <div class="form-group">
       <label class="form-label">Team Name</label>
@@ -1523,10 +1526,10 @@
 
 
 <!-- Staff Student Modal -->
-<div class="modal-overlay" id="staff-student-modal">
+<div class="modal-overlay" id="staff-student-modal" role="dialog" aria-modal="true" aria-labelledby="staff-student-modal-title">
   <div class="modal" style="max-width:460px">
-    <button class="modal-close" onclick="closeModal('staff-student-modal')">✕</button>
-    <div class="modal-title">Edit Student</div>
+    <button class="modal-close" onclick="closeModal('staff-student-modal')" aria-label="Close">✕</button>
+    <div class="modal-title" id="staff-student-modal-title">Edit Student</div>
     <div style="font-size:0.82rem;color:var(--gray-mid);margin-bottom:1rem" id="staff-student-modal-name"></div>
     <div class="form-group">
       <label class="form-label">Role</label>
@@ -1544,9 +1547,9 @@
 </div>
 
 <!-- Add/Edit Rubric Category Modal -->
-<div class="modal-overlay" id="rubric-modal">
+<div class="modal-overlay" id="rubric-modal" role="dialog" aria-modal="true" aria-labelledby="rubric-modal-title">
   <div class="modal">
-    <button class="modal-close" onclick="closeModal('rubric-modal')">✕</button>
+    <button class="modal-close" onclick="closeModal('rubric-modal')" aria-label="Close">✕</button>
     <div class="modal-title" id="rubric-modal-title">Add Category</div>
     <div class="form-group">
       <label class="form-label">Category Name</label>
@@ -1578,14 +1581,14 @@
 </div>
 
 <!-- Position Assignment Modal (Schedule) -->
-<div class="modal-overlay" id="sched-pos-modal">
+<div class="modal-overlay" id="sched-pos-modal" role="dialog" aria-modal="true" aria-labelledby="sched-pos-modal-title">
   <div class="pos-modal-inner">
     <div class="pos-modal-header">
       <div>
         <div class="pos-modal-title" id="sched-pos-modal-title">Assign Positions</div>
         <div style="font-size:0.76rem;color:var(--gray);margin-top:0.15rem" id="sched-pos-modal-sub"></div>
       </div>
-      <button class="modal-close" onclick="schedClosePosModal()">✕</button>
+      <button class="modal-close" onclick="schedClosePosModal()" aria-label="Close">✕</button>
     </div>
     <div class="pos-modal-body" id="sched-pos-modal-body"></div>
     <div class="pos-modal-footer">
@@ -5401,10 +5404,10 @@ async function deleteRecipe(id, name) {
 </script>
 
 <!-- Receipt Review Modal -->
-<div class="modal-overlay" id="receipt-modal" role="dialog" aria-modal="true">
+<div class="modal-overlay" id="receipt-modal" role="dialog" aria-modal="true" aria-labelledby="receipt-modal-title">
   <div class="modal" style="max-width:680px">
-    <button class="modal-close" onclick="document.getElementById('receipt-modal').classList.remove('open')">✕</button>
-    <div class="modal-title">Review Parsed Receipt</div>
+    <button class="modal-close" onclick="document.getElementById('receipt-modal').classList.remove('open')" aria-label="Close">✕</button>
+    <div class="modal-title" id="receipt-modal-title">Review Parsed Receipt</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 1rem;margin-bottom:1rem">
       <div class="form-group">
         <label class="form-label">Vendor</label>
@@ -5447,10 +5450,10 @@ async function deleteRecipe(id, name) {
 </div>
 
 <!-- Confirm Arrival Modal -->
-<div class="modal-overlay" id="confirm-arrival-modal" role="dialog" aria-modal="true">
+<div class="modal-overlay" id="confirm-arrival-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-arrival-modal-title">
   <div class="modal">
-    <button class="modal-close" onclick="document.getElementById('confirm-arrival-modal').classList.remove('open')">✕</button>
-    <div class="modal-title">Confirm Delivery</div>
+    <button class="modal-close" onclick="document.getElementById('confirm-arrival-modal').classList.remove('open')" aria-label="Close">✕</button>
+    <div class="modal-title" id="confirm-arrival-modal-title">Confirm Delivery</div>
     <p style="font-size:0.84rem;color:var(--gray-mid);margin-bottom:1.25rem">Adjust received quantities if anything was short or missing. Inventory will be updated automatically.</p>
     <div id="confirm-arrival-items"></div>
     <div id="confirm-arrival-msg" style="display:none;margin-top:0.75rem" class="msg"></div>
@@ -5462,9 +5465,9 @@ async function deleteRecipe(id, name) {
 </div>
 
 <!-- Recipe Modal -->
-<div class="modal-overlay" id="recipe-modal" role="dialog" aria-modal="true">
+<div class="modal-overlay" id="recipe-modal" role="dialog" aria-modal="true" aria-labelledby="recipe-modal-title">
   <div class="modal" style="max-width:620px">
-    <button class="modal-close" onclick="document.getElementById('recipe-modal').classList.remove('open')">✕</button>
+    <button class="modal-close" onclick="document.getElementById('recipe-modal').classList.remove('open')" aria-label="Close">✕</button>
     <div class="modal-title" id="recipe-modal-title">Add Recipe</div>
     <div class="form-group">
       <label class="form-label">Menu Item Name <span style="color:var(--gray-mid);text-transform:none;font-weight:400">(must match exactly what appears on the menu)</span></label>
