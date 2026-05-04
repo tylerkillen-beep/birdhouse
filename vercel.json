@@ -5,7 +5,8 @@
     {
       "source": "/.well-known/apple-developer-merchantid-domain-association",
       "headers": [
-        { "key": "Content-Type", "value": "application/octet-stream" }
+        { "key": "Content-Type", "value": "application/octet-stream" },
+        { "key": "Cache-Control", "value": "no-transform" }
       ]
     }
   ]
