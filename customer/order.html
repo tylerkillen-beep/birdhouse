@@ -126,6 +126,11 @@
     #card-container { min-height:89px; margin-bottom:1.25rem; }
     .card-loading { color:var(--gray); font-size:0.85rem; padding:1rem 0; }
     .pay-error { background:rgba(204,0,0,0.1); border:1px solid rgba(204,0,0,0.3); border-radius:8px; padding:0.85rem 1rem; font-size:0.85rem; color:#ff6b6b; margin-bottom:1rem; display:none; }
+    #wallet-buttons { margin-bottom:1.25rem; }
+    #apple-pay-button { min-height:48px; margin-bottom:0.75rem; }
+    #google-pay-button { min-height:48px; margin-bottom:0.75rem; }
+    .wallet-divider { display:flex; align-items:center; gap:0.75rem; margin:0.5rem 0 1.25rem; color:var(--gray); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.1em; }
+    .wallet-divider::before, .wallet-divider::after { content:''; flex:1; height:1px; background:var(--border-dim); }
 
     .btn-primary { background:var(--red); color:white; border:none; border-radius:8px; padding:0.9rem 2rem; font-family:'DM Sans',sans-serif; font-size:0.9rem; font-weight:500; cursor:pointer; transition:all 0.2s; text-transform:uppercase; letter-spacing:0.06em; }
     .btn-primary:hover { background:var(--red-bright); box-shadow:0 0 20px rgba(204,0,0,0.4); transform:translateY(-1px); }
@@ -334,6 +339,11 @@
           <div class="card-form-title">Pay Securely</div>
           <p class="card-form-sub">Your card info is handled entirely by Square — we never see your card number.</p>
           <div id="pay-error" class="pay-error"></div>
+          <div id="wallet-buttons" style="display:none">
+            <div id="apple-pay-button"></div>
+            <div id="google-pay-button"></div>
+            <div class="wallet-divider"><span>or pay with card</span></div>
+          </div>
           <div id="card-container"><div class="card-loading">Loading payment form...</div></div>
           <button class="btn-primary btn-full" id="pay-btn" onclick="submitPayment()" disabled>
             💳 Pay <span id="pay-btn-amount"></span>
@@ -420,6 +430,7 @@
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   let currentUser = null, sessionToken = null;
   let menuItems = [], modifierListsMap = {}, cart = [], squareCard = null;
+  let squarePayments = null, squareApplePay = null, squareGooglePay = null;
   // Map of menu_item_id -> { avg: number, count: number }
   let menuRatings = {};
   let customerProfile = null; // { location, last_room }
@@ -545,11 +556,64 @@
     }
     try {
       const payments = Square.payments(SQUARE_APP_ID, SQUARE_LOCATION_ID);
+      squarePayments = payments;
       squareCard = await payments.card();
       await squareCard.attach('#card-container');
       document.getElementById('pay-btn').disabled = false;
+      await initWallets(payments);
     } catch (e) {
       document.getElementById('card-container').innerHTML = '<div class="card-loading" style="color:#ff6b6b">Failed to load payment form: ' + e.message + '</div>';
+    }
+  }
+
+  async function initWallets(payments) {
+    document.getElementById('apple-pay-button').innerHTML = '';
+    document.getElementById('google-pay-button').innerHTML = '';
+    squareApplePay = null;
+    squareGooglePay = null;
+
+    const charge = chargeTotal();
+    if (charge <= 0) {
+      document.getElementById('wallet-buttons').style.display = 'none';
+      return;
+    }
+
+    const paymentRequest = payments.paymentRequest({
+      countryCode: 'US',
+      currencyCode: 'USD',
+      total: { amount: charge.toFixed(2), label: 'Birdhouse Order' },
+    });
+
+    let anyWallet = false;
+
+    try {
+      squareApplePay = await payments.applePay(paymentRequest);
+      await squareApplePay.attach('#apple-pay-button');
+      squareApplePay.addEventListener('ontokenization', handleWalletTokenization);
+      anyWallet = true;
+    } catch (e) { /* Apple Pay unavailable in this browser */ }
+
+    try {
+      squareGooglePay = await payments.googlePay(paymentRequest);
+      await squareGooglePay.attach('#google-pay-button');
+      squareGooglePay.addEventListener('ontokenization', handleWalletTokenization);
+      anyWallet = true;
+    } catch (e) { /* Google Pay unavailable in this browser */ }
+
+    document.getElementById('wallet-buttons').style.display = anyWallet ? '' : 'none';
+  }
+
+  async function handleWalletTokenization(event) {
+    const { tokenResult, error } = event.detail;
+    const errEl = document.getElementById('pay-error');
+    if (error) {
+      errEl.textContent = error.message || 'Wallet payment failed. Please try again or pay with card.';
+      errEl.style.display = 'block';
+      return;
+    }
+    if (tokenResult?.status === 'OK') {
+      errEl.style.display = 'none';
+      await processPaymentWithToken(tokenResult.token);
     }
   }
 
@@ -972,6 +1036,7 @@
     document.getElementById('pay-credit-line').style.display = checked ? 'flex' : 'none';
     document.getElementById('pay-summary-total').textContent = `$${charge.toFixed(2)}`;
     document.getElementById('pay-btn-amount').textContent = charge > 0 ? `$${charge.toFixed(2)}` : 'Free';
+    if (squarePayments) initWallets(squarePayments);
   }
 
   function renderPaySummary() {
@@ -1157,86 +1222,7 @@
       if (!squareCard) throw new Error('Payment form not ready. Please wait a moment and try again.');
       const result = await squareCard.tokenize();
       if (result.status !== 'OK') throw new Error(result.errors?.[0]?.message || 'Card tokenization failed');
-
-      const meta = currentUser.user_metadata || {};
-      const { firstName, lastName } = resolveCustomerName(currentUser, customerProfile);
-
-      const cartItems = cart.map(c => ({
-        id:                c.id,
-        name:              c.name,
-        temp:              c.temp,
-        price:             c.price,
-        priceCents:        c.priceCents,
-        quantity:          c.quantity,
-        squareVariationId: c.squareVariationId,
-        selectedModifiers: c.selectedModifiers || [],
-      }));
-
-      const isPickup = selectedDeliveryMethod === 'pickup';
-      const roomValue = isPickup ? 'Birdhouse — Library' : document.getElementById('delivery-room').value;
-      const totalWithFeeCents = Math.round((cartTotal() + deliveryFeeDollars()) * 100);
-      const creditUsedCents = applyLoyaltyCredit
-        ? Math.min(availableCreditCents, totalWithFeeCents)
-        : 0;
-
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/process-payment`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionToken}`,
-          'apikey': SUPABASE_KEY,
-        },
-        body: JSON.stringify({
-          sourceId:       result.token,
-          cartItems,
-          userId:         currentUser.id,
-          creditUsedCents,
-          deliveryMethod: selectedDeliveryMethod,
-          customerInfo: {
-            customerName:     (firstName + ' ' + lastName).trim(),
-            email:            (currentUser.email || '').trim().toLowerCase(),
-            room:             roomValue,
-            deliveryDay:      document.getElementById('delivery-date').value,
-            deliveryDate:     deliveryDatePicker?.selectedDates[0]
-              ? (() => {
-                  const d = deliveryDatePicker.selectedDates[0];
-                  return [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-');
-                })()
-              : null,
-            deliveryTime:     document.getElementById('delivery-time').value,
-            notes:            document.getElementById('backup-location').value,
-            customerLocation: customerType,
-          },
-        }),
-      });
-
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || 'Payment failed');
-
-      // Loyalty metadata is updated server-side; refresh local state from the response
-      if (data.loyaltyUpdate) {
-        availableCreditCents = data.loyaltyUpdate.newCreditBalance;
-        applyLoyaltyCredit = false;
-      }
-
-      // Save last used room to profile (only for delivery orders)
-      if (!isPickup) {
-        const roomVal = document.getElementById('delivery-room').value.trim();
-        if (roomVal) {
-          await sb.from('profiles').upsert({ id: currentUser.id, last_room: roomVal }, { onConflict: 'id' });
-        }
-      }
-
-      // Update success message based on order type
-      document.getElementById('success-sub-msg').textContent = isPickup
-        ? 'Payment confirmed. Come pick up your order at the Birdhouse in the library!'
-        : 'Payment confirmed. Our team will get your order ready and deliver it to your room.';
-
-      document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
-      document.getElementById('panel-success').classList.add('active');
-      document.getElementById('cart-bar').classList.add('hidden');
-      setStepIndicators('success');
-
+      await processPaymentWithToken(result.token);
     } catch (err) {
       errEl.textContent = err.message;
       errEl.style.display = 'block';
@@ -1244,6 +1230,88 @@
       const errCharge = chargeTotal();
       btn.innerHTML = `💳 Pay <span id="pay-btn-amount">${errCharge > 0 ? '$' + errCharge.toFixed(2) : 'Free'}</span>`;
     }
+  }
+
+  async function processPaymentWithToken(token) {
+    if (!currentUser || !sessionToken) {
+      window.location.href = 'index.html?next=order';
+      return;
+    }
+
+    const { firstName, lastName } = resolveCustomerName(currentUser, customerProfile);
+
+    const cartItems = cart.map(c => ({
+      id:                c.id,
+      name:              c.name,
+      temp:              c.temp,
+      price:             c.price,
+      priceCents:        c.priceCents,
+      quantity:          c.quantity,
+      squareVariationId: c.squareVariationId,
+      selectedModifiers: c.selectedModifiers || [],
+    }));
+
+    const isPickup = selectedDeliveryMethod === 'pickup';
+    const roomValue = isPickup ? 'Birdhouse — Library' : document.getElementById('delivery-room').value;
+    const totalWithFeeCents = Math.round((cartTotal() + deliveryFeeDollars()) * 100);
+    const creditUsedCents = applyLoyaltyCredit
+      ? Math.min(availableCreditCents, totalWithFeeCents)
+      : 0;
+
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/process-payment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${sessionToken}`,
+        'apikey': SUPABASE_KEY,
+      },
+      body: JSON.stringify({
+        sourceId:       token,
+        cartItems,
+        userId:         currentUser.id,
+        creditUsedCents,
+        deliveryMethod: selectedDeliveryMethod,
+        customerInfo: {
+          customerName:     (firstName + ' ' + lastName).trim(),
+          email:            (currentUser.email || '').trim().toLowerCase(),
+          room:             roomValue,
+          deliveryDay:      document.getElementById('delivery-date').value,
+          deliveryDate:     deliveryDatePicker?.selectedDates[0]
+            ? (() => {
+                const d = deliveryDatePicker.selectedDates[0];
+                return [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-');
+              })()
+            : null,
+          deliveryTime:     document.getElementById('delivery-time').value,
+          notes:            document.getElementById('backup-location').value,
+          customerLocation: customerType,
+        },
+      }),
+    });
+
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Payment failed');
+
+    if (data.loyaltyUpdate) {
+      availableCreditCents = data.loyaltyUpdate.newCreditBalance;
+      applyLoyaltyCredit = false;
+    }
+
+    if (!isPickup) {
+      const roomVal = document.getElementById('delivery-room').value.trim();
+      if (roomVal) {
+        await sb.from('profiles').upsert({ id: currentUser.id, last_room: roomVal }, { onConflict: 'id' });
+      }
+    }
+
+    document.getElementById('success-sub-msg').textContent = isPickup
+      ? 'Payment confirmed. Come pick up your order at the Birdhouse in the library!'
+      : 'Payment confirmed. Our team will get your order ready and deliver it to your room.';
+
+    document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('panel-success').classList.add('active');
+    document.getElementById('cart-bar').classList.add('hidden');
+    setStepIndicators('success');
   }
 
   // ── Navigation ────────────────────────────────────────────────────────────
