@@ -1,10 +1,4 @@
 {
   "cleanUrls": false,
-  "trailingSlash": false,
-  "rewrites": [
-    {
-      "source": "/.well-known/apple-developer-merchantid-domain-association",
-      "destination": "/api/apple-pay-verification"
-    }
-  ]
+  "trailingSlash": false
 }
