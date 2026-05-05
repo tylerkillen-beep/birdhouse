@@ -1,13 +1,10 @@
 {
   "cleanUrls": false,
   "trailingSlash": false,
-  "headers": [
+  "rewrites": [
     {
       "source": "/.well-known/apple-developer-merchantid-domain-association",
-      "headers": [
-        { "key": "Content-Type", "value": "application/octet-stream" },
-        { "key": "Cache-Control", "value": "no-transform" }
-      ]
+      "destination": "/api/apple-pay-verification"
     }
   ]
 }
