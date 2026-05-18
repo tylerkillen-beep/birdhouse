@@ -248,11 +248,11 @@
       <div style="background:var(--card);border:1px solid var(--border-dim);border-radius:14px;overflow:hidden">
         <table style="width:100%;border-collapse:collapse">
           <thead><tr>
-            <th style="text-align:left;padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--light-gray)">Name</th>
-            <th style="text-align:left;padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--light-gray)">Email</th>
-            <th style="text-align:left;padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--light-gray)">Team</th>
-            <th style="text-align:left;padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--light-gray)">Period</th>
-            <th style="padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim)"></th>
+            <th scope="col" style="text-align:left;padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--light-gray)">Name</th>
+            <th scope="col" style="text-align:left;padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--light-gray)">Email</th>
+            <th scope="col" style="text-align:left;padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--light-gray)">Team</th>
+            <th scope="col" style="text-align:left;padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--light-gray)">Period</th>
+            <th scope="col" style="padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim)"><span class="visually-hidden">Actions</span></th>
           </tr></thead>
           <tbody id="all-students-tbody"><tr><td colspan="5" class="empty-state">Loading...</td></tr></tbody>
         </table>
@@ -456,7 +456,10 @@
     }).join('');
   }
 
+  let _teamModalOpener = null;
+
   function openNewTeamModal() {
+    _teamModalOpener = document.activeElement;
     editingTeamId=null;
     document.getElementById('team-modal-title').textContent='New Team';
     document.getElementById('team-name').value='';
@@ -464,9 +467,11 @@
     document.getElementById('team-color').value='#cc0000';
     document.getElementById('team-msg').style.display='none';
     document.getElementById('team-modal').style.display='flex';
+    setTimeout(()=>document.getElementById('team-name').focus(),50);
   }
 
   function openEditTeamModal(id) {
+    _teamModalOpener = document.activeElement;
     const team=allTeams.find(t=>t.id===id);
     if(!team) return;
     editingTeamId=id;
@@ -476,9 +481,13 @@
     document.getElementById('team-color').value=team.color||'#cc0000';
     document.getElementById('team-msg').style.display='none';
     document.getElementById('team-modal').style.display='flex';
+    setTimeout(()=>document.getElementById('team-name').focus(),50);
   }
 
-  function closeTeamModal(){document.getElementById('team-modal').style.display='none';}
+  function closeTeamModal(){
+    document.getElementById('team-modal').style.display='none';
+    if(_teamModalOpener){_teamModalOpener.focus();_teamModalOpener=null;}
+  }
 
   async function saveTeam() {
     const name=document.getElementById('team-name').value.trim();
@@ -543,7 +552,10 @@
   }
 
   // ── Reassign ──
+  let _reassignModalOpener = null;
+
   function openReassignModal(studentId, name) {
+    _reassignModalOpener = document.activeElement;
     reassigningStudentId=studentId;
     document.getElementById('reassign-student-name').textContent=name;
     document.getElementById('reassign-msg').style.display='none';
@@ -551,8 +563,12 @@
     const student=allStudents.find(s=>s.id===studentId);
     if(student?.team_id) document.getElementById('reassign-team-select').value=student.team_id;
     document.getElementById('reassign-modal').style.display='flex';
+    setTimeout(()=>document.getElementById('reassign-team-select').focus(),50);
   }
-  function closeReassignModal(){document.getElementById('reassign-modal').style.display='none';}
+  function closeReassignModal(){
+    document.getElementById('reassign-modal').style.display='none';
+    if(_reassignModalOpener){_reassignModalOpener.focus();_reassignModalOpener=null;}
+  }
 
   async function saveReassign() {
     const teamId=document.getElementById('reassign-team-select').value;
@@ -581,6 +597,13 @@
   dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('dragover');const f=e.dataTransfer.files[0];if(f){const r=new FileReader();r.onload=ev=>{document.getElementById('csv-paste').value=ev.target.result;previewCSV();};r.readAsText(f);}});
 
   async function signOut(){await sb.auth.signOut();window.location.href='login.html';}
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key !== 'Escape') return;
+    if (document.getElementById('team-modal').style.display === 'flex') closeTeamModal();
+    if (document.getElementById('reassign-modal').style.display === 'flex') closeReassignModal();
+  });
+
   init();
 </script>
 </body>

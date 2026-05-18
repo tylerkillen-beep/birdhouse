@@ -211,12 +211,12 @@
     <div class="section" id="section-orders">
       <div class="page-eyebrow">Operations</div>
       <h1 class="page-title">ACTIVE ORDERS</h1>
-      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.25rem" id="order-filter-btns">
-        <button class="cat-btn active" onclick="filterOrders('all',this)">All</button>
-        <button class="cat-btn" onclick="filterOrders('pending',this)">Pending</button>
-        <button class="cat-btn" onclick="filterOrders('preparing',this)">Preparing</button>
-        <button class="cat-btn" onclick="filterOrders('ready',this)">Ready</button>
-        <button class="cat-btn" onclick="filterOrders('delivered',this)">Delivered</button>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.25rem" id="order-filter-btns" role="group" aria-label="Filter orders by status">
+        <button class="cat-btn active" onclick="filterOrders('all',this)" aria-pressed="true">All</button>
+        <button class="cat-btn" onclick="filterOrders('pending',this)" aria-pressed="false">Pending</button>
+        <button class="cat-btn" onclick="filterOrders('preparing',this)" aria-pressed="false">Preparing</button>
+        <button class="cat-btn" onclick="filterOrders('ready',this)" aria-pressed="false">Ready</button>
+        <button class="cat-btn" onclick="filterOrders('delivered',this)" aria-pressed="false">Delivered</button>
       </div>
       <div id="orders-content"></div>
     </div>
@@ -226,14 +226,14 @@
       <h1 class="page-title">INVENTORY</h1>
       <div id="low-banner" style="display:none;background:rgba(255,152,0,0.08);border:1px solid rgba(255,152,0,0.25);border-radius:10px;padding:0.85rem 1.25rem;margin-bottom:1.25rem;font-size:0.85rem;color:#ff9800"></div>
       <div class="section-header">
-        <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
-          <button class="cat-btn active" onclick="filterInv('all',this)">All</button>
-          <button class="cat-btn" onclick="filterInv('cold_drinks',this)">🧊 Cold Drinks</button>
-          <button class="cat-btn" onclick="filterInv('hot_drinks',this)">☕ Hot Drinks</button>
-          <button class="cat-btn" onclick="filterInv('flavors',this)">🍬 Flavors</button>
-          <button class="cat-btn" onclick="filterInv('supplies',this)">📦 Supplies</button>
-          <button class="cat-btn" onclick="filterInv('baked_goods',this)">🍪 Baked Goods</button>
-          <button class="cat-btn" onclick="filterInv('low',this)" id="inv-low-tab">🔴 Low Stock</button>
+        <div style="display:flex;gap:0.4rem;flex-wrap:wrap" role="group" aria-label="Filter inventory by category">
+          <button class="cat-btn active" onclick="filterInv('all',this)" aria-pressed="true">All</button>
+          <button class="cat-btn" onclick="filterInv('cold_drinks',this)" aria-pressed="false"><span aria-hidden="true">🧊</span> Cold Drinks</button>
+          <button class="cat-btn" onclick="filterInv('hot_drinks',this)" aria-pressed="false"><span aria-hidden="true">☕</span> Hot Drinks</button>
+          <button class="cat-btn" onclick="filterInv('flavors',this)" aria-pressed="false"><span aria-hidden="true">🍬</span> Flavors</button>
+          <button class="cat-btn" onclick="filterInv('supplies',this)" aria-pressed="false"><span aria-hidden="true">📦</span> Supplies</button>
+          <button class="cat-btn" onclick="filterInv('baked_goods',this)" aria-pressed="false"><span aria-hidden="true">🍪</span> Baked Goods</button>
+          <button class="cat-btn" onclick="filterInv('low',this)" aria-pressed="false" id="inv-low-tab"><span aria-hidden="true">🔴</span> Low Stock</button>
         </div>
         <button class="btn btn-primary btn-sm" onclick="openAddInvModal()">+ Add Item</button>
       </div>
@@ -436,7 +436,7 @@ async function loadOrders(){
   const {data}=await sb.from('orders').select('*').order('created_at',{ascending:false}).limit(100);
   allOrders=data||[];renderOrders();
 }
-function filterOrders(f,btn){orderFilter=f;document.querySelectorAll('#order-filter-btns .cat-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderOrders();}
+function filterOrders(f,btn){orderFilter=f;document.querySelectorAll('#order-filter-btns .cat-btn').forEach(b=>{b.classList.remove('active');b.setAttribute('aria-pressed','false');});btn.classList.add('active');btn.setAttribute('aria-pressed','true');renderOrders();}
 function renderOrders(){
   const el=document.getElementById('orders-content');
   let orders=allOrders;
@@ -498,7 +498,7 @@ async function loadInventory(){
   if(badge){if(low.length){badge.textContent=low.length;badge.style.display='';}else{badge.style.display='none';}}
   renderInventory();
 }
-function filterInv(f,btn){invFilter=f;document.querySelectorAll('#section-inventory .cat-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderInventory();}
+function filterInv(f,btn){invFilter=f;document.querySelectorAll('#section-inventory .cat-btn').forEach(b=>{b.classList.remove('active');b.setAttribute('aria-pressed','false');});btn.classList.add('active');btn.setAttribute('aria-pressed','true');renderInventory();}
 function renderInventory(){
   const el=document.getElementById('inventory-content');
   let items=allInventory;
@@ -575,7 +575,9 @@ async function logInvOrder(id,name,currentQty){
   setTimeout(()=>{m.style.display='none';},2500);
   loadInventory();
 }
+let _invModalOpener=null;
 function openAddInvModal(){
+  _invModalOpener=document.activeElement;
   editingInvItemId=null;
   document.getElementById('inv-item-modal-title').textContent='Add Inventory Item';
   document.getElementById('inv-item-name').value='';
@@ -588,8 +590,10 @@ function openAddInvModal(){
   document.getElementById('inv-item-expected-arrival').value='';
   document.getElementById('inv-item-modal-msg').style.display='none';
   document.getElementById('inv-item-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('inv-item-name').focus(),50);
 }
 function openEditInvModal(id){
+  _invModalOpener=document.activeElement;
   const item=allInventory.find(i=>i.id===id);
   if(!item)return;
   editingInvItemId=id;
@@ -604,8 +608,12 @@ function openEditInvModal(id){
   document.getElementById('inv-item-expected-arrival').value=item.expected_arrival||'';
   document.getElementById('inv-item-modal-msg').style.display='none';
   document.getElementById('inv-item-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('inv-item-name').focus(),50);
 }
-function closeInvModal(){document.getElementById('inv-item-modal').classList.remove('open');}
+function closeInvModal(){
+  document.getElementById('inv-item-modal').classList.remove('open');
+  if(_invModalOpener){_invModalOpener.focus();_invModalOpener=null;}
+}
 async function saveInvModal(){
   const name=document.getElementById('inv-item-name').value.trim();
   const category=document.getElementById('inv-item-category').value;
@@ -687,6 +695,9 @@ async function saveScores(studentId,weekStart){
   const el=document.getElementById('saved-'+studentId);
   if(!error&&el){el.style.display='inline';setTimeout(()=>el.style.display='none',2500);}
 }
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'&&document.getElementById('inv-item-modal').classList.contains('open'))closeInvModal();
+});
 init();
 </script>
 </body>

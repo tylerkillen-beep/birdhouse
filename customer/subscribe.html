@@ -104,7 +104,7 @@
 
     /* Plan cards */
     .plans-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1.25rem; margin-bottom:2rem; }
-    .plan-card { background:var(--card); border:2px solid var(--border-dim); border-radius:16px; padding:1.75rem; cursor:pointer; transition:all 0.2s; position:relative; }
+    .plan-card { background:var(--card); border:2px solid var(--border-dim); border-radius:16px; padding:1.75rem; cursor:pointer; transition:all 0.2s; position:relative; text-align:left; font-family:inherit; font-size:inherit; color:inherit; width:100%; display:block; }
     .plan-card:hover { border-color:rgba(204,0,0,0.3); transform:translateY(-3px); }
     .plan-card.selected { border-color:var(--red); background:rgba(204,0,0,0.07); box-shadow:0 0 30px rgba(204,0,0,0.15); }
     .plan-card.featured { border-color:rgba(245,200,66,0.3); }
@@ -275,14 +275,14 @@
       </div>
     </section>
 
-    <div class="steps">
-      <div class="step active" id="step-ind-1"><div class="step-num">1</div> Choose Plan</div>
-      <div class="step-line"></div>
-      <div class="step" id="step-ind-2"><div class="step-num">2</div> Your Drink</div>
-      <div class="step-line"></div>
-      <div class="step" id="step-ind-3"><div class="step-num">3</div> Delivery</div>
-      <div class="step-line"></div>
-      <div class="step" id="step-ind-4"><div class="step-num">4</div> Payment</div>
+    <div class="steps" role="list" aria-label="Subscription steps">
+      <div class="step active" id="step-ind-1" role="listitem" aria-current="step"><div class="step-num" aria-hidden="true">1</div> Choose Plan</div>
+      <div class="step-line" aria-hidden="true"></div>
+      <div class="step" id="step-ind-2" role="listitem"><div class="step-num" aria-hidden="true">2</div> Your Drink</div>
+      <div class="step-line" aria-hidden="true"></div>
+      <div class="step" id="step-ind-3" role="listitem"><div class="step-num" aria-hidden="true">3</div> Delivery</div>
+      <div class="step-line" aria-hidden="true"></div>
+      <div class="step" id="step-ind-4" role="listitem"><div class="step-num" aria-hidden="true">4</div> Payment</div>
     </div>
 
     <!-- Step 1: Choose Plan -->
@@ -647,7 +647,7 @@
         : '1 drink per week';
       const earlyLabel = p.early_access ? 'Early access to seasonal items' : null;
 
-      return `<div class="plan-card${isFeatured ? ' featured' : ''}" id="plan-card-${p.id}" onclick="selectPlan('${p.id}')">
+      return `<button type="button" class="plan-card${isFeatured ? ' featured' : ''}" id="plan-card-${p.id}" onclick="selectPlan('${p.id}')" aria-pressed="false">
         ${isFeatured ? '<div class="plan-badge">Most Popular</div>' : ''}
         <div class="plan-name">${p.name}</div>
         <div class="plan-price">${priceDisplay}<span>/month</span></div>
@@ -659,14 +659,19 @@
           <li>Change your drink anytime</li>
           ${earlyLabel ? `<li class="gold">${earlyLabel}</li>` : ''}
         </ul>
-      </div>`;
+      </button>`;
     }).join('');
   }
 
   function selectPlan(planId) {
     selectedPlan = plans.find(p => p.id === planId);
-    document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('selected'));
-    document.getElementById(`plan-card-${planId}`).classList.add('selected');
+    document.querySelectorAll('.plan-card').forEach(c => {
+      c.classList.remove('selected');
+      c.setAttribute('aria-pressed', 'false');
+    });
+    const card = document.getElementById(`plan-card-${planId}`);
+    card.classList.add('selected');
+    card.setAttribute('aria-pressed', 'true');
     document.getElementById('btn-to-step2').disabled = false;
   }
 
@@ -1090,8 +1095,17 @@ const res = await fetch(`${SUPABASE_URL}/functions/v1/save-card`, {
     for (let i = 1; i <= 4; i++) {
       const el = document.getElementById('step-ind-' + i);
       if (!el) continue;
-      if (active === 'success') { el.className = 'step done'; continue; }
+      if (active === 'success') {
+        el.className = 'step done';
+        el.removeAttribute('aria-current');
+        continue;
+      }
       el.className = 'step' + (i === active ? ' active' : i < active ? ' done' : '');
+      if (i === active) {
+        el.setAttribute('aria-current', 'step');
+      } else {
+        el.removeAttribute('aria-current');
+      }
     }
   }
 
