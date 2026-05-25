@@ -54,7 +54,7 @@
       display: flex; align-items: center; justify-content: center; gap: 0.75rem; letter-spacing: 0.03em;
     }
     .btn-google:hover { border-color: rgba(204,0,0,0.5); background: rgba(204,0,0,0.06); box-shadow: 0 0 15px rgba(204,0,0,0.15); }
-    .school-note { font-size: 0.72rem; color: var(--gray); text-align: center; margin-top: 0.6rem; }
+    .school-note { font-size: 0.72rem; color: var(--light-gray); text-align: center; margin-top: 0.6rem; }
     @media (max-width: 768px) { body{grid-template-columns:1fr} .panel-left{display:none} .panel-right{padding:2.5rem 1.5rem} }
     @media (max-width: 480px) { .panel-right{padding:1.5rem 1rem} .form-title{font-size:2.3rem} }
   </style>
@@ -75,7 +75,7 @@
     </div>
   </div>
 
-  <main class="panel-right" id="login-form">
+  <main class="panel-right" id="login-form" aria-label="Student login">
     <a class="back-link" href="../index.html">← Back to Home</a>
     <div class="form-eyebrow">Student Staff Portal</div>
     <h1 class="form-title">Team Sign In.</h1>

@@ -404,7 +404,7 @@
   <div class="nav-group" id="navgroup-operations">
     <div class="nav-section" onclick="toggleNavGroup('operations')">
       <span>Operations</span>
-      <svg class="group-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      <svg class="group-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
     </div>
     <div class="nav-group-items">
       <div class="nav-item active" onclick="showSection('dashboard')" id="nav-dashboard">
@@ -435,7 +435,7 @@
   <div class="nav-group" id="navgroup-staff">
     <div class="nav-section" onclick="toggleNavGroup('staff')">
       <span>Staff &amp; Teams</span>
-      <svg class="group-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      <svg class="group-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
     </div>
     <div class="nav-group-items">
       <div class="nav-item" onclick="showSection('staff')" id="nav-staff">
@@ -460,7 +460,7 @@
   <div class="nav-group" id="navgroup-customers">
     <div class="nav-section" onclick="toggleNavGroup('customers')">
       <span>Customers</span>
-      <svg class="group-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      <svg class="group-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
     </div>
     <div class="nav-group-items">
       <div class="nav-item" onclick="showSection('orders')" id="nav-orders">
@@ -485,7 +485,7 @@
   <div class="nav-group" id="navgroup-integrations">
     <div class="nav-section" onclick="toggleNavGroup('integrations')">
       <span>Integrations</span>
-      <svg class="group-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      <svg class="group-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
     </div>
     <div class="nav-group-items">
       <div class="nav-item" onclick="showSection('canvas')" id="nav-canvas">
@@ -497,7 +497,7 @@
   <div class="nav-group" id="navgroup-financials">
     <div class="nav-section" onclick="toggleNavGroup('financials')">
       <span>Financials</span>
-      <svg class="group-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      <svg class="group-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
     </div>
     <div class="nav-group-items">
       <div class="nav-item" onclick="showSection('sales-report')" id="nav-sales-report">
@@ -1741,6 +1741,8 @@ function toggleNavGroup(id) {
   const group = document.getElementById('navgroup-' + id);
   if (!group) return;
   const isExpanded = group.classList.toggle('expanded');
+  const navSection = group.querySelector('.nav-section');
+  if (navSection) navSection.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
   const states = JSON.parse(localStorage.getItem('navGroupStates') || '{}');
   states[id] = isExpanded;
   localStorage.setItem('navGroupStates', JSON.stringify(states));
@@ -1770,7 +1772,32 @@ function initNavGroups() {
       main.style.marginLeft = '60px';
     }
   }
+  initNavA11y();
 })();
+
+function initNavA11y() {
+  document.querySelectorAll('.nav-section').forEach(el => {
+    el.setAttribute('role', 'button');
+    el.setAttribute('tabindex', '0');
+    const groupId = el.closest('.nav-group')?.id?.replace('navgroup-', '');
+    if (groupId) {
+      el.setAttribute('aria-expanded', el.closest('.nav-group').classList.contains('expanded') ? 'true' : 'false');
+      el.setAttribute('aria-controls', 'navgroup-' + groupId + '-items');
+      const itemsEl = el.nextElementSibling;
+      if (itemsEl) itemsEl.id = 'navgroup-' + groupId + '-items';
+    }
+    el.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); el.click(); }
+    });
+  });
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.setAttribute('role', 'button');
+    el.setAttribute('tabindex', '0');
+    el.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); el.click(); }
+    });
+  });
+}
 
 // ════════════════════════════════════
 // Navigation

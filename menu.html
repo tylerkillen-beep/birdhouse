@@ -68,8 +68,8 @@
       padding: 1.1rem 1.15rem; transition: border-color 0.2s, transform 0.2s;
     }
     .menu-item-card:hover { border-color: rgba(204,0,0,0.4); transform: translateY(-2px); }
-    .menu-item-name { font-size: 0.92rem; font-weight: 500; color: var(--white); margin-bottom: 0.35rem; }
-    .menu-item-desc { font-size: 0.78rem; color: var(--gray); line-height: 1.5; margin-bottom: 0.65rem; font-weight: 300; }
+    .menu-item-name { font-size: 0.92rem; font-weight: 500; color: var(--white); margin-top: 0; margin-bottom: 0.35rem; }
+    .menu-item-desc { font-size: 0.78rem; color: var(--gray); line-height: 1.5; margin-top: 0; margin-bottom: 0.65rem; font-weight: 300; }
     .menu-item-price { font-size: 0.88rem; color: var(--red-bright); font-weight: 500; letter-spacing: 0.02em; }
 
     @media (max-width: 900px) {
@@ -172,8 +172,8 @@
                 <div class="menu-grid">
                   ${groups[c.key].map(item => `
                     <div class="menu-item-card">
-                      <div class="menu-item-name">${escHtml(item.name)}</div>
-                      ${item.description ? `<div class="menu-item-desc">${escHtml(item.description)}</div>` : ''}
+                      <h3 class="menu-item-name">${escHtml(item.name)}</h3>
+                      ${item.description ? `<p class="menu-item-desc">${escHtml(item.description)}</p>` : ''}
                       ${formatPrice(item) ? `<div class="menu-item-price">${formatPrice(item)}</div>` : ''}
                     </div>
                   `).join('')}

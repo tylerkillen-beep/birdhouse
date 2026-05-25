@@ -338,7 +338,7 @@
         <div class="card-form-wrap">
           <div class="card-form-title">Pay Securely</div>
           <p class="card-form-sub">Your card info is handled entirely by Square — we never see your card number.</p>
-          <div id="pay-error" class="pay-error"></div>
+          <div id="pay-error" class="pay-error" role="alert" aria-live="polite" aria-atomic="true"></div>
           <div id="wallet-buttons" style="display:none">
             <div id="apple-pay-button"></div>
             <div id="google-pay-button"></div>
@@ -970,9 +970,9 @@
           ${modsLabel ? `<div class="cart-item-mods">${modsLabel}</div>` : ''}
         </div>
         <div class="qty-ctrl">
-          <button class="qty-btn" onclick="changeQty('${c.key}',-1)">−</button>
-          <span class="qty-num">${c.quantity}</span>
-          <button class="qty-btn" onclick="changeQty('${c.key}',1)">+</button>
+          <button class="qty-btn" aria-label="Decrease quantity of ${c.name}" onclick="changeQty('${c.key}',-1)">−</button>
+          <span class="qty-num" aria-live="polite" aria-label="${c.quantity} of ${c.name}">${c.quantity}</span>
+          <button class="qty-btn" aria-label="Increase quantity of ${c.name}" onclick="changeQty('${c.key}',1)">+</button>
         </div>
         <div class="cart-item-price">${priceDisplay}</div>
       </div>`;
@@ -1047,9 +1047,9 @@
       return `<div class="summary-line" style="align-items:center">
         <span class="summary-key">${c.name}${modsLabel}</span>
         <div class="qty-ctrl" style="margin:0 0.5rem;flex-shrink:0">
-          <button class="qty-btn" style="width:22px;height:22px;font-size:0.8rem" onclick="changeQty('${c.key}',-1)">−</button>
-          <span class="qty-num">${c.quantity}</span>
-          <button class="qty-btn" style="width:22px;height:22px;font-size:0.8rem" onclick="changeQty('${c.key}',1)">+</button>
+          <button class="qty-btn" style="width:22px;height:22px;font-size:0.8rem" aria-label="Decrease quantity of ${c.name}" onclick="changeQty('${c.key}',-1)">−</button>
+          <span class="qty-num" aria-live="polite" aria-label="${c.quantity} of ${c.name}">${c.quantity}</span>
+          <button class="qty-btn" style="width:22px;height:22px;font-size:0.8rem" aria-label="Increase quantity of ${c.name}" onclick="changeQty('${c.key}',1)">+</button>
         </div>
         <span class="summary-val">$${(c.price * c.quantity).toFixed(2)}</span>
       </div>`;

@@ -47,7 +47,7 @@
     .stat-sub { font-size: 0.75rem; color: var(--gray); margin-top: 0.25rem; }
 
     .section { margin-bottom: 2rem; }
-    .section-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; letter-spacing: 0.05em; margin-bottom: 1rem; }
+    .section-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; letter-spacing: 0.05em; margin-top: 0; margin-bottom: 1rem; font-weight: normal; }
 
     .btn-primary { background: var(--red); color: white; border: none; border-radius: 8px; padding: 0.85rem 1.5rem; font-family: 'DM Sans', sans-serif; font-size: 0.88rem; font-weight: 500; cursor: pointer; transition: background 0.2s, box-shadow 0.2s, transform 0.15s; text-transform: uppercase; letter-spacing: 0.05em; }
     .btn-primary:hover { background: var(--red-bright); box-shadow: 0 0 20px rgba(204,0,0,0.4); transform: translateY(-1px); }
@@ -267,7 +267,7 @@
       </div>
 
       <div class="section">
-        <div class="section-title">Quick Actions</div>
+        <h2 class="section-title">Quick Actions</h2>
         <div style="display:flex;gap:1rem;flex-wrap:wrap">
           <button class="btn-primary" onclick="showSection('summary',document.querySelector('[onclick*=summary]'))">📝 Submit Summary</button>
           <button class="btn-secondary" onclick="showSection('inventory',document.querySelector('[onclick*=inventory]'))">📦 Update Inventory</button>
@@ -403,7 +403,7 @@
 
       <!-- Bar chart -->
       <div class="section">
-        <div class="section-title">Revenue by Day</div>
+        <h2 class="section-title">Revenue by Day</h2>
         <div id="srpt-chart" class="sales-chart" style="align-items:flex-end;gap:0.4rem;overflow-x:auto">
           <span style="color:var(--gray);font-size:0.82rem;align-self:center;margin:auto">Loading…</span>
         </div>
@@ -411,9 +411,9 @@
 
       <!-- Top items -->
       <div class="section">
-        <div class="section-title">Top Items</div>
+        <h2 class="section-title">Top Items</h2>
         <div class="table-wrap">
-          <table><thead><tr><th>#</th><th>Item</th><th>Units Sold</th><th>Revenue</th><th>Discounts</th><th>Sq. Fees</th></tr></thead>
+          <table><thead><tr><th scope="col">#</th><th scope="col">Item</th><th scope="col">Units Sold</th><th scope="col">Revenue</th><th scope="col">Discounts</th><th scope="col">Sq. Fees</th></tr></thead>
           <tbody id="srpt-items"><tr><td colspan="6" style="text-align:center;color:var(--gray);padding:1.5rem">Loading…</td></tr></tbody></table>
         </div>
       </div>
@@ -442,7 +442,7 @@
             <span style="font-size:0.65rem;padding:0.2rem 0.6rem;border-radius:20px;background:rgba(255,100,0,0.1);color:#ff9944;border:1px solid rgba(255,100,0,0.25)">12 oz</span>
           </div>
           <div class="table-wrap">
-            <table><thead><tr><th>Item</th><th>Description</th><th>Available</th><th>Suggest Edit</th></tr></thead>
+            <table><thead><tr><th scope="col">Item</th><th scope="col">Description</th><th scope="col">Available</th><th scope="col">Suggest Edit</th></tr></thead>
             <tbody id="menu-hot-body"><tr><td colspan="4" style="text-align:center;color:var(--gray);padding:1.5rem">Loading...</td></tr></tbody></table>
           </div>
         </div>
@@ -453,7 +453,7 @@
             <span style="font-size:0.65rem;padding:0.2rem 0.6rem;border-radius:20px;background:rgba(80,160,255,0.1);color:#66aaff;border:1px solid rgba(80,160,255,0.25)">16 oz</span>
           </div>
           <div class="table-wrap">
-            <table><thead><tr><th>Item</th><th>Description</th><th>Available</th><th>Suggest Edit</th></tr></thead>
+            <table><thead><tr><th scope="col">Item</th><th scope="col">Description</th><th scope="col">Available</th><th scope="col">Suggest Edit</th></tr></thead>
             <tbody id="menu-iced-body"><tr><td colspan="4" style="text-align:center;color:var(--gray);padding:1.5rem">Loading...</td></tr></tbody></table>
           </div>
         </div>
@@ -464,7 +464,7 @@
             <span style="font-size:0.65rem;padding:0.2rem 0.6rem;border-radius:20px;background:rgba(0,100,204,0.1);color:#66aaff;border:1px solid rgba(0,100,204,0.25)">Elementary</span>
           </div>
           <div class="table-wrap">
-            <table><thead><tr><th>Item</th><th>Description</th><th>Available</th><th>Suggest Edit</th></tr></thead>
+            <table><thead><tr><th scope="col">Item</th><th scope="col">Description</th><th scope="col">Available</th><th scope="col">Suggest Edit</th></tr></thead>
             <tbody id="menu-mathews-body"><tr><td colspan="4" style="text-align:center;color:var(--gray);padding:1.5rem">Loading...</td></tr></tbody></table>
           </div>
         </div>
@@ -508,7 +508,7 @@
             </div>
             <button class="btn-primary" onclick="submitSuggestion()">Submit for Approval</button>
             <button class="btn-secondary" id="suggest-cancel-btn" style="display:none;margin-top:0.75rem" onclick="resetSuggestForm()">Cancel Edit</button>
-            <div class="msg" id="suggest-msg"></div>
+            <div class="msg" id="suggest-msg" role="status" aria-live="polite" aria-atomic="true"></div>
           </div>
           <div style="background:var(--card);border:1px solid var(--border-dim);border-radius:14px;padding:1.75rem">
             <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:0.05em;margin-bottom:0.75rem">How it works</div>
@@ -558,10 +558,10 @@
         <div class="form-group"><label>Inventory Notes</label><textarea id="summary-inventory" placeholder="Items running low? Supply issues?" style="min-height:80px"></textarea></div>
         <div class="form-group"><label>Additional Notes</label><textarea id="summary-notes" placeholder="Anything else to report..." style="min-height:80px"></textarea></div>
         <button class="btn-primary" onclick="submitSummary()">Submit Weekly Summary →</button>
-        <div class="msg" id="summary-msg"></div>
+        <div class="msg" id="summary-msg" role="status" aria-live="polite" aria-atomic="true"></div>
       </div>
       <div style="margin-top:2rem">
-        <div class="section-title">Past Submissions</div>
+        <h2 class="section-title">Past Submissions</h2>
         <div id="past-summaries"><div style="color:var(--gray);font-size:0.88rem;padding:1.5rem;background:var(--card);border-radius:10px;border:1px solid var(--border-dim)">Loading...</div></div>
       </div>
     </div>
@@ -599,7 +599,7 @@
           <div id="bio-photo-help" style="font-size:0.72rem;color:var(--gray);margin-top:0.45rem">Upload a clear headshot. This photo and your summary are both reviewed by your instructor before appearing on the About page.</div>
         </div>
         <button class="btn-primary" id="bio-submit-btn" onclick="submitBio()">Submit Bio for Review →</button>
-        <div class="msg" id="bio-msg"></div>
+        <div class="msg" id="bio-msg" role="status" aria-live="polite" aria-atomic="true"></div>
       </div>
     </div>
   </main>
@@ -2002,7 +2002,7 @@
       <input type="number" id="item-par" value="1" min="0" step="0.5" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/></div>
     <div style="margin-bottom:1.25rem"><label for="item-notes" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Notes <span aria-hidden="true" style="color:#444;font-weight:300">(optional)</span></label>
       <input type="text" id="item-notes" placeholder="Storage location, special instructions..." style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/></div>
-    <div class="msg" id="item-modal-msg"></div>
+    <div class="msg" id="item-modal-msg" role="status" aria-live="polite" aria-atomic="true"></div>
     <div style="display:flex;gap:0.75rem;margin-top:1.25rem">
       <button style="background:transparent;color:#999;border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:0.82rem 1.5rem;font-family:'DM Sans',sans-serif;font-size:0.88rem;cursor:pointer" onclick="document.getElementById('item-modal').style.display='none'">Cancel</button>
       <button class="btn-primary" onclick="saveItemModal()">Save Item</button>

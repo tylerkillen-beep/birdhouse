@@ -122,7 +122,7 @@
     /* Drink slot section */
     .slot-header { display:flex; align-items:center; gap:0.75rem; margin-bottom:1.25rem; margin-top:2rem; }
     .slot-header:first-child { margin-top:0; }
-    .slot-title { font-family:'Bebas Neue',sans-serif; font-size:1.4rem; letter-spacing:0.05em; }
+    .slot-title { font-family:'Bebas Neue',sans-serif; font-size:1.4rem; letter-spacing:0.05em; margin:0; font-weight:normal; }
     .slot-badge { font-size:0.62rem; padding:0.22rem 0.65rem; border-radius:20px; background:rgba(204,0,0,0.12); color:var(--red-bright); border:1px solid var(--border); font-weight:500; letter-spacing:0.06em; }
     .drink-selected-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:1.1rem 1.25rem; display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; }
     .drink-selected-name { font-weight:500; font-size:0.95rem; }
@@ -254,9 +254,9 @@
         <h2 class="perk-title">Fuel Your Week on Autopilot</h2>
         <p class="perk-copy">Choose your favorites once, then enjoy consistent coffee without the ordering scramble. Subscriptions are built for busy mornings and smoother routines.</p>
         <div class="perk-icons">
-          <div class="perk-icon"><span class="perk-icon-emoji">🚚</span><span class="perk-icon-label">Free Delivery</span></div>
-          <div class="perk-icon"><span class="perk-icon-emoji">⏰</span><span class="perk-icon-label">No Reordering</span></div>
-          <div class="perk-icon"><span class="perk-icon-emoji">✨</span><span class="perk-icon-label">Always Ready</span></div>
+          <div class="perk-icon"><span class="perk-icon-emoji" aria-hidden="true">🚚</span><span class="perk-icon-label">Free Delivery</span></div>
+          <div class="perk-icon"><span class="perk-icon-emoji" aria-hidden="true">⏰</span><span class="perk-icon-label">No Reordering</span></div>
+          <div class="perk-icon"><span class="perk-icon-emoji" aria-hidden="true">✨</span><span class="perk-icon-label">Always Ready</span></div>
         </div>
       </div>
       <div class="perk-list">
@@ -300,8 +300,8 @@
       <!-- Slot 1 always shown -->
       <div id="slot-1-section">
         <div class="slot-header">
-          <span style="font-size:1.3rem">☕</span>
-          <span class="slot-title">Your Weekly Drink</span>
+          <span style="font-size:1.3rem" aria-hidden="true">☕</span>
+          <h3 class="slot-title">Your Weekly Drink</h3>
           <span class="slot-badge" id="slot-1-badge">Slot 1</span>
         </div>
         <div id="slot-1-selected" class="no-drink-selected">No drink selected yet — pick one from the menu below.</div>
@@ -312,8 +312,8 @@
       <div id="slot-2-section" style="display:none">
         <div class="divider"></div>
         <div class="slot-header">
-          <span style="font-size:1.3rem">☕</span>
-          <span class="slot-title">Your Second Weekly Drink</span>
+          <span style="font-size:1.3rem" aria-hidden="true">☕</span>
+          <h3 class="slot-title">Your Second Weekly Drink</h3>
           <span class="slot-badge" id="slot-2-badge">Slot 2</span>
         </div>
         <div id="slot-2-selected" class="no-drink-selected">No drink selected yet — pick one from the menu below.</div>
@@ -331,13 +331,13 @@
       <!-- Slot 1 delivery -->
       <div id="delivery-slot-1">
         <div class="slot-header">
-          <span style="font-size:1.2rem">📍</span>
-          <span class="slot-title" id="delivery-slot-1-title">Delivery Details</span>
+          <span style="font-size:1.2rem" aria-hidden="true">📍</span>
+          <h3 class="slot-title" id="delivery-slot-1-title">Delivery Details</h3>
         </div>
         <div class="delivery-grid">
           <div class="form-group">
-            <label>Delivery Day</label>
-            <select id="slot-1-day">
+            <label for="slot-1-day">Delivery Day</label>
+            <select id="slot-1-day" required>
               <option value="Monday">Monday</option>
               <option value="Tuesday">Tuesday</option>
               <option value="Wednesday" selected>Wednesday</option>
@@ -346,12 +346,12 @@
             </select>
           </div>
           <div class="form-group">
-            <label>Preferred Time</label>
-            <select id="slot-1-time"></select>
+            <label for="slot-1-time">Preferred Time</label>
+            <select id="slot-1-time" required></select>
           </div>
           <div class="form-group">
-            <label>Room / Location</label>
-            <input type="text" id="slot-1-location" placeholder="e.g. Room 204" />
+            <label for="slot-1-location">Room / Location</label>
+            <input type="text" id="slot-1-location" placeholder="e.g. Room 204" required />
           </div>
         </div>
       </div>
@@ -360,12 +360,12 @@
       <div id="delivery-slot-2" style="display:none">
         <div class="divider"></div>
         <div class="slot-header">
-          <span style="font-size:1.2rem">📍</span>
-          <span class="slot-title">Second Drink Delivery</span>
+          <span style="font-size:1.2rem" aria-hidden="true">📍</span>
+          <h3 class="slot-title">Second Drink Delivery</h3>
         </div>
         <div class="delivery-grid">
           <div class="form-group">
-            <label>Delivery Day</label>
+            <label for="slot-2-day">Delivery Day</label>
             <select id="slot-2-day">
               <option value="Monday">Monday</option>
               <option value="Tuesday">Tuesday</option>
@@ -375,11 +375,11 @@
             </select>
           </div>
           <div class="form-group">
-            <label>Preferred Time</label>
+            <label for="slot-2-time">Preferred Time</label>
             <select id="slot-2-time"></select>
           </div>
           <div class="form-group">
-            <label>Room / Location</label>
+            <label for="slot-2-location">Room / Location</label>
             <input type="text" id="slot-2-location" placeholder="e.g. Room 204" />
           </div>
         </div>
