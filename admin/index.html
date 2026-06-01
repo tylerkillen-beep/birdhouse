@@ -522,7 +522,7 @@
 </nav>
 
 <!-- ══════════════ MAIN ══════════════ -->
-<main id="main">
+<main id="main" tabindex="-1">
 
   <!-- ── DASHBOARD ── -->
   <div class="section-panel active" id="section-dashboard">
@@ -705,12 +705,12 @@
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin-bottom:2rem;max-width:560px">
       <div class="section-title" style="margin-bottom:1.25rem">Connection Settings</div>
       <div class="form-group" style="margin-bottom:1rem">
-        <label class="form-label">Canvas Domain</label>
+        <label class="form-label" for="canvas-domain">Canvas Domain</label>
         <input class="form-input" id="canvas-domain" placeholder="nixa.instructure.com" />
         <div style="font-size:0.72rem;color:var(--gray);margin-top:0.3rem">Your Canvas instance domain — no https://</div>
       </div>
       <div class="form-group" style="margin-bottom:1rem">
-        <label class="form-label">Course ID</label>
+        <label class="form-label" for="canvas-course-id">Course ID</label>
         <input class="form-input" id="canvas-course-id" placeholder="e.g. 12345" />
         <div style="font-size:0.72rem;color:var(--gray);margin-top:0.3rem">Found in the Canvas course URL: /courses/<strong>12345</strong></div>
       </div>
@@ -726,11 +726,11 @@
       <div class="section-title" style="margin-bottom:1.25rem">Sync Grades to Canvas</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem;max-width:640px">
         <div class="form-group">
-          <label class="form-label">Week (Monday date)</label>
+          <label class="form-label" for="canvas-sync-week">Week (Monday date)</label>
           <input class="form-input" id="canvas-sync-week" type="date" />
         </div>
         <div class="form-group">
-          <label class="form-label">Grade Type</label>
+          <label class="form-label" for="canvas-sync-type">Grade Type</label>
           <select class="form-input" id="canvas-sync-type" style="background:#0d0d0d" onchange="onCanvasSyncTypeChange()">
             <option value="manager">Manager Scores</option>
             <option value="peer">Peer Evaluations</option>
@@ -745,38 +745,38 @@
       <div style="max-width:640px;margin-bottom:1.25rem">
         <div id="canvas-mgr-fields" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:0.75rem">
           <div class="form-group">
-            <label class="form-label">Manager Assignment ID</label>
+            <label class="form-label" for="canvas-mgr-assignment">Manager Assignment ID</label>
             <input class="form-input" id="canvas-mgr-assignment" placeholder="e.g. 67890" />
           </div>
           <div class="form-group">
-            <label class="form-label">Points Possible</label>
+            <label class="form-label" for="canvas-mgr-points">Points Possible</label>
             <input class="form-input" id="canvas-mgr-points" type="number" placeholder="100" />
           </div>
         </div>
         <div id="canvas-peer-fields" style="display:none;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:0.75rem">
           <div class="form-group">
-            <label class="form-label">Peer Eval Assignment ID</label>
+            <label class="form-label" for="canvas-peer-assignment">Peer Eval Assignment ID</label>
             <input class="form-input" id="canvas-peer-assignment" placeholder="e.g. 67891" />
           </div>
           <div class="form-group">
-            <label class="form-label">Points Possible</label>
+            <label class="form-label" for="canvas-peer-points">Points Possible</label>
             <input class="form-input" id="canvas-peer-points" type="number" placeholder="100" />
           </div>
         </div>
         <div id="canvas-product-fields" style="display:none;gap:1rem;margin-bottom:0.75rem">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:0.75rem">
             <div class="form-group">
-              <label class="form-label">Product Performance Assignment ID</label>
+              <label class="form-label" for="canvas-product-assignment">Product Performance Assignment ID</label>
               <input class="form-input" id="canvas-product-assignment" placeholder="e.g. 67892" />
             </div>
             <div class="form-group">
-              <label class="form-label">Points Possible</label>
+              <label class="form-label" for="canvas-product-points">Points Possible</label>
               <input class="form-input" id="canvas-product-points" type="number" placeholder="10" />
             </div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:flex-end">
             <div class="form-group">
-              <label class="form-label">Profit Threshold ($)</label>
+              <label class="form-label" for="canvas-product-threshold">Profit Threshold ($)</label>
               <input class="form-input" id="canvas-product-threshold" type="number" step="0.01" min="0" placeholder="e.g. 35.00" />
               <div style="font-size:0.72rem;color:var(--gray);margin-top:0.3rem">Score = team profit ÷ threshold × 10, capped at 10</div>
             </div>
@@ -893,11 +893,11 @@
     </div>
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin-bottom:2rem;max-width:480px">
       <div class="form-group" style="margin-bottom:1rem">
-        <label class="form-label">Date</label>
+        <label class="form-label" for="closed-day-date-input">Date</label>
         <input type="text" id="closed-day-date-input" class="form-input" placeholder="Select a date…" readonly style="cursor:pointer" />
       </div>
       <div class="form-group" style="margin-bottom:1rem">
-        <label class="form-label">Reason <span style="color:var(--gray);font-weight:300;text-transform:none;letter-spacing:0">(optional — shown to customers as a tooltip)</span></label>
+        <label class="form-label" for="closed-day-reason">Reason <span style="color:var(--gray);font-weight:300;text-transform:none;letter-spacing:0">(optional — shown to customers as a tooltip)</span></label>
         <input type="text" id="closed-day-reason" class="form-input" placeholder="e.g. School holiday, Teacher workday…" />
       </div>
       <button class="btn btn-primary" onclick="addClosedDay()">+ Block This Day</button>
@@ -1068,9 +1068,9 @@
   <div class="modal-overlay" id="mod-set-modal" role="dialog" aria-modal="true" aria-labelledby="mod-set-modal-title">
     <div class="modal" style="max-width:480px">
       <button class="modal-close" onclick="closeModal('mod-set-modal')" aria-label="Close">✕</button>
-      <div class="modal-title" id="mod-set-modal-title">New Modifier Set</div>
+      <h2 class="modal-title" id="mod-set-modal-title" style="font-weight:normal">New Modifier Set</h2>
       <div class="form-group">
-        <label class="form-label">Set Name</label>
+        <label class="form-label" for="mod-set-name">Set Name</label>
         <input class="form-input" id="mod-set-name" placeholder="e.g. Soda Types, Milk Options" />
       </div>
       <div class="form-actions">
@@ -1084,15 +1084,15 @@
   <div class="modal-overlay" id="mod-option-modal" role="dialog" aria-modal="true" aria-labelledby="mod-option-modal-title">
     <div class="modal" style="max-width:480px">
       <button class="modal-close" onclick="closeModal('mod-option-modal')" aria-label="Close">✕</button>
-      <div class="modal-title" id="mod-option-modal-title">Add Option</div>
+      <h2 class="modal-title" id="mod-option-modal-title" style="font-weight:normal">Add Option</h2>
       <input type="hidden" id="mod-option-list-id" />
       <input type="hidden" id="mod-option-editing-id" />
       <div class="form-group">
-        <label class="form-label">Option Name</label>
+        <label class="form-label" for="mod-option-name">Option Name</label>
         <input class="form-input" id="mod-option-name" placeholder="e.g. Coke, Sprite, Dr Pepper" />
       </div>
       <div class="form-group">
-        <label class="form-label">Extra Price ($)</label>
+        <label class="form-label" for="mod-option-price">Extra Price ($)</label>
         <input class="form-input" id="mod-option-price" type="number" step="0.01" min="0" placeholder="0.00" />
       </div>
       <div class="form-actions">
@@ -1319,7 +1319,7 @@
 <div class="modal-overlay" id="sub-action-modal" role="dialog" aria-modal="true" aria-labelledby="sub-modal-title">
   <div class="modal">
     <button class="modal-close" onclick="closeModal('sub-action-modal')" aria-label="Close">✕</button>
-    <div class="modal-title" id="sub-modal-title">Manage Subscription</div>
+    <h2 class="modal-title" id="sub-modal-title" style="font-weight:normal">Manage Subscription</h2>
     <div id="sub-modal-body" style="margin-bottom:1rem;color:var(--gray-mid);font-size:0.84rem;line-height:1.6"></div>
     <div class="form-actions" id="sub-modal-actions"></div>
   </div>
@@ -1329,22 +1329,22 @@
 <div class="modal-overlay" id="menu-item-modal" role="dialog" aria-modal="true" aria-labelledby="menu-item-modal-title">
   <div class="modal" style="max-width:680px">
     <button class="modal-close" onclick="closeModal('menu-item-modal')" aria-label="Close">✕</button>
-    <div class="modal-title" id="menu-item-modal-title">New Menu Item</div>
+    <h2 class="modal-title" id="menu-item-modal-title" style="font-weight:normal">New Menu Item</h2>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
       <div class="form-group">
-        <label class="form-label">Name</label>
+        <label class="form-label" for="menu-item-name">Name</label>
         <input class="form-input" id="menu-item-name" placeholder="e.g. Iced Vanilla Latte" />
       </div>
       <div class="form-group">
-        <label class="form-label">Category</label>
+        <label class="form-label" for="menu-item-category">Category</label>
         <select class="form-input" id="menu-item-category"></select>
       </div>
       <div class="form-group">
-        <label class="form-label">Price ($)</label>
+        <label class="form-label" for="menu-item-price">Price ($)</label>
         <input class="form-input" id="menu-item-price" type="number" step="0.01" min="0" placeholder="4.50" />
       </div>
       <div class="form-group">
-        <label class="form-label">Sort Order</label>
+        <label class="form-label" for="menu-item-sort">Sort Order</label>
         <input class="form-input" id="menu-item-sort" type="number" placeholder="1" />
       </div>
       <div class="form-group" style="grid-column:1/-1">
@@ -1355,7 +1355,7 @@
       </div>
     </div>
     <div class="form-group">
-      <label class="form-label">Description</label>
+      <label class="form-label" for="menu-item-description">Description</label>
       <textarea class="form-input" id="menu-item-description" rows="2" style="resize:vertical" placeholder="Shown to customers when ordering."></textarea>
     </div>
     <div style="display:flex;gap:1.25rem;flex-wrap:wrap;margin-bottom:1rem">
@@ -1374,14 +1374,14 @@
 <div class="modal-overlay" id="inv-item-modal" role="dialog" aria-modal="true" aria-labelledby="inv-item-modal-title">
   <div class="modal" style="max-width:520px">
     <button class="modal-close" onclick="closeModal('inv-item-modal')" aria-label="Close">✕</button>
-    <div class="modal-title" id="inv-item-modal-title">Add Inventory Item</div>
+    <h2 class="modal-title" id="inv-item-modal-title" style="font-weight:normal">Add Inventory Item</h2>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
       <div class="form-group" style="grid-column:1/-1">
-        <label class="form-label">Item Name</label>
+        <label class="form-label" for="inv-item-name">Item Name</label>
         <input class="form-input" id="inv-item-name" placeholder="e.g. Oat Milk" />
       </div>
       <div class="form-group">
-        <label class="form-label">Category</label>
+        <label class="form-label" for="inv-item-category">Category</label>
         <select class="form-input" id="inv-item-category">
           <option value="cold_drinks">Cold Drinks</option>
           <option value="hot_drinks">Hot Drinks</option>
@@ -1391,27 +1391,27 @@
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">Unit</label>
+        <label class="form-label" for="inv-item-unit">Unit</label>
         <input class="form-input" id="inv-item-unit" placeholder="e.g. gallons, oz, bags" />
       </div>
       <div class="form-group">
-        <label class="form-label">Current Quantity</label>
+        <label class="form-label" for="inv-item-qty">Current Quantity</label>
         <input class="form-input" id="inv-item-qty" type="number" min="0" step="0.5" placeholder="0" />
       </div>
       <div class="form-group">
-        <label class="form-label">Par Level</label>
+        <label class="form-label" for="inv-item-par">Par Level</label>
         <input class="form-input" id="inv-item-par" type="number" min="0" step="0.5" placeholder="1" />
       </div>
       <div class="form-group">
-        <label class="form-label">Last Ordered</label>
+        <label class="form-label" for="inv-item-last-ordered">Last Ordered</label>
         <input class="form-input" id="inv-item-last-ordered" type="date" />
       </div>
       <div class="form-group">
-        <label class="form-label">Expected Arrival</label>
+        <label class="form-label" for="inv-item-expected-arrival">Expected Arrival</label>
         <input class="form-input" id="inv-item-expected-arrival" type="date" />
       </div>
       <div class="form-group" style="grid-column:1/-1">
-        <label class="form-label">Notes <span style="color:var(--gray);font-weight:400;text-transform:none">(optional)</span></label>
+        <label class="form-label" for="inv-item-notes">Notes <span style="color:var(--gray);font-weight:400;text-transform:none">(optional)</span></label>
         <input class="form-input" id="inv-item-notes" placeholder="Storage location, supplier, etc." />
       </div>
     </div>
@@ -1427,32 +1427,32 @@
 <div class="modal-overlay" id="plan-modal" role="dialog" aria-modal="true" aria-labelledby="plan-modal-title">
   <div class="modal" style="max-width:580px">
     <button class="modal-close" onclick="closeModal('plan-modal')" aria-label="Close">✕</button>
-    <div class="modal-title" id="plan-modal-title">New Plan</div>
+    <h2 class="modal-title" id="plan-modal-title" style="font-weight:normal">New Plan</h2>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
       <div class="form-group">
-        <label class="form-label">Plan Name</label>
+        <label class="form-label" for="plan-name">Plan Name</label>
         <input class="form-input" id="plan-name" placeholder="e.g. Daily Brew" />
       </div>
       <div class="form-group">
-        <label class="form-label">Price per Month ($)</label>
+        <label class="form-label" for="plan-price">Price per Month ($)</label>
         <input class="form-input" id="plan-price" type="number" step="0.01" placeholder="0.00" />
       </div>
       <div class="form-group">
-        <label class="form-label">Drinks per Week</label>
+        <label class="form-label" for="plan-drinks">Drinks per Week</label>
         <input class="form-input" id="plan-drinks" type="number" placeholder="5" />
       </div>
       <div class="form-group">
-        <label class="form-label">Sort Order</label>
+        <label class="form-label" for="plan-sort">Sort Order</label>
         <input class="form-input" id="plan-sort" type="number" placeholder="1" />
       </div>
     </div>
     <div class="form-group">
-      <label class="form-label">Description</label>
+      <label class="form-label" for="plan-desc">Description</label>
       <textarea class="form-input" id="plan-desc" rows="2" placeholder="Short description shown to students…" style="resize:vertical"></textarea>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
       <div class="form-group">
-        <label class="form-label">Free Modifiers per Drink</label>
+        <label class="form-label" for="plan-free-mods">Free Modifiers per Drink</label>
         <select class="form-input" id="plan-free-mods">
           <option value="0">0 (none)</option>
           <option value="1">1 free modifier</option>
@@ -1467,7 +1467,7 @@
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">Cookies per Week</label>
+        <label class="form-label" for="plan-cookies">Cookies per Week</label>
         <input class="form-input" id="plan-cookies" type="number" min="0" step="1" placeholder="0" />
       </div>
       <div class="form-group" style="display:flex;align-items:center;gap:0.6rem;padding-top:1.9rem">
@@ -1490,30 +1490,30 @@
 <div class="modal-overlay" id="staff-team-modal" role="dialog" aria-modal="true" aria-labelledby="staff-team-modal-title">
   <div class="modal" style="max-width:460px">
     <button class="modal-close" onclick="closeModal('staff-team-modal')" aria-label="Close">✕</button>
-    <div class="modal-title" id="staff-team-modal-title">Add Team</div>
+    <h2 class="modal-title" id="staff-team-modal-title" style="font-weight:normal">Add Team</h2>
     <div class="form-group">
-      <label class="form-label">Team Name</label>
+      <label class="form-label" for="staff-team-name">Team Name</label>
       <input class="form-input" id="staff-team-name" placeholder="e.g. Team A" />
     </div>
     <div class="form-group">
-      <label class="form-label">Period</label>
+      <label class="form-label" for="staff-team-period">Period</label>
       <select class="form-input" id="staff-team-period">
         <option value="1st Hour">1st Hour</option>
         <option value="6th Hour">6th Hour</option>
       </select>
     </div>
     <div class="form-group">
-      <label class="form-label">Color</label>
+      <label class="form-label" for="staff-team-color">Color</label>
       <input class="form-input" id="staff-team-color" value="#cc0000" />
     </div>
     <div class="form-group">
-      <label class="form-label">Assigned Product</label>
+      <label class="form-label" for="staff-team-product">Assigned Product</label>
       <select class="form-input" id="staff-team-product">
         <option value="">— None —</option>
       </select>
     </div>
     <div class="form-group">
-      <label class="form-label">Cost to Make ($)</label>
+      <label class="form-label" for="staff-team-cost">Cost to Make ($)</label>
       <input class="form-input" id="staff-team-cost" type="number" step="0.01" min="0" placeholder="e.g. 1.25" />
     </div>
     <div id="staff-team-msg" style="font-size:0.76rem;color:var(--danger);display:none"></div>
@@ -1529,14 +1529,14 @@
 <div class="modal-overlay" id="staff-student-modal" role="dialog" aria-modal="true" aria-labelledby="staff-student-modal-title">
   <div class="modal" style="max-width:460px">
     <button class="modal-close" onclick="closeModal('staff-student-modal')" aria-label="Close">✕</button>
-    <div class="modal-title" id="staff-student-modal-title">Edit Student</div>
+    <h2 class="modal-title" id="staff-student-modal-title" style="font-weight:normal">Edit Student</h2>
     <div style="font-size:0.82rem;color:var(--gray-mid);margin-bottom:1rem" id="staff-student-modal-name"></div>
     <div class="form-group">
-      <label class="form-label">Role</label>
+      <label class="form-label" for="staff-student-role">Role</label>
       <select class="form-input" id="staff-student-role"></select>
     </div>
     <div class="form-group">
-      <label class="form-label">Team</label>
+      <label class="form-label" for="staff-student-team">Team</label>
       <select class="form-input" id="staff-student-team"></select>
     </div>
     <div class="form-actions">
@@ -1550,22 +1550,22 @@
 <div class="modal-overlay" id="rubric-modal" role="dialog" aria-modal="true" aria-labelledby="rubric-modal-title">
   <div class="modal">
     <button class="modal-close" onclick="closeModal('rubric-modal')" aria-label="Close">✕</button>
-    <div class="modal-title" id="rubric-modal-title">Add Category</div>
+    <h2 class="modal-title" id="rubric-modal-title" style="font-weight:normal">Add Category</h2>
     <div class="form-group">
-      <label class="form-label">Category Name</label>
+      <label class="form-label" for="rubric-name">Category Name</label>
       <input class="form-input" id="rubric-name" placeholder="e.g. Effort" />
     </div>
     <div class="form-group">
-      <label class="form-label">Description</label>
+      <label class="form-label" for="rubric-desc">Description</label>
       <input class="form-input" id="rubric-desc" placeholder="Brief description shown to managers" />
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
       <div class="form-group">
-        <label class="form-label">Max Points</label>
+        <label class="form-label" for="rubric-max">Max Points</label>
         <input class="form-input" id="rubric-max" type="number" placeholder="10" />
       </div>
       <div class="form-group">
-        <label class="form-label">Sort Order</label>
+        <label class="form-label" for="rubric-sort">Sort Order</label>
         <input class="form-input" id="rubric-sort" type="number" placeholder="1" />
       </div>
     </div>
@@ -1585,7 +1585,7 @@
   <div class="pos-modal-inner">
     <div class="pos-modal-header">
       <div>
-        <div class="pos-modal-title" id="sched-pos-modal-title">Assign Positions</div>
+        <h2 class="pos-modal-title" id="sched-pos-modal-title" style="font-weight:normal">Assign Positions</h2>
         <div style="font-size:0.76rem;color:var(--gray);margin-top:0.15rem" id="sched-pos-modal-sub"></div>
       </div>
       <button class="modal-close" onclick="schedClosePosModal()" aria-label="Close">✕</button>
@@ -3980,7 +3980,7 @@ function renderInvGrid() {
           <span style="font-size:0.72rem;color:var(--gray);white-space:nowrap">${item.unit}</span>
         </div>
         <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.45rem">
-          <label style="font-size:0.7rem;color:var(--gray);white-space:nowrap">Expected arrival:</label>
+          <label for="inv-ord-date-${item.id}" style="font-size:0.7rem;color:var(--gray);white-space:nowrap">Expected arrival:</label>
           <input type="date" id="inv-ord-date-${item.id}"
             style="flex:1;background:#0d0d0d;border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.72rem;padding:0.3rem 0.45rem;outline:none;color-scheme:dark" />
         </div>
@@ -5434,10 +5434,10 @@ async function deleteRecipe(id, name) {
 <div class="modal-overlay" id="receipt-modal" role="dialog" aria-modal="true" aria-labelledby="receipt-modal-title">
   <div class="modal" style="max-width:680px">
     <button class="modal-close" onclick="document.getElementById('receipt-modal').classList.remove('open')" aria-label="Close">✕</button>
-    <div class="modal-title" id="receipt-modal-title">Review Parsed Receipt</div>
+    <h2 class="modal-title" id="receipt-modal-title" style="font-weight:normal">Review Parsed Receipt</h2>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 1rem;margin-bottom:1rem">
       <div class="form-group">
-        <label class="form-label">Vendor</label>
+        <label class="form-label" for="po-vendor">Vendor</label>
         <select class="form-input" id="po-vendor">
           <option value="amazon">Amazon</option>
           <option value="walmart">Walmart</option>
@@ -5445,23 +5445,23 @@ async function deleteRecipe(id, name) {
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">Order Number</label>
+        <label class="form-label" for="po-order-number">Order Number</label>
         <input class="form-input" id="po-order-number" placeholder="123-456-789"/>
       </div>
       <div class="form-group">
-        <label class="form-label">Order Date</label>
+        <label class="form-label" for="po-order-date">Order Date</label>
         <input class="form-input" id="po-order-date" type="text" placeholder="YYYY-MM-DD" readonly/>
       </div>
       <div class="form-group">
-        <label class="form-label">Expected Arrival</label>
+        <label class="form-label" for="po-expected-arrival">Expected Arrival</label>
         <input class="form-input" id="po-expected-arrival" type="text" placeholder="YYYY-MM-DD" readonly/>
       </div>
       <div class="form-group">
-        <label class="form-label">Order Total ($)</label>
+        <label class="form-label" for="po-total">Order Total ($)</label>
         <input class="form-input" id="po-total" type="number" step="0.01" placeholder="0.00"/>
       </div>
       <div class="form-group">
-        <label class="form-label">Notes</label>
+        <label class="form-label" for="po-notes">Notes</label>
         <input class="form-input" id="po-notes" placeholder="Optional"/>
       </div>
     </div>
@@ -5480,7 +5480,7 @@ async function deleteRecipe(id, name) {
 <div class="modal-overlay" id="confirm-arrival-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-arrival-modal-title">
   <div class="modal">
     <button class="modal-close" onclick="document.getElementById('confirm-arrival-modal').classList.remove('open')" aria-label="Close">✕</button>
-    <div class="modal-title" id="confirm-arrival-modal-title">Confirm Delivery</div>
+    <h2 class="modal-title" id="confirm-arrival-modal-title" style="font-weight:normal">Confirm Delivery</h2>
     <p style="font-size:0.84rem;color:var(--gray-mid);margin-bottom:1.25rem">Adjust received quantities if anything was short or missing. Inventory will be updated automatically.</p>
     <div id="confirm-arrival-items"></div>
     <div id="confirm-arrival-msg" style="display:none;margin-top:0.75rem" class="msg"></div>
@@ -5495,13 +5495,13 @@ async function deleteRecipe(id, name) {
 <div class="modal-overlay" id="recipe-modal" role="dialog" aria-modal="true" aria-labelledby="recipe-modal-title">
   <div class="modal" style="max-width:620px">
     <button class="modal-close" onclick="document.getElementById('recipe-modal').classList.remove('open')" aria-label="Close">✕</button>
-    <div class="modal-title" id="recipe-modal-title">Add Recipe</div>
+    <h2 class="modal-title" id="recipe-modal-title" style="font-weight:normal">Add Recipe</h2>
     <div class="form-group">
-      <label class="form-label">Menu Item Name <span style="color:var(--gray-mid);text-transform:none;font-weight:400">(must match exactly what appears on the menu)</span></label>
+      <label class="form-label" for="recipe-name">Menu Item Name <span style="color:var(--gray-mid);text-transform:none;font-weight:400">(must match exactly what appears on the menu)</span></label>
       <input class="form-input" id="recipe-name" placeholder="e.g. Iced Latte, Chocolate Chip Cookie"/>
     </div>
     <div class="form-group">
-      <label class="form-label">Description (optional)</label>
+      <label class="form-label" for="recipe-desc">Description (optional)</label>
       <input class="form-input" id="recipe-desc" placeholder="Brief notes about this recipe"/>
     </div>
     <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray-mid);margin-bottom:0.6rem;font-weight:600">Ingredients consumed per serving</div>

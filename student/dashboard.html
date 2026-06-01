@@ -179,6 +179,8 @@
     .order-filter { background: transparent; border: 1px solid var(--border-dim); border-radius: 20px; padding: 0.32rem 0.85rem; font-size: 0.78rem; color: var(--gray); cursor: pointer; transition: all 0.2s; font-family: 'DM Sans', sans-serif; }
     .order-filter.active { background: rgba(204,0,0,0.12); border-color: var(--border); color: var(--red-bright); }
     .order-filter:hover { border-color: var(--border); color: var(--white); }
+    button.nav-item { background: none; font-family: 'DM Sans', sans-serif; width: 100%; text-align: left; }
+    .schedule-day { font-family: 'DM Sans', sans-serif; }
     .menu-tab { background:transparent; border:none; border-bottom:2px solid transparent; padding:0.65rem 1rem; font-family:'DM Sans',sans-serif; font-size:0.85rem; color:var(--gray); cursor:pointer; transition:all 0.2s; margin-bottom:-1px; }
     .menu-tab:hover { color:var(--white); }
     .menu-tab.active { color:var(--red-bright); border-bottom-color:var(--red); }
@@ -237,16 +239,16 @@
       <div class="user-role" id="user-role-badge">Student Staff</div>
     </div>
     <nav aria-label="Team hub">
-      <a class="nav-item active" onclick="showSection('overview',this)"><span aria-hidden="true">📊</span> Overview</a>
+      <button class="nav-item active" onclick="showSection('overview',this)"><span aria-hidden="true">📊</span> Overview</button>
       <a class="nav-item" href="orders.html" style="justify-content:space-between"><span aria-hidden="true">🧾</span> Order Queue <span id="pending-badge" style="display:none;background:var(--red);color:white;font-size:0.6rem;padding:0.1rem 0.45rem;border-radius:10px"></span></a>
-      <a class="nav-item" onclick="showSection('schedule',this)"><span aria-hidden="true">🗓️</span> My Schedule</a>
-      <a class="nav-item" onclick="showSection('inventory',this)"><span aria-hidden="true">📦</span> Inventory</a>
-      <a class="nav-item" onclick="showSection('sales',this)"><span aria-hidden="true">📈</span> Sales Data</a>
-      <a class="nav-item" onclick="showSection('menu',this)"><span aria-hidden="true">☕</span> Menu Availability</a>
-      <a class="nav-item" onclick="showSection('summary',this)"><span aria-hidden="true">📝</span> Weekly Summary</a>
-      <a class="nav-item" onclick="showSection('peer-eval',this)" style="justify-content:space-between"><span aria-hidden="true">👥</span> Peer Evals <span id="peer-eval-badge" style="display:none;background:var(--red);color:white;font-size:0.6rem;padding:0.1rem 0.45rem;border-radius:10px"></span></a>
-      <a class="nav-item" onclick="showSection('my-scores',this)"><span aria-hidden="true">⭐</span> My Scores</a>
-      <a class="nav-item" onclick="showSection('bio',this)">🪪 My Bio</a>
+      <button class="nav-item" onclick="showSection('schedule',this)"><span aria-hidden="true">🗓️</span> My Schedule</button>
+      <button class="nav-item" onclick="showSection('inventory',this)"><span aria-hidden="true">📦</span> Inventory</button>
+      <button class="nav-item" onclick="showSection('sales',this)"><span aria-hidden="true">📈</span> Sales Data</button>
+      <button class="nav-item" onclick="showSection('menu',this)"><span aria-hidden="true">☕</span> Menu Availability</button>
+      <button class="nav-item" onclick="showSection('summary',this)"><span aria-hidden="true">📝</span> Weekly Summary</button>
+      <button class="nav-item" onclick="showSection('peer-eval',this)" style="justify-content:space-between"><span aria-hidden="true">👥</span> Peer Evals <span id="peer-eval-badge" style="display:none;background:var(--red);color:white;font-size:0.6rem;padding:0.1rem 0.45rem;border-radius:10px"></span></button>
+      <button class="nav-item" onclick="showSection('my-scores',this)"><span aria-hidden="true">⭐</span> My Scores</button>
+      <button class="nav-item" onclick="showSection('bio',this)">🪪 My Bio</button>
     </nav>
     <button class="signout-btn" onclick="signOut()">← Sign Out</button>
   </aside>
@@ -262,9 +264,9 @@
         <div class="stat-card"><div class="stat-label">Low Stock Items</div><div class="stat-value" id="stat-low-stock">—</div><div class="stat-sub">Need restocking</div></div>
       </div>
       <!-- Peer eval notification banner -->
-      <div id="peer-eval-banner" style="display:none;background:rgba(204,0,0,0.08);border:1px solid rgba(204,0,0,0.25);border-radius:10px;padding:0.85rem 1.25rem;margin-bottom:1.25rem;font-size:0.85rem;color:var(--red-bright);cursor:pointer" onclick="showSection('peer-eval',document.querySelector('[onclick*=peer-eval]'))">
+      <button id="peer-eval-banner" style="display:none;background:rgba(204,0,0,0.08);border:1px solid rgba(204,0,0,0.25);border-radius:10px;padding:0.85rem 1.25rem;margin-bottom:1.25rem;font-size:0.85rem;color:var(--red-bright);cursor:pointer;width:100%;text-align:left;font-family:'DM Sans',sans-serif" onclick="showSection('peer-eval',document.querySelector('[onclick*=peer-eval]'))">
         ⚠️ <span id="peer-eval-banner-text"></span>
-      </div>
+      </button>
 
       <div class="section">
         <h2 class="section-title">Quick Actions</h2>
@@ -478,15 +480,15 @@
             <input type="hidden" id="suggest-type" value="new" />
             <input type="hidden" id="suggest-target-id" value="" />
             <div class="form-group">
-              <label>Drink Name</label>
+              <label for="suggest-name">Drink Name</label>
               <input type="text" id="suggest-name" placeholder="e.g. Brown Sugar Oat Latte" />
             </div>
             <div class="form-group">
-              <label>Description</label>
+              <label for="suggest-desc">Description</label>
               <input type="text" id="suggest-desc" placeholder="Short description for the menu" />
             </div>
             <div class="form-group">
-              <label>Category</label>
+              <label for="suggest-category">Category</label>
               <select id="suggest-category">
                 <option>Coffee</option>
                 <option>Non-Coffee</option>
@@ -503,7 +505,7 @@
               </label>
             </div>
             <div class="form-group">
-              <label>Notes for Admin <span style="color:var(--gray);font-weight:300">(optional)</span></label>
+              <label for="suggest-notes">Notes for Admin <span style="color:var(--gray);font-weight:300">(optional)</span></label>
               <input type="text" id="suggest-notes" placeholder="Why you're suggesting this, ingredients needed, etc." />
             </div>
             <button class="btn-primary" onclick="submitSuggestion()">Submit for Approval</button>
@@ -537,12 +539,12 @@
       <h1 class="page-title">Submit Your Report</h1>
       <div class="summary-form">
         <div class="form-row">
-          <div class="form-group"><label>Week Of</label><input type="date" id="summary-week" /></div>
-          <div class="form-group"><label>Hours Worked</label><input type="number" id="summary-hours" placeholder="e.g. 8" min="0" max="40" /></div>
+          <div class="form-group"><label for="summary-week">Week Of</label><input type="date" id="summary-week" /></div>
+          <div class="form-group"><label for="summary-hours">Hours Worked</label><input type="number" id="summary-hours" placeholder="e.g. 8" min="0" max="40" /></div>
         </div>
         <div class="form-row">
-          <div class="form-group"><label>Orders Fulfilled</label><input type="number" id="summary-orders" placeholder="# of orders" min="0" /></div>
-          <div class="form-group"><label>Overall Rating</label>
+          <div class="form-group"><label for="summary-orders">Orders Fulfilled</label><input type="number" id="summary-orders" placeholder="# of orders" min="0" /></div>
+          <div class="form-group"><label for="summary-rating">Overall Rating</label>
             <select id="summary-rating">
               <option value="">Select...</option>
               <option value="5">⭐⭐⭐⭐⭐ Excellent</option>
@@ -553,10 +555,10 @@
             </select>
           </div>
         </div>
-        <div class="form-group"><label>What Went Well?</label><textarea id="summary-good" placeholder="Describe what went smoothly..."></textarea></div>
-        <div class="form-group"><label>What Could Be Improved?</label><textarea id="summary-improve" placeholder="Any challenges or suggestions..."></textarea></div>
-        <div class="form-group"><label>Inventory Notes</label><textarea id="summary-inventory" placeholder="Items running low? Supply issues?" style="min-height:80px"></textarea></div>
-        <div class="form-group"><label>Additional Notes</label><textarea id="summary-notes" placeholder="Anything else to report..." style="min-height:80px"></textarea></div>
+        <div class="form-group"><label for="summary-good">What Went Well?</label><textarea id="summary-good" placeholder="Describe what went smoothly..."></textarea></div>
+        <div class="form-group"><label for="summary-improve">What Could Be Improved?</label><textarea id="summary-improve" placeholder="Any challenges or suggestions..."></textarea></div>
+        <div class="form-group"><label for="summary-inventory">Inventory Notes</label><textarea id="summary-inventory" placeholder="Items running low? Supply issues?" style="min-height:80px"></textarea></div>
+        <div class="form-group"><label for="summary-notes">Additional Notes</label><textarea id="summary-notes" placeholder="Anything else to report..." style="min-height:80px"></textarea></div>
         <button class="btn-primary" onclick="submitSummary()">Submit Weekly Summary →</button>
         <div class="msg" id="summary-msg" role="status" aria-live="polite" aria-atomic="true"></div>
       </div>
@@ -590,11 +592,11 @@
       <div class="summary-form">
         <div id="bio-status-banner" style="display:none;margin-bottom:1.25rem;padding:0.85rem 1rem;border-radius:8px;font-size:0.85rem"></div>
         <div class="form-group">
-          <label>Your Bio Summary</label>
+          <label for="bio-text">Your Bio Summary</label>
           <textarea id="bio-text" placeholder="Tell the Birdhouse community a little about yourself — your role, interests, favorite drink, or anything you'd like people to know about you." style="min-height:160px"></textarea>
         </div>
         <div class="form-group" style="margin-top:1rem">
-          <label>Your Photo (optional)</label>
+          <label for="bio-photo">Your Photo (optional)</label>
           <input id="bio-photo" type="file" accept="image/*" style="padding:0.75rem" />
           <div id="bio-photo-help" style="font-size:0.72rem;color:var(--gray);margin-top:0.45rem">Upload a clear headshot. This photo and your summary are both reviewed by your instructor before appearing on the About page.</div>
         </div>
@@ -831,23 +833,23 @@
       const locationLabel = assignment.role==='birdhouse'?'The Birdhouse':assignment.role==='mathews'?'Mathews':'';
 
       if(!hasPositions || inClassDay) {
-        return `<div class="schedule-day ${isToday?'today':''}" id="sday-${dateStr}"
+        return `<button type="button" class="schedule-day ${isToday?'today':''}" id="sday-${dateStr}"
           onclick="showChecklist('${dateStr}','${dayName}','${position||''}','${locationLabel}',false)">
           <div class="day-name">${dayName.slice(0,3)}</div>
           <div class="day-date">${date.getMonth()+1}/${date.getDate()}</div>
           <div class="day-off">${inClassDay?'In Class':'No Shift'}</div>
-        </div>`;
+        </button>`;
       }
 
       if(dateStr >= today.toISOString().split('T')[0] && !nextShift) nextShift={day:dayName,pos:position};
-      return `<div class="schedule-day ${isToday?'today':''}" id="sday-${dateStr}"
+      return `<button type="button" class="schedule-day ${isToday?'today':''}" id="sday-${dateStr}"
         onclick="showChecklist('${dateStr}','${dayName}','${position||'tbd'}','${locationLabel}',true)">
         <div class="day-name">${dayName.slice(0,3)}</div>
         <div class="day-date">${date.getMonth()+1}/${date.getDate()}</div>
         <div class="day-shift" style="color:${role.color}">Working</div>
         ${position?`<div class="day-time">${POS_LABELS[position]||position}</div>`:'<div class="day-time" style="color:var(--gray)">TBD</div>'}
         <div style="font-size:0.6rem;color:rgba(255,255,255,0.2);margin-top:0.3rem">tap for checklist</div>
-      </div>`;
+      </button>`;
     }).join('');
 
     if(nextShift){
@@ -954,8 +956,37 @@
 
   // ── Add / Edit Item Modal ──
   let editingItemId = null;
+  let _itemModalOpener = null;
+
+  function trapItemModalFocus(e) {
+    if (e.key === 'Escape') { closeItemModal(); return; }
+    if (e.key !== 'Tab') return;
+    const modal = document.getElementById('item-modal');
+    const focusable = Array.from(modal.querySelectorAll('button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])'));
+    if (!focusable.length) return;
+    const first = focusable[0], last = focusable[focusable.length - 1];
+    if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last.focus(); } }
+    else { if (document.activeElement === last) { e.preventDefault(); first.focus(); } }
+  }
+
+  function openItemModal() {
+    const modal = document.getElementById('item-modal');
+    modal.style.display = 'flex';
+    modal.addEventListener('keydown', trapItemModalFocus);
+    const firstInput = modal.querySelector('input, select, textarea');
+    if (firstInput) firstInput.focus();
+  }
+
+  function closeItemModal() {
+    const modal = document.getElementById('item-modal');
+    modal.style.display = 'none';
+    modal.removeEventListener('keydown', trapItemModalFocus);
+    if (_itemModalOpener) { _itemModalOpener.focus(); _itemModalOpener = null; }
+  }
+
   function openAddItemModal() {
     editingItemId=null;
+    _itemModalOpener = document.activeElement;
     document.getElementById('item-modal-title').textContent='Add Inventory Item';
     document.getElementById('item-name').value='';
     document.getElementById('item-category').value='cold_drinks';
@@ -964,13 +995,14 @@
     document.getElementById('item-par').value='1';
     document.getElementById('item-notes').value='';
     document.getElementById('item-modal-msg').style.display='none';
-    document.getElementById('item-modal').style.display='flex';
+    openItemModal();
   }
 
   function openEditItemModal(id) {
     const item = allInventory.find(i=>i.id===id);
     if(!item) return;
     editingItemId=id;
+    _itemModalOpener = document.activeElement;
     document.getElementById('item-modal-title').textContent='Edit Item';
     document.getElementById('item-name').value=item.name;
     document.getElementById('item-category').value=item.category;
@@ -979,7 +1011,7 @@
     document.getElementById('item-par').value=item.par_level;
     document.getElementById('item-notes').value=item.notes||'';
     document.getElementById('item-modal-msg').style.display='none';
-    document.getElementById('item-modal').style.display='flex';
+    openItemModal();
   }
 
   async function saveItemModal() {
@@ -996,7 +1028,7 @@
       ?await sb.from('inventory').update(payload).eq('id',editingItemId)
       :await sb.from('inventory').insert({...payload,created_by:currentUser.id});
     if(error){m.textContent='Error: '+error.message;m.className='msg error';}
-    else{document.getElementById('item-modal').style.display='none';loadInventory();}
+    else{closeItemModal();loadInventory();}
   }
 
   // ── Change Log ──
@@ -1182,6 +1214,8 @@
           <td style="color:var(--gray);font-size:0.82rem">${item.description||'—'}</td>
           <td>
             <button class="avail-toggle ${item.available?'on':''}" id="menu-toggle-${item.id}"
+              aria-label="${item.name}: ${item.available?'Available — click to disable':'Unavailable — click to enable'}"
+              aria-pressed="${item.available?'true':'false'}"
               onclick="toggleMenuAvail('${item.id}', ${item.available})">
             </button>
             <span style="font-size:0.75rem;color:var(--gray);margin-left:0.6rem">${item.available?'Available':'Unavailable'}</span>
@@ -1212,6 +1246,9 @@
     const btn = document.getElementById('menu-toggle-'+id);
     if(btn){
       btn.classList.toggle('on', newVal);
+      btn.setAttribute('aria-pressed', newVal ? 'true' : 'false');
+      const itemName = btn.getAttribute('aria-label').split(':')[0];
+      btn.setAttribute('aria-label', `${itemName}: ${newVal?'Available — click to disable':'Unavailable — click to enable'}`);
       const label = btn.nextElementSibling;
       if(label) label.textContent = newVal?'Available':'Unavailable';
       btn.setAttribute('onclick',`toggleMenuAvail('${id}', ${newVal})`);
@@ -1981,7 +2018,7 @@
 <!-- Add/Edit Item Modal -->
 <div id="item-modal" role="dialog" aria-modal="true" aria-labelledby="item-modal-title" style="position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:100;display:none;align-items:center;justify-content:center">
   <div style="background:#111;border:1px solid rgba(204,0,0,0.18);border-radius:16px;padding:2rem;width:420px;max-width:95vw;max-height:90vh;overflow-y:auto">
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:0.05em;margin-bottom:1.5rem" id="item-modal-title">Add Item</div>
+    <h2 style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:0.05em;margin-bottom:1.5rem;font-weight:normal" id="item-modal-title">Add Item</h2>
     <div style="margin-bottom:1rem"><label for="item-name" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Item Name</label>
       <input type="text" id="item-name" placeholder="e.g. Vanilla Syrup" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/></div>
     <div style="margin-bottom:1rem"><label for="item-category" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Category</label>
@@ -2004,7 +2041,7 @@
       <input type="text" id="item-notes" placeholder="Storage location, special instructions..." style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/></div>
     <div class="msg" id="item-modal-msg" role="status" aria-live="polite" aria-atomic="true"></div>
     <div style="display:flex;gap:0.75rem;margin-top:1.25rem">
-      <button style="background:transparent;color:#999;border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:0.82rem 1.5rem;font-family:'DM Sans',sans-serif;font-size:0.88rem;cursor:pointer" onclick="document.getElementById('item-modal').style.display='none'">Cancel</button>
+      <button style="background:transparent;color:#999;border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:0.82rem 1.5rem;font-family:'DM Sans',sans-serif;font-size:0.88rem;cursor:pointer" onclick="closeItemModal()">Cancel</button>
       <button class="btn-primary" onclick="saveItemModal()">Save Item</button>
     </div>
   </div>

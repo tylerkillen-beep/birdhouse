@@ -211,7 +211,7 @@
     .autocomplete-item-room { font-size:0.78rem; color:var(--red-bright); font-weight:600; flex-shrink:0; }
 
     /* ── Ratings & reviews popup ── */
-    .menu-card-rating { font-size:0.76rem; color:#f5c842; margin-bottom:0.45rem; cursor:pointer; display:inline-flex; align-items:center; gap:0.3rem; }
+    .menu-card-rating { font-size:0.76rem; color:#f5c842; margin-bottom:0.45rem; cursor:pointer; display:inline-flex; align-items:center; gap:0.3rem; background:none; border:none; padding:0; font-family:inherit; text-align:left; }
     .menu-card-rating:hover .rating-count { text-decoration:underline; }
     .rating-count { color:var(--gray); font-size:0.7rem; }
     .menu-card-rating.no-reviews { color:var(--gray); cursor:default; }
@@ -290,24 +290,24 @@
       <div class="delivery-form">
         <!-- Pickup/Delivery toggle — students only -->
         <div class="form-group" id="delivery-method-group" style="display:none">
-          <label>Order Type</label>
-          <div class="method-toggle">
-            <button class="method-btn active" id="btn-method-delivery" onclick="setDeliveryMethod('delivery')">🚚 Delivery (+$1.00)</button>
-            <button class="method-btn" id="btn-method-pickup" onclick="setDeliveryMethod('pickup')">🏠 Pickup (Free)</button>
+          <label id="order-type-label">Order Type</label>
+          <div class="method-toggle" role="group" aria-labelledby="order-type-label">
+            <button class="method-btn active" id="btn-method-delivery" onclick="setDeliveryMethod('delivery')" aria-pressed="true">🚚 Delivery (+$1.00)</button>
+            <button class="method-btn" id="btn-method-pickup" onclick="setDeliveryMethod('pickup')" aria-pressed="false">🏠 Pickup (Free)</button>
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label>Delivery Date</label>
+            <label for="delivery-date">Delivery Date</label>
             <input type="text" id="delivery-date" placeholder="Select a date…" readonly style="cursor:pointer" />
           </div>
           <div class="form-group">
-            <label>Preferred Time</label>
+            <label for="delivery-time">Preferred Time</label>
             <select id="delivery-time"><option value="">Select a date first…</option></select>
           </div>
         </div>
         <div class="form-group" id="room-group">
-          <label id="room-label">Room / Location</label>
+          <label id="room-label" for="delivery-room">Room / Location</label>
           <div class="autocomplete-wrapper">
             <input type="text" id="delivery-room" placeholder="Type a name or room number…" autocomplete="off" />
             <div class="autocomplete-dropdown" id="ac-delivery-room"></div>
@@ -315,7 +315,7 @@
           <div class="pickup-note" id="pickup-location-note" style="display:none">📍 Birdhouse — Library</div>
         </div>
         <div class="form-group">
-          <label>Backup Location <span style="color:var(--gray);font-weight:300">(optional)</span></label>
+          <label for="backup-location">Backup Location <span style="color:var(--gray);font-weight:300">(optional)</span></label>
           <div class="autocomplete-wrapper">
             <input type="text" id="backup-location" placeholder="Type a name or room number…" autocomplete="off" />
             <div class="autocomplete-dropdown" id="ac-backup-location"></div>
@@ -385,7 +385,7 @@
   <div class="reviews-modal">
     <div class="reviews-modal-header">
       <div>
-        <div class="reviews-modal-title" id="reviews-modal-title">Reviews</div>
+        <h2 class="reviews-modal-title" id="reviews-modal-title">Reviews</h2>
         <div class="reviews-modal-avg" id="reviews-modal-avg"></div>
       </div>
       <button class="reviews-modal-close" onclick="closeReviewsModal()" aria-label="Close reviews">✕</button>
@@ -397,7 +397,7 @@
 <!-- Modifier Selection Modal -->
 <div class="mod-overlay" id="mod-overlay" role="dialog" aria-modal="true" aria-labelledby="mod-title">
   <div class="mod-modal">
-    <div class="mod-modal-title" id="mod-title">Customize</div>
+    <h2 class="mod-modal-title" id="mod-title">Customize</h2>
     <div class="mod-modal-price" id="mod-base-price"></div>
     <div id="mod-options-container"></div>
     <div class="mod-total">
@@ -494,6 +494,29 @@
 
   // Pending modal state
   let pendingItemId = null, pendingTemp = null, pendingBaseCents = 0;
+  let _modOpener = null, _reviewsOpener = null;
+
+  function trapModFocus(e) {
+    if (e.key === 'Escape') { closeModModal(); return; }
+    if (e.key !== 'Tab') return;
+    const modal = document.querySelector('.mod-modal');
+    const focusable = Array.from(modal.querySelectorAll('button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'));
+    if (!focusable.length) return;
+    const first = focusable[0], last = focusable[focusable.length - 1];
+    if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last.focus(); } }
+    else { if (document.activeElement === last) { e.preventDefault(); first.focus(); } }
+  }
+
+  function trapReviewsFocus(e) {
+    if (e.key === 'Escape') { closeReviewsModal(); return; }
+    if (e.key !== 'Tab') return;
+    const modal = document.querySelector('.reviews-modal');
+    const focusable = Array.from(modal.querySelectorAll('button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'));
+    if (!focusable.length) return;
+    const first = focusable[0], last = focusable[focusable.length - 1];
+    if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last.focus(); } }
+    else { if (document.activeElement === last) { e.preventDefault(); first.focus(); } }
+  }
 
   // ── Init ──────────────────────────────────────────────────────────────────
   async function init() {
@@ -737,9 +760,9 @@
       const avg   = ratingData.sum / ratingData.count;
       const stars = starsHtml(avg);
       const safeName = item.name.replace(/'/g, "\\'");
-      ratingHtml = `<div class="menu-card-rating" onclick="openReviewsModal('${item.id}','${safeName}')" title="See all reviews">${stars} <span class="rating-count">${avg.toFixed(1)} (${ratingData.count})</span></div>`;
+      ratingHtml = `<button class="menu-card-rating" onclick="openReviewsModal('${item.id}','${safeName}')" aria-label="See reviews for ${safeName.replace(/"/g,'&quot;')}: ${avg.toFixed(1)} stars, ${ratingData.count} review${ratingData.count !== 1 ? 's' : ''}">${stars} <span class="rating-count" aria-hidden="true">${avg.toFixed(1)} (${ratingData.count})</span></button>`;
     } else {
-      ratingHtml = `<div class="menu-card-rating no-reviews" title="No reviews yet">☆☆☆☆☆ <span class="rating-count">No reviews</span></div>`;
+      ratingHtml = `<div class="menu-card-rating no-reviews" aria-hidden="true">☆☆☆☆☆ <span class="rating-count">No reviews</span></div>`;
     }
 
     return `<div class="menu-card">
@@ -768,7 +791,12 @@
     document.getElementById('reviews-modal-title').textContent = menuItemName;
     document.getElementById('reviews-list').innerHTML = '<div class="reviews-empty">Loading reviews…</div>';
     document.getElementById('reviews-modal-avg').textContent = '';
-    document.getElementById('reviews-overlay').classList.add('open');
+    _reviewsOpener = document.activeElement;
+    const reviewsOverlay = document.getElementById('reviews-overlay');
+    reviewsOverlay.classList.add('open');
+    reviewsOverlay.addEventListener('keydown', trapReviewsFocus);
+    const closeBtn = reviewsOverlay.querySelector('.reviews-modal-close');
+    if (closeBtn) closeBtn.focus();
 
     const { data: reviews } = await sb.from('reviews')
       .select('rating, review_text, reviewer_name, created_at')
@@ -798,7 +826,10 @@
   }
 
   function closeReviewsModal() {
-    document.getElementById('reviews-overlay').classList.remove('open');
+    const reviewsOverlay = document.getElementById('reviews-overlay');
+    reviewsOverlay.classList.remove('open');
+    reviewsOverlay.removeEventListener('keydown', trapReviewsFocus);
+    if (_reviewsOpener) { _reviewsOpener.focus(); _reviewsOpener = null; }
   }
 
   // ── Modifier Modal ────────────────────────────────────────────────────────
@@ -850,7 +881,12 @@
 
     document.getElementById('mod-options-container').innerHTML = optionsHtml;
     updateModTotal();
-    document.getElementById('mod-overlay').classList.add('open');
+    _modOpener = document.activeElement;
+    const modOverlay = document.getElementById('mod-overlay');
+    modOverlay.classList.add('open');
+    modOverlay.addEventListener('keydown', trapModFocus);
+    const firstModBtn = modOverlay.querySelector('button:not([disabled])');
+    if (firstModBtn) firstModBtn.focus();
   }
 
   // Single toggle handler — the div is always the click target because the
@@ -875,7 +911,10 @@
   }
 
   function closeModModal() {
-    document.getElementById('mod-overlay').classList.remove('open');
+    const modOverlay = document.getElementById('mod-overlay');
+    modOverlay.classList.remove('open');
+    modOverlay.removeEventListener('keydown', trapModFocus);
+    if (_modOpener) { _modOpener.focus(); _modOpener = null; }
     pendingItemId    = null;
     pendingTemp      = null;
     pendingBaseCents = 0;
@@ -1000,7 +1039,9 @@
   function setDeliveryMethod(method) {
     selectedDeliveryMethod = method;
     document.getElementById('btn-method-delivery').classList.toggle('active', method === 'delivery');
+    document.getElementById('btn-method-delivery').setAttribute('aria-pressed', method === 'delivery' ? 'true' : 'false');
     document.getElementById('btn-method-pickup').classList.toggle('active', method === 'pickup');
+    document.getElementById('btn-method-pickup').setAttribute('aria-pressed', method === 'pickup' ? 'true' : 'false');
 
     const roomInput = document.getElementById('delivery-room');
     const pickupNote = document.getElementById('pickup-location-note');

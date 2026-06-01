@@ -56,7 +56,8 @@
     .date-controls { display: flex; align-items: center; gap: 0.4rem; }
     .date-nav-btn { background: transparent; border: 1px solid var(--border-dim); border-radius: 7px; padding: 0.28rem 0.6rem; color: var(--gray); cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 0.85rem; transition: all 0.2s; line-height: 1; }
     .date-nav-btn:hover { color: var(--white); border-color: var(--border); }
-    .date-display-btn { background: transparent; border: 1px solid var(--border-dim); border-radius: 20px; padding: 0.28rem 0.9rem; color: var(--white); cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 0.78rem; transition: all 0.2s; position: relative; }
+    .date-display-wrap { position: relative; display: inline-block; }
+    .date-display-btn { background: transparent; border: 1px solid var(--border-dim); border-radius: 20px; padding: 0.28rem 0.9rem; color: var(--white); cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 0.78rem; transition: all 0.2s; }
     .date-display-btn:hover { border-color: var(--border); }
     .date-display-btn.today-active { background: rgba(204,0,0,0.12); border-color: var(--border); color: var(--red-bright); }
     #date-picker-input { position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px; top: 0; left: 0; }
@@ -170,7 +171,7 @@
     <button class="signout-btn" onclick="signOut()"><span aria-hidden="true">←</span> Sign Out</button>
   </aside>
 
-  <main class="main" id="main-content">
+  <main class="main" id="main-content" tabindex="-1">
     <div class="page-eyebrow">Team Hub</div>
     <div class="page-header">
       <h1 class="page-title">Order Queue</h1>
@@ -223,13 +224,15 @@
       </div>
       <!-- Date -->
       <div class="filter-row">
-        <span class="filter-label">Date</span>
-        <div class="date-controls">
+        <span class="filter-label" id="date-filter-label">Date</span>
+        <div class="date-controls" role="group" aria-labelledby="date-filter-label">
           <button class="date-nav-btn" onclick="shiftDate(-1)" title="Previous day" aria-label="Previous day">‹</button>
-          <button class="date-display-btn" id="date-display-btn" onclick="openDatePicker()" aria-label="Select date">
-            <span id="date-display-label">Today</span>
-            <input type="date" id="date-picker-input" onchange="onDatePickerChange(this.value)" aria-label="Date picker" />
-          </button>
+          <span class="date-display-wrap">
+            <button class="date-display-btn" id="date-display-btn" onclick="openDatePicker()" aria-label="Select date">
+              <span id="date-display-label">Today</span>
+            </button>
+            <input type="date" id="date-picker-input" onchange="onDatePickerChange(this.value)" aria-label="Date picker" tabindex="-1" />
+          </span>
           <button class="date-nav-btn" onclick="shiftDate(1)" title="Next day" aria-label="Next day">›</button>
           <button class="filter-pill" id="all-dates-pill" onclick="setAllDates()" style="margin-left:0.25rem">All Dates</button>
         </div>
@@ -310,6 +313,7 @@
     audioEnabled = !audioEnabled;
     const btn = document.getElementById('mute-btn');
     btn.textContent = audioEnabled ? '🔔 Audio On' : '🔕 Audio Off';
+    btn.setAttribute('aria-label', audioEnabled ? 'Audio alerts on — click to disable' : 'Audio alerts off — click to enable');
   }
 
   function todayStr() {
@@ -673,8 +677,8 @@
         <div class="order-actions">
           <div class="order-time-placed">Placed ${placedAt}</div>
           ${total ? `<div class="order-total">${total}</div>` : ''}
-          ${canDeliver ? `<button class="btn-deliver" onclick="markDelivered('${order.id}')">✓ Delivered</button>` : ''}
-          ${canCancel  ? `<button class="btn-cancel-order" onclick="cancelOrder('${order.id}')">Cancel</button>` : ''}
+          ${canDeliver ? `<button class="btn-deliver" onclick="markDelivered('${order.id}')" aria-label="Mark delivered: ${escHtml(customerName)}">✓ Delivered</button>` : ''}
+          ${canCancel  ? `<button class="btn-cancel-order" onclick="cancelOrder('${order.id}')" aria-label="Cancel order for ${escHtml(customerName)}">Cancel</button>` : ''}
         </div>` : `
         <div class="order-actions">
           <div class="order-time-placed">Placed ${placedAt}</div>

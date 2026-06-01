@@ -22,10 +22,12 @@
   .nav-item{display:block;padding:0.6rem 1.25rem;font-size:0.84rem;color:var(--light-gray);cursor:pointer;transition:all 0.15s;border-left:2px solid transparent;text-decoration:none}
   .nav-item:hover{color:var(--white);background:rgba(255,255,255,0.03)}
   .nav-item.active{color:var(--white);border-left-color:var(--red);background:rgba(204,0,0,0.06)}
+  button.nav-item{background:none;border-top:none;border-right:none;border-bottom:none;font-family:'DM Sans',sans-serif;width:100%;text-align:left}
   .nav-bottom{margin-top:auto;padding:1rem 1.25rem;border-top:1px solid var(--border-dim)}
   .nav-user{font-size:0.78rem;color:var(--light-gray);margin-bottom:0.5rem}
   .nav-user strong{display:block;color:var(--white);font-size:0.85rem}
   .sign-out{font-size:0.72rem;color:var(--gray);cursor:pointer;background:none;border:none;font-family:'DM Sans',sans-serif;text-decoration:underline}
+  .visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
   .main{flex:1;padding:2.5rem;overflow-y:auto}
   .page-eyebrow{font-size:0.62rem;text-transform:uppercase;letter-spacing:0.18em;color:var(--red-bright);margin-bottom:0.4rem}
   .page-title{font-family:'Bebas Neue',sans-serif;font-size:2.8rem;letter-spacing:0.04em;line-height:1;margin-bottom:1.75rem}
@@ -176,19 +178,19 @@
     <div class="logo"><a href="../index.html" style="text-decoration:none"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:0.08em;color:var(--red)">🏠 BIRDHOUSE</div></a></div>
     <div class="role-badge">Manager</div>
     <div class="nav-section">Overview</div>
-    <a class="nav-item active" onclick="showSection('overview',this)">📊 Dashboard</a>
+    <button class="nav-item active" onclick="showSection('overview',this)">📊 Dashboard</button>
     <div class="nav-section">Operations</div>
-    <a class="nav-item" onclick="showSection('schedule',this)">📅 Schedule</a>
-    <a class="nav-item" onclick="showSection('orders',this)">🧾 Active Orders</a>
-    <a class="nav-item" onclick="showSection('inventory',this)">📦 Inventory<span class="nav-badge" id="inv-nav-badge" style="display:none"></span></a>
+    <button class="nav-item" onclick="showSection('schedule',this)">📅 Schedule</button>
+    <button class="nav-item" onclick="showSection('orders',this)">🧾 Active Orders</button>
+    <button class="nav-item" onclick="showSection('inventory',this)">📦 Inventory<span class="nav-badge" id="inv-nav-badge" style="display:none"></span></button>
     <div class="nav-section">Students</div>
-    <a class="nav-item" onclick="showSection('scores',this)">⭐ Weekly Scores</a>
+    <button class="nav-item" onclick="showSection('scores',this)">⭐ Weekly Scores</button>
     <div class="nav-bottom">
       <div class="nav-user"><strong id="nav-name">—</strong>Manager</div>
       <button class="sign-out" onclick="doSignOut()">Sign out</button>
     </div>
   </nav>
-  <main class="main" id="main-content">
+  <main class="main" id="main-content" tabindex="-1">
 
     <div class="section active" id="section-overview">
       <div class="page-eyebrow">Manager Hub</div>
@@ -255,7 +257,7 @@
 <div class="modal-overlay" id="inv-item-modal" role="dialog" aria-modal="true" aria-labelledby="inv-item-modal-title">
   <div class="modal">
     <button class="modal-close" aria-label="Close" onclick="closeInvModal()">✕</button>
-    <div class="modal-title" id="inv-item-modal-title">Add Inventory Item</div>
+    <h2 class="modal-title" id="inv-item-modal-title" style="font-weight:normal">Add Inventory Item</h2>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
       <div class="form-group" style="grid-column:1/-1">
         <label class="form-label" for="inv-item-name">Item Name</label>
@@ -519,8 +521,9 @@ function renderInventory(){
       </div>
       <div class="inv-bar"><div class="inv-bar-fill" style="width:${Math.round(pct*100)}%;background:${bc}"></div></div>
       <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.4rem">
+        <label for="inv-${item.id}" class="visually-hidden">Current quantity (${item.unit})</label>
         <input class="inv-qty-input" type="number" id="inv-${item.id}" value="${item.quantity}" min="0" step="0.5"/>
-        <span style="font-size:0.78rem;color:var(--gray)">${item.unit}</span>
+        <span style="font-size:0.78rem;color:var(--gray)" aria-hidden="true">${item.unit}</span>
         <button class="inv-save-btn" onclick="saveInv('${item.id}','${safeN}',${item.quantity})">Save Count</button>
       </div>
       <div style="font-size:0.7rem;color:var(--gray);margin-top:0.35rem">Par: ${item.par_level} ${item.unit}</div>
@@ -535,12 +538,13 @@ function renderInventory(){
       <div style="border-top:1px solid var(--border-dim);padding-top:0.6rem;margin-top:0.5rem">
         <div style="font-size:0.62rem;color:var(--gray);text-transform:uppercase;letter-spacing:0.08em;font-weight:600;margin-bottom:0.45rem">Log Order</div>
         <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.4rem">
+          <label for="inv-ord-qty-${item.id}" class="visually-hidden">Quantity ordered (${item.unit})</label>
           <input type="number" id="inv-ord-qty-${item.id}" placeholder="Qty ordered" min="0" step="0.5"
             style="flex:1;background:#0d0d0d;border:1px solid var(--border-dim);border-radius:6px;color:var(--white);font-family:'DM Sans',sans-serif;font-size:0.78rem;padding:0.35rem 0.5rem;outline:none" />
-          <span style="font-size:0.72rem;color:var(--gray);white-space:nowrap">${item.unit}</span>
+          <span style="font-size:0.72rem;color:var(--gray);white-space:nowrap" aria-hidden="true">${item.unit}</span>
         </div>
         <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.45rem">
-          <label style="font-size:0.7rem;color:var(--gray);white-space:nowrap">Expected arrival:</label>
+          <label for="inv-ord-date-${item.id}" style="font-size:0.7rem;color:var(--gray);white-space:nowrap">Expected arrival:</label>
           <input type="date" id="inv-ord-date-${item.id}"
             style="flex:1;background:#0d0d0d;border:1px solid var(--border-dim);border-radius:6px;color:var(--white);font-family:'DM Sans',sans-serif;font-size:0.72rem;padding:0.3rem 0.45rem;outline:none;color-scheme:dark" />
         </div>
@@ -548,7 +552,7 @@ function renderInventory(){
       </div>
       <div class="inv-actions">
         <button class="btn btn-ghost btn-sm" style="flex:1" onclick="openEditInvModal('${item.id}')">✏️ Edit</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteInvItem('${item.id}','${safeN}')">🗑</button>
+        <button class="btn btn-danger btn-sm" aria-label="Delete ${safeN}" onclick="deleteInvItem('${item.id}','${safeN}')">🗑</button>
       </div>
     </div>`;
   }).join('')+'</div>';
@@ -576,6 +580,16 @@ async function logInvOrder(id,name,currentQty){
   loadInventory();
 }
 let _invModalOpener=null;
+function trapInvModalFocus(e){
+  if(e.key==='Escape'){closeInvModal();return;}
+  if(e.key!=='Tab')return;
+  const modal=document.getElementById('inv-item-modal');
+  const focusable=Array.from(modal.querySelectorAll('button:not([disabled]),input,select,textarea,[tabindex]:not([tabindex="-1"])'));
+  if(!focusable.length)return;
+  const first=focusable[0],last=focusable[focusable.length-1];
+  if(e.shiftKey){if(document.activeElement===first){e.preventDefault();last.focus();}}
+  else{if(document.activeElement===last){e.preventDefault();first.focus();}}
+}
 function openAddInvModal(){
   _invModalOpener=document.activeElement;
   editingInvItemId=null;
@@ -590,6 +604,7 @@ function openAddInvModal(){
   document.getElementById('inv-item-expected-arrival').value='';
   document.getElementById('inv-item-modal-msg').style.display='none';
   document.getElementById('inv-item-modal').classList.add('open');
+  document.getElementById('inv-item-modal').addEventListener('keydown',trapInvModalFocus);
   setTimeout(()=>document.getElementById('inv-item-name').focus(),50);
 }
 function openEditInvModal(id){
@@ -608,10 +623,13 @@ function openEditInvModal(id){
   document.getElementById('inv-item-expected-arrival').value=item.expected_arrival||'';
   document.getElementById('inv-item-modal-msg').style.display='none';
   document.getElementById('inv-item-modal').classList.add('open');
+  document.getElementById('inv-item-modal').addEventListener('keydown',trapInvModalFocus);
   setTimeout(()=>document.getElementById('inv-item-name').focus(),50);
 }
 function closeInvModal(){
-  document.getElementById('inv-item-modal').classList.remove('open');
+  const modal=document.getElementById('inv-item-modal');
+  modal.classList.remove('open');
+  modal.removeEventListener('keydown',trapInvModalFocus);
   if(_invModalOpener){_invModalOpener.focus();_invModalOpener=null;}
 }
 async function saveInvModal(){
@@ -670,9 +688,10 @@ async function loadScores(offset){
         <div style="margin-left:auto;font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:var(--red-bright)" id="total-${student.id}">${totalScored}/${totalPossible}</div>
       </div>
       ${rubric.map(r=>`<div class="rubric-row">
-        <span class="rubric-label">${r.label}</span>
+        <span class="rubric-label" id="rubric-lbl-${student.id}-${r.id}">${r.label}</span>
         <span class="rubric-desc">${r.description||''}</span>
-        <input class="score-input" type="number" min="0" max="${r.max_points}" id="score-${student.id}-${r.id}" value="${scoreMap[`${student.id}_${r.id}`]?.score||''}" placeholder="—" oninput="updateTotal('${student.id}',${totalPossible})"/>
+        <label for="score-${student.id}-${r.id}" class="visually-hidden">Score for ${r.label} (max ${r.max_points})</label>
+        <input class="score-input" type="number" min="0" max="${r.max_points}" id="score-${student.id}-${r.id}" value="${scoreMap[`${student.id}_${r.id}`]?.score||''}" placeholder="—" oninput="updateTotal('${student.id}',${totalPossible})" aria-labelledby="rubric-lbl-${student.id}-${r.id}"/>
         <span style="font-size:0.72rem;color:var(--gray)">/ ${r.max_points}</span>
       </div>`).join('')}
       <textarea class="score-comment" id="comment-${student.id}" placeholder="Optional feedback...">${comment}</textarea>
