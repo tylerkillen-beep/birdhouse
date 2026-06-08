@@ -147,13 +147,13 @@
 <a class="skip-link" href="#main-content">Skip to main content</a>
 <div class="mobile-topbar">
   <a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a>
-  <button class="hamburger" id="hamburger-btn" onclick="toggleNav()" aria-label="Menu" aria-expanded="false">
+  <button class="hamburger" id="hamburger-btn" onclick="toggleNav()" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="team-sidebar">
     <span></span><span></span><span></span>
   </button>
 </div>
 <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleNav()" aria-hidden="true"></div>
 <div class="layout">
-  <aside class="sidebar" aria-label="Team hub navigation">
+  <aside class="sidebar" id="team-sidebar" aria-label="Team hub navigation">
     <div class="sidebar-logo"><a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a></div>
     <div class="user-card">
       <div class="user-name" id="user-display-name">Loading...</div>
@@ -178,7 +178,7 @@
       <div class="refresh-row">
         <span class="last-updated" id="last-updated-label">—</span>
         <button class="refresh-btn" id="mute-btn" onclick="toggleAudio()" title="Toggle audio alerts" aria-label="Toggle audio alerts">🔔 Audio On</button>
-        <button class="refresh-btn" id="refresh-btn" onclick="loadOrders(true)">↻ Refresh</button>
+        <button class="refresh-btn" id="refresh-btn" onclick="loadOrders(true)" aria-label="Refresh orders">↻ Refresh</button>
       </div>
     </div>
 

@@ -148,7 +148,7 @@
 <a class="skip-link" href="#main-content">Skip to main content</a>
 <div class="mobile-topbar">
   <a class="mobile-topbar-brand" href="../index.html">🏠 BIRDHOUSE</a>
-  <button class="hamburger" id="hamburger-btn" onclick="toggleNav()" aria-label="Menu" aria-expanded="false">
+  <button class="hamburger" id="hamburger-btn" onclick="toggleNav()" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="manager-sidebar">
     <span></span><span></span><span></span>
   </button>
 </div>
@@ -174,11 +174,11 @@
 </div>
 
 <div id="app" style="display:none;width:100%;flex-direction:row">
-  <nav class="sidebar" aria-label="Manager navigation">
+  <nav class="sidebar" id="manager-sidebar" aria-label="Manager navigation">
     <div class="logo"><a href="../index.html" style="text-decoration:none"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:0.08em;color:var(--red)">🏠 BIRDHOUSE</div></a></div>
     <div class="role-badge">Manager</div>
     <div class="nav-section">Overview</div>
-    <button class="nav-item active" onclick="showSection('overview',this)">📊 Dashboard</button>
+    <button class="nav-item active" onclick="showSection('overview',this)" aria-current="page">📊 Dashboard</button>
     <div class="nav-section">Operations</div>
     <button class="nav-item" onclick="showSection('schedule',this)">📅 Schedule</button>
     <button class="nav-item" onclick="showSection('orders',this)">🧾 Active Orders</button>
@@ -372,8 +372,8 @@ async function doSignOut(){await sb.auth.signOut();window.location.reload();}
 function showSection(name,el){
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.getElementById('section-'+name).classList.add('active');
-  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  if(el)el.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>{n.classList.remove('active');n.removeAttribute('aria-current');});
+  if(el){el.classList.add('active');el.setAttribute('aria-current','page');}
   if(name==='schedule')loadSchedule();
   if(name==='orders')loadOrders();
   if(name==='inventory')loadInventory();
@@ -694,9 +694,10 @@ async function loadScores(offset){
         <input class="score-input" type="number" min="0" max="${r.max_points}" id="score-${student.id}-${r.id}" value="${scoreMap[`${student.id}_${r.id}`]?.score||''}" placeholder="—" oninput="updateTotal('${student.id}',${totalPossible})" aria-labelledby="rubric-lbl-${student.id}-${r.id}"/>
         <span style="font-size:0.72rem;color:var(--gray)">/ ${r.max_points}</span>
       </div>`).join('')}
+      <label for="comment-${student.id}" class="visually-hidden">Feedback for ${student.first_name} ${student.last_name}</label>
       <textarea class="score-comment" id="comment-${student.id}" placeholder="Optional feedback...">${comment}</textarea>
       <div style="display:flex;align-items:center;gap:0.75rem">
-        <button class="score-save-btn" onclick="saveScores('${student.id}','${ws}')">Save Score</button>
+        <button class="score-save-btn" onclick="saveScores('${student.id}','${ws}')" aria-label="Save score for ${student.first_name} ${student.last_name}">Save Score</button>
         <span id="saved-${student.id}" style="display:none;font-size:0.72rem;color:#4caf50">✓ Saved</span>
       </div>
     </div>`;

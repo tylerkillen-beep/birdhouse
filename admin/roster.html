@@ -142,7 +142,7 @@
 <a class="skip-link" href="#main-content">Skip to main content</a>
 <div class="auth-gate">Checking access…</div>
 <div class="layout">
-  <aside class="sidebar" aria-label="Admin navigation">
+  <aside class="sidebar" id="admin-sidebar" aria-label="Admin navigation">
     <div style="margin-bottom:0.5rem"><a href="../index.html"><img src="../logo.png" alt="The Birdhouse" style="height:40px;filter:drop-shadow(0 0 10px rgba(204,0,0,0.6))" /></a></div>
     <div class="admin-badge"><span aria-hidden="true">⚙</span> Super Admin</div>
     <nav aria-label="Admin">
@@ -362,7 +362,7 @@
     const preview = `<div style="font-size:0.75rem;color:var(--gray);margin-top:0.75rem;margin-bottom:0.4rem">${parsedCSV.length} student${parsedCSV.length!==1?'s':''} ready to import</div>
     <div class="preview-wrap">
       <table class="preview-table">
-        <thead><tr><th>Name</th><th>Email</th><th>Team</th></tr></thead>
+        <thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Team</th></tr></thead>
         <tbody>${parsedCSV.slice(0,10).map(r=>`<tr><td>${r.first_name} ${r.last_name}</td><td style="color:var(--gray)">${r.email}</td><td><span style="background:rgba(204,0,0,0.1);color:var(--red-bright);padding:0.1rem 0.5rem;border-radius:4px;font-size:0.75rem">Team ${r.team||'?'}</span></td></tr>`).join('')}
         ${parsedCSV.length>10?`<tr><td colspan="3" style="text-align:center;color:var(--gray);padding:0.5rem">...and ${parsedCSV.length-10} more</td></tr>`:''}</tbody>
       </table>

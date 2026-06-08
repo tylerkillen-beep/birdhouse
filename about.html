@@ -88,9 +88,9 @@
 
       <p class="team-eyebrow">The People Behind Your Cup</p>
       <h2 class="team-title">Meet the Team</h2>
-      <div class="team-grid" id="team-grid" aria-live="polite" aria-label="Team members">
-        <div class="team-empty">Loading team...</div>
-      </div>
+      <ul class="team-grid" id="team-grid" aria-live="polite" aria-label="Team members" style="list-style:none;padding:0;margin:0">
+        <li class="team-empty">Loading team...</li>
+      </ul>
     </div>
   </section>
   </main>
@@ -109,7 +109,7 @@
         .order('last_name');
 
       if (error || !data || !data.length) {
-        grid.innerHTML = '<div class="team-empty">Our team bios are coming soon — check back later!</div>';
+        grid.innerHTML = '<li class="team-empty">Our team bios are coming soon — check back later!</li>';
         return;
       }
 
@@ -124,11 +124,11 @@
           ? `<img class="team-card-avatar" src="${escHtml(s.bio_photo_url)}" alt="${name} profile photo" loading="lazy" />`
           : `<div class="team-card-initials" aria-hidden="true">${initials}</div>`;
         return `
-          <div class="team-card">
+          <li class="team-card">
             ${avatar}
             <h3 class="team-card-name">${name}</h3>
             <p class="team-card-bio">${escHtml(s.bio)}</p>
-          </div>`;
+          </li>`;
       }).join('');
     })();
   </script>

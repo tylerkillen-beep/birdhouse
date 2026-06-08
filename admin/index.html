@@ -383,7 +383,7 @@
 
 <div class="mobile-topbar">
   <a class="mobile-topbar-brand" href="../index.html">🏠 BIRDHOUSE</a>
-  <button class="hamburger" id="hamburger-btn" onclick="toggleNav()" aria-label="Menu" aria-expanded="false">
+  <button class="hamburger" id="hamburger-btn" onclick="toggleNav()" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="sidebar">
     <span></span><span></span><span></span>
   </button>
 </div>
@@ -396,7 +396,7 @@
       <a href="../index.html" style="color:inherit;text-decoration:none">The Birdhouse</a>
       <span>Admin Panel</span>
     </div>
-    <button class="sidebar-toggle-btn" id="sidebar-toggle-btn" onclick="toggleSidebar()" aria-label="Toggle navigation">
+    <button class="sidebar-toggle-btn" id="sidebar-toggle-btn" onclick="toggleSidebar()" aria-label="Toggle navigation" aria-expanded="true" aria-controls="sidebar">
       <svg class="toggle-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
     </button>
   </div>
@@ -539,7 +539,7 @@
     <div class="section-header"><div class="section-title">Recent Orders</div></div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Date/Time</th><th>Customer</th><th>Items</th><th>Total</th><th>Status</th></tr></thead>
+        <thead><tr><th scope="col">Date/Time</th><th scope="col">Customer</th><th scope="col">Items</th><th scope="col">Total</th><th scope="col">Status</th></tr></thead>
         <tbody id="dash-recent-orders"><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
       </table>
     </div>
@@ -549,15 +549,15 @@
   <div class="section-panel" id="section-orders">
     <div class="page-header"><h1>Orders</h1><p>View and manage all orders</p></div>
     <div class="filter-bar">
-      <input class="filter-input" id="orders-search" placeholder="Search customer, item…" oninput="filterOrders()" style="flex:1;min-width:200px" />
-      <select class="filter-select" id="orders-status-filter" onchange="filterOrders()">
+      <input class="filter-input" id="orders-search" placeholder="Search customer, item…" oninput="filterOrders()" style="flex:1;min-width:200px" aria-label="Search orders by customer or item" />
+      <select class="filter-select" id="orders-status-filter" onchange="filterOrders()" aria-label="Filter orders by status">
         <option value="">All Statuses</option>
         <option value="pending">Pending</option>
         <option value="in_progress">In Progress</option>
         <option value="ready">Ready</option>
         <option value="delivered">Delivered</option>
       </select>
-      <select class="filter-select" id="orders-day-filter" onchange="filterOrders()">
+      <select class="filter-select" id="orders-day-filter" onchange="filterOrders()" aria-label="Filter orders by day">
         <option value="">All Days</option>
         <option value="Monday">Monday</option>
         <option value="Tuesday">Tuesday</option>
@@ -568,7 +568,7 @@
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Date</th><th>Customer</th><th>Items</th><th>Delivery / Pickup</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
+        <thead><tr><th scope="col">Date</th><th scope="col">Customer</th><th scope="col">Items</th><th scope="col">Delivery / Pickup</th><th scope="col">Total</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
         <tbody id="orders-tbody"><tr class="loading-row"><td colspan="7">Loading…</td></tr></tbody>
       </table>
     </div>
@@ -635,7 +635,7 @@
     </div>
     <div class="table-wrap" style="margin-bottom:2rem">
       <table>
-        <thead><tr><th>Name</th><th>Email</th><th>Joined</th><th>Actions</th></tr></thead>
+        <thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Joined</th><th scope="col">Actions</th></tr></thead>
         <tbody id="pending-tbody"><tr class="loading-row"><td colspan="4">Loading…</td></tr></tbody>
       </table>
     </div>
@@ -663,7 +663,7 @@
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Order</th><th>Category</th><th>Description</th><th>Max Points</th><th>Active</th><th>Actions</th></tr></thead>
+        <thead><tr><th scope="col">Order</th><th scope="col">Category</th><th scope="col">Description</th><th scope="col">Max Points</th><th scope="col">Active</th><th scope="col">Actions</th></tr></thead>
         <tbody id="rubric-tbody"><tr class="loading-row"><td colspan="6">Loading…</td></tr></tbody>
       </table>
     </div>
@@ -789,7 +789,7 @@
             <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);margin-bottom:0.5rem">Team Scores Preview</div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>Team</th><th>Product</th><th>Profit</th><th>Threshold</th><th style="text-align:right">Score (/ 10)</th></tr></thead>
+                <thead><tr><th scope="col">Team</th><th scope="col">Product</th><th scope="col">Profit</th><th scope="col">Threshold</th><th scope="col" style="text-align:right">Score (/ 10)</th></tr></thead>
                 <tbody id="canvas-product-preview-tbody"></tbody>
               </table>
             </div>
@@ -815,15 +815,15 @@
       <div class="stat-card"><div class="stat-label">MRR</div><div class="stat-value accent" id="sub-stat-mrr">—</div></div>
     </div>
     <div class="filter-bar">
-      <input class="filter-input" id="sub-search" placeholder="Search by name or email…" oninput="filterSubscriptions()" style="flex:1;min-width:200px" />
-      <select class="filter-select" id="sub-status-filter" onchange="filterSubscriptions()">
+      <input class="filter-input" id="sub-search" placeholder="Search by name or email…" oninput="filterSubscriptions()" style="flex:1;min-width:200px" aria-label="Search subscriptions by name or email" />
+      <select class="filter-select" id="sub-status-filter" onchange="filterSubscriptions()" aria-label="Filter subscriptions by status">
         <option value="">All Statuses</option>
         <option value="active">Active</option>
         <option value="paused">Paused</option>
         <option value="cancelled">Cancelled</option>
         <option value="past_due">Past Due</option>
       </select>
-      <select class="filter-select" id="sub-plan-filter" onchange="filterSubscriptions()">
+      <select class="filter-select" id="sub-plan-filter" onchange="filterSubscriptions()" aria-label="Filter subscriptions by plan">
         <option value="">All Plans</option>
       </select>
     </div>
@@ -831,7 +831,7 @@
       <table>
         <thead>
           <tr>
-            <th>Customer</th><th>Plan</th><th>Status</th><th>Next Billing</th><th>Drinks/Wk</th><th>Started</th><th>Actions</th>
+            <th scope="col">Customer</th><th scope="col">Plan</th><th scope="col">Status</th><th scope="col">Next Billing</th><th scope="col">Drinks/Wk</th><th scope="col">Started</th><th scope="col">Actions</th>
           </tr>
         </thead>
         <tbody id="sub-tbody"><tr class="loading-row"><td colspan="7">Loading…</td></tr></tbody>
@@ -844,7 +844,7 @@
     <div class="page-header"><h1>Customers</h1><p>View all customer accounts</p></div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Name</th><th>Email</th><th>Loyalty</th><th>Orders</th><th>Joined</th></tr></thead>
+        <thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Loyalty</th><th scope="col">Orders</th><th scope="col">Joined</th></tr></thead>
         <tbody id="customers-tbody"><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
       </table>
     </div>
@@ -857,8 +857,8 @@
       <p>All drink reviews submitted by customers. Delete any review that is inappropriate.</p>
     </div>
     <div class="filter-bar">
-      <input class="filter-input" id="reviews-search" placeholder="Search by name, drink, or review…" oninput="filterReviews()" style="flex:1;min-width:200px" />
-      <select class="filter-select" id="reviews-rating-filter" onchange="filterReviews()">
+      <input class="filter-input" id="reviews-search" placeholder="Search by name, drink, or review…" oninput="filterReviews()" style="flex:1;min-width:200px" aria-label="Search reviews by name, drink, or text" />
+      <select class="filter-select" id="reviews-rating-filter" onchange="filterReviews()" aria-label="Filter reviews by rating">
         <option value="">All Ratings</option>
         <option value="5">5 Stars</option>
         <option value="4">4 Stars</option>
@@ -875,7 +875,7 @@
     <div class="table-wrap">
       <table>
         <thead>
-          <tr><th>Date</th><th>Reviewer</th><th>Drink</th><th>Rating</th><th>Review</th><th>Actions</th></tr>
+          <tr><th scope="col">Date</th><th scope="col">Reviewer</th><th scope="col">Drink</th><th scope="col">Rating</th><th scope="col">Review</th><th scope="col">Actions</th></tr>
         </thead>
         <tbody id="reviews-tbody"><tr class="loading-row"><td colspan="6">Loading reviews…</td></tr></tbody>
       </table>
@@ -909,7 +909,7 @@
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Date</th><th>Day</th><th>Reason</th><th>Added</th><th>Actions</th></tr></thead>
+        <thead><tr><th scope="col">Date</th><th scope="col">Day</th><th scope="col">Reason</th><th scope="col">Added</th><th scope="col">Actions</th></tr></thead>
         <tbody id="closed-days-tbody"><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
       </table>
     </div>
@@ -930,7 +930,7 @@
       <table>
         <thead>
           <tr>
-            <th>Name</th><th>Price / Mo</th><th>Drinks / Wk</th><th>Cookies / Wk</th><th>Free Modifiers</th><th>Early Access</th><th>Active</th><th>Subscribers</th><th>Actions</th>
+            <th scope="col">Name</th><th scope="col">Price / Mo</th><th scope="col">Drinks / Wk</th><th scope="col">Cookies / Wk</th><th scope="col">Free Modifiers</th><th scope="col">Early Access</th><th scope="col">Active</th><th scope="col">Subscribers</th><th scope="col">Actions</th>
           </tr>
         </thead>
         <tbody id="plans-tbody"><tr class="loading-row"><td colspan="9">Loading…</td></tr></tbody>
@@ -1032,7 +1032,7 @@
     <div class="table-wrap">
       <table>
         <thead>
-          <tr><th>Name</th><th>Category</th><th>Temp</th><th>Price</th><th>Availability</th><th>Actions</th></tr>
+          <tr><th scope="col">Name</th><th scope="col">Category</th><th scope="col">Temp</th><th scope="col">Price</th><th scope="col">Availability</th><th scope="col">Actions</th></tr>
         </thead>
         <tbody id="menu-items-tbody"><tr class="loading-row"><td colspan="6">Loading menu items…</td></tr></tbody>
       </table>
@@ -1045,7 +1045,7 @@
     <div class="table-wrap">
       <table>
         <thead>
-          <tr><th>Submitted</th><th>Student</th><th>Type</th><th>Proposed Item</th><th>Details</th><th>Status</th><th>Actions</th></tr>
+          <tr><th scope="col">Submitted</th><th scope="col">Student</th><th scope="col">Type</th><th scope="col">Proposed Item</th><th scope="col">Details</th><th scope="col">Status</th><th scope="col">Actions</th></tr>
         </thead>
         <tbody id="menu-submissions-tbody"><tr class="loading-row"><td colspan="7">Loading suggestions…</td></tr></tbody>
       </table>
@@ -1148,7 +1148,7 @@
     <div class="section-header"><div class="section-title">Top Items</div></div>
     <div class="table-wrap" style="max-height:420px;overflow-y:auto;">
       <table>
-        <thead style="position:sticky;top:0;z-index:1;"><tr><th>#</th><th>Item</th><th>Units Sold</th><th>Revenue</th><th>Discounts</th><th>Sq. Fees</th></tr></thead>
+        <thead style="position:sticky;top:0;z-index:1;"><tr><th scope="col">#</th><th scope="col">Item</th><th scope="col">Units Sold</th><th scope="col">Revenue</th><th scope="col">Discounts</th><th scope="col">Sq. Fees</th></tr></thead>
         <tbody id="report-items-tbody"><tr class="loading-row"><td colspan="6" style="text-align:center;color:var(--text-muted)">Select a range to load report</td></tr></tbody>
       </table>
     </div>
@@ -1185,16 +1185,16 @@
     <div class="table-wrap">
       <table>
         <thead><tr>
-          <th>Team</th>
-          <th>Product</th>
-          <th>Period</th>
-          <th>Units Sold</th>
-          <th>Revenue</th>
-          <th>Discounts</th>
-          <th>Sq. Fees</th>
-          <th>COGS</th>
-          <th>Profit</th>
-          <th>Margin</th>
+          <th scope="col">Team</th>
+          <th scope="col">Product</th>
+          <th scope="col">Period</th>
+          <th scope="col">Units Sold</th>
+          <th scope="col">Revenue</th>
+          <th scope="col">Discounts</th>
+          <th scope="col">Sq. Fees</th>
+          <th scope="col">COGS</th>
+          <th scope="col">Profit</th>
+          <th scope="col">Margin</th>
         </tr></thead>
         <tbody id="pp-tbody">
           <tr class="loading-row"><td colspan="10" style="text-align:center;color:var(--text-muted)">Select a range to load report</td></tr>
@@ -1295,14 +1295,14 @@
     <div class="table-wrap">
       <table>
         <thead><tr>
-          <th>Date</th>
-          <th>Day</th>
-          <th>Lib %</th>
-          <th>Total Gross</th>
-          <th>Library Gross</th>
-          <th>Sq. Fees</th>
-          <th>COGS</th>
-          <th>Net</th>
+          <th scope="col">Date</th>
+          <th scope="col">Day</th>
+          <th scope="col">Lib %</th>
+          <th scope="col">Total Gross</th>
+          <th scope="col">Library Gross</th>
+          <th scope="col">Sq. Fees</th>
+          <th scope="col">COGS</th>
+          <th scope="col">Net</th>
         </tr></thead>
         <tbody id="lib-tbody">
           <tr class="loading-row"><td colspan="8" style="text-align:center;color:var(--text-muted)">Select a range to load report</td></tr>
@@ -1735,6 +1735,8 @@ function toggleSidebar() {
   const collapsed = sidebar.classList.toggle('collapsed');
   main.style.marginLeft = collapsed ? '60px' : '220px';
   localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
+  const toggleBtn = document.getElementById('sidebar-toggle-btn');
+  if (toggleBtn) toggleBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
 }
 
 function toggleNavGroup(id) {
@@ -1793,6 +1795,7 @@ function initNavA11y() {
   document.querySelectorAll('.nav-item').forEach(el => {
     el.setAttribute('role', 'button');
     el.setAttribute('tabindex', '0');
+    if (el.classList.contains('active')) el.setAttribute('aria-current', 'page');
     el.addEventListener('keydown', e => {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); el.click(); }
     });
@@ -1804,11 +1807,12 @@ function initNavA11y() {
 // ════════════════════════════════════
 function showSection(id) {
   document.querySelectorAll('.section-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => { n.classList.remove('active'); n.removeAttribute('aria-current'); });
   document.getElementById('section-' + id)?.classList.add('active');
   const activeNavItem = document.getElementById('nav-' + id);
   if (activeNavItem) {
     activeNavItem.classList.add('active');
+    activeNavItem.setAttribute('aria-current', 'page');
     const group = activeNavItem.closest('.nav-group');
     if (group && !group.classList.contains('expanded')) {
       const groupId = group.id.replace('navgroup-', '');
@@ -2476,9 +2480,9 @@ async function loadAdminScores(offsetDelta) {
 
   c.innerHTML = `<div class="table-wrap"><table>
     <thead><tr>
-      <th>Student</th>
-      ${(rubric||[]).map(r => `<th style="text-align:center">${r.name}<br/><span style="font-size:0.6rem;color:#333">/${r.max_points}</span></th>`).join('')}
-      <th>Total</th><th>Comment</th><th>Scored By</th>
+      <th scope="col">Student</th>
+      ${(rubric||[]).map(r => `<th scope="col" style="text-align:center">${r.name}<br/><span style="font-size:0.6rem;color:#333">/${r.max_points}</span></th>`).join('')}
+      <th scope="col">Total</th><th scope="col">Comment</th><th scope="col">Scored By</th>
     </tr></thead>
     <tbody>
     ${(students||[]).filter(s => byStudent[s.id]).map(s => {
@@ -2587,11 +2591,11 @@ async function loadAdminPeerEvals(offsetDelta) {
 
   c.innerHTML = `<div class="table-wrap"><table>
     <thead><tr>
-      <th>Student</th>
-      <th style="text-align:center">Avg Score / ${totalPeerMax}</th>
-      <th style="text-align:center">Evaluators</th>
-      <th>Comments (with name)</th>
-      <th>Missing Evals</th>
+      <th scope="col">Student</th>
+      <th scope="col" style="text-align:center">Avg Score / ${totalPeerMax}</th>
+      <th scope="col" style="text-align:center">Evaluators</th>
+      <th scope="col">Comments (with name)</th>
+      <th scope="col">Missing Evals</th>
     </tr></thead>
     <tbody>${rows || '<tr><td colspan="5" style="text-align:center;color:var(--gray);padding:2rem">No data</td></tr>'}</tbody>
   </table></div>`;
