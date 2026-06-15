@@ -952,14 +952,14 @@
 
     <!-- Header with add button -->
     <div class="section-header">
-      <div style="display:flex;gap:0.5rem;flex-wrap:wrap" id="inv-cat-tabs">
-        <button class="inv-cat-btn active" onclick="filterInvCat('all',this)">All</button>
-        <button class="inv-cat-btn" onclick="filterInvCat('cold_drinks',this)">🧊 Cold Drinks</button>
-        <button class="inv-cat-btn" onclick="filterInvCat('hot_drinks',this)">☕ Hot Drinks</button>
-        <button class="inv-cat-btn" onclick="filterInvCat('flavors',this)">🍬 Flavors</button>
-        <button class="inv-cat-btn" onclick="filterInvCat('supplies',this)">📦 Supplies</button>
-        <button class="inv-cat-btn" onclick="filterInvCat('baked_goods',this)">🍪 Baked Goods</button>
-        <button class="inv-cat-btn" onclick="filterInvCat('low',this)" id="inv-low-tab">🔴 Low Stock</button>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap" id="inv-cat-tabs" role="group" aria-label="Filter inventory by category">
+        <button class="inv-cat-btn active" onclick="filterInvCat('all',this)" aria-pressed="true">All</button>
+        <button class="inv-cat-btn" onclick="filterInvCat('cold_drinks',this)" aria-pressed="false"><span aria-hidden="true">🧊</span> Cold Drinks</button>
+        <button class="inv-cat-btn" onclick="filterInvCat('hot_drinks',this)" aria-pressed="false"><span aria-hidden="true">☕</span> Hot Drinks</button>
+        <button class="inv-cat-btn" onclick="filterInvCat('flavors',this)" aria-pressed="false"><span aria-hidden="true">🍬</span> Flavors</button>
+        <button class="inv-cat-btn" onclick="filterInvCat('supplies',this)" aria-pressed="false"><span aria-hidden="true">📦</span> Supplies</button>
+        <button class="inv-cat-btn" onclick="filterInvCat('baked_goods',this)" aria-pressed="false"><span aria-hidden="true">🍪</span> Baked Goods</button>
+        <button class="inv-cat-btn" onclick="filterInvCat('low',this)" id="inv-low-tab" aria-pressed="false"><span aria-hidden="true">🔴</span> Low Stock</button>
       </div>
       <button class="btn btn-primary btn-sm" onclick="openAddInvItemModal()">+ Add Item</button>
     </div>
@@ -969,8 +969,8 @@
 
     <!-- Change log toggle -->
     <div style="margin-top:2rem">
-      <button onclick="toggleInvLog()" style="background:none;border:none;color:var(--gray-mid);font-size:0.82rem;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:0.4rem">
-        <span id="inv-log-toggle-icon">▶</span> View Change Log
+      <button onclick="toggleInvLog()" style="background:none;border:none;color:var(--gray-mid);font-size:0.82rem;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:0.4rem" aria-expanded="false" aria-controls="inv-log-panel">
+        <span id="inv-log-toggle-icon" aria-hidden="true">▶</span> View Change Log
       </button>
       <div id="inv-log-panel" style="display:none;margin-top:1rem;background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden">
         <div style="padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim);font-size:0.68rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray)">Recent Changes</div>
@@ -993,10 +993,10 @@
       <div id="upload-status" style="margin-top:0.75rem;font-size:0.8rem;color:var(--accent)"></div>
     </label>
     <div class="section-header">
-      <div style="display:flex;gap:0.4rem;flex-wrap:wrap" id="po-filter-btns">
-        <button class="inv-cat-btn active" onclick="filterPO('all',this)">All</button>
-        <button class="inv-cat-btn" onclick="filterPO('pending',this)">Pending</button>
-        <button class="inv-cat-btn" onclick="filterPO('received',this)">Received</button>
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap" id="po-filter-btns" role="group" aria-label="Filter purchases by status">
+        <button class="inv-cat-btn active" onclick="filterPO('all',this)" aria-pressed="true">All</button>
+        <button class="inv-cat-btn" onclick="filterPO('pending',this)" aria-pressed="false">Pending</button>
+        <button class="inv-cat-btn" onclick="filterPO('received',this)" aria-pressed="false">Received</button>
       </div>
     </div>
     <div id="purchases-content"></div>
@@ -3929,8 +3929,9 @@ async function loadInventory() {
 
 function filterInvCat(cat, btn) {
   currentInvFilter = cat;
-  document.querySelectorAll('.inv-cat-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('#inv-cat-tabs .inv-cat-btn').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); });
   btn.classList.add('active');
+  btn.setAttribute('aria-pressed', 'true');
   renderInvGrid();
 }
 
@@ -4095,6 +4096,7 @@ async function toggleInvLog() {
   invLogVisible = !invLogVisible;
   document.getElementById('inv-log-panel').style.display = invLogVisible ? 'block' : 'none';
   document.getElementById('inv-log-toggle-icon').textContent = invLogVisible ? '▼' : '▶';
+  document.querySelector('[aria-controls="inv-log-panel"]')?.setAttribute('aria-expanded', invLogVisible ? 'true' : 'false');
   if (invLogVisible) loadInvLog();
 }
 
@@ -5142,8 +5144,9 @@ async function loadPurchases() {
 
 function filterPO(f, btn) {
   poFilter = f;
-  document.querySelectorAll('#po-filter-btns .inv-cat-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('#po-filter-btns .inv-cat-btn').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); });
   btn.classList.add('active');
+  btn.setAttribute('aria-pressed', 'true');
   renderPurchaseOrders();
 }
 

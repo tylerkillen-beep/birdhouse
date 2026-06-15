@@ -282,12 +282,12 @@
     <div id="section-orders" style="display:none">
       <div class="page-eyebrow">Team Hub</div>
       <h1 class="page-title">Active Orders</h1>
-      <div class="order-filter-row">
-        <button class="order-filter active" onclick="filterOrders('active',this)">🔴 Active</button>
-        <button class="order-filter" onclick="filterOrders('paid',this)">💳 Paid</button>
-        <button class="order-filter" onclick="filterOrders('pending',this)">⏳ Pending Payment</button>
-        <button class="order-filter" onclick="filterOrders('delivered',this)">✅ Delivered</button>
-        <button class="order-filter" onclick="filterOrders('all',this)">All</button>
+      <div class="order-filter-row" role="group" aria-label="Filter orders">
+        <button class="order-filter active" onclick="filterOrders('active',this)" aria-pressed="true"><span aria-hidden="true">🔴</span> Active</button>
+        <button class="order-filter" onclick="filterOrders('paid',this)" aria-pressed="false"><span aria-hidden="true">💳</span> Paid</button>
+        <button class="order-filter" onclick="filterOrders('pending',this)" aria-pressed="false"><span aria-hidden="true">⏳</span> Pending Payment</button>
+        <button class="order-filter" onclick="filterOrders('delivered',this)" aria-pressed="false"><span aria-hidden="true">✅</span> Delivered</button>
+        <button class="order-filter" onclick="filterOrders('all',this)" aria-pressed="false">All</button>
       </div>
       <div id="orders-container"><div style="color:var(--gray);text-align:center;padding:3rem">Loading orders...</div></div>
     </div>
@@ -351,14 +351,14 @@
       </div>
 
       <!-- Category filter tabs -->
-      <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:1.25rem" id="inv-category-tabs">
-        <button class="inv-cat-btn active" onclick="filterInventory('all',this)">All</button>
-        <button class="inv-cat-btn" onclick="filterInventory('cold_drinks',this)">🧊 Cold Drinks</button>
-        <button class="inv-cat-btn" onclick="filterInventory('hot_drinks',this)">☕ Hot Drinks</button>
-        <button class="inv-cat-btn" onclick="filterInventory('flavors',this)">🍬 Flavors</button>
-        <button class="inv-cat-btn" onclick="filterInventory('supplies',this)">📦 Supplies</button>
-        <button class="inv-cat-btn" onclick="filterInventory('baked_goods',this)">🍪 Baked Goods</button>
-        <button class="inv-cat-btn" onclick="filterInventory('low',this)" id="low-tab">🔴 Low Stock</button>
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:1.25rem" id="inv-category-tabs" role="group" aria-label="Filter inventory by category">
+        <button class="inv-cat-btn active" onclick="filterInventory('all',this)" aria-pressed="true">All</button>
+        <button class="inv-cat-btn" onclick="filterInventory('cold_drinks',this)" aria-pressed="false"><span aria-hidden="true">🧊</span> Cold Drinks</button>
+        <button class="inv-cat-btn" onclick="filterInventory('hot_drinks',this)" aria-pressed="false"><span aria-hidden="true">☕</span> Hot Drinks</button>
+        <button class="inv-cat-btn" onclick="filterInventory('flavors',this)" aria-pressed="false"><span aria-hidden="true">🍬</span> Flavors</button>
+        <button class="inv-cat-btn" onclick="filterInventory('supplies',this)" aria-pressed="false"><span aria-hidden="true">📦</span> Supplies</button>
+        <button class="inv-cat-btn" onclick="filterInventory('baked_goods',this)" aria-pressed="false"><span aria-hidden="true">🍪</span> Baked Goods</button>
+        <button class="inv-cat-btn" onclick="filterInventory('low',this)" id="low-tab" aria-pressed="false"><span aria-hidden="true">🔴</span> Low Stock</button>
       </div>
 
       <!-- Inventory grid -->
@@ -366,8 +366,8 @@
 
       <!-- Change log toggle -->
       <div style="margin-top:2rem">
-        <button onclick="toggleLog()" style="background:none;border:none;color:var(--gray);font-size:0.82rem;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:0.4rem">
-          <span id="log-toggle-icon">▶</span> View Change Log
+        <button onclick="toggleLog()" style="background:none;border:none;color:var(--gray);font-size:0.82rem;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:0.4rem" aria-expanded="false" aria-controls="inventory-log">
+          <span id="log-toggle-icon" aria-hidden="true">▶</span> View Change Log
         </button>
         <div id="inventory-log" style="display:none;margin-top:1rem;background:var(--card);border:1px solid var(--border-dim);border-radius:12px;overflow:hidden">
           <div style="padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim);font-size:0.68rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray)">Recent Changes</div>
@@ -383,10 +383,10 @@
 
       <!-- Date range selector -->
       <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:1.5rem;align-items:center">
-        <button class="inv-cat-btn active" id="srng-today" onclick="setStudentReportRange('today',this)">Today</button>
-        <button class="inv-cat-btn" id="srng-week" onclick="setStudentReportRange('week',this)">This Week</button>
-        <button class="inv-cat-btn" id="srng-month" onclick="setStudentReportRange('month',this)">This Month</button>
-        <button class="inv-cat-btn" id="srng-custom" onclick="setStudentReportRange('custom',this)">Custom</button>
+        <button class="inv-cat-btn active" id="srng-today" onclick="setStudentReportRange('today',this)" aria-pressed="true">Today</button>
+        <button class="inv-cat-btn" id="srng-week" onclick="setStudentReportRange('week',this)" aria-pressed="false">This Week</button>
+        <button class="inv-cat-btn" id="srng-month" onclick="setStudentReportRange('month',this)" aria-pressed="false">This Month</button>
+        <button class="inv-cat-btn" id="srng-custom" onclick="setStudentReportRange('custom',this)" aria-pressed="false">Custom</button>
         <div id="srng-custom-inputs" style="display:none;gap:0.4rem;align-items:center;flex-wrap:wrap">
           <input type="text" id="srng-date-range" placeholder="Select date range…" readonly style="background:var(--card);border:1px solid var(--border-dim);color:var(--white);border-radius:7px;padding:0.35rem 0.6rem;font-size:0.82rem;cursor:pointer;min-width:210px" />
           <button class="inv-cat-btn active" onclick="runStudentSalesReport()">Run</button>
@@ -429,14 +429,14 @@
       <p style="color:var(--gray);font-size:0.88rem;margin-bottom:1.5rem">Toggle items on or off for today's service. Changes are live immediately.</p>
 
       <!-- Tabs -->
-      <div style="display:flex;gap:0.5rem;margin-bottom:1.75rem;border-bottom:1px solid var(--border-dim);padding-bottom:0">
-        <button class="menu-tab active" id="tab-availability" onclick="switchMenuTab('availability')">☕ Availability</button>
-        <button class="menu-tab" id="tab-suggest" onclick="switchMenuTab('suggest')">✏️ Suggest Changes</button>
-        <button class="menu-tab" id="tab-my-submissions" onclick="switchMenuTab('my-submissions')">📋 My Submissions <span id="submission-count" style="display:none;background:var(--red);color:white;font-size:0.6rem;padding:0.1rem 0.4rem;border-radius:10px;margin-left:0.3rem"></span></button>
+      <div style="display:flex;gap:0.5rem;margin-bottom:1.75rem;border-bottom:1px solid var(--border-dim);padding-bottom:0" role="tablist" aria-label="Menu sections">
+        <button class="menu-tab active" id="tab-availability" role="tab" aria-selected="true" aria-controls="menu-tab-availability" onclick="switchMenuTab('availability')"><span aria-hidden="true">☕</span> Availability</button>
+        <button class="menu-tab" id="tab-suggest" role="tab" aria-selected="false" aria-controls="menu-tab-suggest" onclick="switchMenuTab('suggest')"><span aria-hidden="true">✏️</span> Suggest Changes</button>
+        <button class="menu-tab" id="tab-my-submissions" role="tab" aria-selected="false" aria-controls="menu-tab-my-submissions" onclick="switchMenuTab('my-submissions')"><span aria-hidden="true">📋</span> My Submissions <span id="submission-count" style="display:none;background:var(--red);color:white;font-size:0.6rem;padding:0.1rem 0.4rem;border-radius:10px;margin-left:0.3rem"></span></button>
       </div>
 
       <!-- Tab: Availability -->
-      <div id="menu-tab-availability">
+      <div id="menu-tab-availability" role="tabpanel" aria-labelledby="tab-availability" tabindex="0">
         <div id="menu-hot-section" style="margin-bottom:2rem">
           <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.85rem">
             <span style="font-size:1.2rem">☕</span>
@@ -473,7 +473,7 @@
       </div>
 
       <!-- Tab: Suggest Changes -->
-      <div id="menu-tab-suggest" style="display:none">
+      <div id="menu-tab-suggest" role="tabpanel" aria-labelledby="tab-suggest" tabindex="0" style="display:none">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;align-items:start">
           <div style="background:var(--card);border:1px solid var(--border-dim);border-radius:14px;padding:1.75rem">
             <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:0.05em;margin-bottom:1.25rem" id="suggest-form-title">Suggest a New Item</div>
@@ -529,7 +529,7 @@
       </div>
 
       <!-- Tab: My Submissions -->
-      <div id="menu-tab-my-submissions" style="display:none">
+      <div id="menu-tab-my-submissions" role="tabpanel" aria-labelledby="tab-my-submissions" tabindex="0" style="display:none">
         <div id="my-submissions-container"><div style="color:var(--gray);text-align:center;padding:3rem">Loading...</div></div>
       </div>
     </div>
@@ -661,8 +661,9 @@
 
   function filterOrders(filter, btn) {
     currentOrderFilter = filter;
-    document.querySelectorAll('.order-filter').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.order-filter').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); });
     btn.classList.add('active');
+    btn.setAttribute('aria-pressed', 'true');
     renderOrders(filter);
   }
 
@@ -887,8 +888,9 @@
 
   function filterInventory(cat, btn) {
     currentInvFilter = cat;
-    document.querySelectorAll('.inv-cat-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('#inv-category-tabs .inv-cat-btn').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); });
     btn.classList.add('active');
+    btn.setAttribute('aria-pressed', 'true');
     renderInventoryGrid();
   }
 
@@ -1037,6 +1039,7 @@
     logVisible=!logVisible;
     document.getElementById('inventory-log').style.display=logVisible?'block':'none';
     document.getElementById('log-toggle-icon').textContent=logVisible?'▼':'▶';
+    document.querySelector('[aria-controls="inventory-log"]')?.setAttribute('aria-expanded', logVisible?'true':'false');
     if(logVisible) loadLog();
   }
 
@@ -1077,8 +1080,9 @@
 
   function setStudentReportRange(range, btn) {
     srptRange = range;
-    document.querySelectorAll('[id^="srng-"]:not(#srng-custom-inputs):not(#srng-start):not(#srng-end):not(#srng-label)').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('[id^="srng-"]:not(#srng-custom-inputs):not(#srng-start):not(#srng-end):not(#srng-label)').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); });
     btn.classList.add('active');
+    btn.setAttribute('aria-pressed', 'true');
     const ci = document.getElementById('srng-custom-inputs');
     if (range === 'custom') { ci.style.display = 'flex'; return; }
     ci.style.display = 'none';
@@ -1192,8 +1196,14 @@
   // ── Menu tabs ──
   function switchMenuTab(tab) {
     ['availability','suggest','my-submissions'].forEach(t=>{
-      document.getElementById('menu-tab-'+t).style.display = t===tab?'block':'none';
-      document.getElementById('tab-'+t)?.classList.toggle('active', t===tab);
+      const panel = document.getElementById('menu-tab-'+t);
+      const tabBtn = document.getElementById('tab-'+t);
+      const isActive = t === tab;
+      panel.style.display = isActive ? 'block' : 'none';
+      if (tabBtn) {
+        tabBtn.classList.toggle('active', isActive);
+        tabBtn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      }
     });
     if(tab==='my-submissions') loadMySubmissions();
   }
