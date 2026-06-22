@@ -209,7 +209,7 @@
           <button class="filter-pill" data-val="pending" onclick="setStatusFilter('pending', this)" aria-pressed="false"><span aria-hidden="true">⏳</span> Pending</button>
           <button class="filter-pill" data-val="paid" onclick="setStatusFilter('paid', this)" aria-pressed="false"><span aria-hidden="true">💳</span> Paid</button>
           <button class="filter-pill" data-val="delivered" onclick="setStatusFilter('delivered', this)" aria-pressed="false"><span aria-hidden="true">✅</span> Delivered</button>
-          <button class="filter-pill" data-val="cancelled" onclick="setStatusFilter('cancelled', this)" aria-pressed="false">✕ Cancelled</button>
+          <button class="filter-pill" data-val="cancelled" onclick="setStatusFilter('cancelled', this)" aria-pressed="false"><span aria-hidden="true">✕</span> Cancelled</button>
           <button class="filter-pill" data-val="all" onclick="setStatusFilter('all', this)" aria-pressed="false">All</button>
         </div>
       </div>
@@ -621,7 +621,7 @@
     }
 
     container.innerHTML = filtered.map(order => {
-      const statusLabel = { pending: '⏳ Pending', paid: '💳 Paid', delivered: '✅ Delivered', cancelled: '✕ Cancelled' }[order.status] || order.status;
+      const statusLabel = { pending: '⏳ Pending', paid: '💳 Paid', delivered: '✅ Delivered', cancelled: '<span aria-hidden="true">✕</span> Cancelled' }[order.status] || order.status;
       const methodLabel = order.delivery_method === 'pickup' ? '🏠 Pickup' : '🚚 Delivery';
       const methodClass = order.delivery_method === 'pickup' ? 'method-pickup' : 'method-delivery';
       const isMathews = isMathewsOrder(order);

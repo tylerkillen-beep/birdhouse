@@ -239,7 +239,7 @@
       <div class="user-role" id="user-role-badge">Student Staff</div>
     </div>
     <nav aria-label="Team hub">
-      <button class="nav-item active" onclick="showSection('overview',this)"><span aria-hidden="true">📊</span> Overview</button>
+      <button class="nav-item active" onclick="showSection('overview',this)" aria-current="page"><span aria-hidden="true">📊</span> Overview</button>
       <a class="nav-item" href="orders.html" style="justify-content:space-between"><span aria-hidden="true">🧾</span> Order Queue <span id="pending-badge" style="display:none;background:var(--red);color:white;font-size:0.6rem;padding:0.1rem 0.45rem;border-radius:10px"></span></a>
       <button class="nav-item" onclick="showSection('schedule',this)"><span aria-hidden="true">🗓️</span> My Schedule</button>
       <button class="nav-item" onclick="showSection('inventory',this)"><span aria-hidden="true">📦</span> Inventory</button>
@@ -682,7 +682,7 @@
 
     container.innerHTML = filtered.map(order => {
       const badgeClass = `badge-${order.status}`;
-      const statusLabel = {pending:'⏳ Pending Payment', paid:'💳 Paid — Ready to Make', delivered:'✅ Delivered', cancelled:'✕ Cancelled'}[order.status] || order.status;
+      const statusLabel = {pending:'⏳ Pending Payment', paid:'💳 Paid — Ready to Make', delivered:'✅ Delivered', cancelled:'<span aria-hidden="true">✕</span> Cancelled'}[order.status] || order.status;
       const time = new Date(order.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
       const date = new Date(order.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'});
 
@@ -1327,7 +1327,7 @@
     const {data} = await sb.from('menu_submissions').select('*').eq('student_id',user.id).order('created_at',{ascending:false});
     const container = document.getElementById('my-submissions-container');
     if(!data?.length){container.innerHTML='<div style="color:var(--gray);text-align:center;padding:3rem;background:var(--card);border-radius:12px;border:1px solid var(--border-dim)">No submissions yet. Use the Suggest Changes tab to propose a new item or edit.</div>';return;}
-    const statusLabel = {pending:'⏳ Pending Review', approved:'✅ Approved', rejected:'✕ Rejected'};
+    const statusLabel = {pending:'⏳ Pending Review', approved:'✅ Approved', rejected:'<span aria-hidden="true">✕</span> Rejected'};
     const statusColor = {pending:'#ff9800', approved:'#4caf50', rejected:'#666'};
     container.innerHTML = data.map(s=>`
       <div class="submission-card status-${s.status}">
@@ -1457,8 +1457,8 @@
   function showSection(name,el) {
     document.querySelectorAll('[id^="section-"]').forEach(s=>s.style.display='none');
     document.getElementById('section-'+name).style.display='block';
-    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-    if(el)el.classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n=>{n.classList.remove('active');n.removeAttribute('aria-current');});
+    if(el){el.classList.add('active');el.setAttribute('aria-current','page');}
     if(name==='summary')loadPastSummaries();
     if(name==='menu')loadMenuAvailability();
     if(name==='orders')loadOrders();
@@ -2027,7 +2027,8 @@
 </script>
 <!-- Add/Edit Item Modal -->
 <div id="item-modal" role="dialog" aria-modal="true" aria-labelledby="item-modal-title" style="position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:100;display:none;align-items:center;justify-content:center">
-  <div style="background:#111;border:1px solid rgba(204,0,0,0.18);border-radius:16px;padding:2rem;width:420px;max-width:95vw;max-height:90vh;overflow-y:auto">
+  <div style="background:#111;border:1px solid rgba(204,0,0,0.18);border-radius:16px;padding:2rem;width:420px;max-width:95vw;max-height:90vh;overflow-y:auto;position:relative">
+    <button onclick="closeItemModal()" aria-label="Close dialog" style="position:absolute;top:1rem;right:1rem;background:none;border:none;color:#555;font-size:1.2rem;cursor:pointer;line-height:1;padding:0.25rem">✕</button>
     <h2 style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:0.05em;margin-bottom:1.5rem;font-weight:normal" id="item-modal-title">Add Item</h2>
     <div style="margin-bottom:1rem"><label for="item-name" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Item Name</label>
       <input type="text" id="item-name" placeholder="e.g. Vanilla Syrup" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/></div>

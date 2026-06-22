@@ -3617,7 +3617,7 @@ function schedRenderRoleBody(period, role, periodTeams) {
   const assigned = periodTeams.filter(t => schedGetTeamRole(t.id) === role.key);
   let html = assigned.map(t => `
     <div class="sched-team-card" style="background:${t.color}12;border-color:${t.color}25">
-      <button class="sched-remove-btn" onclick="schedUnassign('${t.id}',event)">✕</button>
+      <button class="sched-remove-btn" onclick="schedUnassign('${t.id}',event)" aria-label="Remove ${t.name}">✕</button>
       <div class="sched-team-card-name" style="color:${t.color}">${t.name}</div>
       <div class="sched-team-card-meta">
         ${(t.students||[]).length} students
@@ -5397,7 +5397,7 @@ function addIngredientRow(invId = '', amount = '', unit = '') {
   const row = document.createElement('div');
   row.className = 'ingredient-row';
   const opts = allInventory.map(inv => `<option value="${inv.id}"${inv.id === invId ? ' selected' : ''}>${inv.name} (${inv.unit})</option>`).join('');
-  row.innerHTML = `<select><option value="">— Select ingredient —</option>${opts}</select><input type="number" min="0" step="0.01" placeholder="Amount" value="${amount}"/><input type="text" placeholder="Unit" value="${unit}" style="width:70px"/><button class="rm-btn" onclick="this.parentElement.remove()">✕</button>`;
+  row.innerHTML = `<select><option value="">— Select ingredient —</option>${opts}</select><input type="number" min="0" step="0.01" placeholder="Amount" value="${amount}"/><input type="text" placeholder="Unit" value="${unit}" style="width:70px"/><button class="rm-btn" onclick="this.parentElement.remove()" aria-label="Remove ingredient">✕</button>`;
   el.appendChild(row);
 }
 

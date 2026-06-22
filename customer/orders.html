@@ -176,7 +176,8 @@
 
 <!-- Review Modal -->
 <div class="review-overlay" id="review-overlay" role="dialog" aria-modal="true" aria-labelledby="review-modal-title">
-  <div class="review-modal">
+  <div class="review-modal" style="position:relative">
+    <button onclick="closeReviewModal()" aria-label="Close dialog" style="position:absolute;top:1rem;right:1rem;background:none;border:none;color:#555;font-size:1.2rem;cursor:pointer;line-height:1;padding:0.25rem">✕</button>
     <h2 class="review-modal-title" id="review-modal-title">Leave a Review</h2>
     <div class="review-modal-sub" id="review-modal-sub">How was it?</div>
     <div class="star-selector" id="star-selector" role="group" aria-label="Star rating">
