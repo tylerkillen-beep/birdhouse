@@ -1963,7 +1963,7 @@ function renderOrders(list) {
       <td>$${(getOrderTotalCents(o)/100).toFixed(2)}</td>
       <td>${statusPill(o.status)}</td>
       <td onclick="event.stopPropagation()">
-        <select onchange="updateOrderStatus('${o.id}', this.value)" style="background:#0d0d0d;border:1px solid var(--border);border-radius:6px;padding:0.3rem 0.5rem;color:var(--text);font-size:0.76rem;cursor:pointer">
+        <select onchange="updateOrderStatus('${o.id}', this.value)" aria-label="Change status for order ${o.id}" style="background:#0d0d0d;border:1px solid var(--border);border-radius:6px;padding:0.3rem 0.5rem;color:var(--text);font-size:0.76rem;cursor:pointer">
           <option value="">Change…</option>
           <option value="pending">Pending</option>
           <option value="in_progress">In Progress</option>
@@ -2222,7 +2222,7 @@ function openStaffStudentModal(id) {
   const teamSelect = document.getElementById('staff-student-team');
   roleSelect.innerHTML = renderStaffRoleOptions(student.role);
   teamSelect.innerHTML = renderStaffTeamOptions(student.team_id);
-  document.getElementById('staff-student-modal').classList.add('open');
+  openModal('staff-student-modal');
 }
 
 async function saveStaffStudentEdit() {
@@ -2269,7 +2269,7 @@ function openStaffTeamModal(teamId = null) {
   const msg = document.getElementById('staff-team-msg');
   msg.style.display = 'none';
   msg.textContent = '';
-  document.getElementById('staff-team-modal').classList.add('open');
+  openModal('staff-team-modal');
 }
 
 async function saveStaffTeam() {
@@ -2404,7 +2404,7 @@ function openAddRubricModal() {
   document.getElementById('rubric-max').value = '10';
   document.getElementById('rubric-sort').value = (allRubric.length + 1);
   document.getElementById('rubric-active').checked = true;
-  document.getElementById('rubric-modal').classList.add('open');
+  openModal('rubric-modal');
 }
 
 function openEditRubricModal(id) {
@@ -2417,7 +2417,7 @@ function openEditRubricModal(id) {
   document.getElementById('rubric-max').value = r.max_points;
   document.getElementById('rubric-sort').value = r.sort_order;
   document.getElementById('rubric-active').checked = r.active;
-  document.getElementById('rubric-modal').classList.add('open');
+  openModal('rubric-modal');
 }
 
 async function saveRubricCategory() {
@@ -2699,7 +2699,7 @@ function openSubActionModal(id, status, name) {
     reactivateBtn.onclick = () => updateSubStatus(id, 'active');
     actions.appendChild(reactivateBtn);
   }
-  document.getElementById('sub-action-modal').classList.add('open');
+  openModal('sub-action-modal');
 }
 
 async function updateSubStatus(id, newStatus) {
@@ -2832,7 +2832,7 @@ function openAddPlanModal() {
   document.getElementById('plan-early-access').checked = false;
   document.getElementById('plan-sort').value = allPlans.length + 1;
   document.getElementById('plan-active').checked = true;
-  document.getElementById('plan-modal').classList.add('open');
+  openModal('plan-modal');
 }
 
 function openEditPlanModal(id) {
@@ -2849,7 +2849,7 @@ function openEditPlanModal(id) {
   document.getElementById('plan-cookies').value = String(p.cookies_per_week ?? 0);
   document.getElementById('plan-early-access').checked = !!p.early_access;
   document.getElementById('plan-active').checked = p.active;
-  document.getElementById('plan-modal').classList.add('open');
+  openModal('plan-modal');
 }
 
 async function savePlan() {
@@ -3077,7 +3077,7 @@ function resetMenuItemModal() {
 
 function openAddMenuItemModal() {
   resetMenuItemModal();
-  document.getElementById('menu-item-modal').classList.add('open');
+  openModal('menu-item-modal');
 }
 
 function editMenuItem(id) {
@@ -3097,7 +3097,7 @@ function editMenuItem(id) {
   document.getElementById('menu-item-iced').checked = item.is_iced === true;
   document.getElementById('menu-item-available').checked = item.available !== false;
   loadModifierCheckboxes(item.square_modifier_list_ids || []);
-  document.getElementById('menu-item-modal').classList.add('open');
+  openModal('menu-item-modal');
 }
 
 async function saveMenuItem() {
@@ -3289,7 +3289,7 @@ function openAddModifierSetModal() {
   document.getElementById('mod-set-modal-title').textContent = 'New Modifier Set';
   document.getElementById('mod-set-name').value = '';
   document.getElementById('mod-set-save-btn').textContent = 'Create';
-  document.getElementById('mod-set-modal').classList.add('open');
+  openModal('mod-set-modal');
 }
 
 function openEditModifierSetModal(id) {
@@ -3299,7 +3299,7 @@ function openEditModifierSetModal(id) {
   document.getElementById('mod-set-modal-title').textContent = 'Rename Modifier Set';
   document.getElementById('mod-set-name').value = '';
   document.getElementById('mod-set-save-btn').textContent = 'Save';
-  document.getElementById('mod-set-modal').classList.add('open');
+  openModal('mod-set-modal');
 }
 
 async function saveModifierSet() {
@@ -3342,7 +3342,7 @@ function openAddOptionModal(listId, listName) {
   document.getElementById('mod-option-name').value = '';
   document.getElementById('mod-option-price').value = '0';
   document.getElementById('mod-option-save-btn').textContent = 'Add';
-  document.getElementById('mod-option-modal').classList.add('open');
+  openModal('mod-option-modal');
 }
 
 async function openEditOptionModal(optId, listId) {
@@ -3354,7 +3354,7 @@ async function openEditOptionModal(optId, listId) {
   document.getElementById('mod-option-name').value = opt.name;
   document.getElementById('mod-option-price').value = (opt.price_cents / 100).toFixed(2);
   document.getElementById('mod-option-save-btn').textContent = 'Save';
-  document.getElementById('mod-option-modal').classList.add('open');
+  openModal('mod-option-modal');
 }
 
 async function saveModifierOption() {
@@ -3713,7 +3713,7 @@ async function schedOpenPosModal(teamId, roleKey, e) {
   document.getElementById('sched-pos-modal-title').textContent = `${team.name} — Positions`;
   document.getElementById('sched-pos-modal-sub').textContent = `${SCHED_ROLES.find(r=>r.key===roleKey)?.label} · ${team.period}`;
   document.getElementById('sched-pos-modal-body').innerHTML = schedBuildPosBody();
-  document.getElementById('sched-pos-modal').classList.add('open');
+  openModal('sched-pos-modal');
 }
 
 function schedBuildPosBody() {
@@ -3756,7 +3756,7 @@ async function schedSavePositions() {
   schedShowMsg('✓ Positions saved!', 'success');
 }
 
-function schedClosePosModal() { document.getElementById('sched-pos-modal').classList.remove('open'); }
+function schedClosePosModal() { closeModal('sched-pos-modal'); }
 
 async function schedAutoAssignPositions(teamId, roleKey, monday) {
   const team = schedTeams.find(t => t.id === teamId);
@@ -3875,10 +3875,36 @@ function rolePill(r) {
   const map = { admin:'pill-blue', manager:'pill-yellow', student:'pill-green' };
   return `<span class="pill ${map[r]||'pill-gray'}">${r||'—'}</span>`;
 }
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+let _modalOpener = null;
+function openModal(id) {
+  _modalOpener = document.activeElement;
+  const modal = document.getElementById(id);
+  modal.classList.add('open');
+  requestAnimationFrame(() => {
+    const focusable = modal.querySelectorAll('button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])');
+    if (focusable.length) focusable[0].focus();
+  });
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+  if (_modalOpener) { _modalOpener.focus(); _modalOpener = null; }
+}
 
 document.querySelectorAll('.modal-overlay').forEach(overlay => {
-  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(overlay.id); });
+});
+
+document.addEventListener('keydown', e => {
+  const openOverlay = document.querySelector('.modal-overlay.open');
+  if (!openOverlay) return;
+  if (e.key === 'Escape') { closeModal(openOverlay.id); return; }
+  if (e.key === 'Tab') {
+    const focusable = [...openOverlay.querySelectorAll('button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')];
+    if (!focusable.length) { e.preventDefault(); return; }
+    const first = focusable[0], last = focusable[focusable.length - 1];
+    if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last.focus(); } }
+    else { if (document.activeElement === last) { e.preventDefault(); first.focus(); } }
+  }
 });
 
 // ════════════════════════════════════
@@ -4043,7 +4069,7 @@ function openAddInvItemModal() {
   document.getElementById('inv-item-last-ordered').value = '';
   document.getElementById('inv-item-expected-arrival').value = '';
   document.getElementById('inv-item-modal-msg').style.display = 'none';
-  document.getElementById('inv-item-modal').classList.add('open');
+  openModal('inv-item-modal');
 }
 
 function openEditInvItemModal(id) {
@@ -4060,7 +4086,7 @@ function openEditInvItemModal(id) {
   document.getElementById('inv-item-last-ordered').value = item.last_ordered_at || '';
   document.getElementById('inv-item-expected-arrival').value = item.expected_arrival || '';
   document.getElementById('inv-item-modal-msg').style.display = 'none';
-  document.getElementById('inv-item-modal').classList.add('open');
+  openModal('inv-item-modal');
 }
 
 async function saveInvItemModal() {
@@ -5223,7 +5249,7 @@ function openReceiptModal(parsed) {
   document.getElementById('po-notes').value = '';
   document.getElementById('receipt-modal-msg').style.display = 'none';
   renderPOItemsForReview(parsed.items || []);
-  document.getElementById('receipt-modal').classList.add('open');
+  openModal('receipt-modal');
 }
 
 function renderPOItemsForReview(items) {
@@ -5291,7 +5317,7 @@ async function savePurchaseOrder() {
       await sb.from('inventory').update({ last_ordered_at: orderDate || today, expected_arrival: expectedArrival }).eq('id', it.inventory_id);
     }
   }
-  document.getElementById('receipt-modal').classList.remove('open');
+  closeModal('receipt-modal');
   document.getElementById('receipt-file-input').value = '';
   loadPurchases();
 }
@@ -5310,7 +5336,7 @@ function openConfirmArrival(poId) {
       <span style="font-size:0.72rem;color:var(--gray-mid)">${item.inventory?.unit || ''}</span>
     </div>`).join('');
   document.getElementById('confirm-arrival-msg').style.display = 'none';
-  document.getElementById('confirm-arrival-modal').classList.add('open');
+  openModal('confirm-arrival-modal');
 }
 
 async function confirmArrival() {
@@ -5332,7 +5358,7 @@ async function confirmArrival() {
     }
   }
   await sb.from('purchase_orders').update({ status: 'received', received_at: new Date().toISOString() }).eq('id', confirmingPoId);
-  document.getElementById('confirm-arrival-modal').classList.remove('open');
+  closeModal('confirm-arrival-modal');
   loadPurchases();
 }
 
@@ -5389,7 +5415,7 @@ function openRecipeModal(id) {
   } else {
     addIngredientRow();
   }
-  document.getElementById('recipe-modal').classList.add('open');
+  openModal('recipe-modal');
 }
 
 function addIngredientRow(invId = '', amount = '', unit = '') {
@@ -5425,7 +5451,7 @@ async function saveRecipe() {
   if (ingredients.length) {
     await sb.from('recipe_ingredients').insert(ingredients.map(r => ({ ...r, recipe_id: recipeId })));
   }
-  document.getElementById('recipe-modal').classList.remove('open');
+  closeModal('recipe-modal');
   loadRecipes();
 }
 
@@ -5440,7 +5466,7 @@ async function deleteRecipe(id, name) {
 <!-- Receipt Review Modal -->
 <div class="modal-overlay" id="receipt-modal" role="dialog" aria-modal="true" aria-labelledby="receipt-modal-title">
   <div class="modal" style="max-width:680px">
-    <button class="modal-close" onclick="document.getElementById('receipt-modal').classList.remove('open')" aria-label="Close">✕</button>
+    <button class="modal-close" onclick="closeModal('receipt-modal')" aria-label="Close">✕</button>
     <h2 class="modal-title" id="receipt-modal-title" style="font-weight:normal">Review Parsed Receipt</h2>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 1rem;margin-bottom:1rem">
       <div class="form-group">
@@ -5477,7 +5503,7 @@ async function deleteRecipe(id, name) {
     <div id="po-items-list"></div>
     <div id="receipt-modal-msg" style="display:none;margin-top:0.75rem" class="msg"></div>
     <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="document.getElementById('receipt-modal').classList.remove('open')">Cancel</button>
+      <button class="btn btn-ghost" onclick="closeModal('receipt-modal')">Cancel</button>
       <button class="btn btn-primary" onclick="savePurchaseOrder()">Save Purchase Order</button>
     </div>
   </div>
@@ -5486,13 +5512,13 @@ async function deleteRecipe(id, name) {
 <!-- Confirm Arrival Modal -->
 <div class="modal-overlay" id="confirm-arrival-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-arrival-modal-title">
   <div class="modal">
-    <button class="modal-close" onclick="document.getElementById('confirm-arrival-modal').classList.remove('open')" aria-label="Close">✕</button>
+    <button class="modal-close" onclick="closeModal('confirm-arrival-modal')" aria-label="Close">✕</button>
     <h2 class="modal-title" id="confirm-arrival-modal-title" style="font-weight:normal">Confirm Delivery</h2>
     <p style="font-size:0.84rem;color:var(--gray-mid);margin-bottom:1.25rem">Adjust received quantities if anything was short or missing. Inventory will be updated automatically.</p>
     <div id="confirm-arrival-items"></div>
     <div id="confirm-arrival-msg" style="display:none;margin-top:0.75rem" class="msg"></div>
     <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="document.getElementById('confirm-arrival-modal').classList.remove('open')">Cancel</button>
+      <button class="btn btn-ghost" onclick="closeModal('confirm-arrival-modal')">Cancel</button>
       <button class="btn btn-primary" onclick="confirmArrival()">Mark as Received & Update Inventory</button>
     </div>
   </div>
@@ -5501,7 +5527,7 @@ async function deleteRecipe(id, name) {
 <!-- Recipe Modal -->
 <div class="modal-overlay" id="recipe-modal" role="dialog" aria-modal="true" aria-labelledby="recipe-modal-title">
   <div class="modal" style="max-width:620px">
-    <button class="modal-close" onclick="document.getElementById('recipe-modal').classList.remove('open')" aria-label="Close">✕</button>
+    <button class="modal-close" onclick="closeModal('recipe-modal')" aria-label="Close">✕</button>
     <h2 class="modal-title" id="recipe-modal-title" style="font-weight:normal">Add Recipe</h2>
     <div class="form-group">
       <label class="form-label" for="recipe-name">Menu Item Name <span style="color:var(--gray-mid);text-transform:none;font-weight:400">(must match exactly what appears on the menu)</span></label>
@@ -5516,7 +5542,7 @@ async function deleteRecipe(id, name) {
     <button class="btn btn-ghost btn-sm" style="margin-bottom:1rem" onclick="addIngredientRow()">+ Add Ingredient</button>
     <div id="recipe-modal-msg" style="display:none;margin-top:0.5rem" class="msg"></div>
     <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="document.getElementById('recipe-modal').classList.remove('open')">Cancel</button>
+      <button class="btn btn-ghost" onclick="closeModal('recipe-modal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveRecipe()">Save Recipe</button>
     </div>
   </div>

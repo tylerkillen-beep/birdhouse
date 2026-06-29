@@ -778,7 +778,7 @@
       <div class="menu-card-desc">${item.description || ''}</div>
       ${ratingHtml}
       <div class="menu-card-price">${price}</div>
-      <button class="add-btn" onclick="openModModal('${item.id}','${temp}')">${btnLabel}</button>
+      <button class="add-btn" onclick="openModModal('${item.id}','${temp}')" aria-label="${hasMods ? 'Customize and add' : 'Add'} ${item.name} to cart">${btnLabel}</button>
     </div>`;
   }
 
