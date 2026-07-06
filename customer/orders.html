@@ -292,14 +292,14 @@
     const container = document.getElementById('orders-container');
     if(!list.length) {
       container.innerHTML = `<div class="empty-state">
-        <div class="empty-icon">☕</div>
+        <div class="empty-icon" aria-hidden="true">☕</div>
         <div class="empty-text">${filter==='all'?'No orders yet — place your first one!':'No '+filter+' orders.'}</div>
         ${filter==='all'?`<a class="btn-primary" href="order.html">Order Now</a>`:''}
       </div>`;
       return;
     }
 
-    const statusLabel = {pending:'⏳ Pending Payment', paid:'💳 Being Prepared', delivered:'✅ Delivered', cancelled:'Cancelled'};
+    const statusLabel = {pending:'<span aria-hidden="true">⏳</span> Pending Payment', paid:'<span aria-hidden="true">💳</span> Being Prepared', delivered:'<span aria-hidden="true">✅</span> Delivered', cancelled:'Cancelled'};
     container.innerHTML = list.map(order=>{
       const date = new Date(order.created_at).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
       const time = new Date(order.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
@@ -313,13 +313,13 @@
           if (isDelivered && i.id) {
             const key = `${i.id}|${order.id}`;
             if (reviewedKeys.has(key)) {
-              reviewBtnHtml = `<span class="badge-reviewed">✓ Reviewed</span>`;
+              reviewBtnHtml = `<span class="badge-reviewed"><span aria-hidden="true">✓</span> Reviewed</span>`;
             } else {
               const safeName = i.name.replace(/'/g, "\\'");
-              reviewBtnHtml = `<button class="btn-review" onclick="openReviewModal('${i.id}','${safeName}','${order.id}')">★ Review</button>`;
+              reviewBtnHtml = `<button class="btn-review" onclick="openReviewModal('${i.id}','${safeName}','${order.id}')"><span aria-hidden="true">★</span> Review</button>`;
             }
           }
-          return `<div style="margin-bottom:0.2rem;display:flex;align-items:center;flex-wrap:wrap;gap:0.25rem">${i.name} ×${i.quantity} &middot; ${i.temp==='iced'?'🧊 Iced':'☕ Hot'} &middot; <span style="color:var(--red-bright)">$${(i.price*i.quantity).toFixed(2)}</span>${reviewBtnHtml}</div>`;
+          return `<div style="margin-bottom:0.2rem;display:flex;align-items:center;flex-wrap:wrap;gap:0.25rem">${i.name} ×${i.quantity} &middot; ${i.temp==='iced'?'<span aria-hidden="true">🧊</span> Iced':'<span aria-hidden="true">☕</span> Hot'} &middot; <span style="color:var(--red-bright)">$${(i.price*i.quantity).toFixed(2)}</span>${reviewBtnHtml}</div>`;
         }).join('');
       } else {
         // Legacy single-drink order

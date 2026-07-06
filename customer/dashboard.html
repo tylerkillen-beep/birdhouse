@@ -460,7 +460,7 @@
       payment_failed: 'badge-failed', cancelled: 'badge-cancelled'
     }[sub.status] || 'badge-active';
     const badgeLabel = {
-      active:'Active ✓', paused:'Paused', payment_failed:'Payment Failed', cancelled:'Cancelled'
+      active:'Active <span aria-hidden="true">✓</span>', paused:'Paused', payment_failed:'Payment Failed', cancelled:'Cancelled'
     }[sub.status] || sub.status;
 
     const slotsHtml = slots.map(s => `
@@ -468,8 +468,8 @@
         <div class="sub-slot-label">Drink ${s.slot_number}</div>
         <div class="sub-slot-drink">${s.menu_items?.name || 'Unknown drink'}</div>
         ${s.drink_modifiers?.length ? `<div class="sub-slot-mods">${s.drink_modifiers.map(m=>m.name).join(', ')}</div>` : ''}
-        <div class="sub-slot-when">📅 ${s.delivery_day} · ${s.delivery_time}</div>
-        <div class="sub-slot-when">📍 ${s.delivery_location}</div>
+        <div class="sub-slot-when"><span aria-hidden="true">📅</span> ${s.delivery_day} · ${s.delivery_time}</div>
+        <div class="sub-slot-when"><span aria-hidden="true">📍</span> ${s.delivery_location}</div>
       </div>`).join('');
 
     el.innerHTML = `<div class="sub-overview-card">
@@ -512,7 +512,7 @@
       payment_failed:'badge-failed', cancelled:'badge-cancelled'
     }[sub.status] || 'badge-active';
     const badgeLabel = {
-      active:'Active ✓', paused:'Paused', payment_failed:'Payment Failed', cancelled:'Cancelled'
+      active:'Active <span aria-hidden="true">✓</span>', paused:'Paused', payment_failed:'Payment Failed', cancelled:'Cancelled'
     }[sub.status];
 
     const slotsHtml = slots.map(s => `
@@ -520,8 +520,8 @@
         <div class="sub-slot-label">Drink ${s.slot_number}</div>
         <div class="sub-slot-drink">${s.menu_items?.name || 'Unknown drink'}</div>
         ${s.drink_modifiers?.length ? `<div class="sub-slot-mods">${s.drink_modifiers.map(m=>m.name).join(', ')}</div>` : ''}
-        <div class="sub-slot-when">📅 ${s.delivery_day} · ${s.delivery_time}</div>
-        <div class="sub-slot-when">📍 ${s.delivery_location}</div>
+        <div class="sub-slot-when"><span aria-hidden="true">📅</span> ${s.delivery_day} · ${s.delivery_time}</div>
+        <div class="sub-slot-when"><span aria-hidden="true">📍</span> ${s.delivery_location}</div>
       </div>`).join('');
 
     // Billing history
@@ -539,7 +539,7 @@
         <div class="sub-slots-grid" style="margin-bottom:1.25rem">${slotsHtml}</div>
 
         <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
-          <a class="btn-primary" id="change-drink-btn" href="subscribe.html">✏️ Change Drink / Plan</a>
+          <a class="btn-primary" id="change-drink-btn" href="subscribe.html"><span aria-hidden="true">✏️</span> Change Drink / Plan</a>
           ${sub.status === 'active'
             ? `<button class="btn-danger" onclick="confirmAction('pause')">Pause Subscription</button>`
             : sub.status === 'paused'
@@ -698,8 +698,8 @@
         </div>
         <div class="order-right">
           ${o.total_amount ? `<div class="order-points">$${Number(o.total_amount).toFixed(2)}</div>` : ''}
-          ${o.credit_used_cents > 0 ? `<div style="font-size:0.75rem;color:var(--gold)">⭐ $${(o.credit_used_cents/100).toFixed(2)} credit used</div>` : ''}
-          <div class="order-status${isSub ? ' sub' : ''}">${isSub ? '📦 Subscription' : '☕ One-off'}</div>
+          ${o.credit_used_cents > 0 ? `<div style="font-size:0.75rem;color:var(--gold)"><span aria-hidden="true">⭐</span> $${(o.credit_used_cents/100).toFixed(2)} credit used</div>` : ''}
+          <div class="order-status${isSub ? ' sub' : ''}">${isSub ? '<span aria-hidden="true">📦</span> Subscription' : '<span aria-hidden="true">☕</span> One-off'}</div>
         </div>
       </div>`;
     };

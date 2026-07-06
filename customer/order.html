@@ -234,6 +234,7 @@
     .review-item-date { font-size:0.7rem; color:var(--gray); }
     .review-item-text { font-size:0.84rem; color:var(--white); line-height:1.5; }
     .reviews-empty { text-align:center; color:var(--gray); padding:2rem; font-size:0.88rem; }
+    .visually-hidden { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
   </style>
 </head>
 <body>
@@ -293,8 +294,8 @@
         <div class="form-group" id="delivery-method-group" style="display:none">
           <label id="order-type-label">Order Type</label>
           <div class="method-toggle" role="group" aria-labelledby="order-type-label">
-            <button class="method-btn active" id="btn-method-delivery" onclick="setDeliveryMethod('delivery')" aria-pressed="true">🚚 Delivery (+$1.00)</button>
-            <button class="method-btn" id="btn-method-pickup" onclick="setDeliveryMethod('pickup')" aria-pressed="false">🏠 Pickup (Free)</button>
+            <button class="method-btn active" id="btn-method-delivery" onclick="setDeliveryMethod('delivery')" aria-pressed="true"><span aria-hidden="true">🚚</span> Delivery (+$1.00)</button>
+            <button class="method-btn" id="btn-method-pickup" onclick="setDeliveryMethod('pickup')" aria-pressed="false"><span aria-hidden="true">🏠</span> Pickup (Free)</button>
           </div>
         </div>
         <div class="form-row">
@@ -315,7 +316,7 @@
               aria-expanded="false" aria-controls="ac-delivery-room" />
             <div class="autocomplete-dropdown" id="ac-delivery-room" role="listbox" aria-label="Delivery location suggestions"></div>
           </div>
-          <div class="pickup-note" id="pickup-location-note" style="display:none">📍 Birdhouse — Library</div>
+          <div class="pickup-note" id="pickup-location-note" style="display:none"><span aria-hidden="true">📍</span> Birdhouse — Library</div>
         </div>
         <div class="form-group">
           <label for="backup-location">Backup Location <span style="color:var(--gray);font-weight:300">(optional)</span></label>
@@ -351,7 +352,7 @@
           </div>
           <div id="card-container"><div class="card-loading">Loading payment form...</div></div>
           <button class="btn-primary btn-full" id="pay-btn" onclick="submitPayment()" disabled>
-            💳 Pay <span id="pay-btn-amount"></span>
+            <span aria-hidden="true">💳</span> Pay <span id="pay-btn-amount"></span>
           </button>
         </div>
       </div>
@@ -363,7 +364,7 @@
     <!-- Success -->
     <div class="step-panel" id="panel-success">
       <div class="success-screen">
-        <span class="success-icon">✅</span>
+        <span class="success-icon" aria-hidden="true">✅</span>
         <div class="success-title">Order Placed!</div>
         <p class="success-sub" id="success-sub-msg">Payment confirmed. Our team will get your order ready and deliver it to your room.</p>
         <div>
@@ -378,7 +379,7 @@
 <!-- Sticky cart bar -->
 <div class="cart-bar hidden" id="cart-bar">
   <div class="cart-summary">
-    🛒 <strong id="cart-bar-count">0</strong> items · <strong id="cart-bar-total">$0.00</strong>
+    <span aria-hidden="true">🛒</span> <strong id="cart-bar-count">0</strong> items · <strong id="cart-bar-total">$0.00</strong>
   </div>
   <button class="btn-primary" style="padding:0.65rem 1.5rem;font-size:0.85rem" onclick="goToStep(2)">
     Review Cart →
@@ -736,7 +737,7 @@
       const sectionItems = bySection[section.key] || [];
       if (!sectionItems.length) return;
       html += `<div class="menu-section-header">
-        <span class="menu-section-icon">${section.icon}</span>
+        <span class="menu-section-icon" aria-hidden="true">${section.icon}</span>
         <span class="menu-section-title">${section.title}</span>
         <span class="menu-section-count">${sectionItems.length} item${sectionItems.length !== 1 ? 's' : ''}</span>
       </div>
@@ -765,7 +766,7 @@
       const avg   = ratingData.sum / ratingData.count;
       const stars = starsHtml(avg);
       const safeName = item.name.replace(/'/g, "\\'");
-      ratingHtml = `<button class="menu-card-rating" onclick="openReviewsModal('${item.id}','${safeName}')" aria-label="See reviews for ${safeName.replace(/"/g,'&quot;')}: ${avg.toFixed(1)} stars, ${ratingData.count} review${ratingData.count !== 1 ? 's' : ''}">${stars} <span class="rating-count" aria-hidden="true">${avg.toFixed(1)} (${ratingData.count})</span></button>`;
+      ratingHtml = `<button class="menu-card-rating" onclick="openReviewsModal('${item.id}','${safeName}')" aria-label="See reviews for ${safeName.replace(/"/g,'&quot;')}: ${avg.toFixed(1)} stars, ${ratingData.count} review${ratingData.count !== 1 ? 's' : ''}"><span aria-hidden="true">${stars}</span> <span class="rating-count" aria-hidden="true">${avg.toFixed(1)} (${ratingData.count})</span></button>`;
     } else {
       ratingHtml = `<div class="menu-card-rating no-reviews" aria-hidden="true">☆☆☆☆☆ <span class="rating-count">No reviews</span></div>`;
     }
@@ -814,14 +815,15 @@
     }
 
     const avg = reviews.reduce((s, r) => s + r.rating, 0) / reviews.length;
-    document.getElementById('reviews-modal-avg').innerHTML = `${starsHtml(avg)} <span style="font-size:0.82rem;color:var(--light-gray)">${avg.toFixed(1)} avg · ${reviews.length} review${reviews.length !== 1 ? 's' : ''}</span>`;
+    document.getElementById('reviews-modal-avg').innerHTML = `<span aria-hidden="true">${starsHtml(avg)}</span> <span style="font-size:0.82rem;color:var(--light-gray)">${avg.toFixed(1)} avg · ${reviews.length} review${reviews.length !== 1 ? 's' : ''}</span>`;
 
     document.getElementById('reviews-list').innerHTML = reviews.map(r => {
       const date = new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       const stars = '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
       return `<div class="review-item">
         <div class="review-item-header">
-          <span class="review-item-stars">${stars}</span>
+          <span class="review-item-stars" aria-hidden="true">${stars}</span>
+          <span class="visually-hidden">${r.rating} out of 5 stars</span>
           <span class="review-item-date">${date}</span>
         </div>
         <div class="review-item-name">${r.reviewer_name || 'Anonymous'}</div>

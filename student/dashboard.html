@@ -271,8 +271,8 @@
       <div class="section">
         <h2 class="section-title">Quick Actions</h2>
         <div style="display:flex;gap:1rem;flex-wrap:wrap">
-          <button class="btn-primary" onclick="showSection('summary',document.querySelector('[onclick*=summary]'))">📝 Submit Summary</button>
-          <button class="btn-secondary" onclick="showSection('inventory',document.querySelector('[onclick*=inventory]'))">📦 Update Inventory</button>
+          <button class="btn-primary" onclick="showSection('summary',document.querySelector('[onclick*=summary]'))"><span aria-hidden="true">📝</span> Submit Summary</button>
+          <button class="btn-secondary" onclick="showSection('inventory',document.querySelector('[onclick*=inventory]'))"><span aria-hidden="true">📦</span> Update Inventory</button>
         </div>
       </div>
     </div>
@@ -302,7 +302,7 @@
       <!-- Role card -->
       <div id="role-card" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.5rem;margin-bottom:1.75rem">
         <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap">
-          <div style="font-size:3rem" id="role-icon">🏠</div>
+          <div style="font-size:3rem" id="role-icon" aria-hidden="true">🏠</div>
           <div style="flex:1">
             <div style="font-size:0.62rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--red);margin-bottom:0.2rem">This Week's Assignment</div>
             <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:0.04em" id="role-title">—</div>
@@ -439,7 +439,7 @@
       <div id="menu-tab-availability" role="tabpanel" aria-labelledby="tab-availability" tabindex="0">
         <div id="menu-hot-section" style="margin-bottom:2rem">
           <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.85rem">
-            <span style="font-size:1.2rem">☕</span>
+            <span style="font-size:1.2rem" aria-hidden="true">☕</span>
             <span style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:0.05em">Hot Drinks</span>
             <span style="font-size:0.65rem;padding:0.2rem 0.6rem;border-radius:20px;background:rgba(255,100,0,0.1);color:#ff9944;border:1px solid rgba(255,100,0,0.25)">12 oz</span>
           </div>
@@ -450,7 +450,7 @@
         </div>
         <div id="menu-iced-section" style="margin-bottom:2rem">
           <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.85rem">
-            <span style="font-size:1.2rem">🧊</span>
+            <span style="font-size:1.2rem" aria-hidden="true">🧊</span>
             <span style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:0.05em">Iced Drinks</span>
             <span style="font-size:0.65rem;padding:0.2rem 0.6rem;border-radius:20px;background:rgba(80,160,255,0.1);color:#66aaff;border:1px solid rgba(80,160,255,0.25)">16 oz</span>
           </div>
@@ -461,7 +461,7 @@
         </div>
         <div id="menu-mathews-section">
           <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.85rem">
-            <span style="font-size:1.2rem">⭐</span>
+            <span style="font-size:1.2rem" aria-hidden="true">⭐</span>
             <span style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:0.05em">Mathews</span>
             <span style="font-size:0.65rem;padding:0.2rem 0.6rem;border-radius:20px;background:rgba(0,100,204,0.1);color:#66aaff;border:1px solid rgba(0,100,204,0.25)">Elementary</span>
           </div>
@@ -498,10 +498,10 @@
             </div>
             <div style="display:flex;gap:1.5rem;margin-bottom:1.1rem">
               <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;text-transform:none;letter-spacing:0;font-size:0.88rem;color:var(--white)">
-                <input type="checkbox" id="suggest-is-hot" checked style="width:auto;padding:0;accent-color:var(--red)" /> ☕ Available Hot
+                <input type="checkbox" id="suggest-is-hot" checked style="width:auto;padding:0;accent-color:var(--red)" /> <span aria-hidden="true">☕</span> Available Hot
               </label>
               <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;text-transform:none;letter-spacing:0;font-size:0.88rem;color:var(--white)">
-                <input type="checkbox" id="suggest-is-iced" style="width:auto;padding:0;accent-color:#4488ff" /> 🧊 Available Iced
+                <input type="checkbox" id="suggest-is-iced" style="width:auto;padding:0;accent-color:#4488ff" /> <span aria-hidden="true">🧊</span> Available Iced
               </label>
             </div>
             <div class="form-group">
@@ -515,10 +515,10 @@
           <div style="background:var(--card);border:1px solid var(--border-dim);border-radius:14px;padding:1.75rem">
             <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:0.05em;margin-bottom:0.75rem">How it works</div>
             <div style="font-size:0.85rem;color:var(--light-gray);line-height:1.8">
-              <div style="margin-bottom:0.75rem">✏️ <strong style="color:var(--white)">Suggest new items</strong> or edits to existing ones using this form.</div>
-              <div style="margin-bottom:0.75rem">👀 <strong style="color:var(--white)">Admin reviews</strong> your submission before anything goes live.</div>
-              <div style="margin-bottom:0.75rem">✅ <strong style="color:var(--white)">Approved items</strong> appear on the menu immediately.</div>
-              <div>💬 <strong style="color:var(--white)">If rejected</strong>, you'll see a note from the admin explaining why.</div>
+              <div style="margin-bottom:0.75rem"><span aria-hidden="true">✏️</span> <strong style="color:var(--white)">Suggest new items</strong> or edits to existing ones using this form.</div>
+              <div style="margin-bottom:0.75rem"><span aria-hidden="true">👀</span> <strong style="color:var(--white)">Admin reviews</strong> your submission before anything goes live.</div>
+              <div style="margin-bottom:0.75rem"><span aria-hidden="true">✅</span> <strong style="color:var(--white)">Approved items</strong> appear on the menu immediately.</div>
+              <div><span aria-hidden="true">💬</span> <strong style="color:var(--white)">If rejected</strong>, you'll see a note from the admin explaining why.</div>
             </div>
             <div style="margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--border-dim)">
               <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);margin-bottom:0.75rem">To suggest an edit to an existing item</div>
@@ -682,13 +682,13 @@
 
     container.innerHTML = filtered.map(order => {
       const badgeClass = `badge-${order.status}`;
-      const statusLabel = {pending:'⏳ Pending Payment', paid:'💳 Paid — Ready to Make', delivered:'✅ Delivered', cancelled:'<span aria-hidden="true">✕</span> Cancelled'}[order.status] || order.status;
+      const statusLabel = {pending:'<span aria-hidden="true">⏳</span> Pending Payment', paid:'<span aria-hidden="true">💳</span> Paid — Ready to Make', delivered:'<span aria-hidden="true">✅</span> Delivered', cancelled:'<span aria-hidden="true">✕</span> Cancelled'}[order.status] || order.status;
       const time = new Date(order.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
       const date = new Date(order.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'});
 
       const actions = order.status !== 'delivered' && order.status !== 'cancelled' ? `
         <div class="order-actions">
-          ${order.status !== 'delivered' ? `<button class="btn-deliver" onclick="markDelivered('${order.id}')">✓ Mark Delivered</button>` : ''}
+          ${order.status !== 'delivered' ? `<button class="btn-deliver" onclick="markDelivered('${order.id}')"><span aria-hidden="true">✓</span> Mark Delivered</button>` : ''}
           ${order.status !== 'cancelled' ? `<button class="btn-cancel-order" onclick="cancelOrder('${order.id}')">Cancel</button>` : ''}
         </div>` : '';
 
@@ -703,8 +703,8 @@
           </div>
           <div class="order-meta">
             ${order.delivery_method === 'pickup'
-              ? `<strong>🏠 Pickup</strong> at Birdhouse — Library`
-              : `<strong>🚚 Deliver to:</strong> ${order.room||'—'}`
+              ? `<strong><span aria-hidden="true">🏠</span> Pickup</strong> at Birdhouse — Library`
+              : `<strong><span aria-hidden="true">🚚</span> Deliver to:</strong> ${order.room||'—'}`
             } &nbsp;·&nbsp;
             <strong>Time:</strong> ${order.delivery_time||'—'} &nbsp;·&nbsp;
             <strong>Day:</strong> ${order.delivery_day||'—'}
@@ -861,7 +861,7 @@
 
   let allInventory = [], currentInvFilter = 'all';
 
-  const CAT_LABELS = {cold_drinks:'🧊 Cold Drinks',hot_drinks:'☕ Hot Drinks',flavors:'🍬 Flavors & Syrups',supplies:'📦 Supplies',baked_goods:'🍪 Baked Goods'};
+  const CAT_LABELS = {cold_drinks:'<span aria-hidden="true">🧊</span> Cold Drinks',hot_drinks:'<span aria-hidden="true">☕</span> Hot Drinks',flavors:'<span aria-hidden="true">🍬</span> Flavors & Syrups',supplies:'<span aria-hidden="true">📦</span> Supplies',baked_goods:'<span aria-hidden="true">🍪</span> Baked Goods'};
 
   async function loadInventory() {
     const {data} = await sb.from('inventory').select('*').order('category').order('name');
@@ -881,7 +881,7 @@
 
     // Update low tab badge
     const lowTab = document.getElementById('low-tab');
-    if(lowItems.length) lowTab.innerHTML=`🔴 Low Stock <span style="background:var(--red);color:white;font-size:0.62rem;padding:0.1rem 0.4rem;border-radius:10px;margin-left:0.3rem">${lowItems.length}</span>`;
+    if(lowItems.length) lowTab.innerHTML=`<span aria-hidden="true">🔴</span> Low Stock <span style="background:var(--red);color:white;font-size:0.62rem;padding:0.1rem 0.4rem;border-radius:10px;margin-left:0.3rem">${lowItems.length}</span>`;
 
     renderInventoryGrid();
   }
@@ -927,14 +927,14 @@
             style="width:55px;background:transparent;border:none;border-bottom:1px solid var(--border-dim);color:var(--light-gray);font-size:0.72rem;font-family:'DM Sans',sans-serif;outline:none;padding:0 0.2rem"/>
           ${item.unit}
         </div>
-        ${item.notes?`<div style="font-size:0.72rem;color:var(--gray);margin-bottom:0.5rem">📝 ${item.notes}</div>`:''}
+        ${item.notes?`<div style="font-size:0.72rem;color:var(--gray);margin-bottom:0.5rem"><span aria-hidden="true">📝</span> ${item.notes}</div>`:''}
         ${(item.last_ordered_at||item.expected_arrival)?`<div style="font-size:0.72rem;color:var(--gray);margin-bottom:0.5rem;display:flex;gap:0.75rem;flex-wrap:wrap">
-          ${item.last_ordered_at?`<span>📅 Ordered: ${new Date(item.last_ordered_at+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>`:''}
-          ${item.expected_arrival?`<span>🚚 Arrives: ${new Date(item.expected_arrival+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>`:''}
+          ${item.last_ordered_at?`<span><span aria-hidden="true">📅</span> Ordered: ${new Date(item.last_ordered_at+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>`:''}
+          ${item.expected_arrival?`<span><span aria-hidden="true">🚚</span> Arrives: ${new Date(item.expected_arrival+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>`:''}
         </div>`:''}
         <div class="inv-actions">
           <button class="inv-save-btn" onclick="saveInventoryItem('${item.id}','${item.name}',${item.quantity})">Save Count</button>
-          <button class="inv-edit-btn" onclick="openEditItemModal('${item.id}')">✏️</button>
+          <button class="inv-edit-btn" onclick="openEditItemModal('${item.id}')" aria-label="Edit ${item.name}"><span aria-hidden="true">✏️</span></button>
         </div>
       </div>`;
     }).join('')+'</div>';
@@ -1231,7 +1231,7 @@
             <span style="font-size:0.75rem;color:var(--gray);margin-left:0.6rem">${item.available?'Available':'Unavailable'}</span>
           </td>
           <td>
-            <button class="icon-btn" onclick='prefillEditForm(${JSON.stringify(item).replace(/'/g,"&#39;")})'>✏️ Suggest Edit</button>
+            <button class="icon-btn" onclick='prefillEditForm(${JSON.stringify(item).replace(/'/g,"&#39;")})'><span aria-hidden="true">✏️</span> Suggest Edit</button>
           </td>
         </tr>`).join('');
     };
@@ -1327,13 +1327,13 @@
     const {data} = await sb.from('menu_submissions').select('*').eq('student_id',user.id).order('created_at',{ascending:false});
     const container = document.getElementById('my-submissions-container');
     if(!data?.length){container.innerHTML='<div style="color:var(--gray);text-align:center;padding:3rem;background:var(--card);border-radius:12px;border:1px solid var(--border-dim)">No submissions yet. Use the Suggest Changes tab to propose a new item or edit.</div>';return;}
-    const statusLabel = {pending:'⏳ Pending Review', approved:'✅ Approved', rejected:'<span aria-hidden="true">✕</span> Rejected'};
+    const statusLabel = {pending:'<span aria-hidden="true">⏳</span> Pending Review', approved:'<span aria-hidden="true">✅</span> Approved', rejected:'<span aria-hidden="true">✕</span> Rejected'};
     const statusColor = {pending:'#ff9800', approved:'#4caf50', rejected:'#666'};
     container.innerHTML = data.map(s=>`
       <div class="submission-card status-${s.status}">
         <div>
           <div style="font-weight:500;font-size:0.95rem;margin-bottom:0.2rem">${s.proposed_name} <span style="font-size:0.75rem;color:var(--gray);font-weight:400">${s.type==='edit'?'(edit suggestion)':'(new item)'}</span></div>
-          <div style="font-size:0.8rem;color:var(--gray);margin-bottom:0.6rem">${s.proposed_description||''} · ${s.proposed_category||''} ${s.proposed_is_hot?'☕':''}${s.proposed_is_iced?'🧊':''}</div>
+          <div style="font-size:0.8rem;color:var(--gray);margin-bottom:0.6rem">${s.proposed_description||''} · ${s.proposed_category||''} ${s.proposed_is_hot?'<span aria-hidden="true">☕</span>':''}${s.proposed_is_iced?'<span aria-hidden="true">🧊</span>':''}</div>
           ${s.notes?`<div style="font-size:0.8rem;color:var(--light-gray)">Your note: ${s.notes}</div>`:''}
           ${s.admin_note?`<div style="font-size:0.8rem;color:${statusColor[s.status]};margin-top:0.5rem;background:rgba(255,255,255,0.03);border-radius:6px;padding:0.5rem 0.75rem">Admin: ${s.admin_note}</div>`:''}
         </div>
@@ -1348,7 +1348,7 @@
     const {data} = await sb.from('weekly_summaries').select('*').eq('student_id',currentUser.id).order('week_of',{ascending:false}).limit(5);
     const container=document.getElementById('past-summaries');
     if(!data||!data.length){container.innerHTML='<div style="color:var(--gray);font-size:0.88rem;padding:1.5rem;background:var(--card);border-radius:10px;border:1px solid var(--border-dim)">No past summaries yet.</div>';return;}
-    container.innerHTML=data.map(s=>`<div class="past-summary-item"><div><div style="font-weight:500;font-size:0.92rem">Week of ${s.week_of}</div><div style="font-size:0.76rem;color:var(--gray);margin-top:0.2rem">${s.hours_worked}h worked · ${s.orders_fulfilled} orders · ${'⭐'.repeat(s.rating)}</div></div><div style="font-size:0.75rem;color:var(--gray)">${new Date(s.created_at).toLocaleDateString()}</div></div>`).join('');
+    container.innerHTML=data.map(s=>`<div class="past-summary-item"><div><div style="font-weight:500;font-size:0.92rem">Week of ${s.week_of}</div><div style="font-size:0.76rem;color:var(--gray);margin-top:0.2rem">${s.hours_worked}h worked · ${s.orders_fulfilled} orders · <span aria-hidden="true">${'⭐'.repeat(s.rating)}</span><span class="visually-hidden">${s.rating} out of 5 stars</span></div></div><div style="font-size:0.75rem;color:var(--gray)">${new Date(s.created_at).toLocaleDateString()}</div></div>`).join('');
   }
 
   async function loadBio() {
@@ -1815,7 +1815,7 @@
     if (nextIdx === -1) {
       // All done
       container.innerHTML = `<div style="text-align:center;padding:3rem;background:var(--card);border-radius:14px;border:1px solid rgba(76,175,80,0.25)">
-        <div style="font-size:2.5rem;margin-bottom:0.75rem">✅</div>
+        <div style="font-size:2.5rem;margin-bottom:0.75rem" aria-hidden="true">✅</div>
         <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:0.05em;margin-bottom:0.5rem">All Done!</div>
         <div style="color:var(--gray);font-size:0.88rem">You've evaluated all ${peerTeammates.length} teammate${peerTeammates.length!==1?'s':''} for this week.</div>
       </div>`;

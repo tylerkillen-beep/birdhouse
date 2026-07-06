@@ -147,7 +147,7 @@
 <body>
 <a class="skip-link" href="#main-content">Skip to main content</a>
 <div class="mobile-topbar">
-  <a class="mobile-topbar-brand" href="../index.html">🏠 BIRDHOUSE</a>
+  <a class="mobile-topbar-brand" href="../index.html"><span aria-hidden="true">🏠</span> BIRDHOUSE</a>
   <button class="hamburger" id="hamburger-btn" onclick="toggleNav()" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="manager-sidebar">
     <span></span><span></span><span></span>
   </button>
@@ -175,16 +175,16 @@
 
 <div id="app" style="display:none;width:100%;flex-direction:row">
   <nav class="sidebar" id="manager-sidebar" aria-label="Manager navigation">
-    <div class="logo"><a href="../index.html" style="text-decoration:none"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:0.08em;color:var(--red)">🏠 BIRDHOUSE</div></a></div>
+    <div class="logo"><a href="../index.html" style="text-decoration:none"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:0.08em;color:var(--red)"><span aria-hidden="true">🏠</span> BIRDHOUSE</div></a></div>
     <div class="role-badge">Manager</div>
     <div class="nav-section">Overview</div>
-    <button class="nav-item active" onclick="showSection('overview',this)" aria-current="page">📊 Dashboard</button>
+    <button class="nav-item active" onclick="showSection('overview',this)" aria-current="page"><span aria-hidden="true">📊</span> Dashboard</button>
     <div class="nav-section">Operations</div>
-    <button class="nav-item" onclick="showSection('schedule',this)">📅 Schedule</button>
-    <button class="nav-item" onclick="showSection('orders',this)">🧾 Active Orders</button>
-    <button class="nav-item" onclick="showSection('inventory',this)">📦 Inventory<span class="nav-badge" id="inv-nav-badge" style="display:none"></span></button>
+    <button class="nav-item" onclick="showSection('schedule',this)"><span aria-hidden="true">📅</span> Schedule</button>
+    <button class="nav-item" onclick="showSection('orders',this)"><span aria-hidden="true">🧾</span> Active Orders</button>
+    <button class="nav-item" onclick="showSection('inventory',this)"><span aria-hidden="true">📦</span> Inventory<span class="nav-badge" id="inv-nav-badge" style="display:none"></span></button>
     <div class="nav-section">Students</div>
-    <button class="nav-item" onclick="showSection('scores',this)">⭐ Weekly Scores</button>
+    <button class="nav-item" onclick="showSection('scores',this)"><span aria-hidden="true">⭐</span> Weekly Scores</button>
     <div class="nav-bottom">
       <div class="nav-user"><strong id="nav-name">—</strong>Manager</div>
       <button class="sign-out" onclick="doSignOut()">Sign out</button>
@@ -393,7 +393,7 @@ async function loadOverview(){
   document.getElementById('stat-low').textContent=(inv.data||[]).filter(i=>i.quantity<=i.par_level).length;
   const onShift=(asgn.data||[]).filter(a=>a.role==='birdhouse'||a.role==='mathews').reduce((n,a)=>n+(a.teams?.students?.length||0),0);
   document.getElementById('stat-on-shift').textContent=onShift;
-  const roleLabel={birdhouse:'🏠 Birdhouse',mathews:'🏫 Mathews',menu:'📋 Menu',inclass:'📚 In Class'};
+  const roleLabel={birdhouse:'<span aria-hidden="true">🏠</span> Birdhouse',mathews:'<span aria-hidden="true">🏫</span> Mathews',menu:'<span aria-hidden="true">📋</span> Menu',inclass:'<span aria-hidden="true">📚</span> In Class'};
   const roleClass={birdhouse:'role-birdhouse',mathews:'role-mathews',menu:'role-menu',inclass:'role-inclass'};
   document.getElementById('overview-preview').innerHTML=(asgn.data||[]).length
     ?'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:1.1rem;letter-spacing:0.05em;color:var(--light-gray);margin-bottom:0.75rem">THIS WEEK</div>'+
@@ -418,7 +418,7 @@ async function loadSchedule(offset){
   const {data}=await sb.from('weekly_assignments').select('role,teams(id,name,period,color,students(id,first_name,last_name))').eq('week_start',ws);
   const content=document.getElementById('schedule-content');
   if(!(data?.length)){content.innerHTML='<div style="color:var(--gray);text-align:center;padding:3rem;background:var(--card);border-radius:14px;border:1px solid var(--border-dim)">No schedule published for this week.</div>';return;}
-  const rl={birdhouse:'🏠 Birdhouse',mathews:'🏫 Mathews',menu:'📋 Menu Planning',inclass:'📚 In Class'};
+  const rl={birdhouse:'<span aria-hidden="true">🏠</span> Birdhouse',mathews:'<span aria-hidden="true">🏫</span> Mathews',menu:'<span aria-hidden="true">📋</span> Menu Planning',inclass:'<span aria-hidden="true">📚</span> In Class'};
   const rc={birdhouse:'role-birdhouse',mathews:'role-mathews',menu:'role-menu',inclass:'role-inclass'};
   const byPeriod={};
   data.forEach(a=>{const p=a.teams?.period||'1st Hour';(byPeriod[p]=byPeriod[p]||[]).push(a);});
@@ -493,9 +493,9 @@ async function loadInventory(){
   }));
   const low=allInventory.filter(i=>i.quantity<=i.par_level);
   const banner=document.getElementById('low-banner');
-  if(low.length){banner.style.display='block';banner.innerHTML=`⚠️ ${low.length} item${low.length!==1?'s':''} need restocking: ${low.map(i=>i.name).join(', ')}`;}else{banner.style.display='none';}
+  if(low.length){banner.style.display='block';banner.innerHTML=`<span aria-hidden="true">⚠️</span> ${low.length} item${low.length!==1?'s':''} need restocking: ${low.map(i=>i.name).join(', ')}`;}else{banner.style.display='none';}
   const lt=document.getElementById('inv-low-tab');
-  if(lt)lt.innerHTML=low.length?`🔴 Low Stock <span style="background:var(--red);color:white;font-size:0.62rem;padding:0.1rem 0.4rem;border-radius:10px;margin-left:0.3rem">${low.length}</span>`:'🔴 Low Stock';
+  if(lt)lt.innerHTML=low.length?`<span aria-hidden="true">🔴</span> Low Stock <span style="background:var(--red);color:white;font-size:0.62rem;padding:0.1rem 0.4rem;border-radius:10px;margin-left:0.3rem">${low.length}</span>`:'<span aria-hidden="true">🔴</span> Low Stock';
   const badge=document.getElementById('inv-nav-badge');
   if(badge){if(low.length){badge.textContent=low.length;badge.style.display='';}else{badge.style.display='none';}}
   renderInventory();
@@ -507,7 +507,7 @@ function renderInventory(){
   if(invFilter==='low')items=items.filter(i=>i.quantity<=i.par_level);
   else if(invFilter!=='all')items=items.filter(i=>i.category===invFilter);
   if(!items.length){el.innerHTML='<div style="color:var(--gray);text-align:center;padding:2rem;background:var(--card);border-radius:12px;border:1px solid var(--border-dim)">No items.</div>';return;}
-  const CAT={cold_drinks:'🧊 Cold Drinks',hot_drinks:'☕ Hot Drinks',flavors:'🍬 Flavors',supplies:'📦 Supplies',baked_goods:'🍪 Baked Goods'};
+  const CAT={cold_drinks:'<span aria-hidden="true">🧊</span> Cold Drinks',hot_drinks:'<span aria-hidden="true">☕</span> Hot Drinks',flavors:'<span aria-hidden="true">🍬</span> Flavors',supplies:'<span aria-hidden="true">📦</span> Supplies',baked_goods:'<span aria-hidden="true">🍪</span> Baked Goods'};
   el.innerHTML='<div class="inv-grid">'+items.map(item=>{
     const st=item.quantity===0?'out':item.quantity<=item.par_level?'low':'ok';
     const pct=item.par_level>0?Math.min(item.quantity/item.par_level,1):1;
@@ -527,8 +527,8 @@ function renderInventory(){
         <button class="inv-save-btn" onclick="saveInv('${item.id}','${safeN}',${item.quantity})">Save Count</button>
       </div>
       <div style="font-size:0.7rem;color:var(--gray);margin-top:0.35rem">Par: ${item.par_level} ${item.unit}</div>
-      ${item.notes?`<div style="font-size:0.7rem;color:var(--gray);margin-top:0.25rem">📝 ${item.notes}</div>`:''}
-      <div class="inv-order-info"><span>📅 Last ordered: ${fmtDate(item.last_ordered_at)}</span><span>🚚 Expected arrival: ${fmtDate(item.expected_arrival)}</span></div>
+      ${item.notes?`<div style="font-size:0.7rem;color:var(--gray);margin-top:0.25rem"><span aria-hidden="true">📝</span> ${item.notes}</div>`:''}
+      <div class="inv-order-info"><span><span aria-hidden="true">📅</span> Last ordered: ${fmtDate(item.last_ordered_at)}</span><span><span aria-hidden="true">🚚</span> Expected arrival: ${fmtDate(item.expected_arrival)}</span></div>
       ${(item._totalReceived>0||item._totalUsed>0)?`<div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid rgba(255,255,255,0.05);display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.3rem">
         <div style="font-size:0.68rem;text-align:center"><div style="color:var(--gray);text-transform:uppercase;letter-spacing:0.08em;font-size:0.58rem">Received</div><div style="font-weight:600;color:#4caf50">${item._totalReceived.toFixed(1)}</div></div>
         <div style="font-size:0.68rem;text-align:center"><div style="color:var(--gray);text-transform:uppercase;letter-spacing:0.08em;font-size:0.58rem">Used</div><div style="font-weight:600;color:#2196f3">${item._totalUsed.toFixed(1)}</div></div>
@@ -551,7 +551,7 @@ function renderInventory(){
         <button class="inv-save-btn" style="width:100%;background:var(--red)" onclick="logInvOrder('${item.id}','${safeN}',${item.quantity})">Log Order</button>
       </div>
       <div class="inv-actions">
-        <button class="btn btn-ghost btn-sm" style="flex:1" onclick="openEditInvModal('${item.id}')">✏️ Edit</button>
+        <button class="btn btn-ghost btn-sm" style="flex:1" onclick="openEditInvModal('${item.id}')"><span aria-hidden="true">✏️</span> Edit</button>
         <button class="btn btn-danger btn-sm" aria-label="Delete ${safeN}" onclick="deleteInvItem('${item.id}','${safeN}')">🗑</button>
       </div>
     </div>`;
@@ -698,7 +698,7 @@ async function loadScores(offset){
       <textarea class="score-comment" id="comment-${student.id}" placeholder="Optional feedback...">${comment}</textarea>
       <div style="display:flex;align-items:center;gap:0.75rem">
         <button class="score-save-btn" onclick="saveScores('${student.id}','${ws}')" aria-label="Save score for ${student.first_name} ${student.last_name}">Save Score</button>
-        <span id="saved-${student.id}" style="display:none;font-size:0.72rem;color:#4caf50">✓ Saved</span>
+        <span id="saved-${student.id}" style="display:none;font-size:0.72rem;color:#4caf50"><span aria-hidden="true">✓</span> Saved</span>
       </div>
     </div>`;
   }).join('');
