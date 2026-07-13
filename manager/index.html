@@ -160,16 +160,18 @@
       <div style="font-family:'Bebas Neue',sans-serif;font-size:3rem;letter-spacing:0.08em;color:var(--red)">BIRDHOUSE</div>
       <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.2em;color:var(--gray)">Manager Portal</div>
     </div>
+    <form onsubmit="event.preventDefault(); doLogin();">
     <div style="margin-bottom:1rem">
       <label for="login-email" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);margin-bottom:0.35rem">Email</label>
-      <input type="email" id="login-email" placeholder="your@email.com" style="width:100%;padding:0.85rem 1rem;border:1px solid var(--border-dim);border-radius:8px;background:#0d0d0d;color:var(--white);font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/>
+      <input type="email" id="login-email" placeholder="your@email.com" required aria-required="true" autocomplete="email" style="width:100%;padding:0.85rem 1rem;border:1px solid var(--border-dim);border-radius:8px;background:#0d0d0d;color:var(--white);font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/>
     </div>
     <div style="margin-bottom:1.5rem">
       <label for="login-password" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);margin-bottom:0.35rem">Password</label>
-      <input type="password" id="login-password" placeholder="••••••••" style="width:100%;padding:0.85rem 1rem;border:1px solid var(--border-dim);border-radius:8px;background:#0d0d0d;color:var(--white);font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none" onkeydown="if(event.key==='Enter')doLogin()"/>
+      <input type="password" id="login-password" placeholder="••••••••" required aria-required="true" autocomplete="current-password" style="width:100%;padding:0.85rem 1rem;border:1px solid var(--border-dim);border-radius:8px;background:#0d0d0d;color:var(--white);font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/>
     </div>
-    <button onclick="doLogin()" style="width:100%;padding:0.95rem;background:var(--red);color:white;border:none;border-radius:8px;font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:0.1em;cursor:pointer">SIGN IN TO MANAGER HUB →</button>
-    <div id="login-msg" style="margin-top:1rem"></div>
+    <button type="submit" style="width:100%;padding:0.95rem;background:var(--red);color:white;border:none;border-radius:8px;font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:0.1em;cursor:pointer">SIGN IN TO MANAGER HUB <span aria-hidden="true">→</span></button>
+    <div id="login-msg" role="alert" aria-live="assertive" style="margin-top:1rem"></div>
+    </form>
   </div>
 </div>
 
@@ -226,7 +228,7 @@
     <div class="section" id="section-inventory">
       <div class="page-eyebrow">Stock Management</div>
       <h1 class="page-title">INVENTORY</h1>
-      <div id="low-banner" style="display:none;background:rgba(255,152,0,0.08);border:1px solid rgba(255,152,0,0.25);border-radius:10px;padding:0.85rem 1.25rem;margin-bottom:1.25rem;font-size:0.85rem;color:#ff9800"></div>
+      <div id="low-banner" role="status" aria-live="polite" style="display:none;background:rgba(255,152,0,0.08);border:1px solid rgba(255,152,0,0.25);border-radius:10px;padding:0.85rem 1.25rem;margin-bottom:1.25rem;font-size:0.85rem;color:#ff9800"></div>
       <div class="section-header">
         <div style="display:flex;gap:0.4rem;flex-wrap:wrap" role="group" aria-label="Filter inventory by category">
           <button class="cat-btn active" onclick="filterInv('all',this)" aria-pressed="true">All</button>
@@ -240,7 +242,7 @@
         <button class="btn btn-primary btn-sm" onclick="openAddInvModal()">+ Add Item</button>
       </div>
       <div id="inventory-content"></div>
-      <div id="inv-msg" style="display:none" class="msg"></div>
+      <div id="inv-msg" style="display:none" class="msg" role="status" aria-live="polite"></div>
     </div>
 
     <div class="section" id="section-scores">
@@ -320,8 +322,10 @@ function toggleNav(){
 function closeNav(){
   document.querySelector('.sidebar')?.classList.remove('open');
   document.getElementById('sidebar-overlay')?.classList.remove('open');
-  document.getElementById('hamburger-btn')?.classList.remove('open');
+  const hamburger = document.getElementById('hamburger-btn');
+  if (hamburger) { hamburger.classList.remove('open'); hamburger.setAttribute('aria-expanded', 'false'); }
 }
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.querySelector('.sidebar.open')) closeNav(); });
 
 const sb=supabase.createClient('https://ljukrhneikqbabcmcpet.supabase.co','sb_publishable_lWdxpZUHbQHiz04wthAC2g_X4ToxDCn');
 let currentUser=null,allInventory=[],allOrders=[],allStudents=[],rubric=[];
@@ -414,7 +418,7 @@ async function loadSchedule(offset){
   const monday=new Date(ws+'T12:00:00');
   const friday=new Date(monday);friday.setDate(monday.getDate()+4);
   const lbl=monday.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' – '+friday.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-  document.getElementById('sched-nav').innerHTML=`<button class="week-nav-btn" onclick="loadSchedule(${schedWeekOffset-1})">← Prev</button><span style="font-size:0.95rem;font-weight:500">${lbl}</span><button class="week-nav-btn" onclick="loadSchedule(${schedWeekOffset+1})">Next →</button>${schedWeekOffset!==0?`<button class="week-nav-btn" onclick="loadSchedule(0)" style="margin-left:auto">This Week</button>`:''}`;
+  document.getElementById('sched-nav').innerHTML=`<button class="week-nav-btn" onclick="loadSchedule(${schedWeekOffset-1})"><span aria-hidden="true">←</span> Prev</button><span style="font-size:0.95rem;font-weight:500">${lbl}</span><button class="week-nav-btn" onclick="loadSchedule(${schedWeekOffset+1})">Next <span aria-hidden="true">→</span></button>${schedWeekOffset!==0?`<button class="week-nav-btn" onclick="loadSchedule(0)" style="margin-left:auto">This Week</button>`:''}`;
   const {data}=await sb.from('weekly_assignments').select('role,teams(id,name,period,color,students(id,first_name,last_name))').eq('week_start',ws);
   const content=document.getElementById('schedule-content');
   if(!(data?.length)){content.innerHTML='<div style="color:var(--gray);text-align:center;padding:3rem;background:var(--card);border-radius:14px;border:1px solid var(--border-dim)">No schedule published for this week.</div>';return;}
@@ -663,7 +667,7 @@ async function loadScores(offset){
   const ws=getMondayStr(scoreWeekOffset);
   const monday=new Date(ws+'T12:00:00'),friday=new Date(monday);friday.setDate(monday.getDate()+4);
   const lbl=monday.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' – '+friday.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-  document.getElementById('score-week-nav').innerHTML=`<button class="week-nav-btn" onclick="loadScores(${scoreWeekOffset-1})">← Prev Week</button><span style="font-size:0.95rem;font-weight:500">${lbl}</span><button class="week-nav-btn" onclick="loadScores(${scoreWeekOffset+1})">Next Week →</button>${scoreWeekOffset!==0?`<button class="week-nav-btn" onclick="loadScores(0)" style="margin-left:auto">This Week</button>`:''}`;
+  document.getElementById('score-week-nav').innerHTML=`<button class="week-nav-btn" onclick="loadScores(${scoreWeekOffset-1})"><span aria-hidden="true">←</span> Prev Week</button><span style="font-size:0.95rem;font-weight:500">${lbl}</span><button class="week-nav-btn" onclick="loadScores(${scoreWeekOffset+1})">Next Week <span aria-hidden="true">→</span></button>${scoreWeekOffset!==0?`<button class="week-nav-btn" onclick="loadScores(0)" style="margin-left:auto">This Week</button>`:''}`;
   const [rRes,sRes,scRes,aRes]=await Promise.all([
     sb.from('score_rubric').select('*').eq('active',true).order('sort_order'),
     sb.from('students').select('id,first_name,last_name,team_id,teams(name,period)').order('last_name'),

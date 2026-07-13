@@ -170,12 +170,12 @@
       <button class="filter-btn" onclick="filterOrders('cancelled',this)" aria-pressed="false">Cancelled</button>
     </div>
 
-    <div id="orders-container"><div style="color:var(--gray);text-align:center;padding:3rem">Loading your orders...</div></div>
+    <div id="orders-container" aria-live="polite" aria-atomic="false"><div style="color:var(--gray);text-align:center;padding:3rem">Loading your orders...</div></div>
   </main>
 </div>
 
 <!-- Review Modal -->
-<div class="review-overlay" id="review-overlay" role="dialog" aria-modal="true" aria-labelledby="review-modal-title">
+<div class="review-overlay" id="review-overlay" role="dialog" aria-modal="true" aria-labelledby="review-modal-title" aria-describedby="review-modal-sub">
   <div class="review-modal" style="position:relative">
     <button onclick="closeReviewModal()" aria-label="Close dialog" style="position:absolute;top:1rem;right:1rem;background:none;border:none;color:#555;font-size:1.2rem;cursor:pointer;line-height:1;padding:0.25rem">✕</button>
     <h2 class="review-modal-title" id="review-modal-title">Leave a Review</h2>
@@ -354,7 +354,7 @@
           <div class="order-date">${date} at ${time}</div>
           ${totalDisplay}
           ${order.points_earned?`<div class="order-points">+${order.points_earned} pt${order.points_earned!==1?'s':''}</div>`:''}
-          ${order.square_payment_id?`<button class="btn-secondary" data-receipt-btn="${order.id}" onclick="requestReceipt('${order.id}', this)">Get Receipt Link</button>`:''}
+          ${order.square_payment_id?`<button class="btn-secondary" data-receipt-btn="${order.id}" onclick="requestReceipt('${order.id}', this)" aria-label="Get receipt for ${escapeHtml(order.drink_name)} on ${date}">Get Receipt Link</button>`:''}
           <div class="receipt-msg" id="receipt-msg-${order.id}"></div>
           ${isDelivered?`<a class="btn-reorder" href="order.html">Order Again →</a>`:''}
         </div>

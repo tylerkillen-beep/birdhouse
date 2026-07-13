@@ -73,6 +73,13 @@
     }
     .marquee-dot { font-size: 0.5rem; color: rgba(255,26,26,1); padding: 0 0.25rem; align-self: center; }
     @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+    .marquee-pause-btn {
+      display: block; background: none; border: none; color: var(--gray);
+      font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase;
+      cursor: pointer; padding: 0.15rem 0; font-family: 'DM Sans', sans-serif;
+      text-align: left; transition: color 0.2s;
+    }
+    .marquee-pause-btn:hover { color: var(--white); }
 
     /* Portal cards */
     .portal-cards { display: flex; gap: 1rem; width: min(680px, 100%); max-width: 100%; }
@@ -186,8 +193,8 @@
       <h1 class="hero-title fade-up">YOUR<br>DAILY<br><span class="glow">BREW.</span></h1>
       <p class="hero-desc fade-up">Order your favorite drinks, earn Birdhouse Bucks, and get delivery straight to your room.</p>
 
-      <div class="marquee-wrap fade-up" aria-hidden="true">
-        <div class="marquee-track">
+      <div class="marquee-wrap fade-up" aria-hidden="true" id="marquee-wrap">
+        <div class="marquee-track" id="marquee-track">
           <span class="marquee-item">Student-Run</span><span class="marquee-dot">✦</span>
           <span class="marquee-item">Classroom Delivery</span><span class="marquee-dot">✦</span>
           <span class="marquee-item">Nixa High School</span><span class="marquee-dot">✦</span>
@@ -206,6 +213,7 @@
           <span class="marquee-item">Real Experience</span><span class="marquee-dot">✦</span>
         </div>
       </div>
+      <button class="marquee-pause-btn" id="marquee-pause-btn" aria-label="Pause scrolling banner" onclick="toggleMarquee()">Pause banner</button>
 
       <div class="portal-cards fade-up">
         <a class="portal-card customer" href="customer/index.html" aria-label="Customer Portal — Order & Earn. Browse the menu, track orders, and collect Birdhouse Bucks.">
@@ -224,6 +232,17 @@
         </a>
       </div>
     </div>
+
+  <script>
+    function toggleMarquee() {
+      const track = document.getElementById('marquee-track');
+      const btn = document.getElementById('marquee-pause-btn');
+      const paused = track.style.animationPlayState === 'paused';
+      track.style.animationPlayState = paused ? 'running' : 'paused';
+      btn.textContent = paused ? 'Pause banner' : 'Play banner';
+      btn.setAttribute('aria-label', paused ? 'Pause scrolling banner' : 'Play scrolling banner');
+    }
+  </script>
 
     <div class="hero-right" aria-hidden="true">
       <div class="cup-wrap">

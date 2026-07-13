@@ -108,14 +108,14 @@
     .form-group { margin-bottom:1.2rem; }
     label { display:block; font-size:0.68rem; font-weight:500; letter-spacing:0.1em; text-transform:uppercase; color:var(--gray); margin-bottom:0.45rem; }
     input[type=text], select { width:100%; padding:0.875rem 1rem; border:1px solid var(--border-dim); border-radius:8px; background:#0d0d0d; font-family:'DM Sans',sans-serif; font-size:0.92rem; color:var(--white); outline:none; transition:border-color 0.2s; }
-    input:focus, select:focus { border-color:var(--red); box-shadow:0 0 0 3px rgba(204,0,0,0.1); }
+    input:focus, select:focus { border-color:var(--red); box-shadow:0 0 0 3px rgba(204,0,0,0.5); }
     input::placeholder { color:#3a3a3a; }
     select option { background:#1a1a1a; }
     .form-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
 
     .pay-layout { display:grid; grid-template-columns:1fr 1fr; gap:2rem; align-items:start; }
     .order-summary-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:1.75rem; }
-    .summary-label { font-size:0.62rem; text-transform:uppercase; letter-spacing:0.15em; color:var(--red); margin-bottom:1rem; }
+    .summary-label { font-size:0.62rem; text-transform:uppercase; letter-spacing:0.15em; color:var(--red-bright); margin-bottom:1rem; }
     .summary-line { display:flex; justify-content:space-between; padding:0.55rem 0; border-bottom:1px solid var(--border-dim); font-size:0.86rem; }
     .summary-line:last-child { border-bottom:none; font-weight:600; font-size:0.95rem; padding-top:0.75rem; }
     .summary-key { color:var(--light-gray); }
@@ -300,22 +300,25 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label for="delivery-date">Delivery Date</label>
-            <input type="text" id="delivery-date" placeholder="Select a date…" readonly style="cursor:pointer" />
+            <label for="delivery-date">Delivery Date <span aria-hidden="true" style="color:var(--red-bright)">*</span></label>
+            <input type="text" id="delivery-date" placeholder="Select a date…" readonly style="cursor:pointer" required aria-required="true" aria-describedby="delivery-date-error" />
+            <span id="delivery-date-error" role="alert" style="display:none;color:#ff6b6b;font-size:0.78rem;margin-top:0.3rem"></span>
           </div>
           <div class="form-group">
-            <label for="delivery-time">Preferred Time</label>
-            <select id="delivery-time"><option value="">Select a date first…</option></select>
+            <label for="delivery-time">Preferred Time <span aria-hidden="true" style="color:var(--red-bright)">*</span></label>
+            <select id="delivery-time" required aria-required="true" aria-describedby="delivery-time-error"><option value="">Select a date first…</option></select>
+            <span id="delivery-time-error" role="alert" style="display:none;color:#ff6b6b;font-size:0.78rem;margin-top:0.3rem"></span>
           </div>
         </div>
         <div class="form-group" id="room-group">
-          <label id="room-label" for="delivery-room">Room / Location</label>
+          <label id="room-label" for="delivery-room">Room / Location <span aria-hidden="true" id="room-required-marker" style="color:var(--red-bright)">*</span></label>
           <div class="autocomplete-wrapper">
             <input type="text" id="delivery-room" placeholder="Type a name or room number…" autocomplete="off"
               role="combobox" aria-autocomplete="list" aria-haspopup="listbox"
-              aria-expanded="false" aria-controls="ac-delivery-room" />
+              aria-expanded="false" aria-controls="ac-delivery-room" aria-describedby="room-error" />
             <div class="autocomplete-dropdown" id="ac-delivery-room" role="listbox" aria-label="Delivery location suggestions"></div>
           </div>
+          <span id="room-error" role="alert" style="display:none;color:#ff6b6b;font-size:0.78rem;margin-top:0.3rem"></span>
           <div class="pickup-note" id="pickup-location-note" style="display:none"><span aria-hidden="true">📍</span> Birdhouse — Library</div>
         </div>
         <div class="form-group">
@@ -365,7 +368,7 @@
     <div class="step-panel" id="panel-success">
       <div class="success-screen">
         <span class="success-icon" aria-hidden="true">✅</span>
-        <div class="success-title">Order Placed!</div>
+        <h1 class="success-title">Order Placed!</h1>
         <p class="success-sub" id="success-sub-msg">Payment confirmed. Our team will get your order ready and deliver it to your room.</p>
         <div>
           <a class="btn-outline" href="order.html">Order Again</a>
@@ -1385,15 +1388,37 @@
       const room = document.getElementById('delivery-room').value.trim();
       const date = document.getElementById('delivery-date').value;
       const time = document.getElementById('delivery-time').value;
-      if (selectedDeliveryMethod === 'delivery' && !room) { alert('Please enter your room or delivery location.'); return; }
-      if (!date) { alert('Please select a date.'); return; }
-      if (!time) { alert('Please select a time.'); return; }
+      const roomError = document.getElementById('room-error');
+      const dateError = document.getElementById('delivery-date-error');
+      const timeError = document.getElementById('delivery-time-error');
+      roomError.style.display = 'none'; dateError.style.display = 'none'; timeError.style.display = 'none';
+      if (selectedDeliveryMethod === 'delivery' && !room) {
+        roomError.textContent = 'Please enter your room or delivery location.';
+        roomError.style.display = 'block';
+        document.getElementById('delivery-room').focus();
+        return;
+      }
+      if (!date) {
+        dateError.textContent = 'Please select a delivery date.';
+        dateError.style.display = 'block';
+        document.getElementById('delivery-date').focus();
+        return;
+      }
+      if (!time) {
+        timeError.textContent = 'Please select a preferred time.';
+        timeError.style.display = 'block';
+        document.getElementById('delivery-time').focus();
+        return;
+      }
       renderPaySummary();
     }
     document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
-    document.getElementById('panel-' + step).classList.add('active');
+    const newPanel = document.getElementById('panel-' + step);
+    newPanel.classList.add('active');
     setStepIndicators(step);
     window.scrollTo(0, 0);
+    const firstFocusable = newPanel.querySelector('h1, h2, h3, [tabindex="0"], button:not([disabled]), input:not([disabled]), select:not([disabled])');
+    if (firstFocusable) { firstFocusable.setAttribute('tabindex', '-1'); firstFocusable.focus({ preventScroll: true }); }
     if (step === 3 && !squareCard) await initSquare();
   }
 

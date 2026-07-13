@@ -140,7 +140,7 @@
 </head>
 <body class="auth-pending">
 <a class="skip-link" href="#main-content">Skip to main content</a>
-<div class="auth-gate">Checking access…</div>
+<div class="auth-gate" role="status" aria-live="polite">Checking access…</div>
 <div class="layout">
   <aside class="sidebar" id="admin-sidebar" aria-label="Admin navigation">
     <div style="margin-bottom:0.5rem"><a href="../index.html"><img src="../logo.png" alt="The Birdhouse" style="height:40px;filter:drop-shadow(0 0 10px rgba(204,0,0,0.6))" /></a></div>
@@ -188,7 +188,7 @@
           <textarea class="csv-paste" id="csv-paste" placeholder="first_name,last_name,email,team&#10;Jaisa,Brockman,student@school.net,A&#10;..." oninput="previewCSV()" aria-label="Paste CSV content"></textarea>
 
           <div id="csv-preview"></div>
-          <div class="msg" id="import-msg"></div>
+          <div class="msg" id="import-msg" aria-live="polite" role="status"></div>
           <div style="margin-bottom:1rem;margin-top:1rem">
             <label for="temp-password" style="display:block;font-size:0.68rem;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:var(--gray);margin-bottom:0.4rem">Temporary Password for All Students</label>
             <input type="text" id="temp-password" value="Birdhouse2025!" style="width:100%;padding:0.78rem 1rem;border:1px solid var(--border-dim);border-radius:8px;background:#0d0d0d;font-family:'DM Sans',sans-serif;font-size:0.9rem;color:var(--white);outline:none" />
@@ -266,7 +266,7 @@
   <div style="background:#111;border:1px solid var(--border);border-radius:16px;padding:2rem;width:420px;max-width:95vw;position:relative">
     <button onclick="closeTeamModal()" aria-label="Close dialog" style="position:absolute;top:1rem;right:1rem;background:none;border:none;color:#555;font-size:1.2rem;cursor:pointer;line-height:1;padding:0.25rem">✕</button>
     <h2 style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:0.05em;margin-bottom:1.5rem;font-weight:normal" id="team-modal-title">New Team</h2>
-    <div class="form-group"><label for="team-name">Team Name</label><input type="text" id="team-name" placeholder="e.g. Team A, Team H" /></div>
+    <div class="form-group"><label for="team-name">Team Name <abbr title="required" aria-hidden="true">*</abbr></label><input type="text" id="team-name" placeholder="e.g. Team A, Team H" required aria-required="true" /></div>
     <div class="form-group">
       <label for="team-period">Class Period</label>
       <select id="team-period">
@@ -278,7 +278,7 @@
       <label for="team-color">Color</label>
       <input type="text" id="team-color" placeholder="#cc0000" value="#cc0000" />
     </div>
-    <div class="msg" id="team-msg"></div>
+    <div class="msg" id="team-msg" aria-live="assertive" role="alert"></div>
     <div style="display:flex;gap:1rem;margin-top:1.5rem">
       <button class="btn-ghost" onclick="closeTeamModal()">Cancel</button>
       <button class="btn-primary" onclick="saveTeam()">Save Team</button>
@@ -293,7 +293,7 @@
     <h2 style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:0.05em;margin-bottom:0.4rem;font-weight:normal" id="reassign-modal-title">Reassign Student</h2>
     <div style="font-size:0.88rem;color:var(--gray);margin-bottom:1.5rem" id="reassign-student-name"></div>
     <div class="form-group"><label for="reassign-team-select">Move to Team</label><select id="reassign-team-select"></select></div>
-    <div class="msg" id="reassign-msg"></div>
+    <div class="msg" id="reassign-msg" aria-live="polite" role="status"></div>
     <div style="display:flex;gap:1rem;margin-top:1.5rem">
       <button class="btn-ghost" onclick="closeReassignModal()">Cancel</button>
       <button class="btn-primary" onclick="saveReassign()">Move Student</button>

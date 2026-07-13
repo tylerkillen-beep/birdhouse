@@ -220,6 +220,7 @@
       .schedule-grid { grid-template-columns:1fr 1fr; }
       .sched-periods-grid { grid-template-columns:1fr; }
     }
+    .visually-hidden { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
   </style>
 </head>
 <body>
@@ -250,10 +251,10 @@
       <button class="nav-item" onclick="showSection('my-scores',this)"><span aria-hidden="true">⭐</span> My Scores</button>
       <button class="nav-item" onclick="showSection('bio',this)">🪪 My Bio</button>
     </nav>
-    <button class="signout-btn" onclick="signOut()">← Sign Out</button>
+    <button class="signout-btn" onclick="signOut()"><span aria-hidden="true">←</span> Sign Out</button>
   </aside>
 
-  <main class="main" id="main-content">
+  <main class="main" id="main-content" tabindex="-1">
     <!-- Overview -->
     <div id="section-overview">
       <div class="page-eyebrow">Team Hub</div>
@@ -304,7 +305,7 @@
         <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap">
           <div style="font-size:3rem" id="role-icon" aria-hidden="true">🏠</div>
           <div style="flex:1">
-            <div style="font-size:0.62rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--red);margin-bottom:0.2rem">This Week's Assignment</div>
+            <div style="font-size:0.62rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--red-bright);margin-bottom:0.2rem">This Week's Assignment</div>
             <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:0.04em" id="role-title">—</div>
             <div style="font-size:0.85rem;color:var(--light-gray);margin-top:0.2rem" id="role-desc">—</div>
           </div>
@@ -324,7 +325,7 @@
       <div class="checklist-panel" id="checklist-panel" style="display:none">
         <div class="checklist-header">
           <div>
-            <div style="font-size:0.62rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--red);margin-bottom:0.2rem" id="cl-date-label">—</div>
+            <div style="font-size:0.62rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--red-bright);margin-bottom:0.2rem" id="cl-date-label">—</div>
             <div class="checklist-pos-badge" id="cl-position-label">—</div>
             <div style="font-size:0.78rem;color:var(--gray);margin-top:0.2rem" id="cl-location-label">—</div>
           </div>
@@ -406,7 +407,7 @@
       <!-- Bar chart -->
       <div class="section">
         <h2 class="section-title">Revenue by Day</h2>
-        <div id="srpt-chart" class="sales-chart" style="align-items:flex-end;gap:0.4rem;overflow-x:auto">
+        <div id="srpt-chart" class="sales-chart" role="img" aria-label="Daily sales chart" style="align-items:flex-end;gap:0.4rem;overflow-x:auto">
           <span style="color:var(--gray);font-size:0.82rem;align-self:center;margin:auto">Loading…</span>
         </div>
       </div>
@@ -539,13 +540,13 @@
       <h1 class="page-title">Submit Your Report</h1>
       <div class="summary-form">
         <div class="form-row">
-          <div class="form-group"><label for="summary-week">Week Of</label><input type="date" id="summary-week" /></div>
-          <div class="form-group"><label for="summary-hours">Hours Worked</label><input type="number" id="summary-hours" placeholder="e.g. 8" min="0" max="40" /></div>
+          <div class="form-group"><label for="summary-week">Week Of <abbr title="required" aria-hidden="true">*</abbr></label><input type="date" id="summary-week" required aria-required="true" /></div>
+          <div class="form-group"><label for="summary-hours">Hours Worked <abbr title="required" aria-hidden="true">*</abbr></label><input type="number" id="summary-hours" placeholder="e.g. 8" min="0" max="40" required aria-required="true" /></div>
         </div>
         <div class="form-row">
           <div class="form-group"><label for="summary-orders">Orders Fulfilled</label><input type="number" id="summary-orders" placeholder="# of orders" min="0" /></div>
-          <div class="form-group"><label for="summary-rating">Overall Rating</label>
-            <select id="summary-rating">
+          <div class="form-group"><label for="summary-rating">Overall Rating <abbr title="required" aria-hidden="true">*</abbr></label>
+            <select id="summary-rating" required aria-required="true">
               <option value="">Select...</option>
               <option value="5">⭐⭐⭐⭐⭐ Excellent</option>
               <option value="4">⭐⭐⭐⭐ Good</option>
@@ -655,7 +656,7 @@
   function updatePendingBadge() {
     const active = allOrders.filter(o => o.status === 'pending' || o.status === 'paid').length;
     const badge = document.getElementById('pending-badge');
-    if(active > 0) { badge.textContent = active; badge.style.display = 'inline'; }
+    if(active > 0) { badge.textContent = active; badge.setAttribute('aria-label', `${active} pending order${active !== 1 ? 's' : ''}`); badge.style.display = 'inline'; }
     else { badge.style.display = 'none'; }
   }
 
@@ -737,7 +738,7 @@
   }
 
   const ROLE_META = {
-    birdhouse:{icon:'🏠', label:'The Birdhouse', desc:'In-store service · All week', days:['Monday','Tuesday','Wednesday','Thursday','Friday'], color:'#cc0000'},
+    birdhouse:{icon:'🏠', label:'The Birdhouse', desc:'In-store service · All week', days:['Monday','Tuesday','Wednesday','Thursday','Friday'], color:'#ff1a1a'},
     mathews:  {icon:'🏫', label:'Mathews',        desc:'Second location · Mon / Wed / Fri', days:['Monday','Wednesday','Friday'], color:'#0066cc'},
     menu:     {icon:'📋', label:'Menu Planning',  desc:'Prepping next week\'s menu · In class all week', days:[], color:'#cc8800'},
     inclass:  {icon:'📚', label:'In Class',       desc:'Classroom activities all week', days:[], color:'#6600cc'},
@@ -849,7 +850,7 @@
         <div class="day-date">${date.getMonth()+1}/${date.getDate()}</div>
         <div class="day-shift" style="color:${role.color}">Working</div>
         ${position?`<div class="day-time">${POS_LABELS[position]||position}</div>`:'<div class="day-time" style="color:var(--gray)">TBD</div>'}
-        <div style="font-size:0.6rem;color:rgba(255,255,255,0.2);margin-top:0.3rem">tap for checklist</div>
+        <div style="font-size:0.6rem;color:rgba(255,255,255,0.2);margin-top:0.3rem" aria-hidden="true">open checklist</div>
       </button>`;
     }).join('');
 
@@ -919,11 +920,12 @@
           <div style="height:100%;width:${Math.round(pct*100)}%;background:${barColor};border-radius:4px;transition:width 0.4s"></div>
         </div>
         <div class="inv-qty-row">
+          <label for="qty-${item.id}" class="visually-hidden">Quantity for ${item.name}</label>
           <input class="inv-qty-input" type="number" id="qty-${item.id}" value="${item.quantity}" min="0" step="0.5" />
           <span class="inv-unit">${item.unit}</span>
         </div>
         <div class="inv-par">Par level: <span>${item.par_level} ${item.unit}</span>
-          &nbsp;·&nbsp; Par: <input type="number" id="par-${item.id}" value="${item.par_level}" min="0" step="0.5"
+          &nbsp;·&nbsp; <label for="par-${item.id}" class="visually-hidden">Par level for ${item.name}</label>Par: <input type="number" id="par-${item.id}" value="${item.par_level}" min="0" step="0.5"
             style="width:55px;background:transparent;border:none;border-bottom:1px solid var(--border-dim);color:var(--light-gray);font-size:0.72rem;font-family:'DM Sans',sans-serif;outline:none;padding:0 0.2rem"/>
           ${item.unit}
         </div>
@@ -1148,15 +1150,18 @@
       document.getElementById('srpt-fees').textContent = `-$${parseFloat(d.totalProcessingFee || '0').toFixed(2)}`;
       // Chart
       const chart = document.getElementById('srpt-chart');
+      const chartRev = `$${parseFloat(d.totalRevenue).toFixed(2)}`;
       if (!d.dailyBreakdown?.length) {
+        chart.setAttribute('aria-label', `Daily sales chart for ${range.label}: no orders in this period`);
         chart.innerHTML = '<span style="color:var(--gray);font-size:0.82rem;align-self:center;margin:auto">No orders in this period</span>';
       } else {
+        chart.setAttribute('aria-label', `Daily sales chart for ${range.label}: ${d.orderCount} orders, ${chartRev} revenue`);
         const maxR = Math.max(...d.dailyBreakdown.map(x => x.revenueCents), 1);
         chart.innerHTML = d.dailyBreakdown.map(x => {
           const pct = Math.round(x.revenueCents / maxR * 100);
           const lbl = new Date(x.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
           const rev = `$${(x.revenueCents/100).toFixed(2)}`;
-          return `<div class="bar-wrap"><div class="bar" style="height:${Math.max(pct,2)}%" title="${x.orderCount} orders · ${rev}"></div><div class="bar-label">${lbl}<br>${x.orderCount}</div></div>`;
+          return `<div class="bar-wrap" aria-label="${lbl}: ${x.orderCount} orders, ${rev}"><div class="bar" style="height:${Math.max(pct,2)}%" aria-hidden="true"></div><div class="bar-label" aria-hidden="true">${lbl}<br>${x.orderCount}</div></div>`;
         }).join('');
       }
       // Top items
@@ -1451,8 +1456,11 @@
   function closeNav() {
     document.querySelector('.sidebar').classList.remove('open');
     document.getElementById('sidebar-overlay').classList.remove('open');
-    document.getElementById('hamburger-btn').classList.remove('open');
+    const hamburger = document.getElementById('hamburger-btn');
+    hamburger.classList.remove('open');
+    hamburger.setAttribute('aria-expanded', 'false');
   }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.querySelector('.sidebar.open')) closeNav(); });
 
   function showSection(name,el) {
     document.querySelectorAll('[id^="section-"]').forEach(s=>s.style.display='none');
@@ -1753,6 +1761,7 @@
       bannerText.textContent = `${remaining} of ${peerTeammates.length} peer evaluation${remaining !== 1 ? 's' : ''} pending for last week — tap to complete`;
       banner.style.display = 'block';
       badge.textContent = remaining;
+      badge.setAttribute('aria-label', `${remaining} peer evaluation${remaining !== 1 ? 's' : ''} pending`);
       badge.style.display = 'inline';
     } else {
       banner.style.display = 'none';
