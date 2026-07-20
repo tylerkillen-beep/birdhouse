@@ -528,7 +528,7 @@ function renderInventory(){
         <label for="inv-${item.id}" class="visually-hidden">Current quantity (${item.unit})</label>
         <input class="inv-qty-input" type="number" id="inv-${item.id}" value="${item.quantity}" min="0" step="0.5"/>
         <span style="font-size:0.78rem;color:var(--gray)" aria-hidden="true">${item.unit}</span>
-        <button class="inv-save-btn" onclick="saveInv('${item.id}','${safeN}',${item.quantity})">Save Count</button>
+        <button class="inv-save-btn" onclick="saveInv('${item.id}','${safeN}',${item.quantity})" aria-label="Save count for ${safeN}">Save Count</button>
       </div>
       <div style="font-size:0.7rem;color:var(--gray);margin-top:0.35rem">Par: ${item.par_level} ${item.unit}</div>
       ${item.notes?`<div style="font-size:0.7rem;color:var(--gray);margin-top:0.25rem"><span aria-hidden="true">📝</span> ${item.notes}</div>`:''}
@@ -552,7 +552,7 @@ function renderInventory(){
           <input type="date" id="inv-ord-date-${item.id}"
             style="flex:1;background:#0d0d0d;border:1px solid var(--border-dim);border-radius:6px;color:var(--white);font-family:'DM Sans',sans-serif;font-size:0.72rem;padding:0.3rem 0.45rem;outline:none;color-scheme:dark" />
         </div>
-        <button class="inv-save-btn" style="width:100%;background:var(--red)" onclick="logInvOrder('${item.id}','${safeN}',${item.quantity})">Log Order</button>
+        <button class="inv-save-btn" style="width:100%;background:var(--red)" onclick="logInvOrder('${item.id}','${safeN}',${item.quantity})" aria-label="Log restock order for ${safeN}">Log Order</button>
       </div>
       <div class="inv-actions">
         <button class="btn btn-ghost btn-sm" style="flex:1" onclick="openEditInvModal('${item.id}')"><span aria-hidden="true">✏️</span> Edit</button>

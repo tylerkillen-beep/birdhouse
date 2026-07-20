@@ -447,7 +447,7 @@
             <div class="student-chip">
               <span class="chip-name">${s.first_name} ${s.last_name}</span>
               <div class="chip-actions">
-                <button class="icon-btn" onclick="openReassignModal('${s.id}','${s.first_name} ${s.last_name}')">Move</button>
+                <button class="icon-btn" onclick="openReassignModal('${s.id}','${s.first_name} ${s.last_name}')" aria-label="Move ${s.first_name} ${s.last_name} to a different team">Move</button>
               </div>
             </div>`).join(''):`<div style="color:var(--gray);font-size:0.82rem;padding:0.75rem 0">No students assigned yet.</div>`}
         </div>
@@ -551,7 +551,7 @@
       <td style="color:var(--gray);font-size:0.82rem">${s.email}</td>
       <td>${s.teams?`<span style="background:rgba(204,0,0,0.08);color:var(--red-bright);padding:0.15rem 0.6rem;border-radius:4px;font-size:0.78rem">${s.teams.name}</span>`:'<span style="color:var(--gray)">—</span>'}</td>
       <td style="font-size:0.82rem;color:${s.teams?.period==='1st Hour'?'#ff9944':'#66aaff'}">${s.teams?.period||'—'}</td>
-      <td><button class="icon-btn" onclick="openReassignModal('${s.id}','${s.first_name} ${s.last_name}')">Move Team</button></td>
+      <td><button class="icon-btn" onclick="openReassignModal('${s.id}','${s.first_name} ${s.last_name}')" aria-label="Move ${s.first_name} ${s.last_name} to a different team">Move Team</button></td>
     </tr>`).join('');
   }
 

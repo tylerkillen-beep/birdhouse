@@ -316,7 +316,7 @@
               reviewBtnHtml = `<span class="badge-reviewed"><span aria-hidden="true">✓</span> Reviewed</span>`;
             } else {
               const safeName = i.name.replace(/'/g, "\\'");
-              reviewBtnHtml = `<button class="btn-review" onclick="openReviewModal('${i.id}','${safeName}','${order.id}')"><span aria-hidden="true">★</span> Review</button>`;
+              reviewBtnHtml = `<button class="btn-review" onclick="openReviewModal('${i.id}','${safeName}','${order.id}')" aria-label="Review ${safeName}"><span aria-hidden="true">★</span> Review</button>`;
             }
           }
           return `<div style="margin-bottom:0.2rem;display:flex;align-items:center;flex-wrap:wrap;gap:0.25rem">${i.name} ×${i.quantity} &middot; ${i.temp==='iced'?'<span aria-hidden="true">🧊</span> Iced':'<span aria-hidden="true">☕</span> Hot'} &middot; <span style="color:var(--red-bright)">$${(i.price*i.quantity).toFixed(2)}</span>${reviewBtnHtml}</div>`;

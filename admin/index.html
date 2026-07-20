@@ -1963,7 +1963,7 @@ function renderOrders(list) {
       <td>$${(getOrderTotalCents(o)/100).toFixed(2)}</td>
       <td>${statusPill(o.status)}</td>
       <td onclick="event.stopPropagation()">
-        <select onchange="updateOrderStatus('${o.id}', this.value)" aria-label="Change status for order ${o.id}" style="background:#0d0d0d;border:1px solid var(--border);border-radius:6px;padding:0.3rem 0.5rem;color:var(--text);font-size:0.76rem;cursor:pointer">
+        <select onchange="updateOrderStatus('${o.id}', this.value)" aria-label="Change status for ${escHtml(o.customer_name || o.drink_name || 'order')}" style="background:#0d0d0d;border:1px solid var(--border);border-radius:6px;padding:0.3rem 0.5rem;color:var(--text);font-size:0.76rem;cursor:pointer">
           <option value="">Change…</option>
           <option value="pending">Pending</option>
           <option value="in_progress">In Progress</option>

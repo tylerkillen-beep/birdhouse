@@ -230,13 +230,13 @@
         <div class="date-controls" role="group" aria-labelledby="date-filter-label">
           <button class="date-nav-btn" onclick="shiftDate(-1)" title="Previous day" aria-label="Previous day">‹</button>
           <span class="date-display-wrap">
-            <button class="date-display-btn" id="date-display-btn" onclick="openDatePicker()" aria-label="Select date">
+            <button class="date-display-btn" id="date-display-btn" onclick="openDatePicker()" aria-label="Select date, currently Today">
               <span id="date-display-label">Today</span>
             </button>
             <input type="date" id="date-picker-input" onchange="onDatePickerChange(this.value)" aria-label="Date picker" tabindex="-1" />
           </span>
           <button class="date-nav-btn" onclick="shiftDate(1)" title="Next day" aria-label="Next day">›</button>
-          <button class="filter-pill" id="all-dates-pill" onclick="setAllDates()" style="margin-left:0.25rem">All Dates</button>
+          <button class="filter-pill" id="all-dates-pill" onclick="setAllDates()" style="margin-left:0.25rem" aria-pressed="false">All Dates</button>
         </div>
       </div>
     </div>
@@ -378,22 +378,29 @@
     const btn = document.getElementById('date-display-btn');
     const label = document.getElementById('date-display-label');
     const input = document.getElementById('date-picker-input');
+    const allDatesPill = document.getElementById('all-dates-pill');
 
     if (!dateStr) {
       label.textContent = 'All Dates';
       btn.classList.remove('today-active');
-      document.getElementById('all-dates-pill').classList.add('active');
+      btn.setAttribute('aria-label', 'Select date, currently All Dates');
+      allDatesPill.classList.add('active');
+      allDatesPill.setAttribute('aria-pressed', 'true');
     } else {
       const d = new Date(dateStr + 'T12:00:00');
       const isToday = dateStr === todayStr();
+      let displayText;
       if (isToday) {
-        label.textContent = 'Today';
+        displayText = 'Today';
         btn.classList.add('today-active');
       } else {
-        label.textContent = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: d.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined });
+        displayText = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: d.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined });
         btn.classList.remove('today-active');
       }
-      document.getElementById('all-dates-pill').classList.remove('active');
+      label.textContent = displayText;
+      btn.setAttribute('aria-label', `Select date, currently ${displayText}`);
+      allDatesPill.classList.remove('active');
+      allDatesPill.setAttribute('aria-pressed', 'false');
       input.value = dateStr;
     }
   }

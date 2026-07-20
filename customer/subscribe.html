@@ -790,7 +790,7 @@
       <div class="menu-card-name">${item.name}</div>
       <div class="menu-card-desc">${item.description || ''}</div>
       <div class="menu-card-price">${price}</div>
-      <button class="add-btn" onclick="openModModal('${item.id}','${temp}',${slotNum})">${btnLabel}</button>
+      <button class="add-btn" onclick="openModModal('${item.id}','${temp}',${slotNum})" aria-label="${item.name} — ${btnLabel}">${btnLabel}</button>
     </div>`;
   }
 
@@ -927,7 +927,7 @@
         <div class="drink-selected-name">${slot.drinkName}</div>
         <div class="drink-selected-mods">${modsLabel}</div>
       </div>
-      <button class="btn-ghost" style="padding:0.45rem 1rem;font-size:0.78rem" onclick="clearSlot(${slotNum})">Change</button>
+      <button class="btn-ghost" style="padding:0.45rem 1rem;font-size:0.78rem" onclick="clearSlot(${slotNum})" aria-label="Change ${slot.drinkName}">Change</button>
     </div>`;
   }
 
