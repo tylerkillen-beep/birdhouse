@@ -184,7 +184,7 @@
     <div class="nav-section">Operations</div>
     <button class="nav-item" onclick="showSection('schedule',this)"><span aria-hidden="true">📅</span> Schedule</button>
     <button class="nav-item" onclick="showSection('orders',this)"><span aria-hidden="true">🧾</span> Active Orders</button>
-    <button class="nav-item" onclick="showSection('inventory',this)"><span aria-hidden="true">📦</span> Inventory<span class="nav-badge" id="inv-nav-badge" style="display:none"></span></button>
+    <button class="nav-item" onclick="showSection('inventory',this)"><span aria-hidden="true">📦</span> Inventory<span class="nav-badge" id="inv-nav-badge" style="display:none" aria-label=""></span></button>
     <div class="nav-section">Students</div>
     <button class="nav-item" onclick="showSection('scores',this)"><span aria-hidden="true">⭐</span> Weekly Scores</button>
     <div class="nav-bottom">
@@ -384,6 +384,8 @@ function showSection(name,el){
   if(name==='scores')loadScores();
   closeNav();
   window.scrollTo(0,0);
+  const main=document.getElementById('main-content');
+  if(main)main.focus({preventScroll:true});
 }
 
 // OVERVIEW
@@ -501,7 +503,7 @@ async function loadInventory(){
   const lt=document.getElementById('inv-low-tab');
   if(lt)lt.innerHTML=low.length?`<span aria-hidden="true">🔴</span> Low Stock <span style="background:var(--red);color:white;font-size:0.62rem;padding:0.1rem 0.4rem;border-radius:10px;margin-left:0.3rem">${low.length}</span>`:'<span aria-hidden="true">🔴</span> Low Stock';
   const badge=document.getElementById('inv-nav-badge');
-  if(badge){if(low.length){badge.textContent=low.length;badge.style.display='';}else{badge.style.display='none';}}
+  if(badge){if(low.length){badge.textContent=low.length;badge.setAttribute('aria-label',low.length+' low stock item'+(low.length!==1?'s':''));badge.style.display='';}else{badge.style.display='none';badge.setAttribute('aria-label','');}}
   renderInventory();
 }
 function filterInv(f,btn){invFilter=f;document.querySelectorAll('#section-inventory .cat-btn').forEach(b=>{b.classList.remove('active');b.setAttribute('aria-pressed','false');});btn.classList.add('active');btn.setAttribute('aria-pressed','true');renderInventory();}
@@ -523,7 +525,7 @@ function renderInventory(){
         <div><div style="font-weight:500;font-size:0.92rem">${item.name}</div><div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray)">${CAT[item.category]||item.category}</div></div>
         <span class="inv-status ${st}">${{ok:'In Stock',low:'Low',out:'Out'}[st]}</span>
       </div>
-      <div class="inv-bar"><div class="inv-bar-fill" style="width:${Math.round(pct*100)}%;background:${bc}"></div></div>
+      <div class="inv-bar" role="progressbar" aria-valuenow="${Math.round(pct*100)}" aria-valuemin="0" aria-valuemax="100" aria-label="Stock level: ${Math.round(pct*100)}% of par"><div class="inv-bar-fill" style="width:${Math.round(pct*100)}%;background:${bc}"></div></div>
       <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.4rem">
         <label for="inv-${item.id}" class="visually-hidden">Current quantity (${item.unit})</label>
         <input class="inv-qty-input" type="number" id="inv-${item.id}" value="${item.quantity}" min="0" step="0.5"/>

@@ -365,10 +365,10 @@
     </div>
 
     <!-- Success -->
-    <div class="step-panel" id="panel-success">
+    <div class="step-panel" id="panel-success" role="status" aria-live="polite">
       <div class="success-screen">
         <span class="success-icon" aria-hidden="true">✅</span>
-        <h1 class="success-title">Order Placed!</h1>
+        <h2 class="success-title" id="success-heading" tabindex="-1">Order Placed!</h2>
         <p class="success-sub" id="success-sub-msg">Payment confirmed. Our team will get your order ready and deliver it to your room.</p>
         <div>
           <a class="btn-outline" href="order.html">Order Again</a>
@@ -381,7 +381,7 @@
 
 <!-- Sticky cart bar -->
 <div class="cart-bar hidden" id="cart-bar">
-  <div class="cart-summary">
+  <div class="cart-summary" aria-live="polite" aria-atomic="true">
     <span aria-hidden="true">🛒</span> <strong id="cart-bar-count">0</strong> items · <strong id="cart-bar-total">$0.00</strong>
   </div>
   <button class="btn-primary" style="padding:0.65rem 1.5rem;font-size:0.85rem" onclick="goToStep(2)">
@@ -741,7 +741,7 @@
       if (!sectionItems.length) return;
       html += `<div class="menu-section-header">
         <span class="menu-section-icon" aria-hidden="true">${section.icon}</span>
-        <span class="menu-section-title">${section.title}</span>
+        <h2 class="menu-section-title">${section.title}</h2>
         <span class="menu-section-count">${sectionItems.length} item${sectionItems.length !== 1 ? 's' : ''}</span>
       </div>
       <div class="menu-grid">${sectionItems.map(i => {
@@ -1366,6 +1366,9 @@
     document.getElementById('panel-success').classList.add('active');
     document.getElementById('cart-bar').classList.add('hidden');
     setStepIndicators('success');
+    window.scrollTo(0, 0);
+    const successHeading = document.getElementById('success-heading');
+    if (successHeading) successHeading.focus({ preventScroll: true });
   }
 
   // ── Navigation ────────────────────────────────────────────────────────────

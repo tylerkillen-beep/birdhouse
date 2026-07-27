@@ -242,6 +242,14 @@
       btn.textContent = paused ? 'Pause banner' : 'Play banner';
       btn.setAttribute('aria-label', paused ? 'Pause scrolling banner' : 'Play scrolling banner');
     }
+
+    // Auto-pause marquee for users who prefer reduced motion (WCAG 2.2.2)
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const track = document.getElementById('marquee-track');
+      const btn   = document.getElementById('marquee-pause-btn');
+      if (track) track.style.animationPlayState = 'paused';
+      if (btn)   { btn.textContent = 'Play banner'; btn.setAttribute('aria-label', 'Play scrolling banner'); }
+    }
   </script>
 
     <div class="hero-right" aria-hidden="true">

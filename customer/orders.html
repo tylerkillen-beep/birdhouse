@@ -181,11 +181,11 @@
     <h2 class="review-modal-title" id="review-modal-title">Leave a Review</h2>
     <div class="review-modal-sub" id="review-modal-sub">How was it?</div>
     <div class="star-selector" id="star-selector" role="group" aria-label="Star rating">
-      <button class="star" data-val="1" onclick="setReviewStar(1)" aria-label="1 star">★</button>
-      <button class="star" data-val="2" onclick="setReviewStar(2)" aria-label="2 stars">★</button>
-      <button class="star" data-val="3" onclick="setReviewStar(3)" aria-label="3 stars">★</button>
-      <button class="star" data-val="4" onclick="setReviewStar(4)" aria-label="4 stars">★</button>
-      <button class="star" data-val="5" onclick="setReviewStar(5)" aria-label="5 stars">★</button>
+      <button class="star" data-val="1" onclick="setReviewStar(1)" aria-label="1 star" aria-pressed="false">★</button>
+      <button class="star" data-val="2" onclick="setReviewStar(2)" aria-label="2 stars" aria-pressed="false">★</button>
+      <button class="star" data-val="3" onclick="setReviewStar(3)" aria-label="3 stars" aria-pressed="false">★</button>
+      <button class="star" data-val="4" onclick="setReviewStar(4)" aria-label="4 stars" aria-pressed="false">★</button>
+      <button class="star" data-val="5" onclick="setReviewStar(5)" aria-label="5 stars" aria-pressed="false">★</button>
     </div>
     <textarea class="review-textarea" id="review-text" placeholder="Tell others what you thought (optional)…" maxlength="500" aria-label="Review text (optional, up to 500 characters)"></textarea>
     <div class="review-char-hint" aria-hidden="true">Up to 500 characters</div>
@@ -412,7 +412,9 @@
   function setReviewStar(val) {
     reviewRating = val;
     document.querySelectorAll('#star-selector .star').forEach(s => {
-      s.classList.toggle('lit', parseInt(s.dataset.val) <= val);
+      const starVal = parseInt(s.dataset.val);
+      s.classList.toggle('lit', starVal <= val);
+      s.setAttribute('aria-pressed', starVal === val ? 'true' : 'false');
     });
     document.getElementById('review-submit-btn').disabled = (val === 0);
   }
