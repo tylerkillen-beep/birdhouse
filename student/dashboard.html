@@ -249,7 +249,7 @@
       <button class="nav-item" onclick="showSection('summary',this)"><span aria-hidden="true">📝</span> Weekly Summary</button>
       <button class="nav-item" onclick="showSection('peer-eval',this)" style="justify-content:space-between"><span aria-hidden="true">👥</span> Peer Evals <span id="peer-eval-badge" style="display:none;background:var(--red);color:white;font-size:0.6rem;padding:0.1rem 0.45rem;border-radius:10px"></span></button>
       <button class="nav-item" onclick="showSection('my-scores',this)"><span aria-hidden="true">⭐</span> My Scores</button>
-      <button class="nav-item" onclick="showSection('bio',this)">🪪 My Bio</button>
+      <button class="nav-item" onclick="showSection('bio',this)"><span aria-hidden="true">🪪</span> My Bio</button>
     </nav>
     <button class="signout-btn" onclick="signOut()"><span aria-hidden="true">←</span> Sign Out</button>
   </aside>
@@ -266,7 +266,7 @@
       </div>
       <!-- Peer eval notification banner -->
       <button id="peer-eval-banner" style="display:none;background:rgba(204,0,0,0.08);border:1px solid rgba(204,0,0,0.25);border-radius:10px;padding:0.85rem 1.25rem;margin-bottom:1.25rem;font-size:0.85rem;color:var(--red-bright);cursor:pointer;width:100%;text-align:left;font-family:'DM Sans',sans-serif" onclick="showSection('peer-eval',document.querySelector('[onclick*=peer-eval]'))">
-        ⚠️ <span id="peer-eval-banner-text"></span>
+        <span aria-hidden="true">⚠️</span> <span id="peer-eval-banner-text"></span>
       </button>
 
       <div class="section">
@@ -348,7 +348,7 @@
 
       <!-- Low stock alert banner -->
       <div id="low-stock-banner" style="display:none;background:rgba(255,152,0,0.08);border:1px solid rgba(255,152,0,0.25);border-radius:10px;padding:0.85rem 1.25rem;margin-bottom:1.25rem;font-size:0.85rem;color:#ff9800">
-        ⚠️ <span id="low-stock-banner-text"></span>
+        <span aria-hidden="true">⚠️</span> <span id="low-stock-banner-text"></span>
       </div>
 
       <!-- Category filter tabs -->

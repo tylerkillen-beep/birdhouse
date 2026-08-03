@@ -818,7 +818,9 @@
       optionsHtml = '<p style="color:var(--gray);font-size:0.85rem">No customizations available.</p>';
     } else {
       for (const ml of attachedLists) {
-        optionsHtml += `<div class="mod-list-name">${ml.name}</div>`;
+        const groupHeadingId = `mod-list-heading-${ml.squareId || ml.name.replace(/\s+/g,'-')}`;
+        optionsHtml += `<div class="mod-list-name" id="${groupHeadingId}">${ml.name}</div>`;
+        optionsHtml += `<div role="group" aria-labelledby="${groupHeadingId}">`;
         for (const opt of ml.options) {
           const isFree = pendingFreeModCount === -1 || pendingFreeModCount > 0;
           const priceLabel = isFree
@@ -840,6 +842,7 @@
               <span class="mod-option-price">${priceLabel}</span>
             </div>`;
         }
+        optionsHtml += `</div>`;
       }
     }
 

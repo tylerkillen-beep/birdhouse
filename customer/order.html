@@ -869,7 +869,9 @@
       optionsHtml = '<p style="color:var(--gray);font-size:0.85rem">No customizations available for this item.</p>';
     } else {
       for (const ml of attachedLists) {
-        optionsHtml += `<div class="mod-list-name">${ml.name}</div>`;
+        const groupHeadingId = `mod-list-heading-${ml.id || ml.name.replace(/\s+/g,'-')}`;
+        optionsHtml += `<div class="mod-list-name" id="${groupHeadingId}">${ml.name}</div>`;
+        optionsHtml += `<div role="group" aria-labelledby="${groupHeadingId}">`;
         for (const opt of ml.options) {
           const priceLabel = opt.price_cents > 0 ? `+$${(opt.price_cents / 100).toFixed(2)}` : 'Free';
           // FIX: checkbox has pointer-events:none in CSS so all clicks land on the
@@ -888,6 +890,7 @@
               <span class="mod-option-price">${priceLabel}</span>
             </div>`;
         }
+        optionsHtml += `</div>`;
       }
     }
 
@@ -1018,7 +1021,7 @@
       return `<div class="cart-item">
         <div class="cart-item-info">
           <div class="cart-item-name">${c.name}</div>
-          <div class="cart-item-sub">${c.temp === 'iced' ? '🧊 Iced 16oz' : c.temp === 'food' ? '🍽️ Food' : '☕ Hot 12oz'}</div>
+          <div class="cart-item-sub">${c.temp === 'iced' ? '<span aria-hidden="true">🧊</span> Iced 16oz' : c.temp === 'food' ? '<span aria-hidden="true">🍽️</span> Food' : '<span aria-hidden="true">☕</span> Hot 12oz'}</div>
           ${modsLabel ? `<div class="cart-item-mods">${modsLabel}</div>` : ''}
         </div>
         <div class="qty-ctrl">
@@ -1137,8 +1140,8 @@
     const fee = deliveryFeeDollars();
     const feeLine = selectedDeliveryMethod === 'delivery'
       ? (fee > 0
-          ? `<div class="summary-line"><span class="summary-key" style="color:#aaa">🚚 Delivery fee</span><span class="summary-val">$${fee.toFixed(2)}</span></div>`
-          : `<div class="summary-line"><span class="summary-key" style="color:#aaa">🚚 Delivery fee</span><span class="summary-val" style="color:#4caf50">Free</span></div>`)
+          ? `<div class="summary-line"><span class="summary-key" style="color:#aaa"><span aria-hidden="true">🚚</span> Delivery fee</span><span class="summary-val">$${fee.toFixed(2)}</span></div>`
+          : `<div class="summary-line"><span class="summary-key" style="color:#aaa"><span aria-hidden="true">🚚</span> Delivery fee</span><span class="summary-val" style="color:#4caf50">Free</span></div>`)
       : '';
     const isPickup = selectedDeliveryMethod === 'pickup';
     const locationLabel = isPickup ? 'Pickup at' : 'Deliver to';

@@ -129,12 +129,12 @@
       <p class="loc-sub" id="loc-dialog-desc">Which campus do you order from? This helps us show you the right menu and remember your location.</p>
       <p id="loc-escape-msg" role="alert" style="display:none;color:#ff6b6b;font-size:0.82rem;margin-bottom:0.75rem">Please select a campus to continue.</p>
       <div class="loc-options">
-        <button class="loc-btn" id="loc-hs" onclick="selectLocation('high_school')">
+        <button class="loc-btn" id="loc-hs" onclick="selectLocation('high_school')" aria-pressed="false">
           <div class="loc-btn-icon" aria-hidden="true">🏫</div>
           <div class="loc-btn-label">High School</div>
           <div class="loc-btn-desc">Nixa High School</div>
         </button>
-        <button class="loc-btn" id="loc-mathews" onclick="selectLocation('mathews')">
+        <button class="loc-btn" id="loc-mathews" onclick="selectLocation('mathews')" aria-pressed="false">
           <div class="loc-btn-icon" aria-hidden="true">⭐</div>
           <div class="loc-btn-label">Mathews</div>
           <div class="loc-btn-desc">Mathews Elementary</div>
@@ -192,7 +192,9 @@
     function selectLocation(loc) {
       selectedLoc = loc;
       document.getElementById('loc-hs').classList.toggle('selected', loc === 'high_school');
+      document.getElementById('loc-hs').setAttribute('aria-pressed', loc === 'high_school' ? 'true' : 'false');
       document.getElementById('loc-mathews').classList.toggle('selected', loc === 'mathews');
+      document.getElementById('loc-mathews').setAttribute('aria-pressed', loc === 'mathews' ? 'true' : 'false');
       document.getElementById('loc-confirm-btn').disabled = false;
     }
 
