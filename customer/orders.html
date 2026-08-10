@@ -170,7 +170,7 @@
       <button class="filter-btn" onclick="filterOrders('cancelled',this)" aria-pressed="false">Cancelled</button>
     </div>
 
-    <div id="orders-container" aria-live="polite" aria-atomic="false"><div style="color:var(--gray);text-align:center;padding:3rem">Loading your orders...</div></div>
+    <div id="orders-container" role="list" aria-live="polite" aria-atomic="false"><div style="color:var(--gray);text-align:center;padding:3rem">Loading your orders...</div></div>
   </main>
 </div>
 
@@ -336,7 +336,7 @@
         ? `<div style="font-size:0.8rem;color:var(--light-gray);margin-top:0.35rem">$${parseFloat(order.total_amount).toFixed(2)}</div>`
         : '';
 
-      return `<div class="order-card status-${order.status}">
+      return `<div class="order-card status-${order.status}" role="listitem">
         <div>
           <div class="order-drink">${order.drink_name}</div>
           <div class="order-customization">

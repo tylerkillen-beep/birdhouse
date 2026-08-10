@@ -48,6 +48,8 @@
     .toggle-chevron { transition: transform 0.25s ease; }
     .nav-section { padding: 1.1rem 1.4rem 0.35rem; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--gray); display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
     .nav-section:hover { color: var(--gray-mid); }
+    button.nav-section { background: none; border: none; width: 100%; font-family: 'DM Sans', sans-serif; font-size: 0.6rem; text-align: left; }
+    button.nav-item { background: none; border-top: none; border-right: none; border-bottom: none; width: 100%; font-family: 'DM Sans', sans-serif; text-align: left; }
     .group-chevron { flex-shrink: 0; opacity: 0.5; transition: transform 0.2s ease, opacity 0.15s; }
     .nav-section:hover .group-chevron { opacity: 0.8; }
     .nav-group.expanded .group-chevron { transform: rotate(180deg); }
@@ -402,113 +404,113 @@
   </div>
 
   <div class="nav-group" id="navgroup-operations">
-    <div class="nav-section" onclick="toggleNavGroup('operations')">
+    <button type="button" class="nav-section" onclick="toggleNavGroup('operations')">
       <span>Operations</span>
       <svg class="group-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
-    </div>
+    </button>
     <div class="nav-group-items">
-      <div class="nav-item active" onclick="showSection('dashboard')" id="nav-dashboard">
+      <button type="button" class="nav-item active" onclick="showSection('dashboard')" id="nav-dashboard">
         <span class="nav-icon" aria-hidden="true">📊</span><span class="nav-label"> Dashboard</span>
-      </div>
-      <div class="nav-item" onclick="showSection('menu')" id="nav-menu">
+      </button>
+      <button type="button" class="nav-item" onclick="showSection('menu')" id="nav-menu">
         <span class="nav-icon" aria-hidden="true">☕</span><span class="nav-label"> Menu</span>
-      </div>
-      <div class="nav-item" onclick="showSection('modifiers')" id="nav-modifiers">
+      </button>
+      <button type="button" class="nav-item" onclick="showSection('modifiers')" id="nav-modifiers">
         <span class="nav-icon" aria-hidden="true">⚙️</span><span class="nav-label"> Modifier Sets</span>
-      </div>
-      <div class="nav-item" onclick="showSection('inventory')" id="nav-inventory">
+      </button>
+      <button type="button" class="nav-item" onclick="showSection('inventory')" id="nav-inventory">
         <span class="nav-icon" aria-hidden="true">📦</span><span class="nav-label"> Inventory</span>
         <span class="nav-badge" id="badge-inventory" style="display:none"></span>
-      </div>
-      <div class="nav-item" onclick="showSection('purchases')" id="nav-purchases">
+      </button>
+      <button type="button" class="nav-item" onclick="showSection('purchases')" id="nav-purchases">
         <span class="nav-icon" aria-hidden="true">🛒</span><span class="nav-label"> Purchases</span>
-      </div>
-      <div class="nav-item" onclick="showSection('recipes')" id="nav-recipes">
+      </button>
+      <button type="button" class="nav-item" onclick="showSection('recipes')" id="nav-recipes">
         <span class="nav-icon" aria-hidden="true">📋</span><span class="nav-label"> Recipes</span>
-      </div>
-      <div class="nav-item" onclick="showSection('closed-days')" id="nav-closed-days">
+      </button>
+      <button type="button" class="nav-item" onclick="showSection('closed-days')" id="nav-closed-days">
         <span class="nav-icon" aria-hidden="true">🚫</span><span class="nav-label"> Closed Days</span>
-      </div>
+      </button>
     </div>
   </div>
 
   <div class="nav-group" id="navgroup-staff">
-    <div class="nav-section" onclick="toggleNavGroup('staff')">
+    <button type="button" class="nav-section" onclick="toggleNavGroup('staff')">
       <span>Staff &amp; Teams</span>
       <svg class="group-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
-    </div>
+    </button>
     <div class="nav-group-items">
-      <div class="nav-item" onclick="showSection('staff')" id="nav-staff">
+      <button type="button" class="nav-item" onclick="showSection('staff')" id="nav-staff">
         <span class="nav-icon" aria-hidden="true">👥</span><span class="nav-label"> Staff</span>
         <span class="nav-badge" id="badge-staff" style="display:none"></span>
-      </div>
-      <div class="nav-item" onclick="showSection('schedule')" id="nav-schedule">
+      </button>
+      <button type="button" class="nav-item" onclick="showSection('schedule')" id="nav-schedule">
         <span class="nav-icon" aria-hidden="true">📅</span><span class="nav-label"> Schedule</span>
-      </div>
-      <div class="nav-item" onclick="showSection('scores')" id="nav-scores">
+      </button>
+      <button type="button" class="nav-item" onclick="showSection('scores')" id="nav-scores">
         <span class="nav-icon" aria-hidden="true">⭐</span><span class="nav-label"> Score Rubric</span>
-      </div>
-      <div class="nav-item" onclick="showSection('manager-scores')" id="nav-manager-scores">
+      </button>
+      <button type="button" class="nav-item" onclick="showSection('manager-scores')" id="nav-manager-scores">
         <span class="nav-icon" aria-hidden="true">📋</span><span class="nav-label"> Manager Scores</span>
-      </div>
-      <div class="nav-item" onclick="showSection('peer-evals')" id="nav-peer-evals">
+      </button>
+      <button type="button" class="nav-item" onclick="showSection('peer-evals')" id="nav-peer-evals">
         <span class="nav-icon" aria-hidden="true">👥</span><span class="nav-label"> Peer Evals</span>
-      </div>
+      </button>
     </div>
   </div>
 
   <div class="nav-group" id="navgroup-customers">
-    <div class="nav-section" onclick="toggleNavGroup('customers')">
+    <button type="button" class="nav-section" onclick="toggleNavGroup('customers')">
       <span>Customers</span>
       <svg class="group-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
-    </div>
+    </button>
     <div class="nav-group-items">
-      <div class="nav-item" onclick="showSection('orders')" id="nav-orders">
+      <button type="button" class="nav-item" onclick="showSection('orders')" id="nav-orders">
         <span class="nav-icon" aria-hidden="true">🧾</span><span class="nav-label"> Orders</span>
         <span class="nav-badge" id="badge-orders" style="display:none"></span>
-      </div>
-      <div class="nav-item" onclick="showSection('plans')" id="nav-plans">
+      </button>
+      <button type="button" class="nav-item" onclick="showSection('plans')" id="nav-plans">
         <span class="nav-icon" aria-hidden="true">💎</span><span class="nav-label"> Plan Manager</span>
-      </div>
-      <div class="nav-item" onclick="showSection('subscriptions')" id="nav-subscriptions">
+      </button>
+      <button type="button" class="nav-item" onclick="showSection('subscriptions')" id="nav-subscriptions">
         <span class="nav-icon" aria-hidden="true">🔄</span><span class="nav-label"> Subscriptions</span>
-      </div>
-      <div class="nav-item" onclick="showSection('customers')" id="nav-customers">
+      </button>
+      <button type="button" class="nav-item" onclick="showSection('customers')" id="nav-customers">
         <span class="nav-icon" aria-hidden="true">🎓</span><span class="nav-label"> Customers</span>
-      </div>
-      <div class="nav-item" onclick="showSection('reviews')" id="nav-reviews">
+      </button>
+      <button type="button" class="nav-item" onclick="showSection('reviews')" id="nav-reviews">
         <span class="nav-icon" aria-hidden="true">★</span><span class="nav-label"> Reviews</span>
-      </div>
+      </button>
     </div>
   </div>
 
   <div class="nav-group" id="navgroup-integrations">
-    <div class="nav-section" onclick="toggleNavGroup('integrations')">
+    <button type="button" class="nav-section" onclick="toggleNavGroup('integrations')">
       <span>Integrations</span>
       <svg class="group-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
-    </div>
+    </button>
     <div class="nav-group-items">
-      <div class="nav-item" onclick="showSection('canvas')" id="nav-canvas">
+      <button type="button" class="nav-item" onclick="showSection('canvas')" id="nav-canvas">
         <span class="nav-icon" aria-hidden="true">🎓</span><span class="nav-label"> Canvas LMS</span>
-      </div>
+      </button>
     </div>
   </div>
 
   <div class="nav-group" id="navgroup-financials">
-    <div class="nav-section" onclick="toggleNavGroup('financials')">
+    <button type="button" class="nav-section" onclick="toggleNavGroup('financials')">
       <span>Financials</span>
       <svg class="group-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
-    </div>
+    </button>
     <div class="nav-group-items">
-      <div class="nav-item" onclick="showSection('sales-report')" id="nav-sales-report">
+      <button type="button" class="nav-item" onclick="showSection('sales-report')" id="nav-sales-report">
         <span class="nav-icon" aria-hidden="true">💰</span><span class="nav-label"> Sales Report</span>
-      </div>
-      <div class="nav-item" onclick="showSection('product-performance')" id="nav-product-performance">
+      </button>
+      <button type="button" class="nav-item" onclick="showSection('product-performance')" id="nav-product-performance">
         <span class="nav-icon" aria-hidden="true">📈</span><span class="nav-label"> Product Performance</span>
-      </div>
-      <div class="nav-item" onclick="showSection('library-split')" id="nav-library-split">
+      </button>
+      <button type="button" class="nav-item" onclick="showSection('library-split')" id="nav-library-split">
         <span class="nav-icon" aria-hidden="true">📚</span><span class="nav-label"> Library Split</span>
-      </div>
+      </button>
     </div>
   </div>
 

@@ -222,7 +222,7 @@
 
       <div class="section">
         <div class="section-title">Recent Orders</div>
-        <div id="recent-orders-list"><div class="no-orders">No orders yet. Place your first order!</div></div>
+        <div id="recent-orders-list" role="list"><div class="no-orders">No orders yet. Place your first order!</div></div>
       </div>
     </div>
 
@@ -237,7 +237,7 @@
     <div id="section-history" style="display:none">
       <div class="page-eyebrow">Your Orders</div>
       <h1 class="page-title">Order History</h1>
-      <div id="full-orders-list"><div class="no-orders">No orders yet.</div></div>
+      <div id="full-orders-list" role="list"><div class="no-orders">No orders yet.</div></div>
     </div>
 
     <!-- ── Loyalty ───────────────────────────────────────────────────────── -->
@@ -483,7 +483,7 @@
       <div class="sub-slots-grid">${slotsHtml}</div>
       <div class="sub-renewal">Next billing date: <strong>${renewal}</strong></div>
       <div class="sub-actions">
-        <button class="btn-ghost" onclick="showSection('subscription',null)">Manage →</button>
+        <button class="btn-ghost" onclick="showSection('subscription',null)" aria-label="Manage subscription">Manage →</button>
         ${sub.status === 'active'
           ? `<button class="btn-ghost" onclick="showSection('subscription',null);setTimeout(()=>document.getElementById('change-drink-btn')?.scrollIntoView({behavior:'smooth'}),200)">Change Drink</button>`
           : ''}
@@ -691,7 +691,7 @@
     const renderOrder = o => {
       const isSub   = o.status === 'subscription';
       const dateStr = new Date(o.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric' });
-      return `<div class="order-item">
+      return `<div class="order-item" role="listitem">
         <div>
           <div class="order-drink">${o.drink_name}</div>
           <div class="order-meta">${dateStr} · Room ${o.room || '—'}${o.delivery_time ? ' · ' + o.delivery_time : ''}</div>
