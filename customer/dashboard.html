@@ -174,11 +174,11 @@
       <div class="user-points" id="user-points-badge">$0.00 toward Birdhouse Bucks</div>
     </div>
     <nav aria-label="Customer portal">
-      <button class="nav-item active" onclick="showSection('overview',this)" aria-pressed="true"><span aria-hidden="true">📊</span> Overview</button>
+      <button class="nav-item active" onclick="showSection('overview',this)" aria-current="page"><span aria-hidden="true">📊</span> Overview</button>
       <a class="nav-item" href="order.html"><span aria-hidden="true">☕</span> Place an Order</a>
       <a class="nav-item" href="orders.html"><span aria-hidden="true">📋</span> Order History</a>
-      <button class="nav-item" onclick="showSection('subscription',this)" aria-pressed="false"><span aria-hidden="true">📦</span> My Subscription</button>
-      <button class="nav-item" onclick="showSection('loyalty',this)" aria-pressed="false"><span aria-hidden="true">⭐</span> Birdhouse Bucks</button>
+      <button class="nav-item" onclick="showSection('subscription',this)"><span aria-hidden="true">📦</span> My Subscription</button>
+      <button class="nav-item" onclick="showSection('loyalty',this)"><span aria-hidden="true">⭐</span> Birdhouse Bucks</button>
     </nav>
     <button class="signout-btn" onclick="signOut()"><span aria-hidden="true">←</span> Sign Out</button>
   </aside>
@@ -733,14 +733,14 @@
     document.querySelectorAll('[id^="section-"]').forEach(s => s.style.display = 'none');
     const section = document.getElementById('section-' + name);
     section.style.display = 'block';
-    document.querySelectorAll('.nav-item[aria-pressed]').forEach(n => { n.classList.remove('active'); n.setAttribute('aria-pressed', 'false'); });
-    if (el) { el.classList.add('active'); el.setAttribute('aria-pressed', 'true'); }
+    document.querySelectorAll('.nav-item').forEach(n => { n.classList.remove('active'); n.removeAttribute('aria-current'); });
+    if (el) { el.classList.add('active'); el.setAttribute('aria-current', 'page'); }
     // Mark correct nav item active when triggered programmatically
     if (!el) {
       const navMap = { overview:0, subscription:3, history:2, loyalty:4 };
       const items  = document.querySelectorAll('.nav-item');
       const target = navMap[name] !== undefined ? items[navMap[name]] : null;
-      if (target) { target.classList.add('active'); if (target.hasAttribute('aria-pressed')) target.setAttribute('aria-pressed', 'true'); }
+      if (target) { target.classList.add('active'); target.setAttribute('aria-current', 'page'); }
     }
     closeNav();
     window.scrollTo(0, 0);

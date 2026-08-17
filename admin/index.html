@@ -2069,7 +2069,7 @@ async function updateOrderStatus(id, status) {
 async function loadOrdersBadge() {
   const { count } = await sb.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'pending');
   const badge = document.getElementById('badge-orders');
-  if (count > 0) { badge.textContent = count; badge.style.display = 'inline-block'; }
+  if (count > 0) { badge.textContent = count; badge.setAttribute('aria-label', `${count} pending order${count !== 1 ? 's' : ''}`); badge.style.display = 'inline-block'; }
 }
 
 // ════════════════════════════════════
@@ -2138,7 +2138,7 @@ async function loadStaff() {
   // Update nav badge with total pending (staff + bio)
   const staffBadge = document.getElementById('badge-staff');
   const totalPending = (pending?.length || 0) + (bioPending?.length || 0);
-  if (totalPending > 0) { staffBadge.textContent = totalPending; staffBadge.style.display = 'inline-block'; }
+  if (totalPending > 0) { staffBadge.textContent = totalPending; staffBadge.setAttribute('aria-label', `${totalPending} pending approval${totalPending !== 1 ? 's' : ''}`); staffBadge.style.display = 'inline-block'; }
   else { staffBadge.style.display = 'none'; }
 }
 
@@ -3948,7 +3948,7 @@ async function loadInventory() {
   // Sidebar badge
   const badge = document.getElementById('badge-inventory');
   if (badge) {
-    if (lowItems.length) { badge.textContent = lowItems.length; badge.style.display = ''; }
+    if (lowItems.length) { badge.textContent = lowItems.length; badge.setAttribute('aria-label', `${lowItems.length} low stock item${lowItems.length !== 1 ? 's' : ''}`); badge.style.display = ''; }
     else { badge.style.display = 'none'; }
   }
 
