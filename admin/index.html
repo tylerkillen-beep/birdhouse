@@ -5435,9 +5435,14 @@ async function deletePO(id) {
 
 // ── RECIPES ────────────────────────────────────────────────────────────────
 async function loadRecipes() {
-  const { data } = await sb.from('recipes')
-    .select('*, recipe_ingredients(*, inventory:inventory_id(id,name,unit))')
-    .order('name');
+  // The ingredient dropdown in the recipe modal reads from allInventory, which
+  // is otherwise only populated by visiting the Inventory tab first — load it
+  // here too (if not already loaded) so "+ Add Ingredient" always has options.
+  const tasks = [
+    sb.from('recipes').select('*, recipe_ingredients(*, inventory:inventory_id(id,name,unit))').order('name'),
+  ];
+  if (!allInventory.length) tasks.push(loadInventory());
+  const [{ data }] = await Promise.all(tasks);
   allRecipes = data || [];
   renderRecipes();
 }
