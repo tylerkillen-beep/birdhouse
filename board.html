@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Birdhouse — Menu Board</title>
+  <meta name="description" content="The Birdhouse menu board — today's specials, drinks, and treats." />
+  <meta name="robots" content="noindex" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --black: #0a0a0a; --red: #cc0000; --red-bright: #ff1a1a;
+      --gray: #888; --light-gray: #aaa; --white: #f0f0f0;
+      --card: #161616; --border: rgba(204,0,0,0.2);
+    }
+    body { background: var(--black); color: var(--white); font-family: 'DM Sans', sans-serif; min-height: 100vh; overflow-x: hidden; }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+    }
+    body::before {
+      content: ''; position: fixed; inset: 0;
+      background-image: linear-gradient(rgba(204,0,0,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(204,0,0,0.03) 1px, transparent 1px);
+      background-size: 40px 40px; pointer-events: none; z-index: 0;
+    }
+    .board { position: relative; z-index: 1; padding: 2.5rem 3rem 3rem; min-height: 100vh; }
+    .board-header { display: flex; align-items: baseline; gap: 1.25rem; margin-bottom: 0.25rem; }
+    .board-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(2.75rem, 5.5vw, 4.75rem); letter-spacing: 0.03em; line-height: 1; color: var(--white); }
+    .board-sub {
+      font-family: 'Bebas Neue', sans-serif; font-size: clamp(1.4rem, 2.6vw, 2.1rem); letter-spacing: 0.08em;
+      color: transparent; -webkit-text-stroke: 1.5px var(--red-bright); text-transform: uppercase;
+    }
+    .board-updated { font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gray); margin-top: 0.75rem; margin-bottom: 2rem; }
+    .board-loading, .board-error { color: var(--gray); font-size: 1rem; padding: 3rem 0; text-align: center; }
+    .board-error { color: var(--red-bright); }
+
+    .board-grid { display: grid; grid-template-columns: minmax(280px, 1fr) 2fr; gap: 2.5rem; align-items: start; }
+    @media (max-width: 900px) { .board-grid { grid-template-columns: 1fr; } }
+
+    /* Specials column */
+    .specials-col { display: flex; flex-direction: column; gap: 1rem; }
+    .specials-heading {
+      font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--red-bright); border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; margin-bottom: 0.25rem;
+    }
+    .special-card {
+      display: flex; gap: 0.9rem; background: var(--card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 0.9rem; align-items: center;
+    }
+    .special-photo { width: 72px; height: 72px; border-radius: 10px; object-fit: cover; flex-shrink: 0; background: #000; }
+    .special-photo-placeholder {
+      width: 72px; height: 72px; border-radius: 10px; flex-shrink: 0; background: rgba(204,0,0,0.1);
+      display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
+    }
+    .special-name-row { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
+    .special-name { font-size: 1.02rem; font-weight: 600; color: var(--white); }
+    .special-price { font-size: 0.95rem; color: var(--red-bright); font-weight: 600; white-space: nowrap; }
+    .special-desc { font-size: 0.78rem; color: var(--light-gray); line-height: 1.4; margin-top: 0.2rem; font-weight: 300; }
+
+    /* Category lists column */
+    .lists-col { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+    @media (max-width: 700px) { .lists-col { grid-template-columns: 1fr; } }
+    .list-group { margin-bottom: 0.5rem; }
+    .list-heading {
+      display: flex; align-items: center; gap: 0.6rem;
+      font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--red-bright); border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .list-row {
+      display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem;
+      padding: 0.42rem 0; border-bottom: 1px dashed rgba(255,255,255,0.06);
+    }
+    .list-row:last-child { border-bottom: none; }
+    .list-row-name { font-size: 0.92rem; color: var(--white); font-weight: 500; }
+    .list-row-desc { font-size: 0.72rem; color: var(--gray); font-weight: 300; margin-top: 0.1rem; }
+    .list-row-price { font-size: 0.9rem; color: var(--red-bright); font-weight: 500; white-space: nowrap; flex-shrink: 0; }
+
+    .board-footer { margin-top: 2.5rem; text-align: center; font-size: 0.68rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--gray); }
+  </style>
+</head>
+<body>
+  <main class="board" id="main-content">
+    <div class="board-header">
+      <div class="board-title">The Birdhouse</div>
+      <div class="board-sub">Menu</div>
+    </div>
+    <div class="board-updated" id="board-updated"></div>
+    <div id="board-content"><p class="board-loading">Loading menu&hellip;</p></div>
+    <div class="board-footer">Nixa Eagles &middot; Serving Since 2014</div>
+  </main>
+
+  <script>
+    (function() {
+      const SUPABASE_URL = 'https://ljukrhneikqbabcmcpet.supabase.co';
+      const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqdWtyaG5laWtxYmFiY21jcGV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyODg1MjEsImV4cCI6MjA4Nzg2NDUyMX0.UbtB_-syG9a9vLcJp04w_k2F3XP2tMScYtB4sez3j78';
+      const REFRESH_MS = 5 * 60 * 1000; // kiosk display — refresh every 5 minutes
+
+      // Same category grouping as menu.html, kept in sync intentionally.
+      const CATEGORIES = [
+        { key: 'coffee',   title: 'Birdie Brews', icon: '☕' },
+        { key: 'soda_tea', title: 'Cold Drinks',  icon: '🥤' },
+        { key: 'food',     title: 'Tasty Treats', icon: '🍪' },
+      ];
+
+      function getCategory(item) {
+        const n = String(item.category || '').trim().toLowerCase();
+        if (n.includes('mathews')) return null;
+        if (n.includes('special')) return 'specials';
+        if (n.includes('soda') || n.includes('tea') || n.includes('energy') || n.includes('refresher')) return 'soda_tea';
+        if (n.includes('food') || n.includes('pastry') || n.includes('snack') || n.includes('bak') || n.includes('cookie')) return 'food';
+        return 'coffee';
+      }
+
+      function formatPrice(item) {
+        const cents = item.base_price_cents;
+        if (cents != null) return '$' + (cents / 100).toFixed(2);
+        if (item.base_price != null) return '$' + parseFloat(item.base_price).toFixed(2);
+        return '';
+      }
+
+      function escHtml(str) {
+        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      }
+
+      function renderSpecials(items) {
+        if (!items.length) return '';
+        const cards = items.map(item => `
+          <div class="special-card">
+            ${item.image_url
+              ? `<img class="special-photo" src="${escHtml(item.image_url)}" alt="" onerror="this.outerHTML='<div class=&quot;special-photo-placeholder&quot; aria-hidden=&quot;true&quot;>✨</div>'" />`
+              : `<div class="special-photo-placeholder" aria-hidden="true">✨</div>`}
+            <div style="flex:1;min-width:0">
+              <div class="special-name-row">
+                <span class="special-name">${escHtml(item.name)}</span>
+                ${formatPrice(item) ? `<span class="special-price">${formatPrice(item)}</span>` : ''}
+              </div>
+              ${item.description ? `<div class="special-desc">${escHtml(item.description)}</div>` : ''}
+            </div>
+          </div>
+        `).join('');
+        return `<div class="specials-col"><div class="specials-heading">✨ Specials</div>${cards}</div>`;
+      }
+
+      function renderList(cat, items) {
+        if (!items.length) return '';
+        const rows = items.map(item => `
+          <div class="list-row">
+            <div>
+              <div class="list-row-name">${escHtml(item.name)}</div>
+              ${item.description ? `<div class="list-row-desc">${escHtml(item.description)}</div>` : ''}
+            </div>
+            ${formatPrice(item) ? `<div class="list-row-price">${formatPrice(item)}</div>` : ''}
+          </div>
+        `).join('');
+        return `<div class="list-group"><div class="list-heading"><span aria-hidden="true">${cat.icon}</span> ${cat.title}</div>${rows}</div>`;
+      }
+
+      async function loadBoard() {
+        const container = document.getElementById('board-content');
+        try {
+          const res = await fetch(
+            `${SUPABASE_URL}/rest/v1/menu_items?select=name,description,category,base_price_cents,base_price,sort_order,image_url&available=eq.true&order=category.asc,sort_order.asc`,
+            { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
+          );
+          if (!res.ok) throw new Error('Failed to load menu');
+          const items = await res.json();
+
+          const specials = [];
+          const groups = {};
+          CATEGORIES.forEach(c => { groups[c.key] = []; });
+          items.forEach(item => {
+            const key = getCategory(item);
+            if (key === 'specials') specials.push(item);
+            else if (key && groups[key]) groups[key].push(item);
+          });
+
+          const specialsHtml = renderSpecials(specials);
+          const listsHtml = CATEGORIES.map(c => renderList(c, groups[c.key])).join('');
+
+          if (!specialsHtml && !listsHtml) {
+            container.innerHTML = '<p class="board-loading">No items available right now.</p>';
+          } else {
+            container.innerHTML = `
+              <div class="board-grid">
+                ${specialsHtml || '<div></div>'}
+                <div class="lists-col">${listsHtml}</div>
+              </div>
+            `;
+          }
+          document.getElementById('board-updated').textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        } catch (err) {
+          container.innerHTML = '<p class="board-error">Unable to load menu. Retrying shortly&hellip;</p>';
+        }
+      }
+
+      loadBoard();
+      setInterval(loadBoard, REFRESH_MS);
+    })();
+  </script>
+</body>
+</html>
