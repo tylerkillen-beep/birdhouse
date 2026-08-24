@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Birdhouse — Recipe Sheet</title>
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <script src="/lib/supabase.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --black: #0a0a0a; --dark: #111; --red: #cc0000; --red-bright: #ff1a1a;
+      --gray: #888; --light-gray: #999; --white: #f0f0f0;
+      --card: #141414; --border: rgba(204,0,0,0.18); --border-dim: rgba(255,255,255,0.07);
+    }
+    body { background: var(--black); color: var(--white); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+    .skip-link { position: absolute; top: -100%; left: 1rem; background: var(--red-bright); color: #000; padding: 0.5rem 1rem; border-radius: 0 0 6px 6px; font-size: 0.85rem; font-weight: 500; text-decoration: none; z-index: 9999; }
+    .skip-link:focus { top: 0; }
+    :focus-visible { outline: 2px solid var(--red-bright); outline-offset: 3px; border-radius: 3px; }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; } }
+    .layout { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+
+    /* ── Sidebar (same pattern as student/orders.html) ── */
+    .sidebar { background: #0d0000; border-right: 1px solid var(--border); padding: 1.75rem 1.25rem; position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; }
+    .sidebar-logo img { height: 38px; filter: drop-shadow(0 0 8px rgba(204,0,0,0.5)); margin-bottom: 2rem; }
+    .user-card { background: rgba(204,0,0,0.08); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; margin-bottom: 1.75rem; }
+    .user-name { font-size: 0.9rem; color: var(--white); font-weight: 500; }
+    .user-role { font-size: 0.68rem; color: var(--red-bright); margin-top: 0.25rem; letter-spacing: 0.08em; text-transform: uppercase; }
+    nav { flex: 1; }
+    .nav-item { display: flex; align-items: center; gap: 0.7rem; padding: 0.7rem 0.9rem; border-radius: 7px; color: var(--gray); font-size: 0.85rem; text-decoration: none; cursor: pointer; transition: all 0.2s; margin-bottom: 0.2rem; border: 1px solid transparent; }
+    .nav-item:hover { color: var(--white); background: rgba(255,255,255,0.04); }
+    .nav-item.active { background: rgba(204,0,0,0.12); color: var(--red-bright); border-color: rgba(204,0,0,0.25); }
+    .signout-btn { background: none; border: 1px solid rgba(255,255,255,0.08); border-radius: 7px; padding: 0.65rem 1rem; color: var(--gray); font-size: 0.8rem; cursor: pointer; width: 100%; text-align: left; transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem; font-family: 'DM Sans', sans-serif; }
+    .signout-btn:hover { color: var(--white); }
+
+    /* ── Main ── */
+    .main { padding: 2.5rem 3rem; }
+    .page-eyebrow { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--red-bright); margin-bottom: 0.3rem; }
+    .page-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem; }
+    .page-title { font-family: 'Bebas Neue', sans-serif; font-size: 2.5rem; letter-spacing: 0.04em; }
+    .page-desc { font-size: 0.8rem; color: var(--gray); max-width: 520px; }
+    .search-row { margin-bottom: 1.5rem; }
+    .search-input { background: var(--card); border: 1px solid var(--border-dim); border-radius: 8px; padding: 0.6rem 0.9rem; color: var(--white); font-size: 0.85rem; font-family: 'DM Sans', sans-serif; width: 100%; max-width: 320px; }
+    .search-input::placeholder { color: var(--gray); }
+    .search-input:focus { outline: none; border-color: var(--border); }
+
+    .category-block { margin-bottom: 2rem; }
+    .category-heading {
+      font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; letter-spacing: 0.06em; text-transform: uppercase;
+      color: var(--red-bright); margin-bottom: 0.75rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--border);
+    }
+    .sheet-table-wrap { overflow-x: auto; border: 1px solid var(--border-dim); border-radius: 12px; }
+    table.sheet-table { width: 100%; border-collapse: collapse; min-width: 900px; }
+    table.sheet-table th, table.sheet-table td { text-align: left; padding: 0.65rem 0.85rem; font-size: 0.8rem; border-bottom: 1px solid var(--border-dim); vertical-align: top; }
+    table.sheet-table th { background: rgba(255,255,255,0.03); color: var(--light-gray); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500; }
+    table.sheet-table tr:last-child td { border-bottom: none; }
+    table.sheet-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .drink-name-cell { font-weight: 600; color: var(--white); white-space: nowrap; }
+    .cell-muted { color: var(--gray); }
+    .ice-pill { display: inline-block; padding: 0.1rem 0.55rem; border-radius: 10px; font-size: 0.7rem; border: 1px solid var(--border-dim); }
+    .ice-pill.filled { background: rgba(100,150,255,0.1); color: #6699ff; border-color: rgba(100,150,255,0.2); }
+
+    .empty-state { text-align: center; padding: 3.5rem 2rem; background: var(--card); border: 1px solid var(--border-dim); border-radius: 12px; color: var(--gray); }
+    .empty-state-icon { font-size: 2.5rem; margin-bottom: 0.75rem; opacity: 0.5; }
+    .empty-state-msg { font-size: 0.9rem; }
+
+    /* ── Mobile top bar ── */
+    .mobile-topbar { display:none; position:fixed; top:0; left:0; right:0; height:54px; background:#0d0000; border-bottom:1px solid var(--border); z-index:300; align-items:center; justify-content:space-between; padding:0 1.25rem; }
+    .mobile-topbar img { height:30px; filter:drop-shadow(0 0 6px rgba(204,0,0,0.5)); }
+    .hamburger { background:none; border:none; cursor:pointer; display:flex; flex-direction:column; gap:5px; padding:6px; }
+    .hamburger span { display:block; width:22px; height:2px; background:var(--white); border-radius:2px; transition:all 0.25s; }
+    .hamburger.open span:nth-child(1) { transform:translateY(7px) rotate(45deg); }
+    .hamburger.open span:nth-child(2) { opacity:0; }
+    .hamburger.open span:nth-child(3) { transform:translateY(-7px) rotate(-45deg); }
+    .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:250; }
+    .sidebar-overlay.open { display:block; }
+
+    @media (max-width: 900px) {
+      .mobile-topbar { display:flex; }
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { display:flex !important; position:fixed; top:0; left:0; bottom:0; width:280px; height:100%; transform:translateX(-100%); transition:transform 0.28s ease; z-index:260; overflow-y:auto; }
+      .sidebar.open { transform:translateX(0); }
+      .main { padding: 1.5rem; padding-top:calc(1.5rem + 54px); }
+    }
+  </style>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to main content</a>
+<div class="mobile-topbar">
+  <a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a>
+  <button class="hamburger" id="hamburger-btn" onclick="toggleNav()" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="team-sidebar">
+    <span></span><span></span><span></span>
+  </button>
+</div>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleNav()" aria-hidden="true"></div>
+<div class="layout">
+  <aside class="sidebar" id="team-sidebar" aria-label="Team hub navigation">
+    <div class="sidebar-logo"><a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a></div>
+    <div class="user-card">
+      <div class="user-name" id="user-display-name">Loading...</div>
+      <div class="user-role" id="user-role-badge">Staff</div>
+    </div>
+    <nav aria-label="Team hub">
+      <a class="nav-item" href="dashboard.html"><span aria-hidden="true">📊</span> Overview</a>
+      <a class="nav-item" href="orders.html"><span aria-hidden="true">🧾</span> Order Queue</a>
+      <a class="nav-item" href="dashboard.html#schedule"><span aria-hidden="true">🗓️</span> My Schedule</a>
+      <a class="nav-item" href="dashboard.html#inventory"><span aria-hidden="true">📦</span> Inventory</a>
+      <a class="nav-item" href="dashboard.html#sales"><span aria-hidden="true">📈</span> Sales Data</a>
+      <a class="nav-item" href="dashboard.html#menu"><span aria-hidden="true">☕</span> Menu Availability</a>
+      <a class="nav-item active" href="recipe-sheet.html" aria-current="page"><span aria-hidden="true">🗒️</span> Recipe Sheet</a>
+      <a class="nav-item" href="../board.html" target="_blank" rel="noopener"><span aria-hidden="true">🖥️</span> Menu Board</a>
+      <a class="nav-item" href="dashboard.html#summary"><span aria-hidden="true">📝</span> Weekly Summary</a>
+    </nav>
+    <button class="signout-btn" onclick="signOut()"><span aria-hidden="true">←</span> Sign Out</button>
+  </aside>
+
+  <main class="main" id="main-content" tabindex="-1">
+    <div class="page-eyebrow">Team Hub</div>
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Recipe Sheet</h1>
+        <p class="page-desc">How to build every drink on the menu — cup, ice, machine selection, syrups, and toppings. Ask a manager to add or edit a recipe if one's missing.</p>
+      </div>
+    </div>
+    <div class="search-row">
+      <input class="search-input" id="recipe-search" type="search" placeholder="Search a drink…" oninput="renderSheet()" aria-label="Search recipes" />
+    </div>
+    <div id="sheet-content">
+      <div class="empty-state"><div class="empty-state-icon" aria-hidden="true">🗒️</div><div class="empty-state-msg">Loading recipes…</div></div>
+    </div>
+  </main>
+</div>
+
+<script>
+  const sb = supabase.createClient(
+    'https://ljukrhneikqbabcmcpet.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqdWtyaG5laWtxYmFiY21jcGV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyODg1MjEsImV4cCI6MjA4Nzg2NDUyMX0.UbtB_-syG9a9vLcJp04w_k2F3XP2tMScYtB4sez3j78'
+  );
+
+  let allRecipes = [];
+  let categoryOrderMap = {}; // normalized menu item name -> { categoryKey, sortOrder }
+
+  const CATEGORIES = [
+    { key: 'specials', title: 'Specials' },
+    { key: 'coffee',   title: 'Birdie Brews' },
+    { key: 'soda_tea', title: 'Cold Drinks' },
+    { key: 'food',     title: 'Tasty Treats' },
+    { key: 'other',    title: 'Other' },
+  ];
+
+  function getMenuCategory(rawCategory) {
+    const n = String(rawCategory || '').trim().toLowerCase();
+    if (n.includes('mathews')) return 'other';
+    if (n.includes('special')) return 'specials';
+    if (n.includes('soda') || n.includes('tea') || n.includes('energy') || n.includes('refresher')) return 'soda_tea';
+    if (n.includes('food') || n.includes('pastry') || n.includes('snack') || n.includes('bak') || n.includes('cookie')) return 'food';
+    return 'coffee';
+  }
+
+  // ── Auth (same pattern as student/orders.html) ──────────────────────────────
+  sb.auth.onAuthStateChange((event) => {
+    if (event === 'SIGNED_OUT') { window.location.href = 'index.html'; }
+  });
+
+  async function init() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = 'index.html'; return; }
+    const user = session.user;
+
+    const { data: studentRow } = await sb.from('students').select('role, first_name, last_name').eq('email', user.email).maybeSingle();
+    const role = studentRow?.role;
+    if (!role || !['student', 'manager', 'admin'].includes(role)) {
+      await sb.auth.signOut();
+      window.location.href = 'index.html';
+      return;
+    }
+
+    const meta = user.user_metadata || {};
+    const firstName = studentRow?.first_name || meta.full_name?.split(' ')[0] || 'Staff';
+    const lastName  = studentRow?.last_name  || meta.full_name?.split(' ').slice(1).join(' ') || '';
+    document.getElementById('user-display-name').textContent = (firstName + ' ' + lastName).trim();
+    document.getElementById('user-role-badge').textContent = role === 'admin' ? 'Admin' : role === 'manager' ? 'Manager' : 'Student Staff';
+
+    await loadSheet();
+  }
+
+  init();
+
+  function toggleNav() {
+    const sidebar   = document.querySelector('.sidebar');
+    const overlay   = document.getElementById('sidebar-overlay');
+    const hamburger = document.getElementById('hamburger-btn');
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('open');
+    hamburger.classList.toggle('open');
+    hamburger.setAttribute('aria-expanded', sidebar.classList.contains('open') ? 'true' : 'false');
+  }
+
+  async function signOut() {
+    await sb.auth.signOut();
+    window.location.href = 'index.html';
+  }
+
+  // ── Data loading ───────────────────────────────────────────────────────────
+  async function loadSheet() {
+    const [{ data: recipes, error }, { data: menuItems }] = await Promise.all([
+      sb.from('recipes')
+        .select('*, recipe_ingredients(amount, unit, inventory:inventory_id(name, category))')
+        .order('name'),
+      sb.from('menu_items').select('name, category, sort_order'),
+    ]);
+
+    if (error) {
+      document.getElementById('sheet-content').innerHTML =
+        `<div class="empty-state"><div class="empty-state-icon" aria-hidden="true">⚠️</div><div class="empty-state-msg">${escHtml(error.message)}</div></div>`;
+      return;
+    }
+
+    // Match each recipe to a menu item by name (same fuzzy match used for
+    // inventory usage tracking elsewhere in the app) so the sheet follows
+    // the same category order as the live menu.
+    categoryOrderMap = {};
+    (menuItems || []).forEach(mi => {
+      const key = (mi.name || '').trim().toLowerCase();
+      if (key) categoryOrderMap[key] = { categoryKey: getMenuCategory(mi.category), sortOrder: mi.sort_order || 0 };
+    });
+
+    allRecipes = recipes || [];
+    renderSheet();
+  }
+
+  function matchForRecipe(recipe) {
+    const rname = (recipe.name || '').trim().toLowerCase();
+    return categoryOrderMap[rname] || null;
+  }
+
+  // ── Rendering ──────────────────────────────────────────────────────────────
+  function renderSheet() {
+    const container = document.getElementById('sheet-content');
+    const query = (document.getElementById('recipe-search').value || '').trim().toLowerCase();
+
+    const filtered = allRecipes.filter(r => !query || (r.name || '').toLowerCase().includes(query));
+
+    if (!filtered.length) {
+      container.innerHTML = `<div class="empty-state"><div class="empty-state-icon" aria-hidden="true">🗒️</div><div class="empty-state-msg">${allRecipes.length ? 'No recipes match your search.' : 'No recipes yet — ask a manager to add one from the admin Recipes section.'}</div></div>`;
+      return;
+    }
+
+    const groups = {};
+    CATEGORIES.forEach(c => { groups[c.key] = []; });
+    filtered.forEach(r => {
+      const match = matchForRecipe(r);
+      const key = match ? match.categoryKey : 'other';
+      (groups[key] || groups.other).push({ recipe: r, sortOrder: match ? match.sortOrder : 0 });
+    });
+
+    const html = CATEGORIES
+      .filter(c => groups[c.key].length > 0)
+      .map(c => {
+        const rows = groups[c.key]
+          .sort((a, b) => (a.sortOrder - b.sortOrder) || a.recipe.name.localeCompare(b.recipe.name))
+          .map(({ recipe }) => renderRow(recipe))
+          .join('');
+        return `<div class="category-block">
+          <div class="category-heading">${escHtml(c.title)}</div>
+          <div class="sheet-table-wrap">
+            <table class="sheet-table">
+              <thead><tr>
+                <th>Drink</th><th>Cup</th><th>Ice</th><th>Coffee Machine Selection</th>
+                <th>Syrup(s)</th><th>Packet</th><th>Beverage Pour</th><th>Topping(s)</th>
+              </tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+        </div>`;
+      }).join('');
+
+    container.innerHTML = html;
+  }
+
+  function renderRow(recipe) {
+    const ingredients = (recipe.recipe_ingredients || [])
+      .map(ri => `${escHtml(ri.inventory?.name || '?')}${ri.amount ? ` (${ri.amount}${ri.unit ? ' ' + escHtml(ri.unit) : ''})` : ''}`)
+      .join(', ');
+    const iceFilled = recipe.ice_amount && recipe.ice_amount.toLowerCase() !== 'none';
+    return `<tr>
+      <td class="drink-name-cell">${escHtml(recipe.name)}</td>
+      <td>${recipe.cup_type ? escHtml(recipe.cup_type) : '<span class="cell-muted">—</span>'}</td>
+      <td>${recipe.ice_amount ? `<span class="ice-pill${iceFilled ? ' filled' : ''}">${escHtml(recipe.ice_amount)}</span>` : '<span class="cell-muted">—</span>'}</td>
+      <td>${recipe.coffee_machine_selection ? escHtml(recipe.coffee_machine_selection) : '<span class="cell-muted">—</span>'}</td>
+      <td>${ingredients || '<span class="cell-muted">—</span>'}</td>
+      <td>${recipe.packet ? escHtml(recipe.packet) : '<span class="cell-muted">—</span>'}</td>
+      <td>${recipe.beverage_pour ? escHtml(recipe.beverage_pour) : '<span class="cell-muted">—</span>'}</td>
+      <td>${recipe.toppings ? escHtml(recipe.toppings) : '<span class="cell-muted">—</span>'}</td>
+    </tr>`;
+  }
+
+  function escHtml(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+</script>
+</body>
+</html>
