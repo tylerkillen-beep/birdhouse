@@ -428,6 +428,12 @@
       <button type="button" class="nav-item" onclick="showSection('recipes')" id="nav-recipes">
         <span class="nav-icon" aria-hidden="true">📋</span><span class="nav-label"> Recipes</span>
       </button>
+      <a class="nav-item" href="../student/recipe-sheet.html" target="_blank" rel="noopener">
+        <span class="nav-icon" aria-hidden="true">🗒️</span><span class="nav-label"> Recipe Sheet</span>
+      </a>
+      <a class="nav-item" href="../board.html" target="_blank" rel="noopener">
+        <span class="nav-icon" aria-hidden="true">🖥️</span><span class="nav-label"> Menu Board</span>
+      </a>
       <button type="button" class="nav-item" onclick="showSection('closed-days')" id="nav-closed-days">
         <span class="nav-icon" aria-hidden="true">🚫</span><span class="nav-label"> Closed Days</span>
       </button>
@@ -1360,6 +1366,17 @@
       <label class="form-label" for="menu-item-description">Description</label>
       <textarea class="form-input" id="menu-item-description" rows="2" style="resize:vertical" placeholder="Shown to customers when ordering."></textarea>
     </div>
+    <div class="form-group">
+      <label class="form-label" for="menu-item-photo">Photo <span style="color:var(--gray-mid);text-transform:none;font-weight:400">(shown on the Menu Board, especially for Specials)</span></label>
+      <div style="display:flex;align-items:center;gap:0.75rem">
+        <img id="menu-item-photo-preview" src="" alt="" style="display:none;width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--border)" />
+        <input class="form-input" id="menu-item-photo" type="file" accept="image/*" style="flex:1" />
+      </div>
+      <label id="menu-item-photo-remove-wrap" style="display:none;align-items:center;gap:0.4rem;color:var(--gray-mid);font-size:0.8rem;margin-top:0.4rem">
+        <input type="checkbox" id="menu-item-photo-remove" style="accent-color:var(--accent)" /> Remove current photo
+      </label>
+      <div id="menu-item-photo-msg" style="display:none;margin-top:0.4rem" class="msg"></div>
+    </div>
     <div style="display:flex;gap:1.25rem;flex-wrap:wrap;margin-bottom:1rem">
       <label style="display:flex;align-items:center;gap:0.45rem;color:var(--gray-mid);font-size:0.83rem"><input type="checkbox" id="menu-item-hot" checked style="accent-color:var(--accent)" /> Hot</label>
       <label style="display:flex;align-items:center;gap:0.45rem;color:var(--gray-mid);font-size:0.83rem"><input type="checkbox" id="menu-item-iced" style="accent-color:var(--accent)" /> Iced</label>
@@ -1621,6 +1638,7 @@ let allMenuItems = [];
 let allMenuSubmissions = [];
 let editingPlanId = null;
 let editingMenuItemId = null;
+let currentMenuItemImageUrl = null;
 let editingRubricId = null;
 let editingStaffTeamId = null;
 let editingStaffStudentId = null;
@@ -3009,7 +3027,7 @@ async function loadMenuItems() {
     const price = `$${(priceCents / 100).toFixed(2)}`;
     const categoryLabel = getMenuCategoryLabel(item.category);
     return `<tr>
-      <td><strong>${item.name || '—'}</strong><div style="font-size:0.72rem;color:var(--gray)">${item.description || ''}</div></td>
+      <td><div style="display:flex;align-items:center;gap:0.6rem">${item.image_url ? `<img src="${item.image_url}" alt="" style="width:32px;height:32px;object-fit:cover;border-radius:6px;border:1px solid var(--border);flex-shrink:0" />` : ''}<div><strong>${item.name || '—'}</strong><div style="font-size:0.72rem;color:var(--gray)">${item.description || ''}</div></div></div></td>
       <td>${categoryLabel}</td>
       <td>${temp}</td>
       <td>${price}</td>
@@ -3063,6 +3081,7 @@ async function loadModifierCheckboxes(selectedSquareIds) {
 
 function resetMenuItemModal() {
   editingMenuItemId = null;
+  currentMenuItemImageUrl = null;
   populateMenuCategoryControls(allMenuItems);
   document.getElementById('menu-item-modal-title').textContent = 'New Menu Item';
   document.getElementById('menu-item-save-btn').textContent = 'Save Item';
@@ -3074,6 +3093,11 @@ function resetMenuItemModal() {
   document.getElementById('menu-item-hot').checked = true;
   document.getElementById('menu-item-iced').checked = false;
   document.getElementById('menu-item-available').checked = true;
+  document.getElementById('menu-item-photo').value = '';
+  document.getElementById('menu-item-photo-preview').style.display = 'none';
+  document.getElementById('menu-item-photo-remove-wrap').style.display = 'none';
+  document.getElementById('menu-item-photo-remove').checked = false;
+  document.getElementById('menu-item-photo-msg').style.display = 'none';
   loadModifierCheckboxes([]);
 }
 
@@ -3087,6 +3111,7 @@ function editMenuItem(id) {
   if (!item) return;
   populateMenuCategoryControls(allMenuItems);
   editingMenuItemId = id;
+  currentMenuItemImageUrl = item.image_url || null;
   document.getElementById('menu-item-modal-title').textContent = 'Edit Menu Item';
   document.getElementById('menu-item-save-btn').textContent = 'Save Changes';
   document.getElementById('menu-item-name').value = item.name || '';
@@ -3098,13 +3123,50 @@ function editMenuItem(id) {
   document.getElementById('menu-item-hot').checked = item.is_hot !== false;
   document.getElementById('menu-item-iced').checked = item.is_iced === true;
   document.getElementById('menu-item-available').checked = item.available !== false;
+  document.getElementById('menu-item-photo').value = '';
+  document.getElementById('menu-item-photo-msg').style.display = 'none';
+  document.getElementById('menu-item-photo-remove').checked = false;
+  const preview = document.getElementById('menu-item-photo-preview');
+  const removeWrap = document.getElementById('menu-item-photo-remove-wrap');
+  if (currentMenuItemImageUrl) {
+    preview.src = currentMenuItemImageUrl;
+    preview.alt = item.name || '';
+    preview.style.display = 'block';
+    removeWrap.style.display = 'flex';
+  } else {
+    preview.style.display = 'none';
+    removeWrap.style.display = 'none';
+  }
   loadModifierCheckboxes(item.square_modifier_list_ids || []);
   openModal('menu-item-modal');
 }
 
 async function saveMenuItem() {
+  const photoMsg = document.getElementById('menu-item-photo-msg');
+  photoMsg.style.display = 'none';
   try {
     const payload = menuItemPayloadFromForm();
+
+    const photoFile = document.getElementById('menu-item-photo').files?.[0];
+    const removePhoto = document.getElementById('menu-item-photo-remove').checked;
+    if (photoFile) {
+      const ext = (photoFile.name.split('.').pop() || 'jpg').toLowerCase();
+      const path = `${(editingMenuItemId || 'new')}-${Date.now()}.${ext}`;
+      const { error: uploadError } = await sb.storage.from('menu-images')
+        .upload(path, photoFile, { upsert: true, cacheControl: '3600', contentType: photoFile.type || 'image/jpeg' });
+      if (uploadError) {
+        photoMsg.textContent = 'Photo upload failed: ' + uploadError.message;
+        photoMsg.className = 'msg error';
+        photoMsg.style.display = 'block';
+        return;
+      }
+      payload.image_url = sb.storage.from('menu-images').getPublicUrl(path).data.publicUrl;
+    } else if (removePhoto) {
+      payload.image_url = null;
+    } else {
+      payload.image_url = currentMenuItemImageUrl;
+    }
+
     const q = editingMenuItemId
       ? sb.from('menu_items').update(payload).eq('id', editingMenuItemId)
       : sb.from('menu_items').insert(payload);
@@ -5387,11 +5449,13 @@ function renderRecipes() {
     const ingList = recipe.recipe_ingredients?.map(ri =>
       `<span style="font-size:0.78rem;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:6px;padding:0.15rem 0.5rem;color:var(--text-muted)">${ri.amount} ${ri.unit || ri.inventory?.unit || ''} ${ri.inventory?.name || '?'}</span>`
     ).join(' ') || '<span style="color:var(--gray-mid);font-size:0.78rem">No ingredients</span>';
+    const buildBits = [recipe.cup_type ? `${recipe.cup_type} cup` : '', recipe.coffee_machine_selection, recipe.beverage_pour].filter(Boolean);
     return `<div class="recipe-card">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:0.5rem">
         <div>
           <div style="font-weight:600;font-size:0.95rem">${recipe.name}</div>
           ${recipe.description ? `<div style="font-size:0.75rem;color:var(--gray-mid);margin-top:0.15rem">${recipe.description}</div>` : ''}
+          ${buildBits.length ? `<div style="font-size:0.72rem;color:var(--gray-mid);margin-top:0.15rem">${buildBits.join(' · ')}</div>` : ''}
         </div>
         <div style="display:flex;gap:0.4rem;flex-shrink:0">
           <button class="btn btn-ghost btn-sm" onclick="openRecipeModal('${recipe.id}')">✏️ Edit</button>
@@ -5409,6 +5473,12 @@ function openRecipeModal(id) {
   const recipe = id ? allRecipes.find(r => r.id === id) : null;
   document.getElementById('recipe-name').value = recipe?.name || '';
   document.getElementById('recipe-desc').value = recipe?.description || '';
+  document.getElementById('recipe-cup').value = recipe?.cup_type || '';
+  document.getElementById('recipe-ice').value = recipe?.ice_amount || '';
+  document.getElementById('recipe-machine').value = recipe?.coffee_machine_selection || '';
+  document.getElementById('recipe-packet').value = recipe?.packet || '';
+  document.getElementById('recipe-pour').value = recipe?.beverage_pour || '';
+  document.getElementById('recipe-toppings').value = recipe?.toppings || '';
   document.getElementById('recipe-modal-msg').style.display = 'none';
   const listEl = document.getElementById('recipe-ingredients-list');
   listEl.innerHTML = '';
@@ -5434,6 +5504,14 @@ async function saveRecipe() {
   const name = document.getElementById('recipe-name').value.trim();
   const desc = document.getElementById('recipe-desc').value.trim() || null;
   if (!name) { msgEl.textContent = 'Recipe name is required.'; msgEl.className = 'msg error'; msgEl.style.display = 'block'; return; }
+  const buildSpec = {
+    cup_type: document.getElementById('recipe-cup').value || null,
+    ice_amount: document.getElementById('recipe-ice').value || null,
+    coffee_machine_selection: document.getElementById('recipe-machine').value.trim() || null,
+    packet: document.getElementById('recipe-packet').value.trim() || null,
+    beverage_pour: document.getElementById('recipe-pour').value.trim() || null,
+    toppings: document.getElementById('recipe-toppings').value.trim() || null,
+  };
   const rows = Array.from(document.querySelectorAll('#recipe-ingredients-list .ingredient-row'));
   const ingredients = rows.map(row => {
     const selects = row.querySelectorAll('select');
@@ -5442,11 +5520,11 @@ async function saveRecipe() {
   }).filter(r => r.inventory_id && r.amount > 0);
   let recipeId = editingRecipeId;
   if (editingRecipeId) {
-    const { error } = await sb.from('recipes').update({ name, description: desc, updated_at: new Date().toISOString() }).eq('id', editingRecipeId);
+    const { error } = await sb.from('recipes').update({ name, description: desc, ...buildSpec, updated_at: new Date().toISOString() }).eq('id', editingRecipeId);
     if (error) { msgEl.textContent = 'Error: ' + error.message; msgEl.className = 'msg error'; msgEl.style.display = 'block'; return; }
     await sb.from('recipe_ingredients').delete().eq('recipe_id', editingRecipeId);
   } else {
-    const { data, error } = await sb.from('recipes').insert({ name, description: desc, created_by: currentUser.id }).select().single();
+    const { data, error } = await sb.from('recipes').insert({ name, description: desc, ...buildSpec, created_by: currentUser.id }).select().single();
     if (error) { msgEl.textContent = 'Error: ' + error.message; msgEl.className = 'msg error'; msgEl.style.display = 'block'; return; }
     recipeId = data.id;
   }
@@ -5539,7 +5617,43 @@ async function deleteRecipe(id, name) {
       <label class="form-label" for="recipe-desc">Description (optional)</label>
       <input class="form-input" id="recipe-desc" placeholder="Brief notes about this recipe"/>
     </div>
-    <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray-mid);margin-bottom:0.6rem;font-weight:600">Ingredients consumed per serving</div>
+    <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray-mid);margin-bottom:0.6rem;font-weight:600">Build steps (for the staff Recipe Sheet)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
+      <div class="form-group">
+        <label class="form-label" for="recipe-cup">Cup</label>
+        <select class="form-input" id="recipe-cup">
+          <option value="">—</option>
+          <option value="Hot">Hot</option>
+          <option value="Cold">Cold</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="recipe-ice">Ice</label>
+        <select class="form-input" id="recipe-ice">
+          <option value="">—</option>
+          <option value="None">None</option>
+          <option value="Half Filled">Half Filled</option>
+          <option value="Full">Full</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="recipe-machine">Coffee Machine Selection</label>
+        <input class="form-input" id="recipe-machine" placeholder="e.g. Iced Latte, Latte, None"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="recipe-packet">Packet</label>
+        <input class="form-input" id="recipe-packet" placeholder="e.g. Cherry Limeade (Half)"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="recipe-pour">Beverage Pour</label>
+        <input class="form-input" id="recipe-pour" placeholder="e.g. Sprite, Fresca, Diet Dr. Pepper"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="recipe-toppings">Topping(s)</label>
+        <input class="form-input" id="recipe-toppings" placeholder="e.g. Whipped Cream, Strawberry Boba"/>
+      </div>
+    </div>
+    <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray-mid);margin-bottom:0.6rem;font-weight:600">Syrups & inventory ingredients <span style="text-transform:none;font-weight:400">(used for cost tracking; also shown as Syrup(s) on the Recipe Sheet)</span></div>
     <div id="recipe-ingredients-list"></div>
     <button class="btn btn-ghost btn-sm" style="margin-bottom:1rem" onclick="addIngredientRow()">+ Add Ingredient</button>
     <div id="recipe-modal-msg" style="display:none;margin-top:0.5rem" class="msg"></div>
