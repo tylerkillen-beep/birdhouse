@@ -38,11 +38,15 @@ type SquareObject = {
     name?: string;
     description?: string;
     category_id?: string;
+    image_ids?: string[];
     variations?: Array<{ id: string }>;
     modifier_list_info?: Array<{ modifier_list_id: string; enabled: boolean }>;
   };
   category_data?: {
     name?: string;
+  };
+  image_data?: {
+    url?: string;
   };
   item_variation_data?: {
     price_money?: { amount?: number };
@@ -114,7 +118,7 @@ serve(async (req) => {
     let listCursor: string | undefined;
 
     do {
-      const params = new URLSearchParams({ types: "ITEM_VARIATION,CATEGORY,MODIFIER_LIST" });
+      const params = new URLSearchParams({ types: "ITEM_VARIATION,CATEGORY,MODIFIER_LIST,IMAGE" });
       if (listCursor) params.set("cursor", listCursor);
 
       const sqRes = await fetch(`${squareBaseUrl}/v2/catalog/list?${params.toString()}`, {
@@ -131,8 +135,10 @@ serve(async (req) => {
     const categories = new Map<string, string>();
     const variations = new Map<string, number>();
     const modifierLists = new Map<string, SquareObject>();
+    const images = new Map<string, string>();
 
     for (const o of allObjects) {
+      if (o.type === "IMAGE" && o.image_data?.url) images.set(o.id, o.image_data.url);
       if (o.type === "CATEGORY") categories.set(o.id, o.category_data?.name || "Coffee");
       if (o.type === "ITEM_VARIATION") variations.set(o.id, o.item_variation_data?.price_money?.amount || 0);
       if (o.type === "MODIFIER_LIST") modifierLists.set(o.id, o);
@@ -213,6 +219,7 @@ serve(async (req) => {
     let inserted = 0;
     let updated = 0;
     let skippedNoVariation = 0;
+    let withImages = 0;
     let lookupErrors = 0;
     let insertErrors = 0;
     let updateErrors = 0;
@@ -228,6 +235,12 @@ serve(async (req) => {
         .filter((info) => info.enabled)
         .map((info) => info.modifier_list_id);
 
+      // Square is the source of truth for photos: an item with no image in Square
+      // clears image_url here. Only the Menu Board's Specials cards display these.
+      const firstImageId = item.item_data?.image_ids?.[0];
+      const imageUrl = firstImageId ? (images.get(firstImageId) || null) : null;
+      if (imageUrl) withImages += 1;
+
       const payload = {
         name: item.item_data?.name || "Untitled",
         description: item.item_data?.description || "",
@@ -239,6 +252,7 @@ serve(async (req) => {
         is_iced: false,
         square_item_id: item.id,
         square_modifier_list_ids: squareModifierListIds,
+        image_url: imageUrl,
       };
 
       const { data: existing, error: existingErr } = await serviceClient
@@ -311,6 +325,8 @@ serve(async (req) => {
       updated,
       deleted,
       skippedNoVariation,
+      squareImages: images.size,
+      withImages,
       lookupErrors,
       insertErrors,
       updateErrors,
