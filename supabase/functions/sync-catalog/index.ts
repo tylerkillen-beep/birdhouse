@@ -241,18 +241,25 @@ serve(async (req) => {
       const imageUrl = firstImageId ? (images.get(firstImageId) || null) : null;
       if (imageUrl) withImages += 1;
 
+      // Fields Square owns. These are safe to overwrite on every sync.
       const payload = {
         name: item.item_data?.name || "Untitled",
         description: item.item_data?.description || "",
-        category: categories.get(item.item_data?.category_id || "") || "Coffee",
         base_price_cents: priceCents,
         base_price: (priceCents / 100).toFixed(2),
-        available: true,
-        is_hot: true,
-        is_iced: false,
         square_item_id: item.id,
         square_modifier_list_ids: squareModifierListIds,
         image_url: imageUrl,
+      };
+
+      // Fields the site owns: staff curate these in the admin page and Square has
+      // no equivalent, so they are seeded on insert and never touched on update.
+      // (Overwriting them here previously reset every item to Coffee/available.)
+      const localDefaults = {
+        category: categories.get(item.item_data?.category_id || "") || "Coffee",
+        available: true,
+        is_hot: true,
+        is_iced: false,
       };
 
       const { data: existing, error: existingErr } = await serviceClient
@@ -285,7 +292,7 @@ serve(async (req) => {
         const sort_order = (maxSortRow?.sort_order || 0) + 1;
         const { error } = await serviceClient
           .from("menu_items")
-          .insert({ ...payload, sort_order });
+          .insert({ ...payload, ...localDefaults, sort_order });
         if (!error) {
           inserted += 1;
         } else {
@@ -295,24 +302,32 @@ serve(async (req) => {
       }
     }
 
-    // Delete any menu items with a square_item_id not in the location's item set
+    // Items no longer offered at this location are hidden, not deleted. A sync
+    // that returns a partial catalog (transient Square error, interrupted
+    // pagination) would otherwise permanently destroy rows -- which is exactly
+    // what happened on 2026-08-28. Hiding is reversible; staff can flip an item
+    // back on in the admin page, and re-adding it in Square restores it too.
     const validSquareIds = items.map((o) => o.id);
-    let deleted = 0;
-    let deleteErrors = 0;
+    let archived = 0;
+    let archiveErrors = 0;
     if (validSquareIds.length > 0) {
-      const { data: toDelete } = await serviceClient
+      const { data: toArchive } = await serviceClient
         .from("menu_items")
         .select("id, square_item_id")
+        .eq("available", true)
         .not("square_item_id", "is", null)
         .not("square_item_id", "in", `(${validSquareIds.join(",")})`);
 
-      for (const row of toDelete || []) {
-        const { error } = await serviceClient.from("menu_items").delete().eq("id", row.id);
+      for (const row of toArchive || []) {
+        const { error } = await serviceClient
+          .from("menu_items")
+          .update({ available: false })
+          .eq("id", row.id);
         if (!error) {
-          deleted += 1;
+          archived += 1;
         } else {
-          deleteErrors += 1;
-          if (sampleErrors.length < 8) sampleErrors.push(`delete ${row.square_item_id}: ${error.message}`);
+          archiveErrors += 1;
+          if (sampleErrors.length < 8) sampleErrors.push(`archive ${row.square_item_id}: ${error.message}`);
         }
       }
     }
@@ -323,14 +338,14 @@ serve(async (req) => {
       attemptedWrites: items.length,
       inserted,
       updated,
-      deleted,
+      archived,
       skippedNoVariation,
       squareImages: images.size,
       withImages,
       lookupErrors,
       insertErrors,
       updateErrors,
-      deleteErrors,
+      archiveErrors,
       modifierLists: modifierLists.size,
       modListsUpserted,
       modOptionsUpserted,
