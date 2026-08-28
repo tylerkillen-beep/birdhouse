@@ -59,9 +59,10 @@
     .special-desc { font-size: 0.78rem; color: var(--light-gray); line-height: 1.4; margin-top: 0.2rem; font-weight: 300; }
 
     /* Category lists column */
-    .lists-col { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+    .lists-col { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start; }
     @media (max-width: 700px) { .lists-col { grid-template-columns: 1fr; } }
-    .list-group { margin-bottom: 0.5rem; }
+    .lists-column { display: flex; flex-direction: column; gap: 2rem; }
+    .list-group { margin-bottom: 0; }
     .list-heading {
       display: flex; align-items: center; gap: 0.6rem;
       font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 0.08em; text-transform: uppercase;
@@ -98,9 +99,9 @@
 
       // Same category grouping as menu.html, kept in sync intentionally.
       const CATEGORIES = [
-        { key: 'coffee',   title: 'Birdie Brews', icon: '☕' },
-        { key: 'soda_tea', title: 'Cold Drinks',  icon: '🥤' },
-        { key: 'food',     title: 'Tasty Treats', icon: '🍪' },
+        { key: 'coffee',   title: 'Birdie Brews', icon: '☕', column: 0 },
+        { key: 'soda_tea', title: 'Cold Drinks',  icon: '🥤', column: 1 },
+        { key: 'food',     title: 'Tasty Treats', icon: '🍪', column: 1 },
       ];
 
       function getCategory(item) {
@@ -176,7 +177,13 @@
           });
 
           const specialsHtml = renderSpecials(specials);
-          const listsHtml = CATEGORIES.map(c => renderList(c, groups[c.key])).join('');
+          // Render into fixed columns so Tasty Treats sits under Cold Drinks, not under Birdie Brews.
+          const columns = [0, 1].map(col =>
+            CATEGORIES.filter(c => c.column === col).map(c => renderList(c, groups[c.key])).join('')
+          );
+          const listsHtml = columns.some(Boolean)
+            ? columns.map(html => `<div class="lists-column">${html}</div>`).join('')
+            : '';
 
           if (!specialsHtml && !listsHtml) {
             container.innerHTML = '<p class="board-loading">No items available right now.</p>';
