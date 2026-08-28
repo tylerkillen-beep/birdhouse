@@ -59,8 +59,8 @@
       display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
     }
     .special-name-row { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
-    .special-name { font-size: 1.02rem; font-weight: 600; color: var(--white); }
-    .special-price { font-size: 0.95rem; color: var(--red-bright); font-weight: 600; white-space: nowrap; }
+    .special-name { font-size: 1.35rem; font-weight: 600; color: var(--white); }
+    .special-price { font-size: 1.35rem; color: var(--red-bright); font-weight: 600; white-space: nowrap; }
     .special-desc { font-size: 0.78rem; color: var(--light-gray); line-height: 1.4; margin-top: 0.2rem; font-weight: 300; }
 
     /* Category lists column */
@@ -79,9 +79,11 @@
       padding: 0.42rem 0; border-bottom: 1px dashed rgba(255,255,255,0.06);
     }
     .list-row:last-child { border-bottom: none; }
-    .list-row-name { font-size: 0.92rem; color: var(--white); font-weight: 500; }
+    /* Names and prices carry the board from across the room, so they run well
+       ahead of the descriptions rather than a notch above them. */
+    .list-row-name { font-size: 1.2rem; color: var(--white); font-weight: 600; }
     .list-row-desc { font-size: 0.72rem; color: var(--gray); font-weight: 300; margin-top: 0.1rem; }
-    .list-row-price { font-size: 0.9rem; color: var(--red-bright); font-weight: 500; white-space: nowrap; flex-shrink: 0; }
+    .list-row-price { font-size: 1.2rem; color: var(--red-bright); font-weight: 600; white-space: nowrap; flex-shrink: 0; }
 
     .board-footer { margin-top: 2.5rem; text-align: center; font-size: 0.68rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--gray); }
   </style>
