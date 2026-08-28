@@ -83,6 +83,19 @@
 
     /* Portal cards */
     .portal-cards { display: flex; gap: 1rem; width: min(680px, 100%); max-width: 100%; }
+
+    /* Staff-facing kiosk link. Deliberately quiet: it echoes the hero eyebrow
+       rather than the portal cards, so it stays findable without competing
+       with Order Now. */
+    .display-link {
+      display: inline-flex; align-items: center; gap: 0.75rem; margin-top: 1.75rem;
+      font-size: 0.72rem; letter-spacing: 0.25em; text-transform: uppercase;
+      color: var(--red-bright); text-decoration: none; transition: color 0.2s;
+    }
+    .display-link::before { content: ''; display: block; width: 30px; height: 1px; background: var(--red); }
+    .display-link:hover, .display-link:focus-visible { color: var(--white); }
+    .display-link:hover .display-arrow { transform: translateX(3px); }
+    .display-arrow { transition: transform 0.2s; }
     .portal-card { flex: 1; border-radius: 14px; padding: 1.4rem 1.25rem; text-decoration: none; position: relative; overflow: hidden; transition: transform 0.25s, box-shadow 0.25s; border: 1px solid var(--border); background: var(--card); }
     .portal-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(204,0,0,0.15) 0%, transparent 60%); opacity: 0; transition: opacity 0.3s; }
     .portal-card:hover { transform: translateY(-5px); box-shadow: 0 20px 50px rgba(204,0,0,0.25), 0 0 0 1px rgba(204,0,0,0.4); }
@@ -231,6 +244,13 @@
           <span class="portal-arrow" aria-hidden="true">↗</span>
         </a>
       </div>
+
+      <a class="display-link fade-up" href="board.html"
+         aria-label="Digital Display — open the menu board for a TV screen">
+        <span aria-hidden="true">📺</span>
+        Digital Display
+        <span class="display-arrow" aria-hidden="true">→</span>
+      </a>
     </div>
 
   <script>
