@@ -1367,15 +1367,11 @@
       <textarea class="form-input" id="menu-item-description" rows="2" style="resize:vertical" placeholder="Shown to customers when ordering."></textarea>
     </div>
     <div class="form-group">
-      <label class="form-label" for="menu-item-photo">Photo <span style="color:var(--gray-mid);text-transform:none;font-weight:400">(shown on the Menu Board, especially for Specials)</span></label>
+      <label class="form-label">Photo <span style="color:var(--gray-mid);text-transform:none;font-weight:400">(managed in Square, shown on the Menu Board's Specials)</span></label>
       <div style="display:flex;align-items:center;gap:0.75rem">
         <img id="menu-item-photo-preview" src="" alt="" style="display:none;width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--border)" />
-        <input class="form-input" id="menu-item-photo" type="file" accept="image/*" style="flex:1" />
+        <div id="menu-item-photo-note" style="color:var(--gray-mid);font-size:0.8rem;line-height:1.45"></div>
       </div>
-      <label id="menu-item-photo-remove-wrap" style="display:none;align-items:center;gap:0.4rem;color:var(--gray-mid);font-size:0.8rem;margin-top:0.4rem">
-        <input type="checkbox" id="menu-item-photo-remove" style="accent-color:var(--accent)" /> Remove current photo
-      </label>
-      <div id="menu-item-photo-msg" style="display:none;margin-top:0.4rem" class="msg"></div>
     </div>
     <div style="display:flex;gap:1.25rem;flex-wrap:wrap;margin-bottom:1rem">
       <label style="display:flex;align-items:center;gap:0.45rem;color:var(--gray-mid);font-size:0.83rem"><input type="checkbox" id="menu-item-hot" checked style="accent-color:var(--accent)" /> Hot</label>
@@ -3093,12 +3089,24 @@ function resetMenuItemModal() {
   document.getElementById('menu-item-hot').checked = true;
   document.getElementById('menu-item-iced').checked = false;
   document.getElementById('menu-item-available').checked = true;
-  document.getElementById('menu-item-photo').value = '';
-  document.getElementById('menu-item-photo-preview').style.display = 'none';
-  document.getElementById('menu-item-photo-remove-wrap').style.display = 'none';
-  document.getElementById('menu-item-photo-remove').checked = false;
-  document.getElementById('menu-item-photo-msg').style.display = 'none';
+  renderMenuItemPhoto(null, '');
   loadModifierCheckboxes([]);
+}
+
+// Photos come from Square via sync-catalog; this modal only shows what synced.
+function renderMenuItemPhoto(imageUrl, itemName) {
+  const preview = document.getElementById('menu-item-photo-preview');
+  const note = document.getElementById('menu-item-photo-note');
+  if (imageUrl) {
+    preview.src = imageUrl;
+    preview.alt = itemName || '';
+    preview.style.display = 'block';
+    note.textContent = 'Synced from Square. To change it, replace the item photo in Square, then run Sync with Square.';
+  } else {
+    preview.removeAttribute('src');
+    preview.style.display = 'none';
+    note.textContent = 'No photo in Square. Add one to the item in Square, then run Sync with Square.';
+  }
 }
 
 function openAddMenuItemModal() {
@@ -3123,49 +3131,17 @@ function editMenuItem(id) {
   document.getElementById('menu-item-hot').checked = item.is_hot !== false;
   document.getElementById('menu-item-iced').checked = item.is_iced === true;
   document.getElementById('menu-item-available').checked = item.available !== false;
-  document.getElementById('menu-item-photo').value = '';
-  document.getElementById('menu-item-photo-msg').style.display = 'none';
-  document.getElementById('menu-item-photo-remove').checked = false;
-  const preview = document.getElementById('menu-item-photo-preview');
-  const removeWrap = document.getElementById('menu-item-photo-remove-wrap');
-  if (currentMenuItemImageUrl) {
-    preview.src = currentMenuItemImageUrl;
-    preview.alt = item.name || '';
-    preview.style.display = 'block';
-    removeWrap.style.display = 'flex';
-  } else {
-    preview.style.display = 'none';
-    removeWrap.style.display = 'none';
-  }
+  renderMenuItemPhoto(currentMenuItemImageUrl, item.name);
   loadModifierCheckboxes(item.square_modifier_list_ids || []);
   openModal('menu-item-modal');
 }
 
 async function saveMenuItem() {
-  const photoMsg = document.getElementById('menu-item-photo-msg');
-  photoMsg.style.display = 'none';
   try {
     const payload = menuItemPayloadFromForm();
 
-    const photoFile = document.getElementById('menu-item-photo').files?.[0];
-    const removePhoto = document.getElementById('menu-item-photo-remove').checked;
-    if (photoFile) {
-      const ext = (photoFile.name.split('.').pop() || 'jpg').toLowerCase();
-      const path = `${(editingMenuItemId || 'new')}-${Date.now()}.${ext}`;
-      const { error: uploadError } = await sb.storage.from('menu-images')
-        .upload(path, photoFile, { upsert: true, cacheControl: '3600', contentType: photoFile.type || 'image/jpeg' });
-      if (uploadError) {
-        photoMsg.textContent = 'Photo upload failed: ' + uploadError.message;
-        photoMsg.className = 'msg error';
-        photoMsg.style.display = 'block';
-        return;
-      }
-      payload.image_url = sb.storage.from('menu-images').getPublicUrl(path).data.publicUrl;
-    } else if (removePhoto) {
-      payload.image_url = null;
-    } else {
-      payload.image_url = currentMenuItemImageUrl;
-    }
+    // Photos are owned by Square; preserve whatever the last sync wrote.
+    payload.image_url = currentMenuItemImageUrl;
 
     const q = editingMenuItemId
       ? sb.from('menu_items').update(payload).eq('id', editingMenuItemId)
