@@ -5308,8 +5308,20 @@ async function handleReceiptFile(file) {
       headers: { Authorization: `Bearer ${session.access_token}` },
       body: form
     });
-    const parsed = await res.json();
+    // Read as text first. res.json() throws the browser's own raw JSON syntax
+    // error ("Expected property name or '}' at position N"), which is
+    // indistinguishable from the same message arriving *inside* a valid error
+    // response from the function -- and that ambiguity cost a debugging round.
+    const raw = await res.text();
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (bodyErr) {
+      console.error('parse-receipt: unreadable response body', { status: res.status, raw });
+      throw new Error(`The parser returned HTTP ${res.status} with a body this page could not read (${raw.length} chars). First 200: ${raw.slice(0, 200)}`);
+    }
     if (parsed.error) throw new Error(parsed.error);
+    if (!res.ok) throw new Error(`Parser failed with HTTP ${res.status}.`);
     status.textContent = '';
     if (!allInventory.length) await loadInventory();
     currentParsedReceipt = parsed;
