@@ -169,9 +169,12 @@
     .filter-select { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 0.9rem; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.83rem; outline: none; cursor: pointer; }
 
     /* ── Modal ── */
-    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 500; align-items: center; justify-content: center; }
+    /* overflow-y + margin:auto (rather than align-items:center alone) so a modal
+       taller than the viewport scrolls instead of having its top clipped off
+       with no way to reach it. */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 500; align-items: center; justify-content: center; overflow-y: auto; padding: 2rem 1rem; }
     .modal-overlay.open { display: flex; }
-    .modal { background: #111; border: 1px solid var(--border); border-radius: 16px; padding: 2rem; width: 90%; max-width: 520px; position: relative; }
+    .modal { background: #111; border: 1px solid var(--border); border-radius: 16px; padding: 2rem; width: 90%; max-width: 520px; position: relative; margin: auto; }
     .modal-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; letter-spacing: 0.06em; margin-bottom: 1.5rem; }
     .modal-close { position: absolute; top: 1rem; right: 1rem; background: none; border: none; color: var(--gray); font-size: 1.2rem; cursor: pointer; }
     .modal-close:hover { color: var(--text); }
@@ -371,6 +374,11 @@
     .ingredient-row select{flex:2}.ingredient-row input{width:70px}
     .ingredient-row .rm-btn{background:none;border:none;color:var(--gray-mid);cursor:pointer;font-size:1rem;padding:0 0.2rem}
     .ingredient-row .rm-btn:hover{color:#c0392b}
+    /* A long receipt is 20+ items. Cap the modal to the viewport and let the
+       item list absorb whatever height is left, so the vendor fields and the
+       Save button stay on screen however many lines the receipt has. */
+    #receipt-modal .modal{display:flex;flex-direction:column;max-height:calc(100vh - 4rem)}
+    #po-items-list{flex:1 1 auto;min-height:120px;overflow-y:auto;padding-right:0.4rem}
     .poi-row{display:grid;grid-template-columns:1fr 80px 100px 1fr;gap:0.5rem;align-items:center;padding:0.5rem 0;border-bottom:1px solid var(--border-dim);font-size:0.82rem}
     .poi-cost{grid-column:1/-1;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;font-size:0.72rem;color:var(--gray-mid);padding:0.15rem 0 0.35rem}
     .poi-cost input{width:70px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.72rem;padding:0.2rem 0.35rem;outline:none}
