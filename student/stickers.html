@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Birdhouse — Sticker Print Queue</title>
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <script src="/lib/supabase.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --black: #0a0a0a; --red: #cc0000; --red-bright: #ff1a1a;
+      --gray: #888; --light-gray: #999; --white: #f0f0f0;
+      --card: #141414; --border: rgba(204,0,0,0.18); --border-dim: rgba(255,255,255,0.07);
+    }
+    body { background: var(--black); color: var(--white); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+    body::before { content:''; position:fixed; inset:0; background-image:linear-gradient(rgba(204,0,0,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(204,0,0,0.03) 1px,transparent 1px); background-size:40px 40px; pointer-events:none; z-index:0; }
+    .skip-link { position:absolute; top:-100%; left:1rem; background:var(--red-bright); color:#000; padding:0.5rem 1rem; border-radius:0 0 6px 6px; font-size:0.85rem; z-index:9999; text-decoration:none; }
+    .skip-link:focus { top:0; }
+    :focus-visible { outline:2px solid var(--red-bright); outline-offset:3px; border-radius:3px; }
+
+    .mobile-topbar { display:none; align-items:center; justify-content:space-between; padding:0.9rem 1.1rem; border-bottom:1px solid var(--border); background:#0d0000; position:sticky; top:0; z-index:40; }
+    .mobile-topbar img { height:30px; }
+    .hamburger { background:none; border:none; cursor:pointer; display:flex; flex-direction:column; gap:4px; padding:0.35rem; }
+    .hamburger span { width:22px; height:2px; background:var(--white); display:block; }
+    .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:45; }
+    .sidebar-overlay.open { display:block; }
+
+    .layout { display:grid; grid-template-columns:220px 1fr; min-height:100vh; }
+    .sidebar { background:#0d0000; border-right:1px solid var(--border); padding:1.75rem 1.25rem; position:sticky; top:0; height:100vh; display:flex; flex-direction:column; }
+    .sidebar-logo img { height:38px; filter:drop-shadow(0 0 8px rgba(204,0,0,0.5)); margin-bottom:2rem; }
+    .user-card { background:rgba(204,0,0,0.08); border:1px solid var(--border); border-radius:10px; padding:1rem; margin-bottom:1.75rem; }
+    .user-name { font-size:0.9rem; font-weight:500; }
+    .user-role { font-size:0.72rem; color:var(--red-bright); margin-top:0.25rem; }
+    nav { flex:1; }
+    .nav-item { display:flex; align-items:center; gap:0.7rem; padding:0.7rem 0.9rem; border-radius:7px; color:var(--gray); font-size:0.85rem; text-decoration:none; cursor:pointer; transition:all 0.2s; margin-bottom:0.2rem; border:1px solid transparent; }
+    .nav-item:hover { color:var(--white); background:rgba(255,255,255,0.04); }
+    .nav-item.active { background:rgba(204,0,0,0.12); color:var(--red-bright); border-color:rgba(204,0,0,0.25); }
+    .signout-btn { background:none; border:1px solid rgba(255,255,255,0.08); border-radius:7px; padding:0.65rem 1rem; color:var(--gray); font-size:0.8rem; cursor:pointer; width:100%; text-align:left; font-family:'DM Sans',sans-serif; }
+    .signout-btn:hover { color:var(--white); }
+
+    .main { padding:2.5rem 3rem 5rem; position:relative; z-index:1; }
+    .page-eyebrow { font-size:0.65rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--red-bright); margin-bottom:0.3rem; }
+    .page-header { display:flex; align-items:flex-end; justify-content:space-between; gap:1rem; flex-wrap:wrap; margin-bottom:0.5rem; }
+    .page-title { font-family:'Bebas Neue',sans-serif; font-size:2.5rem; letter-spacing:0.04em; }
+    .page-sub { color:var(--light-gray); font-size:0.85rem; margin-bottom:1.75rem; line-height:1.6; max-width:62ch; }
+    .refresh-btn { background:none; border:1px solid var(--border-dim); border-radius:7px; padding:0.5rem 0.9rem; color:var(--light-gray); font-size:0.78rem; cursor:pointer; font-family:'DM Sans',sans-serif; }
+    .refresh-btn:hover { border-color:var(--border); color:var(--white); }
+
+    .filter-bar { background:var(--card); border:1px solid var(--border-dim); border-radius:12px; padding:1rem 1.25rem; margin-bottom:1.5rem; display:flex; flex-direction:column; gap:0.85rem; }
+    .filter-row { display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap; }
+    .filter-label { font-size:0.62rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--gray); min-width:64px; }
+    .filter-pills { display:flex; gap:0.4rem; flex-wrap:wrap; }
+    .filter-pill { padding:0.4rem 0.85rem; border-radius:20px; border:1px solid var(--border-dim); background:transparent; color:var(--light-gray); font-size:0.76rem; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.15s; }
+    .filter-pill:hover { border-color:var(--border); color:var(--white); }
+    .filter-pill.active { background:rgba(204,0,0,0.14); border-color:rgba(204,0,0,0.4); color:var(--red-bright); }
+    input[type=date] { padding:0.45rem 0.7rem; border:1px solid var(--border-dim); border-radius:7px; background:#0d0d0d; color:var(--white); font-family:'DM Sans',sans-serif; font-size:0.8rem; color-scheme:dark; }
+
+    .sheet-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:1.25rem; }
+    .sheet-card { background:var(--card); border:1.5px solid var(--border-dim); border-radius:14px; overflow:hidden; display:flex; flex-direction:column; position:relative; }
+    .sheet-card::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; }
+    .sheet-card.st-pending_review::before { background:#ff9800; }
+    .sheet-card.st-approved::before       { background:#4caf50; }
+    .sheet-card.st-printed::before        { background:#2196f3; }
+    .sheet-card.st-rejected::before       { background:#666; }
+    .sheet-card.st-rejected { opacity:0.55; }
+
+    .sheet-preview { background:#1c1c1c; padding:1rem; display:flex; justify-content:center; }
+    .sheet-preview img { width:130px; aspect-ratio:4/7; object-fit:contain; background:#fff; border-radius:3px; box-shadow:0 4px 18px rgba(0,0,0,0.5); display:block; }
+    .sheet-preview .ph { width:130px; aspect-ratio:4/7; background:#101010; border:1px dashed var(--border-dim); border-radius:3px; display:flex; align-items:center; justify-content:center; color:var(--gray); font-size:0.7rem; text-align:center; padding:0.5rem; }
+
+    .sheet-body { padding:1.1rem 1.25rem; flex:1; display:flex; flex-direction:column; gap:0.5rem; }
+    .sheet-head { display:flex; align-items:flex-start; justify-content:space-between; gap:0.6rem; }
+    .sheet-customer { font-weight:600; font-size:0.95rem; line-height:1.3; }
+    .status-badge { display:inline-block; padding:0.2rem 0.6rem; border-radius:20px; font-size:0.64rem; white-space:nowrap; }
+    .badge-pending_review { background:rgba(255,152,0,0.12); color:#ff9800; border:1px solid rgba(255,152,0,0.25); }
+    .badge-approved       { background:rgba(76,175,80,0.12); color:#4caf50; border:1px solid rgba(76,175,80,0.25); }
+    .badge-printed        { background:rgba(33,150,243,0.12); color:#42a5f5; border:1px solid rgba(33,150,243,0.25); }
+    .badge-rejected       { background:rgba(255,255,255,0.06); color:var(--gray); border:1px solid var(--border-dim); }
+    .sheet-meta { font-size:0.78rem; color:var(--light-gray); line-height:1.6; }
+    .sheet-meta strong { color:var(--white); font-weight:500; }
+    .sheet-note { font-size:0.74rem; color:#ffb454; background:rgba(255,150,0,0.08); border:1px solid rgba(255,150,0,0.22); border-radius:7px; padding:0.5rem 0.65rem; line-height:1.45; }
+
+    .sheet-actions { display:flex; gap:0.45rem; flex-wrap:wrap; padding:0 1.25rem 1.25rem; }
+    .act-btn { flex:1; min-width:88px; padding:0.5rem 0.6rem; border-radius:7px; font-size:0.75rem; cursor:pointer; font-family:'DM Sans',sans-serif; border:1px solid var(--border-dim); background:transparent; color:var(--light-gray); transition:all 0.15s; }
+    .act-btn:hover { border-color:var(--border); color:var(--white); }
+    .act-btn.primary { background:rgba(204,0,0,0.14); border-color:rgba(204,0,0,0.35); color:var(--red-bright); }
+    .act-btn.primary:hover { background:rgba(204,0,0,0.25); }
+    .act-btn.good { border-color:rgba(76,175,80,0.35); color:#4caf50; }
+    .act-btn.bad  { border-color:rgba(255,80,80,0.3); color:#ff6b6b; }
+    .act-btn:disabled { opacity:0.35; cursor:not-allowed; }
+
+    .empty-state { text-align:center; padding:4rem 1rem; color:var(--gray); background:var(--card); border:1px solid var(--border-dim); border-radius:14px; }
+    .empty-state-icon { font-size:2.5rem; margin-bottom:0.75rem; }
+    .toast { position:fixed; bottom:1.5rem; left:50%; transform:translateX(-50%); background:#141414; border:1px solid var(--border); border-radius:9px; padding:0.8rem 1.4rem; font-size:0.85rem; z-index:200; display:none; box-shadow:0 8px 30px rgba(0,0,0,0.7); }
+    .toast.show { display:block; }
+
+    @media (max-width: 780px) {
+      .mobile-topbar { display:flex; }
+      .layout { grid-template-columns:1fr; }
+      .sidebar { position:fixed; left:0; top:0; width:250px; z-index:50; transform:translateX(-100%); transition:transform 0.25s; }
+      .sidebar.open { transform:translateX(0); }
+      .main { padding:1.5rem 1.1rem 4rem; }
+    }
+  </style>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to main content</a>
+
+<div class="mobile-topbar">
+  <a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a>
+  <button class="hamburger" onclick="toggleNav()" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="team-sidebar">
+    <span></span><span></span><span></span>
+  </button>
+</div>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleNav()" aria-hidden="true"></div>
+
+<div class="layout">
+  <aside class="sidebar" id="team-sidebar" aria-label="Team hub navigation">
+    <div class="sidebar-logo"><a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a></div>
+    <div class="user-card">
+      <div class="user-name" id="user-display-name">Loading...</div>
+      <div class="user-role" id="user-role-badge">Staff</div>
+    </div>
+    <nav aria-label="Team hub">
+      <a class="nav-item" href="dashboard.html"><span aria-hidden="true">📊</span> Overview</a>
+      <a class="nav-item" href="orders.html"><span aria-hidden="true">🧾</span> Order Queue</a>
+      <a class="nav-item active" href="stickers.html" aria-current="page"><span aria-hidden="true">🖼️</span> Sticker Prints</a>
+      <a class="nav-item" href="dashboard.html#schedule"><span aria-hidden="true">🗓️</span> My Schedule</a>
+      <a class="nav-item" href="dashboard.html#inventory"><span aria-hidden="true">📦</span> Inventory</a>
+      <a class="nav-item" href="dashboard.html#sales"><span aria-hidden="true">📈</span> Sales Data</a>
+    </nav>
+    <button class="signout-btn" onclick="signOut()"><span aria-hidden="true">←</span> Sign Out</button>
+  </aside>
+
+  <main class="main" id="main-content" tabindex="-1">
+    <div class="page-eyebrow">Team Hub</div>
+    <div class="page-header">
+      <h1 class="page-title">Sticker Print Queue</h1>
+      <button class="refresh-btn" onclick="loadSheets()">↻ Refresh</button>
+    </div>
+    <p class="page-sub">
+      Every sheet is reviewed before it goes to the Pixcut S1. Check the artwork, approve it,
+      then download the print file — it comes out at 4&quot; &times; 7&quot;, 300&nbsp;DPI, ready to print at 100% scale.
+    </p>
+
+    <div class="filter-bar">
+      <div class="filter-row">
+        <span class="filter-label" id="status-label">Status</span>
+        <div class="filter-pills" id="status-pills" role="group" aria-labelledby="status-label">
+          <button class="filter-pill active" onclick="setStatus('pending_review', this)" aria-pressed="true">⏳ Needs Review</button>
+          <button class="filter-pill" onclick="setStatus('approved', this)" aria-pressed="false">✅ Ready to Print</button>
+          <button class="filter-pill" onclick="setStatus('printed', this)" aria-pressed="false">🖨️ Printed</button>
+          <button class="filter-pill" onclick="setStatus('rejected', this)" aria-pressed="false">✕ Rejected</button>
+          <button class="filter-pill" onclick="setStatus('all', this)" aria-pressed="false">All</button>
+        </div>
+      </div>
+      <div class="filter-row">
+        <span class="filter-label" id="date-label">Deliver on</span>
+        <div class="filter-pills" role="group" aria-labelledby="date-label">
+          <input type="date" id="date-input" onchange="setDate(this.value)" aria-label="Delivery date" />
+          <button class="filter-pill active" id="all-dates-pill" onclick="setDate('')" aria-pressed="true">All dates</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="sheets-container">
+      <div class="empty-state"><div class="empty-state-icon" aria-hidden="true">🖼️</div><div>Loading sheets…</div></div>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+  const sb = supabase.createClient(
+    'https://ljukrhneikqbabcmcpet.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqdWtyaG5laWtxYmFiY21jcGV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyODg1MjEsImV4cCI6MjA4Nzg2NDUyMX0.UbtB_-syG9a9vLcJp04w_k2F3XP2tMScYtB4sez3j78'
+  );
+
+  const BUCKET = 'sticker-uploads';
+
+  let sheets = [];
+  let signedUrls = {};             // sheet id -> signed print-file URL
+  let filterStatus = 'pending_review';
+  let filterDate = '';
+  let myRole = null;
+  let myUserId = null;
+
+  // Approving, rejecting and marking printed are manager/admin actions; student
+  // staff can see the queue and download what's already been approved.
+  function canReview() { return myRole === 'manager' || myRole === 'admin'; }
+
+  function escHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function money(cents) { return '$' + ((cents || 0) / 100).toFixed(2); }
+
+  function toast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 3200);
+  }
+
+  function toggleNav() {
+    const sidebar = document.getElementById('team-sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('open');
+  }
+
+  async function init() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = 'index.html'; return; }
+    myUserId = session.user.id;
+
+    const { data: staffRow } = await sb.from('students')
+      .select('role, first_name, last_name').eq('email', session.user.email).maybeSingle();
+    myRole = staffRow?.role;
+    if (!['student', 'manager', 'admin'].includes(myRole)) {
+      await sb.auth.signOut();
+      window.location.href = 'index.html';
+      return;
+    }
+
+    document.getElementById('user-display-name').textContent =
+      [staffRow?.first_name, staffRow?.last_name].filter(Boolean).join(' ') || 'Staff';
+    document.getElementById('user-role-badge').textContent =
+      myRole === 'admin' ? 'Admin' : myRole === 'manager' ? 'Manager' : 'Student Staff';
+
+    await loadSheets();
+  }
+
+  async function loadSheets() {
+    const { data, error } = await sb
+      .from('sticker_sheets')
+      .select(`
+        id, layout_preset, unique_image_count, placed_count, price_cents,
+        print_path, status, review_note, created_at,
+        orders ( customer_name, room, delivery_date, delivery_time, delivery_method, special_instructions, status )
+      `)
+      .neq('status', 'draft')
+      .order('created_at', { ascending: false })
+      .limit(300);
+
+    if (error) {
+      document.getElementById('sheets-container').innerHTML =
+        `<div class="empty-state">Could not load sheets: ${escHtml(error.message)}</div>`;
+      return;
+    }
+
+    sheets = data || [];
+    await signPreviews();
+    render();
+  }
+
+  /** One batched signing call keeps the grid from firing dozens of requests. */
+  async function signPreviews() {
+    const paths = sheets.map(s => s.print_path).filter(Boolean);
+    if (!paths.length) return;
+    const { data, error } = await sb.storage.from(BUCKET).createSignedUrls(paths, 60 * 60);
+    if (error || !data) return;
+    const byPath = {};
+    data.forEach(entry => { if (entry.signedUrl) byPath[entry.path] = entry.signedUrl; });
+    signedUrls = {};
+    sheets.forEach(s => { if (s.print_path && byPath[s.print_path]) signedUrls[s.id] = byPath[s.print_path]; });
+  }
+
+  function setStatus(value, btn) {
+    filterStatus = value;
+    document.querySelectorAll('#status-pills .filter-pill').forEach(p => {
+      p.classList.remove('active');
+      p.setAttribute('aria-pressed', 'false');
+    });
+    btn.classList.add('active');
+    btn.setAttribute('aria-pressed', 'true');
+    render();
+  }
+
+  function setDate(value) {
+    filterDate = value;
+    document.getElementById('date-input').value = value;
+    const pill = document.getElementById('all-dates-pill');
+    pill.classList.toggle('active', !value);
+    pill.setAttribute('aria-pressed', String(!value));
+    render();
+  }
+
+  function visibleSheets() {
+    return sheets.filter(s => {
+      if (filterStatus !== 'all' && s.status !== filterStatus) return false;
+      if (filterDate && s.orders?.delivery_date !== filterDate) return false;
+      return true;
+    });
+  }
+
+  function render() {
+    const list = visibleSheets();
+    const container = document.getElementById('sheets-container');
+
+    if (!list.length) {
+      container.innerHTML = `<div class="empty-state">
+        <div class="empty-state-icon" aria-hidden="true">🖼️</div>
+        <div>Nothing here right now.</div>
+      </div>`;
+      return;
+    }
+
+    container.innerHTML = `<div class="sheet-grid">${list.map(cardHtml).join('')}</div>`;
+  }
+
+  function cardHtml(sheet) {
+    const o        = sheet.orders || {};
+    const url      = signedUrls[sheet.id];
+    const isPickup = o.delivery_method === 'pickup';
+    const when     = [o.delivery_date, o.delivery_time].filter(Boolean).join(' · ') || 'No date';
+    const statusLabel = {
+      pending_review: '⏳ Needs Review',
+      approved:       '✅ Ready to Print',
+      printed:        '🖨️ Printed',
+      rejected:       '✕ Rejected',
+    }[sheet.status] || sheet.status;
+
+    const review = canReview();
+
+    return `<article class="sheet-card st-${sheet.status}">
+      <div class="sheet-preview">
+        ${url
+          ? `<img src="${url}" alt="Print preview for ${escHtml(o.customer_name || 'customer')}" loading="lazy" />`
+          : `<div class="ph">Print file unavailable</div>`}
+      </div>
+      <div class="sheet-body">
+        <div class="sheet-head">
+          <span class="sheet-customer">${escHtml(o.customer_name || 'Unknown')}</span>
+          <span class="status-badge badge-${sheet.status}">${statusLabel}</span>
+        </div>
+        <div class="sheet-meta">
+          <div>${isPickup ? '🏠 Pickup' : '🚚 Room <strong>' + escHtml(o.room || '—') + '</strong>'}</div>
+          <div>📅 <strong>${escHtml(when)}</strong></div>
+          <div>🖼️ ${sheet.placed_count} sticker${sheet.placed_count === 1 ? '' : 's'} ·
+              ${sheet.unique_image_count} image${sheet.unique_image_count === 1 ? '' : 's'} ·
+              ${escHtml(sheet.layout_preset)} · ${money(sheet.price_cents)}</div>
+          ${o.special_instructions ? `<div>📝 ${escHtml(o.special_instructions)}</div>` : ''}
+        </div>
+        ${sheet.review_note ? `<div class="sheet-note">${escHtml(sheet.review_note)}</div>` : ''}
+      </div>
+      <div class="sheet-actions">
+        <button class="act-btn primary" onclick="downloadSheet('${sheet.id}')" ${url ? '' : 'disabled'}>⬇ Print file</button>
+        ${sheet.status === 'pending_review' && review
+          ? `<button class="act-btn good" onclick="setSheetStatus('${sheet.id}','approved')">✓ Approve</button>
+             <button class="act-btn bad"  onclick="rejectSheet('${sheet.id}')">✕ Reject</button>`
+          : ''}
+        ${sheet.status === 'approved' && review
+          ? `<button class="act-btn good" onclick="setSheetStatus('${sheet.id}','printed')">🖨️ Mark printed</button>`
+          : ''}
+      </div>
+    </article>`;
+  }
+
+  /** Pull the file through fetch so the download gets a useful filename. */
+  async function downloadSheet(id) {
+    const sheet = sheets.find(s => s.id === id);
+    const url   = signedUrls[id];
+    if (!sheet || !url) return;
+    try {
+      const res  = await fetch(url);
+      const blob = await res.blob();
+      const o    = sheet.orders || {};
+      const safe = (o.customer_name || 'customer').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+      const name = `sticker-${o.delivery_date || 'undated'}-${safe}-${id.slice(0, 8)}.png`;
+
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    } catch (e) {
+      toast('Download failed: ' + e.message);
+    }
+  }
+
+  async function setSheetStatus(id, status, note) {
+    const patch = {
+      status,
+      reviewed_by: myUserId,
+      reviewed_at: new Date().toISOString(),
+    };
+    if (note !== undefined) patch.review_note = note;
+
+    const { error } = await sb.from('sticker_sheets').update(patch).eq('id', id);
+    if (error) { toast('Could not update: ' + error.message); return; }
+
+    const sheet = sheets.find(s => s.id === id);
+    if (sheet) {
+      sheet.status = status;
+      if (note !== undefined) sheet.review_note = note;
+    }
+    render();
+    toast(status === 'approved' ? 'Approved — ready to print.'
+        : status === 'printed'  ? 'Marked printed.'
+        : 'Sheet rejected.');
+  }
+
+  async function rejectSheet(id) {
+    const reason = prompt('Why is this sheet being rejected? The customer will see this note.');
+    if (reason === null) return;
+    await setSheetStatus(id, 'rejected', reason.trim() || 'Rejected by staff.');
+    toast('Rejected — remember to refund this order in Square.');
+  }
+
+  async function signOut() {
+    await sb.auth.signOut();
+    window.location.href = 'index.html';
+  }
+
+  init();
+</script>
+</body>
+</html>

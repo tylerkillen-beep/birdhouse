@@ -149,7 +149,8 @@
     </div>
     <nav aria-label="Customer portal">
       <a class="nav-item" href="dashboard.html"><span aria-hidden="true">📊</span> Overview</a>
-      <a class="nav-item" href="order.html"><span aria-hidden="true">☕</span> Place an Order</a>
+      <a class="nav-item" href="order.html"><span aria-hidden="true">â</span> Place an Order</a>
+      <a class="nav-item" href="stickers.html"><span aria-hidden="true">🖼️</span> Sticker Sheets</a>
       <a class="nav-item active" href="orders.html" aria-current="page"><span aria-hidden="true">📋</span> My Orders</a>
       <a class="nav-item" href="dashboard.html#subscription"><span aria-hidden="true">📦</span> My Subscription</a>
       <a class="nav-item" href="dashboard.html#loyalty"><span aria-hidden="true">⭐</span> Birdhouse Bucks</a>
@@ -242,18 +243,49 @@
 
   let userProfile = {};
   let userMeta = {};
+  let sheetsByOrder = {};   // order id -> sticker sheet review rows
 
   async function loadOrders(profile, meta) {
     if (profile) userProfile = profile;
     if (meta) userMeta = meta;
-    const [{ data: orders }, { data: myReviews }] = await Promise.all([
+    const [{ data: orders }, { data: myReviews }, { data: mySheets }] = await Promise.all([
       sb.from('orders').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }),
       sb.from('reviews').select('menu_item_id, order_id').eq('user_id', currentUser.id),
+      sb.from('sticker_sheets').select('order_id, status, review_note').eq('user_id', currentUser.id),
     ]);
     allOrders = orders || [];
     reviewedKeys = new Set((myReviews || []).map(r => `${r.menu_item_id}|${r.order_id}`));
+
+    // Sheets are reviewed by staff before printing, so surface where each one
+    // stands — especially a rejection, which the customer needs to see.
+    sheetsByOrder = {};
+    (mySheets || []).forEach(s => {
+      if (!s.order_id) return;
+      (sheetsByOrder[s.order_id] = sheetsByOrder[s.order_id] || []).push(s);
+    });
     renderSummary();
     renderOrders('all');
+  }
+
+  // Where each sticker sheet on an order stands in the print queue.
+  function sheetStatusHtml(order) {
+    const rows = sheetsByOrder[order.id];
+    if (!rows?.length) return '';
+
+    const label = {
+      pending_review: ['⏳', 'Waiting on staff review', 'var(--gray)'],
+      approved:       ['✅', 'Approved — printing soon', '#4caf50'],
+      printed:        ['🖨️', 'Printed and ready for delivery', '#42a5f5'],
+      rejected:       ['✕',  'Rejected', '#ff6b6b'],
+    };
+
+    return rows.map(s => {
+      const [icon, text, color] = label[s.status] || ['•', s.status, 'var(--gray)'];
+      const note = s.status === 'rejected' && s.review_note
+        ? ` — ${escapeHtml(s.review_note)}`
+        : '';
+      return `<div style="margin-top:0.3rem;font-size:0.78rem;color:${color}"><span aria-hidden="true">${icon}</span> ${text}${note}</div>`;
+    }).join('');
   }
 
   function renderSummary() {
@@ -309,6 +341,11 @@
       let itemsHtml = '';
       if (order.cart_items?.length) {
         itemsHtml = order.cart_items.map(i => {
+          // Sticker sheets aren't menu items: no hot/iced, nothing to review.
+          if (i.type === 'sticker_sheet') {
+            const imgs = i.uniqueImageCount || 1;
+            return `<div style="margin-bottom:0.2rem"><span aria-hidden="true">🖼️</span> ${i.name} &middot; ${imgs} image${imgs===1?'':'s'} &middot; <span style="color:var(--red-bright)">$${i.price.toFixed(2)}</span></div>`;
+          }
           let reviewBtnHtml = '';
           if (isDelivered && i.id) {
             const key = `${i.id}|${order.id}`;
@@ -341,6 +378,7 @@
           <div class="order-drink">${order.drink_name}</div>
           <div class="order-customization">
             ${itemsHtml}
+            ${sheetStatusHtml(order)}
             ${order.special_instructions?`<div style="color:var(--gray);margin-top:0.3rem;font-size:0.78rem">Note: ${order.special_instructions}</div>`:''}
           </div>
           <div class="order-delivery">
@@ -356,7 +394,7 @@
           ${order.points_earned?`<div class="order-points">+${order.points_earned} pt${order.points_earned!==1?'s':''}</div>`:''}
           ${order.square_payment_id?`<button class="btn-secondary" data-receipt-btn="${order.id}" onclick="requestReceipt('${order.id}', this)" aria-label="Get receipt for ${escapeHtml(order.drink_name)} on ${date}">Get Receipt Link</button>`:''}
           <div class="receipt-msg" id="receipt-msg-${order.id}"></div>
-          ${isDelivered?`<a class="btn-reorder" href="order.html">Order Again →</a>`:''}
+          ${isDelivered?`<a class="btn-reorder" href="${order.order_type==='stickers'?'stickers.html':'order.html'}">Order Again →</a>`:''}
         </div>
       </div>`;
     }).join('');
