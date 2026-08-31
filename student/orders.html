@@ -163,7 +163,8 @@
     </div>
     <nav aria-label="Team hub">
       <a class="nav-item" href="dashboard.html"><span aria-hidden="true">📊</span> Overview</a>
-      <a class="nav-item active" href="orders.html" aria-current="page"><span aria-hidden="true">🧾</span> Order Queue</a>
+      <a class="nav-item active" href="orders.html" aria-current="page"><span aria-hidden="true">ð§¾</span> Order Queue</a>
+      <a class="nav-item" href="stickers.html"><span aria-hidden="true">🖼️</span> Sticker Prints</a>
       <a class="nav-item" href="dashboard.html#schedule"><span aria-hidden="true">🗓️</span> My Schedule</a>
       <a class="nav-item" href="dashboard.html#inventory"><span aria-hidden="true">📦</span> Inventory</a>
       <a class="nav-item" href="dashboard.html#sales"><span aria-hidden="true">📈</span> Sales Data</a>
@@ -475,9 +476,12 @@
     }
 
     try {
+      // Sticker sheet orders live in the same table but are worked from the
+      // print queue (student/stickers.html), so keep them out of this one.
       const { data, error } = await sb
         .from('orders')
         .select('*')
+        .eq('order_type', 'menu')
         .order('created_at', { ascending: false })
         .limit(500);
 

@@ -1,0 +1,1337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Birdhouse — Sticker Sheets</title>
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <script src="/lib/supabase.js"></script>
+  <script src="/lib/locations.js"></script>
+  <script src="https://web.squarecdn.com/v1/square.js"></script>
+  <link rel="stylesheet" href="/lib/flatpickr-themes/dark.css" />
+  <script src="/lib/flatpickr.js"></script>
+  <style>
+    /* Flatpickr overrides to match the site's red/dark palette */
+    .flatpickr-calendar { background: #141414; border: 1px solid rgba(204,0,0,0.25); border-radius: 10px; box-shadow: 0 8px 32px rgba(0,0,0,0.6); }
+    .flatpickr-day.selected, .flatpickr-day.selected:hover { background: #cc0000; border-color: #cc0000; }
+    .flatpickr-day:hover { background: rgba(204,0,0,0.18); border-color: transparent; }
+    .flatpickr-day.today { border-color: rgba(204,0,0,0.5); }
+    .flatpickr-day.disabled, .flatpickr-day.disabled:hover { color: #333; background: transparent; cursor: not-allowed; }
+    .flatpickr-months .flatpickr-month { color: #f0f0f0; }
+    .flatpickr-current-month { color: #f0f0f0; }
+    .flatpickr-weekday { color: #555; }
+    .flatpickr-prev-month, .flatpickr-next-month { color: #999 !important; fill: #999 !important; }
+    .fp-closed-label { display: block; font-size: 0.5rem; color: #cc0000; line-height: 1; margin-top: 1px; text-align: center; pointer-events: none; }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --black: #0a0a0a; --red: #cc0000; --red-bright: #ff1a1a;
+      --gray: #888; --light-gray: #999; --white: #f0f0f0;
+      --card: #141414; --border: rgba(204,0,0,0.18); --border-dim: rgba(255,255,255,0.07);
+    }
+    body { background: var(--black); color: var(--white); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+    body::before { content:''; position:fixed; inset:0; background-image:linear-gradient(rgba(204,0,0,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(204,0,0,0.03) 1px,transparent 1px); background-size:40px 40px; pointer-events:none; z-index:0; }
+    .skip-link { position: absolute; top: -100%; left: 1rem; background: var(--red-bright); color: #000; padding: 0.5rem 1rem; border-radius: 0 0 6px 6px; font-size: 0.85rem; font-weight: 500; text-decoration: none; z-index: 9999; }
+    .skip-link:focus { top: 0; }
+    :focus-visible { outline: 2px solid var(--red-bright); outline-offset: 3px; border-radius: 3px; }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; } }
+
+    .layout { display:grid; grid-template-columns:220px 1fr; min-height:100vh; }
+    .sidebar { background:#0d0000; border-right:1px solid var(--border); padding:1.75rem 1.25rem; position:sticky; top:0; height:100vh; display:flex; flex-direction:column; }
+    .sidebar-logo img { height:38px; filter:drop-shadow(0 0 8px rgba(204,0,0,0.5)); margin-bottom:2rem; }
+    .user-card { background:rgba(204,0,0,0.08); border:1px solid var(--border); border-radius:10px; padding:1rem; margin-bottom:1.75rem; }
+    .user-name { font-size:0.9rem; color:var(--white); font-weight:500; }
+    .user-points { font-size:0.72rem; color:var(--red-bright); margin-top:0.25rem; }
+    nav { flex:1; }
+    .nav-item { display:flex; align-items:center; gap:0.7rem; padding:0.7rem 0.9rem; border-radius:7px; color:var(--gray); font-size:0.85rem; text-decoration:none; cursor:pointer; transition:all 0.2s; margin-bottom:0.2rem; border:1px solid transparent; }
+    .nav-item:hover { color:var(--white); background:rgba(255,255,255,0.04); }
+    .nav-item.active { background:rgba(204,0,0,0.12); color:var(--red-bright); border-color:rgba(204,0,0,0.25); }
+    .signout-btn { background:none; border:1px solid rgba(255,255,255,0.08); border-radius:7px; padding:0.65rem 1rem; color:var(--gray); font-size:0.8rem; cursor:pointer; width:100%; text-align:left; transition:all 0.2s; display:flex; align-items:center; gap:0.5rem; font-family:'DM Sans',sans-serif; }
+    .signout-btn:hover { color:var(--white); }
+
+    .main { padding:2.5rem 3rem 6rem; position:relative; z-index:1; }
+    .page-eyebrow { font-size:0.65rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--red-bright); margin-bottom:0.3rem; }
+    .page-title { font-family:'Bebas Neue',sans-serif; font-size:2.5rem; letter-spacing:0.04em; margin-bottom:0.4rem; }
+    .page-sub { color:var(--light-gray); font-size:0.88rem; margin-bottom:2rem; line-height:1.6; }
+
+    .steps { display:flex; align-items:center; margin-bottom:2.5rem; list-style:none; padding:0; }
+    .step { display:flex; align-items:center; gap:0.6rem; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--gray); white-space:nowrap; }
+    .step.active { color:var(--red-bright); }
+    .step.done { color:var(--light-gray); }
+    .step-num { width:28px; height:28px; border-radius:50%; border:1px solid currentColor; display:flex; align-items:center; justify-content:center; font-size:0.72rem; flex-shrink:0; }
+    .step.active .step-num { background:var(--red); border-color:var(--red); color:white; box-shadow:0 0 12px rgba(204,0,0,0.4); }
+    .step.done .step-num { background:rgba(255,255,255,0.08); border-color:transparent; }
+    .step-line { flex:1; height:1px; background:rgba(255,255,255,0.06); margin:0 1rem; }
+    .step-panel { display:none; animation:fadeIn 0.25s ease; }
+    .step-panel.active { display:block; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+    /* ── Designer ── */
+    .sheet-tabs { display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:1.5rem; }
+    .sheet-tab { padding:0.5rem 1rem; border-radius:8px; border:1px solid var(--border-dim); background:transparent; color:var(--light-gray); font-family:'DM Sans',sans-serif; font-size:0.82rem; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:0.5rem; }
+    .sheet-tab:hover { border-color:var(--border); color:var(--white); }
+    .sheet-tab.active { background:rgba(204,0,0,0.12); border-color:rgba(204,0,0,0.35); color:var(--red-bright); }
+    .sheet-tab-price { font-size:0.72rem; opacity:0.75; }
+    .sheet-tab-x { border:none; background:none; color:inherit; cursor:pointer; font-size:0.9rem; line-height:1; padding:0 0 0 0.15rem; opacity:0.6; }
+    .sheet-tab-x:hover { opacity:1; }
+    .sheet-tab-add { border-style:dashed; }
+
+    .designer { display:grid; grid-template-columns:250px minmax(0,1fr) 280px; gap:1.5rem; align-items:start; }
+    .panel-box { background:var(--card); border:1px solid var(--border-dim); border-radius:14px; padding:1.25rem; }
+    .panel-title { font-size:0.62rem; text-transform:uppercase; letter-spacing:0.15em; color:var(--red-bright); margin-bottom:0.9rem; }
+    .panel-hint { font-size:0.75rem; color:var(--gray); line-height:1.5; margin-bottom:0.9rem; }
+
+    .dropzone { border:1.5px dashed rgba(204,0,0,0.3); border-radius:10px; padding:1.25rem 0.75rem; text-align:center; cursor:pointer; transition:all 0.2s; background:rgba(204,0,0,0.03); }
+    .dropzone:hover, .dropzone.dragover { border-color:var(--red-bright); background:rgba(204,0,0,0.09); }
+    .dropzone-icon { font-size:1.6rem; display:block; margin-bottom:0.35rem; }
+    .dropzone-text { font-size:0.8rem; color:var(--light-gray); }
+    .dropzone-sub { font-size:0.68rem; color:var(--gray); margin-top:0.3rem; }
+
+    .library { display:grid; grid-template-columns:1fr 1fr; gap:0.6rem; margin-top:1rem; }
+    .lib-item { position:relative; border-radius:9px; overflow:hidden; border:1.5px solid var(--border-dim); background:#0d0d0d; aspect-ratio:1; cursor:pointer; transition:all 0.15s; padding:0; }
+    .lib-item:hover { border-color:rgba(204,0,0,0.45); }
+    .lib-item.in-use { border-color:rgba(204,0,0,0.55); }
+    .lib-item img { width:100%; height:100%; object-fit:cover; display:block; }
+    .lib-badge { position:absolute; top:3px; left:3px; background:rgba(0,0,0,0.75); color:var(--red-bright); font-size:0.58rem; padding:0.1rem 0.35rem; border-radius:20px; letter-spacing:0.05em; }
+    .lib-del { width:100%; margin-top:0.3rem; padding:0.25rem; border:none; background:none; color:#ff6b6b; font-size:0.65rem; cursor:pointer; font-family:'DM Sans',sans-serif; }
+    .lib-del:hover { text-decoration:underline; }
+    .lib-fill { width:100%; margin-top:0.35rem; padding:0.3rem; font-size:0.65rem; border-radius:6px; border:1px solid var(--border-dim); background:transparent; color:var(--light-gray); cursor:pointer; font-family:'DM Sans',sans-serif; }
+    .lib-fill:hover { border-color:var(--border); color:var(--white); }
+    .lib-cell { display:flex; flex-direction:column; }
+
+    .stage { display:flex; flex-direction:column; align-items:center; gap:0.85rem; }
+    .sheet-wrap { position:relative; width:100%; max-width:330px; aspect-ratio:4 / 7; background:#fff; border-radius:4px; box-shadow:0 10px 40px rgba(0,0,0,0.6); }
+    .sheet-wrap canvas { width:100%; height:100%; display:block; border-radius:4px; }
+    .slot-layer { position:absolute; inset:0; }
+    .slot { position:absolute; border:1.5px dashed rgba(0,0,0,0.28); border-radius:3px; background:transparent; cursor:pointer; padding:0; display:flex; align-items:center; justify-content:center; color:rgba(0,0,0,0.4); font-size:0.7rem; transition:all 0.15s; }
+    .slot:hover { border-color:var(--red); background:rgba(204,0,0,0.08); }
+    .slot.filled { border-color:transparent; }
+    .slot.filled:hover { border-color:var(--red); background:transparent; }
+    .slot.selected { border:2px solid var(--red); background:rgba(204,0,0,0.1); }
+    .slot.filled.selected { background:transparent; }
+    .stage-caption { font-size:0.72rem; color:var(--gray); text-align:center; line-height:1.5; }
+
+    .preset-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.55rem; }
+    .preset-btn { padding:0.7rem 0.5rem; border-radius:9px; border:1.5px solid var(--border-dim); background:transparent; color:var(--light-gray); font-family:'DM Sans',sans-serif; cursor:pointer; transition:all 0.15s; text-align:center; }
+    .preset-btn:hover { border-color:rgba(204,0,0,0.4); color:var(--white); }
+    .preset-btn.active { border-color:var(--red); background:rgba(204,0,0,0.12); color:var(--red-bright); }
+    .preset-count { font-family:'Bebas Neue',sans-serif; font-size:1.35rem; letter-spacing:0.04em; display:block; line-height:1.1; }
+    .preset-size { font-size:0.62rem; opacity:0.8; }
+
+    .slot-editor { margin-top:1.5rem; padding-top:1.25rem; border-top:1px solid var(--border-dim); }
+    .slot-editor.empty { color:var(--gray); font-size:0.78rem; line-height:1.55; }
+    .range-row { margin-bottom:0.9rem; }
+    .range-row label { display:block; font-size:0.62rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--gray); margin-bottom:0.4rem; }
+    input[type=range] { width:100%; accent-color:var(--red); }
+    .nudge-pad { display:grid; grid-template-columns:repeat(3,1fr); gap:0.3rem; max-width:130px; margin-bottom:0.9rem; }
+    .nudge-btn { padding:0.4rem; border-radius:6px; border:1px solid var(--border-dim); background:transparent; color:var(--light-gray); cursor:pointer; font-size:0.8rem; line-height:1; }
+    .nudge-btn:hover { border-color:var(--border); color:var(--white); }
+    .nudge-spacer { visibility:hidden; }
+    .dpi-warn { background:rgba(255,150,0,0.09); border:1px solid rgba(255,150,0,0.28); color:#ffb454; border-radius:8px; padding:0.6rem 0.75rem; font-size:0.72rem; line-height:1.5; margin-bottom:0.9rem; }
+
+    .price-box { margin-top:1.5rem; padding-top:1.25rem; border-top:1px solid var(--border-dim); }
+    .price-line { display:flex; justify-content:space-between; font-size:0.8rem; padding:0.3rem 0; color:var(--light-gray); }
+    .price-line.total { font-size:0.95rem; font-weight:600; color:var(--white); border-top:1px solid var(--border-dim); margin-top:0.5rem; padding-top:0.6rem; }
+
+    /* ── Forms / shared ── */
+    .delivery-form { max-width:480px; }
+    .form-group { margin-bottom:1.2rem; }
+    label { display:block; font-size:0.68rem; font-weight:500; letter-spacing:0.1em; text-transform:uppercase; color:var(--gray); margin-bottom:0.45rem; }
+    input[type=text], select { width:100%; padding:0.875rem 1rem; border:1px solid var(--border-dim); border-radius:8px; background:#0d0d0d; font-family:'DM Sans',sans-serif; font-size:0.92rem; color:var(--white); outline:none; transition:border-color 0.2s; }
+    input:focus, select:focus { border-color:var(--red); box-shadow:0 0 0 3px rgba(204,0,0,0.5); }
+    input::placeholder { color:#3a3a3a; }
+    select option { background:#1a1a1a; }
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+    .autocomplete-wrap { position:relative; }
+    .autocomplete-dropdown { display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; background:#141414; border:1px solid var(--border); border-radius:8px; max-height:260px; overflow-y:auto; z-index:50; box-shadow:0 8px 32px rgba(0,0,0,0.6); }
+    .autocomplete-dropdown.open { display:block; }
+    .autocomplete-item { display:flex; align-items:center; justify-content:space-between; gap:0.75rem; padding:0.6rem 0.85rem; cursor:pointer; font-size:0.85rem; border-bottom:1px solid var(--border-dim); }
+    .autocomplete-item:last-child { border-bottom:none; }
+    .autocomplete-item:hover, .autocomplete-item.kbd-active { background:rgba(204,0,0,0.12); }
+    .autocomplete-item-name { color:var(--white); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .autocomplete-item-room { font-size:0.78rem; color:var(--red-bright); font-weight:600; flex-shrink:0; }
+    .method-toggle { display:flex; gap:0.5rem; }
+    .method-btn { flex:1; padding:0.8rem 1rem; border:1px solid var(--border-dim); border-radius:8px; background:transparent; color:var(--light-gray); font-family:'DM Sans',sans-serif; font-size:0.88rem; cursor:pointer; transition:all 0.2s; text-align:center; }
+    .method-btn:hover { border-color:var(--border); color:var(--white); }
+    .method-btn.active { border-color:var(--red); background:rgba(204,0,0,0.12); color:var(--red-bright); }
+
+    .lead-note { background:rgba(204,0,0,0.07); border:1px solid var(--border); border-radius:10px; padding:0.9rem 1.1rem; font-size:0.8rem; color:var(--light-gray); line-height:1.55; margin-bottom:1.5rem; }
+    .lead-note strong { color:var(--white); }
+
+    .pay-layout { display:grid; grid-template-columns:1fr 1fr; gap:2rem; align-items:start; }
+    .order-summary-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:1.75rem; }
+    .summary-label { font-size:0.62rem; text-transform:uppercase; letter-spacing:0.15em; color:var(--red-bright); margin-bottom:1rem; }
+    .summary-line { display:flex; justify-content:space-between; padding:0.55rem 0; border-bottom:1px solid var(--border-dim); font-size:0.86rem; gap:1rem; }
+    .summary-line:last-child { border-bottom:none; font-weight:600; font-size:0.95rem; padding-top:0.75rem; }
+    .summary-key { color:var(--light-gray); }
+    .summary-val { color:var(--white); font-weight:500; white-space:nowrap; }
+    .card-form-wrap { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:1.75rem; }
+    .card-form-title { font-family:'Bebas Neue',sans-serif; font-size:1.5rem; letter-spacing:0.04em; margin-bottom:0.4rem; }
+    .card-form-sub { font-size:0.82rem; color:var(--light-gray); margin-bottom:1.5rem; line-height:1.6; }
+    #card-container { min-height:89px; margin-bottom:1.25rem; }
+    .card-loading { color:var(--gray); font-size:0.85rem; padding:1rem 0; }
+    .pay-error { background:rgba(204,0,0,0.1); border:1px solid rgba(204,0,0,0.3); border-radius:8px; padding:0.85rem 1rem; font-size:0.85rem; color:#ff6b6b; margin-bottom:1rem; display:none; }
+    .credit-toggle { display:flex; align-items:center; gap:0.6rem; padding:0.75rem 0.9rem; border:1px solid var(--border-dim); border-radius:8px; margin-bottom:1.25rem; font-size:0.83rem; cursor:pointer; }
+    .credit-toggle input { accent-color:var(--red); width:16px; height:16px; }
+
+    .btn-primary { background:var(--red); color:white; border:none; border-radius:8px; padding:0.9rem 2rem; font-family:'DM Sans',sans-serif; font-size:0.9rem; font-weight:500; cursor:pointer; transition:all 0.2s; text-transform:uppercase; letter-spacing:0.06em; }
+    .btn-primary:hover { background:var(--red-bright); box-shadow:0 0 20px rgba(204,0,0,0.4); transform:translateY(-1px); }
+    .btn-primary:disabled { opacity:0.4; cursor:not-allowed; transform:none; box-shadow:none; }
+    .btn-ghost { background:transparent; color:var(--light-gray); border:1px solid var(--border-dim); border-radius:8px; padding:0.9rem 2rem; font-family:'DM Sans',sans-serif; font-size:0.9rem; cursor:pointer; transition:all 0.2s; text-transform:uppercase; letter-spacing:0.06em; }
+    .btn-ghost:hover { border-color:var(--border); color:var(--white); }
+    .btn-row { display:flex; gap:1rem; margin-top:2rem; flex-wrap:wrap; }
+    .btn-full { width:100%; padding:1.1rem; font-size:1rem; display:flex; align-items:center; justify-content:center; gap:0.75rem; box-shadow:0 4px 30px rgba(204,0,0,0.35); }
+
+    .success-screen { max-width:480px; text-align:center; padding:2rem 0; }
+    .success-icon { font-size:4rem; margin-bottom:1rem; display:block; }
+    .success-title { font-family:'Bebas Neue',sans-serif; font-size:2.8rem; letter-spacing:0.04em; margin-bottom:0.5rem; }
+    .success-sub { color:var(--light-gray); font-size:0.92rem; line-height:1.65; margin-bottom:2rem; }
+    .btn-outline { display:inline-block; padding:0.85rem 1.75rem; border:1px solid var(--border); border-radius:8px; color:var(--light-gray); text-decoration:none; font-size:0.85rem; transition:all 0.2s; margin:0.35rem; }
+    .btn-outline:hover { border-color:var(--red); color:var(--white); }
+
+    .inline-error { color:#ff6b6b; font-size:0.78rem; margin-top:0.3rem; display:none; }
+    .busy-note { font-size:0.8rem; color:var(--light-gray); margin-top:0.75rem; display:none; }
+
+    @media (max-width: 1100px) {
+      .designer { grid-template-columns:1fr; }
+      .pay-layout { grid-template-columns:1fr; }
+      .library { grid-template-columns:repeat(4,1fr); }
+    }
+    @media (max-width: 780px) {
+      .layout { grid-template-columns:1fr; }
+      .sidebar { display:none; }
+      .main { padding:1.5rem 1.1rem 5rem; }
+      .library { grid-template-columns:1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to main content</a>
+
+<div class="layout">
+  <aside class="sidebar" aria-label="Customer portal navigation">
+    <div class="sidebar-logo"><a href="../index.html"><img src="../logo.png" alt="The Birdhouse" /></a></div>
+    <div class="user-card">
+      <div class="user-name" id="user-display-name">Loading...</div>
+      <div class="user-points" id="user-points-badge">$0.00 toward Birdhouse Bucks</div>
+    </div>
+    <nav aria-label="Customer portal">
+      <a class="nav-item" href="dashboard.html"><span aria-hidden="true">📊</span> Overview</a>
+      <a class="nav-item" href="order.html"><span aria-hidden="true">☕</span> Place an Order</a>
+      <a class="nav-item active" href="stickers.html" aria-current="page"><span aria-hidden="true">🖼️</span> Sticker Sheets</a>
+      <a class="nav-item" href="orders.html"><span aria-hidden="true">📋</span> My Orders</a>
+      <a class="nav-item" href="dashboard.html#loyalty"><span aria-hidden="true">⭐</span> Birdhouse Bucks</a>
+    </nav>
+    <button class="signout-btn" onclick="signOut()"><span aria-hidden="true">←</span> Sign Out</button>
+  </aside>
+
+  <main class="main" id="main-content">
+    <div class="page-eyebrow">Customer Portal</div>
+    <h1 class="page-title">Sticker Sheets</h1>
+    <p class="page-sub">
+      Upload your images, arrange them on a 4&quot; &times; 7&quot; sheet, and we&rsquo;ll print and deliver it.
+      $2.00 per sheet &mdash; your first image is free, each additional image is $0.25.
+      Using the same image in every spot costs nothing extra.
+    </p>
+
+    <ol class="steps" aria-label="Sticker sheet steps">
+      <li class="step active" id="step-ind-1" aria-current="step"><div class="step-num" aria-hidden="true">1</div> Design</li>
+      <li class="step-line" aria-hidden="true"></li>
+      <li class="step" id="step-ind-2"><div class="step-num" aria-hidden="true">2</div> Delivery</li>
+      <li class="step-line" aria-hidden="true"></li>
+      <li class="step" id="step-ind-3"><div class="step-num" aria-hidden="true">3</div> Payment</li>
+    </ol>
+
+    <!-- ── Step 1: Design ─────────────────────────────────────────────── -->
+    <div class="step-panel active" id="panel-1">
+      <div class="sheet-tabs" id="sheet-tabs" role="tablist" aria-label="Your sheets"></div>
+
+      <div class="designer">
+        <!-- Left: image library -->
+        <div class="panel-box">
+          <div class="panel-title">Your Images</div>
+          <div class="dropzone" id="dropzone" role="button" tabindex="0"
+               aria-label="Upload images. JPG, PNG, or WebP up to 10 megabytes.">
+            <span class="dropzone-icon" aria-hidden="true">📤</span>
+            <span class="dropzone-text">Upload images</span>
+            <span class="dropzone-sub">JPG, PNG or WebP &middot; up to 10&nbsp;MB</span>
+          </div>
+          <input type="file" id="file-input" accept="image/png,image/jpeg,image/webp" multiple hidden />
+          <div class="inline-error" id="upload-error" role="alert"></div>
+          <div class="busy-note" id="upload-busy">Uploading&hellip;</div>
+          <div class="library" id="library"></div>
+        </div>
+
+        <!-- Middle: the sheet -->
+        <div class="stage">
+          <div class="sheet-wrap">
+            <canvas id="sheet-canvas" width="480" height="840" aria-label="Sheet preview"></canvas>
+            <div class="slot-layer" id="slot-layer"></div>
+          </div>
+          <p class="stage-caption" id="stage-caption">
+            Pick a slot, then tap one of your images to drop it in.
+          </p>
+        </div>
+
+        <!-- Right: layout + slot controls -->
+        <div class="panel-box">
+          <div class="panel-title">Layout</div>
+          <div class="preset-grid" id="preset-grid" role="group" aria-label="Sheet layout"></div>
+
+          <div class="slot-editor" id="slot-editor"></div>
+
+          <div class="price-box" id="price-box"></div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-primary" id="btn-to-step2" onclick="goToStep(2)" disabled>Next: Delivery &rarr;</button>
+      </div>
+      <div class="busy-note" id="compose-busy">Building your print file&hellip;</div>
+      <div class="inline-error" id="compose-error" role="alert"></div>
+    </div>
+
+    <!-- ── Step 2: Delivery ───────────────────────────────────────────── -->
+    <div class="step-panel" id="panel-2">
+      <div class="lead-note">
+        <strong>Printing takes half a day.</strong>
+        Sheets ordered today are delivered on the next school day at the time you pick below.
+      </div>
+
+      <div class="delivery-form">
+        <div class="form-group" id="delivery-method-group" style="display:none">
+          <label id="method-label">Order Type</label>
+          <div class="method-toggle" role="group" aria-labelledby="method-label">
+            <button class="method-btn active" id="btn-method-delivery" onclick="setDeliveryMethod('delivery')" aria-pressed="true"><span aria-hidden="true">🚚</span> Delivery (+$1.00)</button>
+            <button class="method-btn" id="btn-method-pickup" onclick="setDeliveryMethod('pickup')" aria-pressed="false"><span aria-hidden="true">🏠</span> Pickup (Free)</button>
+          </div>
+        </div>
+
+        <div class="form-group" id="room-group">
+          <label id="room-label" for="delivery-room">Room / Location <span aria-hidden="true" style="color:var(--red-bright)">*</span></label>
+          <div class="autocomplete-wrap">
+            <input type="text" id="delivery-room" placeholder="Type a name or room number…" autocomplete="off"
+                   role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="ac-delivery-room" />
+            <div class="autocomplete-dropdown" id="ac-delivery-room" role="listbox" aria-label="Delivery location suggestions"></div>
+          </div>
+          <span class="inline-error" id="room-error" role="alert"></span>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="delivery-date">Delivery Date <span aria-hidden="true" style="color:var(--red-bright)">*</span></label>
+            <input type="text" id="delivery-date" placeholder="Pick a day…" readonly />
+            <span class="inline-error" id="delivery-date-error" role="alert"></span>
+          </div>
+          <div class="form-group">
+            <label for="delivery-time">Preferred Time <span aria-hidden="true" style="color:var(--red-bright)">*</span></label>
+            <select id="delivery-time"><option value="">Select a date first…</option></select>
+            <span class="inline-error" id="delivery-time-error" role="alert"></span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="backup-location">Backup Location <span style="text-transform:none;letter-spacing:0;font-weight:400">(optional)</span></label>
+          <div class="autocomplete-wrap">
+            <input type="text" id="backup-location" placeholder="Where else can we find you?" autocomplete="off"
+                   role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="ac-backup-location" />
+            <div class="autocomplete-dropdown" id="ac-backup-location" role="listbox" aria-label="Backup location suggestions"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-ghost" onclick="goToStep(1)">&larr; Back</button>
+        <button class="btn-primary" onclick="goToStep(3)">Next: Payment &rarr;</button>
+      </div>
+    </div>
+
+    <!-- ── Step 3: Payment ────────────────────────────────────────────── -->
+    <div class="step-panel" id="panel-3">
+      <div class="pay-layout">
+        <div class="order-summary-card">
+          <div class="summary-label">Order Summary</div>
+          <div id="pay-summary"></div>
+        </div>
+        <div class="card-form-wrap">
+          <h2 class="card-form-title">Payment</h2>
+          <p class="card-form-sub">Your card is processed securely by Square. We never see your card number.</p>
+          <label class="credit-toggle" id="credit-toggle" style="display:none">
+            <input type="checkbox" id="use-credit" onchange="onCreditToggle()" />
+            <span id="credit-toggle-label">Apply Birdhouse Bucks</span>
+          </label>
+          <div id="card-container"><div class="card-loading">Loading payment form&hellip;</div></div>
+          <div class="pay-error" id="pay-error" role="alert"></div>
+          <button class="btn-primary btn-full" id="pay-btn" onclick="submitPayment()" disabled>
+            💳 Pay <span id="pay-btn-amount">$0.00</span>
+          </button>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-ghost" onclick="goToStep(2)">&larr; Back</button>
+      </div>
+    </div>
+
+    <!-- ── Success ────────────────────────────────────────────────────── -->
+    <div class="step-panel" id="panel-success" role="status" aria-live="polite">
+      <div class="success-screen">
+        <span class="success-icon" aria-hidden="true">✅</span>
+        <h2 class="success-title" id="success-heading" tabindex="-1">Sheets Ordered!</h2>
+        <p class="success-sub" id="success-sub-msg">
+          Payment confirmed. Our team reviews every sheet before printing, then delivers it at your chosen time.
+        </p>
+        <div>
+          <a class="btn-outline" href="stickers.html">Make Another</a>
+          <a class="btn-outline" href="orders.html">View My Orders</a>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  const SUPABASE_URL  = 'https://ljukrhneikqbabcmcpet.supabase.co';
+  const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqdWtyaG5laWtxYmFiY21jcGV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyODg1MjEsImV4cCI6MjA4Nzg2NDUyMX0.UbtB_-syG9a9vLcJp04w_k2F3XP2tMScYtB4sez3j78';
+  const SQUARE_APP_ID      = 'sq0idp-eont0qSUL3twUeFx1hiK7g';
+  const SQUARE_LOCATION_ID = 'L8SQTVPRQ965Y';
+
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const BUCKET = 'sticker-uploads';
+
+  // ── Sheet geometry ────────────────────────────────────────────────────────
+  // The Liene Pixcut S1 prints a 4in x 7in sheet.  marginIn keeps art off the
+  // very edge and gutterIn leaves room to cut stickers apart; both are here in
+  // one place so they can be retuned once we measure a real print.
+  const SHEET = { wIn: 4, hIn: 7, dpi: 300, marginIn: 0.25, gutterIn: 0.125 };
+  const PRINT_W = Math.round(SHEET.wIn * SHEET.dpi); // 1200
+  const PRINT_H = Math.round(SHEET.hIn * SHEET.dpi); // 2100
+
+  // Layouts are cols x rows, capped at 16 stickers per sheet.
+  const PRESETS = [
+    { id: '1x1', cols: 1, rows: 1 },
+    { id: '1x2', cols: 1, rows: 2 },
+    { id: '2x2', cols: 2, rows: 2 },
+    { id: '2x3', cols: 2, rows: 3 },
+    { id: '3x3', cols: 3, rows: 3 },
+    { id: '4x4', cols: 4, rows: 4 },
+  ];
+
+  const SHEET_CENTS       = 200;
+  const EXTRA_IMAGE_CENTS = 25;
+  const MAX_SHEETS        = 10;
+  const MAX_UPLOAD_BYTES  = 10 * 1024 * 1024;
+  const MAX_STORED_EDGE   = 2400;  // plenty for a 3.5in sticker at 300 DPI
+  const MIN_PRINT_DPI     = 150;   // below this we warn before they pay
+
+  // ── State ─────────────────────────────────────────────────────────────────
+  let currentUser = null, sessionToken = null, customerProfile = null;
+  let customerType = 'student';          // 'student' | 'teacher' | 'mathews'
+  let isStaffMember = false;
+  let library = [];                      // { id, path, name, w, h, url, img }
+  let sheets = [];                       // { id, preset, slots[] }
+  let activeSheet = 0;
+  let selectedSlot = 0;
+  let squareCard = null;
+  let allDeliveryTimes = [];
+  let blockedDatesSet = new Set(), blockedReasonsMap = {};
+  let deliveryDatePicker = null;
+  let deliveryMethod = 'delivery';
+  let availableCreditCents = 0, applyCredit = false;
+
+  // ── Geometry helpers ──────────────────────────────────────────────────────
+  function presetById(id) { return PRESETS.find(p => p.id === id) || PRESETS[0]; }
+  function slotCount(id)  { const p = presetById(id); return p.cols * p.rows; }
+
+  /** Cell rectangles for a canvas of the given width, in that canvas's pixels. */
+  function cellRects(presetId, canvasW, canvasH) {
+    const p   = presetById(presetId);
+    const ppi = canvasW / SHEET.wIn;
+    const m   = SHEET.marginIn * ppi;
+    const g   = SHEET.gutterIn * ppi;
+    const cw  = (canvasW - 2 * m - (p.cols - 1) * g) / p.cols;
+    const ch  = (canvasH - 2 * m - (p.rows - 1) * g) / p.rows;
+    const rects = [];
+    for (let r = 0; r < p.rows; r++) {
+      for (let c = 0; c < p.cols; c++) {
+        rects.push({ x: m + c * (cw + g), y: m + r * (ch + g), w: cw, h: ch });
+      }
+    }
+    return rects;
+  }
+
+  /** Sticker size in inches for a preset, for the layout picker labels. */
+  function cellInches(presetId) {
+    const r = cellRects(presetId, PRINT_W, PRINT_H)[0];
+    return { w: r.w / SHEET.dpi, h: r.h / SHEET.dpi };
+  }
+
+  /** Scale at zoom 1: the whole image sits inside its cell on the white sheet.
+   *  Zooming past ~1 crops into the cell; below 1 leaves more white around it. */
+  function fitScale(img, rect) {
+    return Math.min(rect.w / img.naturalWidth, rect.h / img.naturalHeight);
+  }
+
+  function drawPlacement(ctx, entry, rect, placement) {
+    const img   = entry.img;
+    const scale = fitScale(img, rect) * (placement.zoom || 1);
+    const dw    = img.naturalWidth  * scale;
+    const dh    = img.naturalHeight * scale;
+    // Offsets work in both directions: pan a cropped image, or position a
+    // small one anywhere inside its cell.
+    const maxDX = Math.abs(dw - rect.w) / 2;
+    const maxDY = Math.abs(dh - rect.h) / 2;
+    const dx    = rect.x + (rect.w - dw) / 2 + (placement.offX || 0) * maxDX;
+    const dy    = rect.y + (rect.h - dh) / 2 + (placement.offY || 0) * maxDY;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(rect.x, rect.y, rect.w, rect.h);
+    ctx.clip();
+    ctx.drawImage(img, dx, dy, dw, dh);
+    ctx.restore();
+  }
+
+  /** Effective print resolution of a placement, in DPI. */
+  function placementDpi(entry, placement, presetId, slotIdx) {
+    const rect  = cellRects(presetId, PRINT_W, PRINT_H)[slotIdx];
+    const scale = fitScale(entry.img, rect) * (placement.zoom || 1);
+    return SHEET.dpi / scale;
+  }
+
+  function renderSheet(canvas, sheet) {
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const rects = cellRects(sheet.preset, canvas.width, canvas.height);
+    sheet.slots.forEach((placement, i) => {
+      if (!placement || !rects[i]) return;
+      const entry = library.find(l => l.id === placement.imageId);
+      if (!entry || !entry.img || !entry.img.complete) return;
+      drawPlacement(ctx, entry, rects[i], placement);
+    });
+  }
+
+  // ── Pricing ───────────────────────────────────────────────────────────────
+  function placedCount(sheet) { return sheet.slots.filter(Boolean).length; }
+  function uniqueCount(sheet) {
+    return new Set(sheet.slots.filter(Boolean).map(s => s.imageId)).size;
+  }
+  function sheetCents(sheet) {
+    if (!placedCount(sheet)) return 0;
+    return SHEET_CENTS + Math.max(0, uniqueCount(sheet) - 1) * EXTRA_IMAGE_CENTS;
+  }
+  function payableSheets() { return sheets.filter(s => placedCount(s) > 0); }
+  function deliveryFeeCents() {
+    const free = customerType !== 'student' || isStaffMember || deliveryMethod === 'pickup';
+    return free ? 0 : 100;
+  }
+  function orderCents() {
+    return payableSheets().reduce((sum, s) => sum + sheetCents(s), 0) + deliveryFeeCents();
+  }
+  function creditAppliedCents() {
+    return applyCredit ? Math.min(availableCreditCents, orderCents()) : 0;
+  }
+  function chargeCents() { return Math.max(0, orderCents() - creditAppliedCents()); }
+  function money(cents) { return '$' + (cents / 100).toFixed(2); }
+
+  // ── Boot ──────────────────────────────────────────────────────────────────
+  async function init() {
+    const { data: { user }, error } = await sb.auth.getUser();
+    if (error || !user || user.is_anonymous) {
+      window.location.href = 'index.html?next=stickers';
+      return;
+    }
+    currentUser = user;
+    const { data: { session } } = await sb.auth.getSession();
+    sessionToken = session?.access_token || null;
+
+    const { data: profile } = await sb.from('profiles')
+      .select('location, last_room, full_name, loyalty_credit_cents')
+      .eq('id', user.id).maybeSingle();
+    customerProfile = profile || null;
+    customerType = getCustomerType(user.email, profile);
+    availableCreditCents = profile?.loyalty_credit_cents || 0;
+
+    const { data: staffRow } = await sb.from('students')
+      .select('role').eq('id', user.id).maybeSingle();
+    isStaffMember = ['student', 'manager', 'admin'].includes(staffRow?.role);
+
+    const meta = user.user_metadata || {};
+    const name = [meta.first_name, meta.last_name].filter(Boolean).join(' ')
+      || profile?.full_name || user.email;
+    document.getElementById('user-display-name').textContent = name;
+    document.getElementById('user-points-badge').textContent =
+      money(availableCreditCents) + ' in Birdhouse Bucks';
+
+    // Students pay for delivery, so give them the pickup option like coffee does.
+    if (customerType === 'student' && !isStaffMember) {
+      document.getElementById('delivery-method-group').style.display = '';
+    }
+    if (profile?.last_room) document.getElementById('delivery-room').value = profile.last_room;
+
+    await restoreDrafts();
+    if (!sheets.length) sheets = [newSheet()];
+
+    renderAll();
+    await setupDeliveryPicker();
+  }
+
+  function getCustomerType(email, profile) {
+    const isTeacherEmail = (email || '').toLowerCase().endsWith('@nixaschools.net');
+    if (!isTeacherEmail) return 'student';
+    return profile?.location === 'mathews' ? 'mathews' : 'teacher';
+  }
+
+  function newSheet() {
+    const preset = '2x2';
+    return {
+      id: crypto.randomUUID(),
+      preset,
+      slots: new Array(slotCount(preset)).fill(null),
+    };
+  }
+
+  /** Bring back any unpaid drafts so a refresh doesn't lose someone's work. */
+  async function restoreDrafts() {
+    const { data: rows } = await sb.from('sticker_sheets')
+      .select('id, layout_preset, slots, images')
+      .eq('user_id', currentUser.id)
+      .eq('status', 'draft')
+      .order('created_at', { ascending: true })
+      .limit(MAX_SHEETS);
+
+    if (!rows?.length) return;
+
+    // Union every draft's images into the shared library, then re-download
+    // each one so the canvas stays untainted and exportable.
+    const seen = new Map();
+    rows.forEach(r => (r.images || []).forEach(img => { if (!seen.has(img.id)) seen.set(img.id, img); }));
+
+    for (const meta of seen.values()) {
+      try {
+        const { data: blob, error } = await sb.storage.from(BUCKET).download(meta.path);
+        if (error || !blob) continue;
+        const url = URL.createObjectURL(blob);
+        const img = await loadImage(url);
+        library.push({ id: meta.id, path: meta.path, name: meta.name, w: meta.width, h: meta.height, url, img });
+      } catch (_) { /* skip anything that no longer loads */ }
+    }
+
+    sheets = rows.map(r => {
+      const preset = presetById(r.layout_preset).id;
+      const slots  = new Array(slotCount(preset)).fill(null);
+      (r.slots || []).forEach(s => {
+        if (s && s.slot < slots.length && library.some(l => l.id === s.imageId)) {
+          slots[s.slot] = { imageId: s.imageId, zoom: s.zoom || 1, offX: s.offX || 0, offY: s.offY || 0 };
+        }
+      });
+      return { id: r.id, preset, slots };
+    });
+  }
+
+  function loadImage(url) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload  = () => resolve(img);
+      img.onerror = reject;
+      img.src = url;
+    });
+  }
+
+  // ── Uploads ───────────────────────────────────────────────────────────────
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('file-input');
+
+  dropzone.addEventListener('click', () => fileInput.click());
+  dropzone.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); }
+  });
+  ['dragenter', 'dragover'].forEach(ev =>
+    dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.add('dragover'); }));
+  ['dragleave', 'drop'].forEach(ev =>
+    dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.remove('dragover'); }));
+  dropzone.addEventListener('drop', e => handleFiles(e.dataTransfer.files));
+  fileInput.addEventListener('change', e => { handleFiles(e.target.files); fileInput.value = ''; });
+
+  function uploadError(msg) {
+    const el = document.getElementById('upload-error');
+    el.textContent = msg;
+    el.style.display = msg ? 'block' : 'none';
+  }
+
+  async function handleFiles(fileList) {
+    uploadError('');
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+
+    const busy = document.getElementById('upload-busy');
+    busy.style.display = 'block';
+
+    for (const file of files) {
+      try {
+        await addFile(file);
+      } catch (err) {
+        uploadError(err.message);
+      }
+    }
+
+    busy.style.display = 'none';
+    renderAll();
+  }
+
+  async function addFile(file) {
+    const name = file.name || 'image';
+    const isHeic = /image\/hei[cf]/i.test(file.type) || /\.hei[cf]$/i.test(name);
+    if (isHeic) {
+      throw new Error(
+        `"${name}" is a HEIC photo, which browsers can't open. On iPhone: Settings → Camera → Formats → Most Compatible, or share the photo to Files first to save it as a JPG.`
+      );
+    }
+    if (!/^image\/(png|jpeg|webp)$/i.test(file.type)) {
+      throw new Error(`"${name}" isn't a JPG, PNG or WebP.`);
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      throw new Error(`"${name}" is larger than 10 MB.`);
+    }
+
+    const srcUrl = URL.createObjectURL(file);
+    let img;
+    try {
+      img = await loadImage(srcUrl);
+    } catch (_) {
+      URL.revokeObjectURL(srcUrl);
+      throw new Error(`"${name}" could not be opened as an image.`);
+    }
+
+    // Cap the stored size.  A full-bleed sticker is 3.5in wide, so 2400px on
+    // the long edge is still well over 300 DPI.
+    const { blob, type } = await normalize(img, file);
+    URL.revokeObjectURL(srcUrl);
+
+    const id   = crypto.randomUUID();
+    const ext  = type === 'image/png' ? 'png' : 'jpg';
+    const path = `${currentUser.id}/library/${id}.${ext}`;
+
+    const { error } = await sb.storage.from(BUCKET)
+      .upload(path, blob, { contentType: type, upsert: true, cacheControl: '3600' });
+    if (error) throw new Error(`Upload failed for "${name}": ${error.message}`);
+
+    const url    = URL.createObjectURL(blob);
+    const stored = await loadImage(url);
+    library.push({
+      id, path, name,
+      w: stored.naturalWidth, h: stored.naturalHeight,
+      url, img: stored,
+    });
+  }
+
+  /** Downscale if needed; keep PNG/WebP as PNG so transparency survives. */
+  async function normalize(img, file) {
+    const longest = Math.max(img.naturalWidth, img.naturalHeight);
+    const scale   = longest > MAX_STORED_EDGE ? MAX_STORED_EDGE / longest : 1;
+    const keepAlpha = /png|webp/i.test(file.type);
+    const type = keepAlpha ? 'image/png' : 'image/jpeg';
+
+    if (scale === 1 && file.type === type) return { blob: file, type };
+
+    const canvas = document.createElement('canvas');
+    canvas.width  = Math.max(1, Math.round(img.naturalWidth  * scale));
+    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    const blob = await new Promise(res => canvas.toBlob(res, type, 0.92));
+    if (!blob) throw new Error('Could not process that image.');
+    return { blob, type };
+  }
+
+  async function removeImage(id) {
+    const entry = library.find(l => l.id === id);
+    if (!entry) return;
+    const used = sheets.some(s => s.slots.some(p => p && p.imageId === id));
+    if (used && !confirm('That image is on a sheet. Remove it and clear those spots?')) return;
+
+    sheets.forEach(s => s.slots.forEach((p, i) => { if (p && p.imageId === id) s.slots[i] = null; }));
+    library = library.filter(l => l.id !== id);
+    URL.revokeObjectURL(entry.url);
+    await sb.storage.from(BUCKET).remove([entry.path]);
+    renderAll();
+  }
+
+  // ── Designer interactions ─────────────────────────────────────────────────
+  function currentSheet() { return sheets[activeSheet]; }
+
+  function setPreset(presetId) {
+    const sheet = currentSheet();
+    const old   = sheet.slots.filter(Boolean);
+    sheet.preset = presetId;
+    sheet.slots  = new Array(slotCount(presetId)).fill(null);
+    // Carry placements over in order; anything past the new slot count is dropped.
+    old.slice(0, sheet.slots.length).forEach((p, i) => { sheet.slots[i] = p; });
+    selectedSlot = 0;
+    renderAll();
+  }
+
+  function selectSlot(i) { selectedSlot = i; renderAll(); }
+
+  function placeImage(imageId) {
+    const sheet = currentSheet();
+    if (selectedSlot < 0 || selectedSlot >= sheet.slots.length) selectedSlot = 0;
+    sheet.slots[selectedSlot] = { imageId, zoom: 1, offX: 0, offY: 0 };
+    const nextEmpty = sheet.slots.findIndex(s => !s);
+    if (nextEmpty !== -1) selectedSlot = nextEmpty;
+    renderAll();
+  }
+
+  function fillAll(imageId) {
+    const sheet = currentSheet();
+    sheet.slots = sheet.slots.map(() => ({ imageId, zoom: 1, offX: 0, offY: 0 }));
+    renderAll();
+  }
+
+  function clearSlot() {
+    currentSheet().slots[selectedSlot] = null;
+    renderAll();
+  }
+
+  function setZoom(value) {
+    const p = currentSheet().slots[selectedSlot];
+    if (!p) return;
+    p.zoom = parseFloat(value);
+    renderAll();
+  }
+
+  function nudge(dx, dy) {
+    const p = currentSheet().slots[selectedSlot];
+    if (!p) return;
+    p.offX = Math.max(-1, Math.min(1, (p.offX || 0) + dx));
+    p.offY = Math.max(-1, Math.min(1, (p.offY || 0) + dy));
+    renderAll();
+  }
+
+  function centerSlot() {
+    const p = currentSheet().slots[selectedSlot];
+    if (!p) return;
+    p.offX = 0;
+    p.offY = 0;
+    renderAll();
+  }
+
+  function addSheet() {
+    if (sheets.length >= MAX_SHEETS) return;
+    sheets.push(newSheet());
+    activeSheet = sheets.length - 1;
+    selectedSlot = 0;
+    renderAll();
+  }
+
+  function selectSheet(i) { activeSheet = i; selectedSlot = 0; renderAll(); }
+
+  async function removeSheet(i, event) {
+    if (event) event.stopPropagation();
+    if (sheets.length === 1) return;
+    const [gone] = sheets.splice(i, 1);
+    if (activeSheet >= sheets.length) activeSheet = sheets.length - 1;
+    selectedSlot = 0;
+    // Drop the draft row too, if this sheet had already been saved.
+    await sb.from('sticker_sheets').delete().eq('id', gone.id).eq('status', 'draft');
+    renderAll();
+  }
+
+  // ── Rendering ─────────────────────────────────────────────────────────────
+  function escHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function renderAll() {
+    renderTabs();
+    renderPresetPicker();
+    renderCanvas();
+    renderLibrary();
+    renderSlotEditor();
+    renderPrice();
+    document.getElementById('btn-to-step2').disabled = payableSheets().length === 0;
+  }
+
+  function renderTabs() {
+    const el = document.createElement('div');
+    sheets.forEach((sheet, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'sheet-tab' + (i === activeSheet ? ' active' : '');
+      btn.setAttribute('role', 'tab');
+      btn.setAttribute('aria-selected', i === activeSheet ? 'true' : 'false');
+      btn.onclick = () => selectSheet(i);
+      btn.innerHTML =
+        `<span>Sheet ${i + 1}</span><span class="sheet-tab-price">${money(sheetCents(sheet))}</span>`;
+      if (sheets.length > 1) {
+        const x = document.createElement('button');
+        x.className = 'sheet-tab-x';
+        x.textContent = '×';
+        x.setAttribute('aria-label', `Remove sheet ${i + 1}`);
+        x.onclick = (e) => removeSheet(i, e);
+        btn.appendChild(x);
+      }
+      el.appendChild(btn);
+    });
+    if (sheets.length < MAX_SHEETS) {
+      const add = document.createElement('button');
+      add.className = 'sheet-tab sheet-tab-add';
+      add.textContent = '+ Add sheet';
+      add.onclick = addSheet;
+      el.appendChild(add);
+    }
+    const tabs = document.getElementById('sheet-tabs');
+    tabs.innerHTML = '';
+    while (el.firstChild) tabs.appendChild(el.firstChild);
+  }
+
+  function renderPresetPicker() {
+    const sheet = currentSheet();
+    document.getElementById('preset-grid').innerHTML = PRESETS.map(p => {
+      const n    = p.cols * p.rows;
+      const size = cellInches(p.id);
+      return `<button class="preset-btn${p.id === sheet.preset ? ' active' : ''}"
+        onclick="setPreset('${p.id}')" aria-pressed="${p.id === sheet.preset}">
+        <span class="preset-count">${n}</span>
+        <span class="preset-size">${size.w.toFixed(1)}&quot; &times; ${size.h.toFixed(1)}&quot;</span>
+      </button>`;
+    }).join('');
+  }
+
+  function renderCanvas() {
+    const sheet  = currentSheet();
+    const canvas = document.getElementById('sheet-canvas');
+    renderSheet(canvas, sheet);
+
+    // Click targets sit on top of the canvas, positioned as percentages so
+    // they track the sheet as it resizes.
+    const rects = cellRects(sheet.preset, canvas.width, canvas.height);
+    document.getElementById('slot-layer').innerHTML = rects.map((r, i) => {
+      const filled = !!sheet.slots[i];
+      return `<button class="slot${filled ? ' filled' : ''}${i === selectedSlot ? ' selected' : ''}"
+        style="left:${(r.x / canvas.width) * 100}%;top:${(r.y / canvas.height) * 100}%;width:${(r.w / canvas.width) * 100}%;height:${(r.h / canvas.height) * 100}%"
+        onclick="selectSlot(${i})"
+        aria-label="Sticker spot ${i + 1}${filled ? ', filled' : ', empty'}"
+        aria-pressed="${i === selectedSlot}">${filled ? '' : '+'}</button>`;
+    }).join('');
+
+    const size = cellInches(sheet.preset);
+    document.getElementById('stage-caption').textContent =
+      `${slotCount(sheet.preset)} stickers at ${size.w.toFixed(1)}" × ${size.h.toFixed(1)}" — pick a spot, then tap an image.`;
+  }
+
+  function renderLibrary() {
+    const sheet = currentSheet();
+    const el = document.getElementById('library');
+    if (!library.length) {
+      el.innerHTML = '<p class="panel-hint" style="grid-column:1/-1;margin:0">Nothing uploaded yet.</p>';
+      return;
+    }
+    el.innerHTML = library.map(entry => {
+      const uses = sheet.slots.filter(p => p && p.imageId === entry.id).length;
+      return `<div class="lib-cell">
+        <button class="lib-item${uses ? ' in-use' : ''}" onclick="placeImage('${entry.id}')"
+                aria-label="Place ${escHtml(entry.name)} in the selected spot">
+          <img src="${entry.url}" alt="" />
+          ${uses ? `<span class="lib-badge">${uses}&times;</span>` : ''}
+        </button>
+        <button class="lib-del" onclick="removeImage('${entry.id}')"
+                aria-label="Delete ${escHtml(entry.name)}">Delete</button>
+        <button class="lib-fill" onclick="fillAll('${entry.id}')">Fill sheet</button>
+      </div>`;
+    }).join('');
+  }
+
+  function renderSlotEditor() {
+    const sheet = currentSheet();
+    const p     = sheet.slots[selectedSlot];
+    const el    = document.getElementById('slot-editor');
+
+    if (!p) {
+      el.className = 'slot-editor empty';
+      el.innerHTML = `<div class="panel-title">Spot ${selectedSlot + 1}</div>
+        Empty. Tap one of your images on the left to drop it in here.`;
+      return;
+    }
+
+    const entry = library.find(l => l.id === p.imageId);
+    const dpi   = entry ? placementDpi(entry, p, sheet.preset, selectedSlot) : 300;
+    const warn  = dpi < MIN_PRINT_DPI
+      ? `<div class="dpi-warn">This image is stretched to about ${Math.round(dpi)} DPI here and may look soft when printed. Try a smaller spot, less zoom, or a higher-resolution image.</div>`
+      : '';
+
+    el.className = 'slot-editor';
+    el.innerHTML = `
+      <div class="panel-title">Spot ${selectedSlot + 1}</div>
+      ${warn}
+      <div class="range-row">
+        <label for="zoom-range">Size on sheet</label>
+        <input type="range" id="zoom-range" min="0.3" max="3" step="0.05"
+               value="${p.zoom || 1}" oninput="setZoom(this.value)" />
+      </div>
+      <div class="nudge-pad" role="group" aria-label="Nudge image">
+        <span class="nudge-spacer"></span>
+        <button class="nudge-btn" onclick="nudge(0,-0.1)" aria-label="Nudge up">↑</button>
+        <span class="nudge-spacer"></span>
+        <button class="nudge-btn" onclick="nudge(-0.1,0)" aria-label="Nudge left">←</button>
+        <button class="nudge-btn" onclick="centerSlot()" aria-label="Center image" title="Center">•</button>
+        <button class="nudge-btn" onclick="nudge(0.1,0)" aria-label="Nudge right">→</button>
+        <span class="nudge-spacer"></span>
+        <button class="nudge-btn" onclick="nudge(0,0.1)" aria-label="Nudge down">↓</button>
+        <span class="nudge-spacer"></span>
+      </div>
+      <button class="btn-ghost" style="width:100%;padding:0.55rem;font-size:0.75rem" onclick="clearSlot()">Clear this spot</button>
+    `;
+  }
+
+  function renderPrice() {
+    const el    = document.getElementById('price-box');
+    const rows  = payableSheets().map((s, i) => {
+      const extra = Math.max(0, uniqueCount(s) - 1);
+      const note  = extra ? ` + ${extra} image${extra === 1 ? '' : 's'}` : '';
+      return `<div class="price-line"><span>Sheet ${sheets.indexOf(s) + 1}${note}</span><span>${money(sheetCents(s))}</span></div>`;
+    });
+    if (!rows.length) {
+      el.innerHTML = '<p class="panel-hint" style="margin:0">Add at least one sticker to see your total.</p>';
+      return;
+    }
+    el.innerHTML = rows.join('') +
+      `<div class="price-line total"><span>Sheets total</span><span>${money(orderCents() - deliveryFeeCents())}</span></div>`;
+  }
+
+  // ── Saving drafts + composing the print file ──────────────────────────────
+  /** Render one sheet at full print resolution and stash it in Storage. */
+  async function commitSheet(sheet) {
+    const canvas = document.createElement('canvas');
+    canvas.width  = PRINT_W;
+    canvas.height = PRINT_H;
+    renderSheet(canvas, sheet);
+
+    const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+    if (!blob) throw new Error('Could not build the print file for one of your sheets.');
+
+    const printPath = `${currentUser.id}/sheets/${sheet.id}/print.png`;
+    const { error: upErr } = await sb.storage.from(BUCKET)
+      .upload(printPath, blob, { contentType: 'image/png', upsert: true });
+    if (upErr) throw new Error(`Could not save your print file: ${upErr.message}`);
+
+    const usedIds = new Set(sheet.slots.filter(Boolean).map(s => s.imageId));
+    const images  = library.filter(l => usedIds.has(l.id)).map(l => ({
+      id: l.id, path: l.path, name: l.name, width: l.w, height: l.h,
+    }));
+    const slots = sheet.slots.map((p, i) => p ? {
+      slot: i, imageId: p.imageId, zoom: p.zoom || 1, offX: p.offX || 0, offY: p.offY || 0,
+    } : null).filter(Boolean);
+
+    const { error: rowErr } = await sb.from('sticker_sheets').upsert({
+      id:                 sheet.id,
+      user_id:            currentUser.id,
+      layout_preset:      sheet.preset,
+      slots,
+      images,
+      unique_image_count: uniqueCount(sheet),
+      placed_count:       placedCount(sheet),
+      price_cents:        sheetCents(sheet),
+      print_path:         printPath,
+      status:             'draft',
+    }, { onConflict: 'id' });
+    if (rowErr) throw new Error(`Could not save your sheet: ${rowErr.message}`);
+  }
+
+  async function commitAllSheets() {
+    const busy = document.getElementById('compose-busy');
+    const err  = document.getElementById('compose-error');
+    err.style.display = 'none';
+    busy.style.display = 'block';
+    try {
+      for (const sheet of payableSheets()) await commitSheet(sheet);
+      return true;
+    } catch (e) {
+      err.textContent = e.message;
+      err.style.display = 'block';
+      return false;
+    } finally {
+      busy.style.display = 'none';
+    }
+  }
+
+  // ── Delivery ──────────────────────────────────────────────────────────────
+  function setDeliveryMethod(method) {
+    deliveryMethod = method;
+    const isPickup = method === 'pickup';
+    document.getElementById('btn-method-delivery').classList.toggle('active', !isPickup);
+    document.getElementById('btn-method-pickup').classList.toggle('active', isPickup);
+    document.getElementById('btn-method-delivery').setAttribute('aria-pressed', String(!isPickup));
+    document.getElementById('btn-method-pickup').setAttribute('aria-pressed', String(isPickup));
+    document.getElementById('room-group').style.display = isPickup ? 'none' : '';
+    renderPrice();
+  }
+
+  function toDateStr(d) {
+    return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
+  }
+
+  function isWeekend(d) { return d.getDay() === 0 || d.getDay() === 6; }
+
+  /** Tomorrow at the earliest, skipping weekends and closed days. */
+  function nextSchoolDay() {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 1);
+    for (let i = 0; i < 30; i++) {
+      if (!isWeekend(d) && !blockedDatesSet.has(toDateStr(d))) return d;
+      d.setDate(d.getDate() + 1);
+    }
+    return d;
+  }
+
+  async function setupDeliveryPicker() {
+    const { data: timesData } = await sb.from('store_config').select('value').eq('key', 'delivery_times').single();
+    allDeliveryTimes = timesData?.value || [
+      '7:30 AM','7:45 AM','8:00 AM','8:15 AM','8:30 AM','8:45 AM',
+      '9:00 AM','9:15 AM','9:30 AM','9:45 AM','10:00 AM','10:15 AM',
+      '10:30 AM','10:45 AM','11:00 AM','11:15 AM','11:30 AM','11:45 AM',
+      '12:00 PM','12:15 PM','12:30 PM','12:45 PM','1:00 PM','1:15 PM','1:30 PM',
+    ];
+
+    const { data: blockedData } = await sb.from('blocked_dates').select('date,reason');
+    blockedDatesSet  = new Set((blockedData || []).map(b => b.date));
+    blockedReasonsMap = {};
+    (blockedData || []).forEach(b => { blockedReasonsMap[b.date] = b.reason; });
+
+    const minDate = nextSchoolDay();
+    const maxDate = new Date(minDate);
+    maxDate.setDate(maxDate.getDate() + 14);
+
+    // Every slot is fair game: the earliest date is already a full day out, so
+    // there's no same-day cutoff to apply the way the coffee order page does.
+    const timeSel = document.getElementById('delivery-time');
+    timeSel.innerHTML = '<option value="">Select a time…</option>' +
+      allDeliveryTimes.map(t => `<option value="${t}">${t}</option>`).join('');
+
+    deliveryDatePicker = flatpickr('#delivery-date', {
+      minDate,
+      maxDate,
+      defaultDate: minDate,
+      disable: [
+        d => isWeekend(d),
+        ...Array.from(blockedDatesSet),
+      ],
+      dateFormat: 'M j, Y',
+      disableMobile: true,
+      onDayCreate: function (_dObj, _dStr, _fp, dayElem) {
+        const d = dayElem.dateObj;
+        if (!d) return;
+        const dateStr = toDateStr(d);
+        if (blockedDatesSet.has(dateStr)) {
+          const label = document.createElement('span');
+          label.className = 'fp-closed-label';
+          label.textContent = 'Closed';
+          dayElem.appendChild(label);
+          if (blockedReasonsMap[dateStr]) dayElem.title = blockedReasonsMap[dateStr];
+        }
+      },
+    });
+  }
+
+  // ── Payment ───────────────────────────────────────────────────────────────
+  async function initSquare() {
+    if (!window.Square) {
+      document.getElementById('card-container').innerHTML =
+        '<div class="card-loading" style="color:#ff6b6b">Payment form unavailable. Please refresh.</div>';
+      return;
+    }
+    try {
+      const payments = Square.payments(SQUARE_APP_ID, SQUARE_LOCATION_ID);
+      squareCard = await payments.card();
+      document.getElementById('card-container').innerHTML = '';  // drop the placeholder
+      await squareCard.attach('#card-container');
+      document.getElementById('pay-btn').disabled = false;
+    } catch (e) {
+      document.getElementById('card-container').innerHTML =
+        '<div class="card-loading" style="color:#ff6b6b">Failed to load payment form: ' + escHtml(e.message) + '</div>';
+    }
+  }
+
+  function onCreditToggle() {
+    applyCredit = document.getElementById('use-credit').checked;
+    renderPaySummary();
+  }
+
+  function renderPaySummary() {
+    const lines = payableSheets().map(s => {
+      const extra = Math.max(0, uniqueCount(s) - 1);
+      const desc  = `${placedCount(s)} sticker${placedCount(s) === 1 ? '' : 's'}` +
+                    (extra ? `, ${uniqueCount(s)} images` : '');
+      return `<div class="summary-line"><span class="summary-key">Sheet ${sheets.indexOf(s) + 1} — ${desc}</span><span class="summary-val">${money(sheetCents(s))}</span></div>`;
+    });
+
+    if (deliveryFeeCents()) {
+      lines.push(`<div class="summary-line"><span class="summary-key">Delivery</span><span class="summary-val">${money(deliveryFeeCents())}</span></div>`);
+    }
+
+    const room = deliveryMethod === 'pickup'
+      ? 'Birdhouse — Library'
+      : (document.getElementById('delivery-room').value || '—');
+    lines.push(`<div class="summary-line"><span class="summary-key">${deliveryMethod === 'pickup' ? 'Pickup' : 'Deliver to'}</span><span class="summary-val">${escHtml(room)}</span></div>`);
+    lines.push(`<div class="summary-line"><span class="summary-key">When</span><span class="summary-val">${escHtml(document.getElementById('delivery-date').value)} · ${escHtml(document.getElementById('delivery-time').value)}</span></div>`);
+
+    if (creditAppliedCents()) {
+      lines.push(`<div class="summary-line"><span class="summary-key">Birdhouse Bucks</span><span class="summary-val">−${money(creditAppliedCents())}</span></div>`);
+    }
+    lines.push(`<div class="summary-line"><span class="summary-key">Total</span><span class="summary-val">${money(chargeCents())}</span></div>`);
+
+    document.getElementById('pay-summary').innerHTML = lines.join('');
+    document.getElementById('pay-btn-amount').textContent = money(chargeCents());
+
+    const toggle = document.getElementById('credit-toggle');
+    if (availableCreditCents > 0) {
+      toggle.style.display = 'flex';
+      document.getElementById('credit-toggle-label').textContent =
+        `Apply ${money(availableCreditCents)} in Birdhouse Bucks`;
+    } else {
+      toggle.style.display = 'none';
+    }
+  }
+
+  async function submitPayment() {
+    const btn   = document.getElementById('pay-btn');
+    const errEl = document.getElementById('pay-error');
+    errEl.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = 'Processing...';
+
+    try {
+      if (!squareCard) throw new Error('Payment form not ready. Please wait a moment and try again.');
+      const result = await squareCard.tokenize();
+      if (result.status !== 'OK') {
+        throw new Error(result.errors?.[0]?.message || 'Card tokenization failed');
+      }
+
+      const meta      = currentUser.user_metadata || {};
+      const isPickup  = deliveryMethod === 'pickup';
+      const roomValue = isPickup ? 'Birdhouse — Library' : document.getElementById('delivery-room').value;
+      const picked    = deliveryDatePicker?.selectedDates?.[0];
+
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/process-payment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`,
+          'apikey': SUPABASE_KEY,
+        },
+        body: JSON.stringify({
+          sourceId:        result.token,
+          orderType:       'stickers',
+          sheetIds:        payableSheets().map(s => s.id),
+          userId:          currentUser.id,
+          creditUsedCents: creditAppliedCents(),
+          deliveryMethod,
+          customerInfo: {
+            customerName:     [meta.first_name, meta.last_name].filter(Boolean).join(' ').trim()
+                              || customerProfile?.full_name || '',
+            email:            (currentUser.email || '').trim().toLowerCase(),
+            room:             roomValue,
+            deliveryDay:      document.getElementById('delivery-date').value,
+            deliveryDate:     picked ? toDateStr(picked) : null,
+            deliveryTime:     document.getElementById('delivery-time').value,
+            notes:            document.getElementById('backup-location').value,
+            customerLocation: customerType,
+          },
+        }),
+      });
+
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Payment failed');
+
+      if (!isPickup && roomValue.trim()) {
+        await sb.from('profiles').upsert({ id: currentUser.id, last_room: roomValue.trim() }, { onConflict: 'id' });
+      }
+
+      document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('panel-success').classList.add('active');
+      setStepIndicators('success');
+      window.scrollTo(0, 0);
+      document.getElementById('success-heading').focus({ preventScroll: true });
+    } catch (err) {
+      errEl.textContent = err.message;
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.innerHTML = `💳 Pay <span id="pay-btn-amount">${money(chargeCents())}</span>`;
+    }
+  }
+
+  // ── Navigation ────────────────────────────────────────────────────────────
+  function showError(id, message) {
+    const el = document.getElementById(id);
+    el.textContent = message;
+    el.style.display = 'block';
+  }
+
+  async function goToStep(step) {
+    ['room-error', 'delivery-date-error', 'delivery-time-error'].forEach(id => {
+      document.getElementById(id).style.display = 'none';
+    });
+
+    if (step === 2) {
+      if (!payableSheets().length) return;
+      if (!await commitAllSheets()) return;
+    }
+
+    if (step === 3) {
+      const room = document.getElementById('delivery-room').value.trim();
+      const date = document.getElementById('delivery-date').value;
+      const time = document.getElementById('delivery-time').value;
+
+      if (deliveryMethod === 'delivery' && !room) {
+        showError('room-error', 'Please enter your room or delivery location.');
+        document.getElementById('delivery-room').focus();
+        return;
+      }
+      if (!date) {
+        showError('delivery-date-error', 'Please pick a delivery date.');
+        return;
+      }
+      if (!time) {
+        showError('delivery-time-error', 'Please pick a preferred time.');
+        return;
+      }
+      renderPaySummary();
+      if (!squareCard) await initSquare();
+    }
+
+    document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('panel-' + step).classList.add('active');
+    setStepIndicators(step);
+    window.scrollTo(0, 0);
+  }
+
+  function setStepIndicators(current) {
+    [1, 2, 3].forEach(n => {
+      const el = document.getElementById('step-ind-' + n);
+      el.classList.remove('active', 'done');
+      el.removeAttribute('aria-current');
+      if (current === 'success' || n < current) el.classList.add('done');
+      else if (n === current) { el.classList.add('active'); el.setAttribute('aria-current', 'step'); }
+    });
+  }
+
+  async function signOut() {
+    await sb.auth.signOut();
+    window.location.href = 'index.html';
+  }
+
+  // Room autocomplete comes from /lib/locations.js, shared with the order page.
+  function currentLocationList() {
+    return customerType === 'mathews' ? MATHEWS_LOCATIONS : NHS_LOCATIONS;
+  }
+  initLocationAutocomplete('delivery-room', currentLocationList);
+  initLocationAutocomplete('backup-location', currentLocationList);
+
+  init();
+</script>
+</body>
+</html>

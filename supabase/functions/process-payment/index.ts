@@ -29,6 +29,51 @@ const JSON_HEADERS = { ...CORS, "Content-Type": "application/json" };
 const SPEND_THRESHOLD_CENTS = 2500; // $25.00
 const CREDIT_REWARD_CENTS   = 300;  // $3.00
 
+// Sticker sheet pricing.  The first uploaded image on each sheet is free;
+// repeating that image across slots costs nothing extra.
+const STICKER_SHEET_CENTS       = 200; // $2.00 per printed 4x7 sheet
+const STICKER_EXTRA_IMAGE_CENTS = 25;  // $0.25 per unique image after the first
+const MAX_IMAGES_PER_SHEET      = 16;
+const MAX_SHEETS_PER_ORDER      = 10;
+
+// The school runs on Central time; edge functions run on UTC.  Every date the
+// customer sees is a local calendar date, so normalize through this zone.
+const SCHOOL_TIME_ZONE = "America/Chicago";
+
+/** Today's local calendar date at the school, as YYYY-MM-DD. */
+function localToday(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: SCHOOL_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+function addDays(dateStr: string, n: number): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + n);
+  return dt.toISOString().slice(0, 10);
+}
+
+function isWeekend(dateStr: string): boolean {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const day = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  return day === 0 || day === 6;
+}
+
+/** Earliest date a sticker sheet can be delivered: tomorrow, skipping weekends
+ *  and anything on the blocked_dates calendar. */
+function nextSchoolDay(blocked: Set<string>): string {
+  let cursor = addDays(localToday(), 1);
+  for (let i = 0; i < 30; i++) {
+    if (!isWeekend(cursor) && !blocked.has(cursor)) return cursor;
+    cursor = addDays(cursor, 1);
+  }
+  return cursor;
+}
+
 function getSquareBaseUrl() {
   const env = (Deno.env.get("SQUARE_ENV") || "production").toLowerCase();
   if (env === "sandbox") return "https://connect.squareupsandbox.com";
@@ -57,7 +102,19 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
   try {
-    const { sourceId, cartItems, userId, customerInfo, creditUsedCents: rawCreditUsed, deliveryMethod } = await req.json();
+    const {
+      sourceId,
+      cartItems,
+      userId,
+      customerInfo,
+      creditUsedCents: rawCreditUsed,
+      deliveryMethod,
+      orderType: rawOrderType,
+      sheetIds,
+    } = await req.json();
+
+    const orderType = rawOrderType === "stickers" ? "stickers" : "menu";
+    const isStickerOrder = orderType === "stickers";
 
     // ── Validate auth ──────────────────────────────────────────────────────
     const accessToken = getBearerToken(req);
@@ -88,10 +145,37 @@ serve(async (req) => {
 
     // ── Validate inputs ────────────────────────────────────────────────────
     if (!sourceId) throw new Error("Missing payment token");
-    if (!cartItems?.length) throw new Error("Cart is empty");
     if (!userId) throw new Error("User not authenticated");
     if (user.id !== userId) return fail("User mismatch", 403);
     if (!customerInfo?.room) throw new Error("Delivery location is required");
+
+    if (!isStickerOrder) {
+      if (!cartItems?.length) throw new Error("Cart is empty");
+    } else {
+      if (!sheetIds?.length) throw new Error("No sticker sheets to order");
+      if (sheetIds.length > MAX_SHEETS_PER_ORDER) {
+        throw new Error(`Please order at most ${MAX_SHEETS_PER_ORDER} sheets at a time`);
+      }
+
+      // Sheets need at least half a day of print time, so the earliest delivery
+      // is the next school day.  The client's date picker already enforces this;
+      // re-check here so a crafted request cannot skip the queue.
+      const { data: blocked } = await supabase.from("blocked_dates").select("date");
+      const blockedSet = new Set((blocked || []).map((b: { date: string }) => b.date));
+      const earliest = nextSchoolDay(blockedSet);
+
+      if (!customerInfo.deliveryDate) {
+        throw new Error("Delivery date is required");
+      }
+      if (customerInfo.deliveryDate < earliest) {
+        throw new Error(
+          `Sticker sheets need at least half a day to print. The earliest delivery is ${earliest}.`
+        );
+      }
+      if (blockedSet.has(customerInfo.deliveryDate) || isWeekend(customerInfo.deliveryDate)) {
+        throw new Error("We are closed on that date — please pick another day.");
+      }
+    }
 
     const orderDeliveryMethod = (deliveryMethod === 'pickup') ? 'pickup' : 'delivery';
 
@@ -109,15 +193,93 @@ serve(async (req) => {
     interface CartItem {
       id: string;
       name: string;
-      temp: "hot" | "iced";
+      temp?: "hot" | "iced";
       price: number;
       quantity: number;
+      type?: string;
+      sheetId?: string;
+      layoutPreset?: string;
+      uniqueImageCount?: number;
+      placedCount?: number;
     }
 
-    const items: CartItem[] = cartItems;
-    const itemsTotalCents = Math.round(
-      items.reduce((sum, item) => sum + item.price * item.quantity, 0) * 100
-    );
+    interface StickerSheetRow {
+      id: string;
+      user_id: string;
+      status: string;
+      layout_preset: string;
+      unique_image_count: number;
+      placed_count: number;
+      print_path: string | null;
+    }
+
+    let items: CartItem[];
+    let itemsTotalCents: number;
+    let stickerSheets: StickerSheetRow[] = [];
+
+    if (isStickerOrder) {
+      // Price from the stored sheets, never from the client.  Only the buyer's
+      // own untouched drafts are eligible, so a paid sheet cannot be re-used.
+      const { data: sheetRows, error: sheetErr } = await supabase
+        .from("sticker_sheets")
+        .select("id, user_id, status, layout_preset, unique_image_count, placed_count, print_path")
+        .in("id", sheetIds)
+        .eq("user_id", user.id)
+        .eq("status", "draft");
+
+      if (sheetErr) throw new Error("Could not load your sticker sheets — please try again");
+
+      stickerSheets = (sheetRows || []) as StickerSheetRow[];
+
+      if (stickerSheets.length !== sheetIds.length) {
+        throw new Error(
+          "One of your sheets is no longer available for checkout. Refresh the page and try again."
+        );
+      }
+
+      for (const sheet of stickerSheets) {
+        if (!sheet.print_path) {
+          throw new Error("A sheet is still finishing its print file — wait a moment and try again");
+        }
+        if (sheet.placed_count < 1) {
+          throw new Error("Every sheet needs at least one sticker on it");
+        }
+        if (sheet.placed_count > MAX_IMAGES_PER_SHEET || sheet.unique_image_count > MAX_IMAGES_PER_SHEET) {
+          throw new Error(`A sheet holds at most ${MAX_IMAGES_PER_SHEET} stickers`);
+        }
+        if (sheet.unique_image_count > sheet.placed_count) {
+          throw new Error("Sheet is inconsistent — please rebuild it");
+        }
+      }
+
+      items = stickerSheets.map((sheet) => {
+        const extraImages = Math.max(0, sheet.unique_image_count - 1);
+        const sheetCents  = STICKER_SHEET_CENTS + extraImages * STICKER_EXTRA_IMAGE_CENTS;
+        return {
+          id:               sheet.id,
+          type:             "sticker_sheet",
+          name:             `Sticker sheet — ${sheet.placed_count} sticker${sheet.placed_count === 1 ? "" : "s"}`,
+          price:            sheetCents / 100,
+          quantity:         1,
+          sheetId:          sheet.id,
+          layoutPreset:     sheet.layout_preset,
+          uniqueImageCount: sheet.unique_image_count,
+          placedCount:      sheet.placed_count,
+        };
+      });
+
+      itemsTotalCents = stickerSheets.reduce(
+        (sum, sheet) =>
+          sum + STICKER_SHEET_CENTS + Math.max(0, sheet.unique_image_count - 1) * STICKER_EXTRA_IMAGE_CENTS,
+        0
+      );
+    } else {
+      items = cartItems;
+      itemsTotalCents = Math.round(
+        items.reduce((sum, item) => sum + item.price * item.quantity, 0) * 100
+      );
+    }
+
     const orderTotalCents = itemsTotalCents + deliveryFeeCents;
 
     if (orderTotalCents <= 0) throw new Error("Order total must be greater than zero");
@@ -210,8 +372,9 @@ serve(async (req) => {
     // ── Insert order into Supabase ─────────────────────────────────────────
     const totalAmount = orderTotalCents / 100;
 
-    const drinkName =
-      items.length === 1
+    const drinkName = isStickerOrder
+      ? `${items.length} sticker sheet${items.length === 1 ? "" : "s"}`
+      : items.length === 1
         ? `${items[0].name} (${items[0].temp === "iced" ? "Iced" : "Hot"})`
         : `${items[0].name} + ${items.length - 1} more item${items.length > 2 ? "s" : ""}`;
 
@@ -243,6 +406,7 @@ serve(async (req) => {
         credit_used_cents: creditUsedCents,
         square_payment_id: squarePaymentId,
         delivery_method: orderDeliveryMethod,
+        order_type: orderType,
       })
       .select()
       .single();
@@ -254,6 +418,31 @@ serve(async (req) => {
         totalAmount,
       });
       // Still update loyalty even if order record fails
+    }
+
+    // Hand the paid sheets to the print queue.  This also locks them: the
+    // customer's RLS update policy only covers rows still in 'draft'.
+    if (isStickerOrder && stickerSheets.length) {
+      for (const sheet of stickerSheets) {
+        const extraImages = Math.max(0, sheet.unique_image_count - 1);
+        const { error: sheetUpdateErr } = await supabase
+          .from("sticker_sheets")
+          .update({
+            status:      "pending_review",
+            order_id:    order?.id ?? null,
+            price_cents: STICKER_SHEET_CENTS + extraImages * STICKER_EXTRA_IMAGE_CENTS,
+          })
+          .eq("id", sheet.id)
+          .eq("status", "draft");
+
+        if (sheetUpdateErr) {
+          console.error("Sticker sheet did not reach the print queue:", sheetUpdateErr, {
+            sheetId: sheet.id,
+            orderId: order?.id,
+            squarePaymentId,
+          });
+        }
+      }
     }
 
     // ── Update loyalty metadata ────────────────────────────────────────────
