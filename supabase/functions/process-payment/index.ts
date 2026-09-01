@@ -30,11 +30,20 @@ const SPEND_THRESHOLD_CENTS = 2500; // $25.00
 const CREDIT_REWARD_CENTS   = 300;  // $3.00
 
 // Sticker sheet pricing.  The first uploaded image on each sheet is free;
-// repeating that image across slots costs nothing extra.
+// repeating that image across slots costs nothing extra.  The extra-image
+// surcharge is a one-time design fee, so ordering ten copies of a design pays
+// it once, not ten times.
 const STICKER_SHEET_CENTS       = 200; // $2.00 per printed 4x7 sheet
 const STICKER_EXTRA_IMAGE_CENTS = 25;  // $0.25 per unique image after the first
 const MAX_IMAGES_PER_SHEET      = 16;
-const MAX_SHEETS_PER_ORDER      = 10;
+const MAX_SHEETS_PER_ORDER      = 10;  // distinct designs in one order
+const MAX_COPIES_PER_SHEET      = 50;
+
+/** What one sheet design costs, including every copy of it. */
+function stickerDesignCents(uniqueImages: number, copies: number): number {
+  const extraImages = Math.max(0, uniqueImages - 1);
+  return copies * STICKER_SHEET_CENTS + extraImages * STICKER_EXTRA_IMAGE_CENTS;
+}
 
 // The school runs on Central time; edge functions run on UTC.  Every date the
 // customer sees is a local calendar date, so normalize through this zone.
@@ -210,6 +219,7 @@ serve(async (req) => {
       layout_preset: string;
       unique_image_count: number;
       placed_count: number;
+      copies: number;
       print_path: string | null;
     }
 
@@ -222,7 +232,7 @@ serve(async (req) => {
       // own untouched drafts are eligible, so a paid sheet cannot be re-used.
       const { data: sheetRows, error: sheetErr } = await supabase
         .from("sticker_sheets")
-        .select("id, user_id, status, layout_preset, unique_image_count, placed_count, print_path")
+        .select("id, user_id, status, layout_preset, unique_image_count, placed_count, copies, print_path")
         .in("id", sheetIds)
         .eq("user_id", user.id)
         .eq("status", "draft");
@@ -250,27 +260,45 @@ serve(async (req) => {
         if (sheet.unique_image_count > sheet.placed_count) {
           throw new Error("Sheet is inconsistent — please rebuild it");
         }
+        if (sheet.copies < 1 || sheet.copies > MAX_COPIES_PER_SHEET) {
+          throw new Error(`Copies must be between 1 and ${MAX_COPIES_PER_SHEET}`);
+        }
       }
 
-      items = stickerSheets.map((sheet) => {
-        const extraImages = Math.max(0, sheet.unique_image_count - 1);
-        const sheetCents  = STICKER_SHEET_CENTS + extraImages * STICKER_EXTRA_IMAGE_CENTS;
-        return {
+      // Split each design into priced-per-unit line items so price x quantity
+      // is the true line total — that is how the sales report reads cart_items.
+      // Constant names keep every sticker sale grouped into one report row.
+      items = [];
+      for (const sheet of stickerSheets) {
+        items.push({
           id:               sheet.id,
           type:             "sticker_sheet",
-          name:             `Sticker sheet — ${sheet.placed_count} sticker${sheet.placed_count === 1 ? "" : "s"}`,
-          price:            sheetCents / 100,
-          quantity:         1,
+          name:             "Sticker Sheet",
+          price:            STICKER_SHEET_CENTS / 100,
+          quantity:         sheet.copies,
           sheetId:          sheet.id,
           layoutPreset:     sheet.layout_preset,
           uniqueImageCount: sheet.unique_image_count,
           placedCount:      sheet.placed_count,
-        };
-      });
+          copies:           sheet.copies,
+        });
 
+        const extraImages = Math.max(0, sheet.unique_image_count - 1);
+        if (extraImages > 0) {
+          items.push({
+            id:       `${sheet.id}-images`,
+            type:     "sticker_extra_images",
+            name:     "Sticker Sheet — Extra Image",
+            price:    STICKER_EXTRA_IMAGE_CENTS / 100,
+            quantity: extraImages,
+            sheetId:  sheet.id,
+          });
+        }
+      }
+
+      // Integer cents stay the authority for what the card is charged.
       itemsTotalCents = stickerSheets.reduce(
-        (sum, sheet) =>
-          sum + STICKER_SHEET_CENTS + Math.max(0, sheet.unique_image_count - 1) * STICKER_EXTRA_IMAGE_CENTS,
+        (sum, sheet) => sum + stickerDesignCents(sheet.unique_image_count, sheet.copies),
         0
       );
     } else {
@@ -340,7 +368,9 @@ serve(async (req) => {
           amount_money: { amount: chargeAmountCents, currency: "USD" },
           location_id: locationId,
           ...(buyerEmail ? { buyer_email_address: buyerEmail } : {}),
-          note: `Birdhouse — ${customerInfo.customerName} — ${orderDeliveryMethod === 'pickup' ? 'Pickup' : `Room ${customerInfo.room}`}`,
+          // Square only ever sees a lump sum, so the note is the one place a
+          // sticker charge can be told apart from coffee when reconciling.
+          note: `Birdhouse${isStickerOrder ? ' Stickers' : ''} — ${customerInfo.customerName} — ${orderDeliveryMethod === 'pickup' ? 'Pickup' : `Room ${customerInfo.room}`}`,
         }),
       });
 
@@ -372,8 +402,12 @@ serve(async (req) => {
     // ── Insert order into Supabase ─────────────────────────────────────────
     const totalAmount = orderTotalCents / 100;
 
+    // Sheets printed is the sum of every design's copies, not the item count.
+    const totalSheets   = stickerSheets.reduce((n, s) => n + s.copies, 0);
+    const totalStickers = stickerSheets.reduce((n, s) => n + s.placed_count * s.copies, 0);
+
     const drinkName = isStickerOrder
-      ? `${items.length} sticker sheet${items.length === 1 ? "" : "s"}`
+      ? `${totalSheets} sticker sheet${totalSheets === 1 ? "" : "s"} (${totalStickers} sticker${totalStickers === 1 ? "" : "s"})`
       : items.length === 1
         ? `${items[0].name} (${items[0].temp === "iced" ? "Iced" : "Hot"})`
         : `${items[0].name} + ${items.length - 1} more item${items.length > 2 ? "s" : ""}`;
@@ -424,13 +458,12 @@ serve(async (req) => {
     // customer's RLS update policy only covers rows still in 'draft'.
     if (isStickerOrder && stickerSheets.length) {
       for (const sheet of stickerSheets) {
-        const extraImages = Math.max(0, sheet.unique_image_count - 1);
         const { error: sheetUpdateErr } = await supabase
           .from("sticker_sheets")
           .update({
             status:      "pending_review",
             order_id:    order?.id ?? null,
-            price_cents: STICKER_SHEET_CENTS + extraImages * STICKER_EXTRA_IMAGE_CENTS,
+            price_cents: stickerDesignCents(sheet.unique_image_count, sheet.copies),
           })
           .eq("id", sheet.id)
           .eq("status", "draft");

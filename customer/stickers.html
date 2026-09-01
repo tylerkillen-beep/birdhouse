@@ -119,6 +119,14 @@
     .preset-count { font-family:'Bebas Neue',sans-serif; font-size:1.35rem; letter-spacing:0.04em; display:block; line-height:1.1; }
     .preset-size { font-size:0.62rem; opacity:0.8; }
 
+    .copies-box { margin-top:1.5rem; padding-top:1.25rem; border-top:1px solid var(--border-dim); }
+    .copies-row { display:flex; align-items:center; gap:0.5rem; }
+    .copies-step { width:34px; height:38px; flex-shrink:0; border-radius:8px; border:1px solid var(--border-dim); background:transparent; color:var(--light-gray); font-size:1.1rem; line-height:1; cursor:pointer; font-family:'DM Sans',sans-serif; }
+    .copies-step:hover { border-color:var(--red); color:var(--red-bright); }
+    input[type=number] { flex:1; min-width:0; text-align:center; padding:0.6rem 0.4rem; border:1px solid var(--border-dim); border-radius:8px; background:#0d0d0d; font-family:'DM Sans',sans-serif; font-size:1rem; color:var(--white); outline:none; }
+    input[type=number]:focus { border-color:var(--red); box-shadow:0 0 0 3px rgba(204,0,0,0.5); }
+    .copies-hint { font-size:0.72rem; color:var(--gray); line-height:1.5; margin-top:0.5rem; }
+
     .slot-editor { margin-top:1.5rem; padding-top:1.25rem; border-top:1px solid var(--border-dim); }
     .slot-editor.empty { color:var(--gray); font-size:0.78rem; line-height:1.55; }
     .range-row { margin-bottom:0.9rem; }
@@ -232,7 +240,8 @@
     <p class="page-sub">
       Upload your images, arrange them on a 4&quot; &times; 7&quot; sheet, and we&rsquo;ll print and deliver it.
       $2.00 per sheet &mdash; your first image is free, each additional image is $0.25.
-      Using the same image in every spot costs nothing extra.
+      Using the same image in every spot costs nothing extra, and if you want several
+      of the same sheet just set <strong>Sheet Copies</strong> instead of rebuilding it.
     </p>
 
     <ol class="steps" aria-label="Sticker sheet steps">
@@ -278,6 +287,19 @@
         <div class="panel-box">
           <div class="panel-title">Layout</div>
           <div class="preset-grid" id="preset-grid" role="group" aria-label="Sheet layout"></div>
+
+          <div class="copies-box">
+            <label for="copies-input">Sheet Copies</label>
+            <div class="copies-row">
+              <button class="copies-step" onclick="stepCopies(-1)" aria-label="One fewer copy">−</button>
+              <!-- onchange only: re-rendering on every keystroke would fight the
+                   cursor while someone is clearing the field to retype it. -->
+              <input type="number" id="copies-input" min="1" max="50" step="1" value="1"
+                     onchange="setCopies(this.value)" />
+              <button class="copies-step" onclick="stepCopies(1)" aria-label="One more copy">+</button>
+            </div>
+            <p class="copies-hint" id="copies-hint"></p>
+          </div>
 
           <div class="slot-editor" id="slot-editor"></div>
 
@@ -419,7 +441,8 @@
 
   const SHEET_CENTS       = 200;
   const EXTRA_IMAGE_CENTS = 25;
-  const MAX_SHEETS        = 10;
+  const MAX_SHEETS        = 10;  // distinct designs in one order
+  const MAX_COPIES        = 50;  // copies of any one design
   const MAX_UPLOAD_BYTES  = 10 * 1024 * 1024;
   const MAX_STORED_EDGE   = 2400;  // plenty for a 3.5in sticker at 300 DPI
   const MIN_PRINT_DPI     = 150;   // below this we warn before they pay
@@ -517,11 +540,19 @@
   function uniqueCount(sheet) {
     return new Set(sheet.slots.filter(Boolean).map(s => s.imageId)).size;
   }
+  function extraImages(sheet) { return Math.max(0, uniqueCount(sheet) - 1); }
+
+  /** Cost of one design including all its copies.  The extra-image surcharge
+   *  is a one-time design fee — copy ten and you still pay it once. */
   function sheetCents(sheet) {
     if (!placedCount(sheet)) return 0;
-    return SHEET_CENTS + Math.max(0, uniqueCount(sheet) - 1) * EXTRA_IMAGE_CENTS;
+    return sheet.copies * SHEET_CENTS + extraImages(sheet) * EXTRA_IMAGE_CENTS;
   }
   function payableSheets() { return sheets.filter(s => placedCount(s) > 0); }
+  function totalSheets()   { return payableSheets().reduce((n, s) => n + s.copies, 0); }
+  function totalStickers() {
+    return payableSheets().reduce((n, s) => n + placedCount(s) * s.copies, 0);
+  }
   function deliveryFeeCents() {
     const free = customerType !== 'student' || isStaffMember || deliveryMethod === 'pickup';
     return free ? 0 : 100;
@@ -588,14 +619,23 @@
     return {
       id: crypto.randomUUID(),
       preset,
+      copies: 1,
       slots: new Array(slotCount(preset)).fill(null),
     };
+  }
+
+  function stepCopies(delta) { setCopies(currentSheet().copies + delta); }
+
+  function setCopies(value) {
+    const n = Math.round(Number(value));
+    currentSheet().copies = Number.isFinite(n) ? Math.max(1, Math.min(MAX_COPIES, n)) : 1;
+    renderAll();
   }
 
   /** Bring back any unpaid drafts so a refresh doesn't lose someone's work. */
   async function restoreDrafts() {
     const { data: rows } = await sb.from('sticker_sheets')
-      .select('id, layout_preset, slots, images')
+      .select('id, layout_preset, copies, slots, images')
       .eq('user_id', currentUser.id)
       .eq('status', 'draft')
       .order('created_at', { ascending: true })
@@ -626,7 +666,7 @@
           slots[s.slot] = { imageId: s.imageId, zoom: s.zoom || 1, offX: s.offX || 0, offY: s.offY || 0 };
         }
       });
-      return { id: r.id, preset, slots };
+      return { id: r.id, preset, copies: Math.max(1, Math.min(MAX_COPIES, r.copies || 1)), slots };
     });
   }
 
@@ -851,6 +891,7 @@
     renderPresetPicker();
     renderCanvas();
     renderLibrary();
+    renderCopies();
     renderSlotEditor();
     renderPrice();
     document.getElementById('btn-to-step2').disabled = payableSheets().length === 0;
@@ -864,8 +905,9 @@
       btn.setAttribute('role', 'tab');
       btn.setAttribute('aria-selected', i === activeSheet ? 'true' : 'false');
       btn.onclick = () => selectSheet(i);
+      const copiesTag = sheet.copies > 1 ? ` ×${sheet.copies}` : '';
       btn.innerHTML =
-        `<span>Sheet ${i + 1}</span><span class="sheet-tab-price">${money(sheetCents(sheet))}</span>`;
+        `<span>Sheet ${i + 1}${copiesTag}</span><span class="sheet-tab-price">${money(sheetCents(sheet))}</span>`;
       if (sheets.length > 1) {
         const x = document.createElement('button');
         x.className = 'sheet-tab-x';
@@ -987,19 +1029,42 @@
     `;
   }
 
+  function renderCopies() {
+    const sheet = currentSheet();
+    document.getElementById('copies-input').value = sheet.copies;
+
+    const per = placedCount(sheet);
+    document.getElementById('copies-hint').textContent = per
+      ? `${sheet.copies} × ${per} sticker${per === 1 ? '' : 's'} = ${per * sheet.copies} stickers. `
+        + `Extra images are charged once, not per copy.`
+      : 'Each copy prints this same design.';
+  }
+
   function renderPrice() {
-    const el    = document.getElementById('price-box');
-    const rows  = payableSheets().map((s, i) => {
-      const extra = Math.max(0, uniqueCount(s) - 1);
-      const note  = extra ? ` + ${extra} image${extra === 1 ? '' : 's'}` : '';
-      return `<div class="price-line"><span>Sheet ${sheets.indexOf(s) + 1}${note}</span><span>${money(sheetCents(s))}</span></div>`;
-    });
-    if (!rows.length) {
+    const el   = document.getElementById('price-box');
+    const list = payableSheets();
+
+    if (!list.length) {
       el.innerHTML = '<p class="panel-hint" style="margin:0">Add at least one sticker to see your total.</p>';
       return;
     }
-    el.innerHTML = rows.join('') +
-      `<div class="price-line total"><span>Sheets total</span><span>${money(orderCents() - deliveryFeeCents())}</span></div>`;
+
+    const rows = list.map(s => {
+      const n     = sheets.indexOf(s) + 1;
+      const extra = extraImages(s);
+      const lines = [
+        `<div class="price-line"><span>Sheet ${n} × ${s.copies}</span><span>${money(s.copies * SHEET_CENTS)}</span></div>`,
+      ];
+      if (extra) {
+        lines.push(`<div class="price-line"><span style="padding-left:0.75rem">+ ${extra} extra image${extra === 1 ? '' : 's'}</span><span>${money(extra * EXTRA_IMAGE_CENTS)}</span></div>`);
+      }
+      return lines.join('');
+    });
+
+    el.innerHTML = rows.join('') + `
+      <div class="price-line" style="margin-top:0.4rem"><span>Sheets printed</span><span>${totalSheets()}</span></div>
+      <div class="price-line"><span>Stickers total</span><span>${totalStickers()}</span></div>
+      <div class="price-line total"><span>Sheets total</span><span>${money(orderCents() - deliveryFeeCents())}</span></div>`;
   }
 
   // ── Saving drafts + composing the print file ──────────────────────────────
@@ -1032,6 +1097,7 @@
       layout_preset:      sheet.preset,
       slots,
       images,
+      copies:             sheet.copies,
       unique_image_count: uniqueCount(sheet),
       placed_count:       placedCount(sheet),
       price_cents:        sheetCents(sheet),
@@ -1163,11 +1229,14 @@
 
   function renderPaySummary() {
     const lines = payableSheets().map(s => {
-      const extra = Math.max(0, uniqueCount(s) - 1);
-      const desc  = `${placedCount(s)} sticker${placedCount(s) === 1 ? '' : 's'}` +
-                    (extra ? `, ${uniqueCount(s)} images` : '');
+      const per  = placedCount(s);
+      const desc = `${s.copies} × ${per} sticker${per === 1 ? '' : 's'}`
+                 + (extraImages(s) ? `, ${uniqueCount(s)} images` : '');
       return `<div class="summary-line"><span class="summary-key">Sheet ${sheets.indexOf(s) + 1} — ${desc}</span><span class="summary-val">${money(sheetCents(s))}</span></div>`;
     });
+
+    lines.push(`<div class="summary-line"><span class="summary-key">Sheets printed</span><span class="summary-val">${totalSheets()}</span></div>`);
+    lines.push(`<div class="summary-line"><span class="summary-key">Stickers total</span><span class="summary-val">${totalStickers()}</span></div>`);
 
     if (deliveryFeeCents()) {
       lines.push(`<div class="summary-line"><span class="summary-key">Delivery</span><span class="summary-val">${money(deliveryFeeCents())}</span></div>`);

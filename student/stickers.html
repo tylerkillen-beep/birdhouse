@@ -239,7 +239,7 @@
     const { data, error } = await sb
       .from('sticker_sheets')
       .select(`
-        id, layout_preset, unique_image_count, placed_count, price_cents,
+        id, layout_preset, unique_image_count, placed_count, copies, price_cents,
         print_path, status, review_note, created_at,
         orders ( customer_name, room, delivery_date, delivery_time, delivery_method, special_instructions, status )
       `)
@@ -315,6 +315,7 @@
 
   function cardHtml(sheet) {
     const o        = sheet.orders || {};
+    const copies   = sheet.copies || 1;
     const url      = signedUrls[sheet.id];
     const isPickup = o.delivery_method === 'pickup';
     const when     = [o.delivery_date, o.delivery_time].filter(Boolean).join(' · ') || 'No date';
@@ -341,7 +342,8 @@
         <div class="sheet-meta">
           <div>${isPickup ? '🏠 Pickup' : '🚚 Room <strong>' + escHtml(o.room || '—') + '</strong>'}</div>
           <div>📅 <strong>${escHtml(when)}</strong></div>
-          <div>🖼️ ${sheet.placed_count} sticker${sheet.placed_count === 1 ? '' : 's'} ·
+          <div>🖨️ Print <strong>${copies}×</strong> — ${copies * sheet.placed_count} stickers total</div>
+          <div>🖼️ ${sheet.placed_count} per sheet ·
               ${sheet.unique_image_count} image${sheet.unique_image_count === 1 ? '' : 's'} ·
               ${escHtml(sheet.layout_preset)} · ${money(sheet.price_cents)}</div>
           ${o.special_instructions ? `<div>📝 ${escHtml(o.special_instructions)}</div>` : ''}
