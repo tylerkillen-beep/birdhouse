@@ -91,6 +91,8 @@
     .act-btn.bad  { border-color:rgba(255,80,80,0.3); color:#ff6b6b; }
     .act-btn:disabled { opacity:0.35; cursor:not-allowed; }
 
+    .sign-warn { background:rgba(255,150,0,0.09); border:1px solid rgba(255,150,0,0.28); color:#ffb454; border-radius:10px; padding:0.8rem 1rem; font-size:0.8rem; line-height:1.55; margin-bottom:1.25rem; }
+    .sign-warn strong { color:#fff; }
     .empty-state { text-align:center; padding:4rem 1rem; color:var(--gray); background:var(--card); border:1px solid var(--border-dim); border-radius:14px; }
     .empty-state-icon { font-size:2.5rem; margin-bottom:0.75rem; }
     .toast { position:fixed; bottom:1.5rem; left:50%; transform:translateX(-50%); background:#141414; border:1px solid var(--border); border-radius:9px; padding:0.8rem 1.4rem; font-size:0.85rem; z-index:200; display:none; box-shadow:0 8px 30px rgba(0,0,0,0.7); }
@@ -187,6 +189,7 @@
   let filterDate = '';
   let myRole = null;
   let myUserId = null;
+  let signError = null;   // why thumbnails are missing, if they are
 
   // Approving, rejecting and marking printed are manager/admin actions; student
   // staff can see the queue and download what's already been approved.
@@ -258,16 +261,34 @@
     render();
   }
 
-  /** One batched signing call keeps the grid from firing dozens of requests. */
+  /** One batched signing call keeps the grid from firing dozens of requests.
+   *  These URLs are only for the on-screen thumbnails — downloading uses the
+   *  authenticated client, so a signing failure costs previews, not prints. */
   async function signPreviews() {
-    const paths = sheets.map(s => s.print_path).filter(Boolean);
-    if (!paths.length) return;
-    const { data, error } = await sb.storage.from(BUCKET).createSignedUrls(paths, 60 * 60);
-    if (error || !data) return;
-    const byPath = {};
-    data.forEach(entry => { if (entry.signedUrl) byPath[entry.path] = entry.signedUrl; });
     signedUrls = {};
-    sheets.forEach(s => { if (s.print_path && byPath[s.print_path]) signedUrls[s.id] = byPath[s.print_path]; });
+    signError = null;
+
+    const withPath = sheets.filter(s => s.print_path);
+    if (!withPath.length) return;
+
+    const { data, error } = await sb.storage
+      .from(BUCKET)
+      .createSignedUrls(withPath.map(s => s.print_path), 60 * 60);
+
+    if (error) {
+      signError = error.message;
+      console.error('Could not sign sticker previews', error);
+      return;
+    }
+
+    const byPath = {};
+    (data || []).forEach(entry => {
+      if (entry.signedUrl) byPath[entry.path] = entry.signedUrl;
+      else console.error('Preview signing failed for', entry.path, entry.error);
+    });
+    withPath.forEach(s => {
+      if (byPath[s.print_path]) signedUrls[s.id] = byPath[s.print_path];
+    });
   }
 
   function setStatus(value, btn) {
@@ -310,7 +331,12 @@
       return;
     }
 
-    container.innerHTML = `<div class="sheet-grid">${list.map(cardHtml).join('')}</div>`;
+    const banner = signError
+      ? `<div class="sign-warn">Thumbnails couldn't load (${escHtml(signError)}). The
+           <strong>Print file</strong> buttons still work — they download directly.</div>`
+      : '';
+
+    container.innerHTML = banner + `<div class="sheet-grid">${list.map(cardHtml).join('')}</div>`;
   }
 
   function cardHtml(sheet) {
@@ -351,7 +377,7 @@
         ${sheet.review_note ? `<div class="sheet-note">${escHtml(sheet.review_note)}</div>` : ''}
       </div>
       <div class="sheet-actions">
-        <button class="act-btn primary" onclick="downloadSheet('${sheet.id}')" ${url ? '' : 'disabled'}>⬇ Print file</button>
+        <button class="act-btn primary" onclick="downloadSheet('${sheet.id}')" ${sheet.print_path ? '' : 'disabled'}>⬇ Print file</button>
         ${sheet.status === 'pending_review' && review
           ? `<button class="act-btn good" onclick="setSheetStatus('${sheet.id}','approved')">✓ Approve</button>
              <button class="act-btn bad"  onclick="rejectSheet('${sheet.id}')">✕ Reject</button>`
@@ -364,26 +390,40 @@
   }
 
   /** Pull the file through fetch so the download gets a useful filename. */
+  /** Pull the print file down as a named PNG.
+   *
+   *  This goes through the authenticated storage client rather than the signed
+   *  URL used for the thumbnails: it needs no signing round-trip, can't expire
+   *  out from under a page left open, and reports a real error instead of
+   *  handing back an error page saved as a .png.  Every failure is surfaced --
+   *  a button that does nothing is impossible to diagnose from the counter. */
   async function downloadSheet(id) {
     const sheet = sheets.find(s => s.id === id);
-    const url   = signedUrls[id];
-    if (!sheet || !url) return;
+    if (!sheet) { toast('That sheet is no longer loaded — hit Refresh.'); return; }
+    if (!sheet.print_path) { toast('This sheet has no print file recorded.'); return; }
+
     try {
-      const res  = await fetch(url);
-      const blob = await res.blob();
+      const { data: blob, error } = await sb.storage.from(BUCKET).download(sheet.print_path);
+      if (error) throw error;
+      if (!blob || !blob.size) throw new Error('The print file came back empty.');
+
       const o    = sheet.orders || {};
       const safe = (o.customer_name || 'customer').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
-      const name = `sticker-${o.delivery_date || 'undated'}-${safe}-${id.slice(0, 8)}.png`;
+      const copies = sheet.copies || 1;
+      const name = `sticker-${o.delivery_date || 'undated'}-${safe}-x${copies}-${id.slice(0, 8)}.png`;
 
+      const href = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
+      a.href = href;
       a.download = name;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+      setTimeout(() => URL.revokeObjectURL(href), 10000);
+      toast(`Downloaded ${name}`);
     } catch (e) {
-      toast('Download failed: ' + e.message);
+      console.error('Sticker print download failed', { sheetId: id, path: sheet.print_path, error: e });
+      toast('Download failed: ' + (e.message || 'unknown error'));
     }
   }
 
