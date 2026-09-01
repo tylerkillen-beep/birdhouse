@@ -512,7 +512,7 @@
     return Math.min(rect.w / box.w, rect.h / box.h);
   }
 
-  function drawPlacement(ctx, entry, rect, placement) {
+  function drawPlacement(ctx, entry, rect, placement, opts = {}) {
     const img   = entry.img;
     const deg   = placement.rot || 0;
     const scale = fitScale(img, rect, deg) * (placement.zoom || 1);
@@ -534,6 +534,13 @@
     ctx.clip();
     ctx.translate(cx, cy);
     ctx.rotate(deg * Math.PI / 180);
+    // An opaque backing behind each image makes that sticker a solid island on
+    // an otherwise transparent sheet, which is what the cutter traces.  Without
+    // it a photo with soft or transparent edges would get a ragged cut line.
+    if (opts.backing) {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(-dw / 2, -dh / 2, dw, dh);
+    }
     ctx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
     ctx.restore();
   }
@@ -545,16 +552,32 @@
     return SHEET.dpi / scale;
   }
 
-  function renderSheet(canvas, sheet) {
+  /** Draw a sheet.
+   *
+   *  On screen the sheet is a white page, matching what the customer is
+   *  arranging.  The print file is composed differently: the page itself is
+   *  left TRANSPARENT and each image gets its own opaque backing, because the
+   *  Pixcut S1 traces its cut line along the PNG's alpha channel.  A sheet
+   *  flooded with white is a single shape, so the cutter outlines the page and
+   *  separates nothing; transparent gaps turn every sticker into its own
+   *  island.  On white sticker stock the printed result is identical either
+   *  way — an inkjet lays down no ink for white, so the paper shows through. */
+  function renderSheet(canvas, sheet, opts = {}) {
+    const { background = '#ffffff', backing = false } = opts;
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (background) {
+      ctx.fillStyle = background;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
     const rects = cellRects(sheet.preset, canvas.width, canvas.height);
     sheet.slots.forEach((placement, i) => {
       if (!placement || !rects[i]) return;
       const entry = library.find(l => l.id === placement.imageId);
       if (!entry || !entry.img || !entry.img.complete) return;
-      drawPlacement(ctx, entry, rects[i], placement);
+      drawPlacement(ctx, entry, rects[i], placement, { backing });
     });
   }
 
@@ -1224,7 +1247,8 @@
     const canvas = document.createElement('canvas');
     canvas.width  = PRINT_W;
     canvas.height = PRINT_H;
-    renderSheet(canvas, sheet);
+    // Transparent page, opaque stickers: the cutter follows the alpha channel.
+    renderSheet(canvas, sheet, { background: null, backing: true });
 
     const raw = await new Promise(res => canvas.toBlob(res, 'image/png'));
     if (!raw) throw new Error('Could not build the print file for one of your sheets.');
