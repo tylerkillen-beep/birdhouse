@@ -1164,6 +1164,60 @@
       <div class="price-line total"><span>Sheets total</span><span>${money(orderCents() - deliveryFeeCents())}</span></div>`;
   }
 
+  // ── Physical size metadata ────────────────────────────────────────────────
+  // A canvas PNG records pixels and nothing else.  Print software then has to
+  // guess a resolution — usually 72 or 96 DPI — decides our 1200 x 2100 sheet
+  // is 16.7in x 29.2in, and shrinks it to fit the media.  That is why stickers
+  // came off the Pixcut S1 tiny and centred.  A pHYs chunk states the real
+  // resolution so the file measures exactly 4in x 7in.
+
+  const PNG_CRC_TABLE = (() => {
+    const t = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      t[n] = c >>> 0;
+    }
+    return t;
+  })();
+
+  function pngCrc32(bytes) {
+    let c = 0xFFFFFFFF;
+    for (let i = 0; i < bytes.length; i++) {
+      c = PNG_CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+    }
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  }
+
+  /** Return the PNG with a pHYs chunk declaring `dpi`, inserted after IHDR. */
+  async function stampPngDpi(blob, dpi) {
+    const src = new Uint8Array(await blob.arrayBuffer());
+
+    // Signature (8) + IHDR (4 length + 4 type + 13 data + 4 CRC).  Bail out
+    // unchanged rather than corrupt anything we don't recognise.
+    const IHDR_END = 8 + 25;
+    const isPng = src.length > IHDR_END &&
+      src[0] === 0x89 && src[1] === 0x50 && src[2] === 0x4E && src[3] === 0x47 &&
+      src[12] === 0x49 && src[13] === 0x48 && src[14] === 0x44 && src[15] === 0x52;
+    if (!isPng) return blob;
+
+    const perMetre = Math.round(dpi / 0.0254);        // 300 DPI -> 11811
+    const chunk = new Uint8Array(21);                 // 4 + 4 + 9 + 4
+    const view  = new DataView(chunk.buffer);
+    view.setUint32(0, 9);                             // data length
+    chunk.set([0x70, 0x48, 0x59, 0x73], 4);           // "pHYs"
+    view.setUint32(8, perMetre);                      // pixels per unit, X
+    view.setUint32(12, perMetre);                     // pixels per unit, Y
+    chunk[16] = 1;                                    // unit = metre
+    view.setUint32(17, pngCrc32(chunk.subarray(4, 17)));
+
+    const out = new Uint8Array(src.length + chunk.length);
+    out.set(src.subarray(0, IHDR_END), 0);
+    out.set(chunk, IHDR_END);
+    out.set(src.subarray(IHDR_END), IHDR_END + chunk.length);
+    return new Blob([out], { type: 'image/png' });
+  }
+
   // ── Saving drafts + composing the print file ──────────────────────────────
   /** Render one sheet at full print resolution and stash it in Storage. */
   async function commitSheet(sheet) {
@@ -1172,8 +1226,11 @@
     canvas.height = PRINT_H;
     renderSheet(canvas, sheet);
 
-    const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
-    if (!blob) throw new Error('Could not build the print file for one of your sheets.');
+    const raw = await new Promise(res => canvas.toBlob(res, 'image/png'));
+    if (!raw) throw new Error('Could not build the print file for one of your sheets.');
+
+    // Declare 300 DPI so the file measures 4in x 7in wherever it is opened.
+    const blob = await stampPngDpi(raw, SHEET.dpi);
 
     const printPath = `${currentUser.id}/sheets/${sheet.id}/print.png`;
     const { error: upErr } = await sb.storage.from(BUCKET)
