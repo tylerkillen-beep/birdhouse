@@ -85,6 +85,12 @@
     .order-card.location-mathews:hover { border-color: rgba(80,130,255,0.45); }
     .order-card.location-mathews::before { background: #4a8fff !important; }
     .badge-mathews { background: rgba(80,130,255,0.12); color: #6699ff; border: 1px solid rgba(80,130,255,0.25); }
+    /* Sticker orders: violet, so they read as different work at a glance and
+       don't collide with the Mathews blue. */
+    .order-card.type-stickers { background: #150d1c; border-color: rgba(170,110,255,0.25); }
+    .order-card.type-stickers:hover { border-color: rgba(170,110,255,0.45); }
+    .order-card.type-stickers::before { background: #a86eff !important; }
+    .badge-stickers { background: rgba(170,110,255,0.12); color: #b98cff; border: 1px solid rgba(170,110,255,0.25); }
 
     .order-top { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.35rem; flex-wrap: wrap; }
     .order-customer { font-weight: 500; font-size: 0.95rem; }
@@ -195,6 +201,15 @@
           <button class="filter-pill" data-val="placed" onclick="setSortFilter('placed', this)" aria-pressed="false"><span aria-hidden="true">🕐</span> Placed</button>
         </div>
       </div>
+      <!-- Order type -->
+      <div class="filter-row">
+        <span class="filter-label" id="type-label">Type</span>
+        <div class="filter-pills" id="type-pills" role="group" aria-labelledby="type-label">
+          <button class="filter-pill active" data-val="all" onclick="setTypeFilter('all', this)" aria-pressed="true">All</button>
+          <button class="filter-pill" data-val="menu" onclick="setTypeFilter('menu', this)" aria-pressed="false"><span aria-hidden="true">☕</span> Coffee</button>
+          <button class="filter-pill" data-val="stickers" onclick="setTypeFilter('stickers', this)" aria-pressed="false"><span aria-hidden="true">🖼️</span> Stickers</button>
+        </div>
+      </div>
       <!-- Delivery method -->
       <div class="filter-row">
         <span class="filter-label" id="method-label">Delivery</span>
@@ -271,6 +286,7 @@
   let filterStatus   = 'active';    // 'active' | 'pending' | 'paid' | 'delivered' | 'cancelled' | 'all'
   let filterDate     = todayStr();  // 'YYYY-MM-DD' or null (all dates)
   let filterLocation = 'all';       // 'all' | 'birdhouse' | 'mathews'
+  let filterType     = 'all';       // 'all' | 'menu' | 'stickers'
   let pollTimer    = null;
 
   // ── Audio alert ────────────────────────────────────────────────────────────
@@ -448,6 +464,12 @@
     renderOrders();
   }
 
+  function setTypeFilter(val, btn) {
+    filterType = val;
+    _activatePill('type-pills', btn);
+    renderOrders();
+  }
+
   function setMethodFilter(val, btn) {
     filterMethod = val;
     _activatePill('method-pills', btn);
@@ -476,12 +498,12 @@
     }
 
     try {
-      // Sticker sheet orders live in the same table but are worked from the
-      // print queue (student/stickers.html), so keep them out of this one.
+      // Sticker orders share this table and this delivery run, so they belong
+      // in the queue — the Type filter and card colour keep them distinct.
+      // Reviewing and printing them happens on student/stickers.html.
       const { data, error } = await sb
         .from('orders')
         .select('*')
-        .eq('order_type', 'menu')
         .order('created_at', { ascending: false })
         .limit(500);
 
@@ -584,6 +606,9 @@
     if (filterStatus === 'active')       orders = orders.filter(o => o.status === 'pending' || o.status === 'paid');
     else if (filterStatus !== 'all')     orders = orders.filter(o => o.status === filterStatus);
 
+    // Order type filter -- sticker orders stay visible alongside coffee.
+    if (filterType !== 'all') orders = orders.filter(o => (o.order_type || 'menu') === filterType);
+
     // Delivery method filter
     if (filterMethod !== 'all')          orders = orders.filter(o => o.delivery_method === filterMethod);
 
@@ -641,6 +666,8 @@
       const methodClass = order.delivery_method === 'pickup' ? 'method-pickup' : 'method-delivery';
       const isMathews = isMathewsOrder(order);
       const mathewsBadge = isMathews ? `<span class="method-badge badge-mathews">Mathews</span>` : '';
+      const isStickers = order.order_type === 'stickers';
+      const stickersBadge = isStickers ? `<span class="method-badge badge-stickers"><span aria-hidden="true">🖼️</span> Stickers</span>` : '';
 
       // Customer name
       const customerName = order.customer_name || 'Unknown';
@@ -649,13 +676,20 @@
       let itemsHtml = '';
       if (order.cart_items && order.cart_items.length > 0) {
         itemsHtml = order.cart_items.map(item => {
+          // Sticker line items have no temperature; show what gets printed.
+          if (item.type === 'sticker_sheet') {
+            const copies = item.copies || item.quantity || 1;
+            const per    = item.placedCount || 0;
+            return `${copies} sheet${copies === 1 ? '' : 's'} × ${per} sticker${per === 1 ? '' : 's'}`;
+          }
+          if (item.type === 'sticker_extra_images') return '';
           const temp = item.temp === 'iced' ? 'Iced' : 'Hot';
           const qty = item.quantity > 1 ? ` ×${item.quantity}` : '';
           const mods = item.selectedModifiers && item.selectedModifiers.length > 0
             ? `<span style="color:var(--gray);font-size:0.75rem"> — ${item.selectedModifiers.map(m => escHtml(m.name)).join(', ')}</span>`
             : '';
           return `${escHtml(temp)} ${escHtml(item.name)}${escHtml(qty)}${mods}`;
-        }).join(' · ');
+        }).filter(Boolean).join(' · ');
       } else {
         const parts = [order.drink_name, order.size, order.milk].filter(Boolean);
         itemsHtml = escHtml(parts.join(' · '));
@@ -700,13 +734,14 @@
           ${total ? `<div class="order-total">${total}</div>` : ''}
         </div>`;
 
-      return `<div class="order-card status-${order.status}${isMathews ? ' location-mathews' : ''}" id="order-card-${order.id}">
+      return `<div class="order-card status-${order.status}${isMathews ? ' location-mathews' : ''}${isStickers ? ' type-stickers' : ''}" id="order-card-${order.id}">
         <div>
           <div class="order-top">
             <span class="order-customer">${escHtml(customerName)}</span>
             <span class="status-badge badge-${order.status}">${statusLabel}</span>
             <span class="method-badge ${methodClass}">${methodLabel}</span>
             ${mathewsBadge}
+            ${stickersBadge}
           </div>
           <div class="order-items">${itemsHtml}</div>
           <div class="order-detail-row" style="margin-top:0.4rem">
