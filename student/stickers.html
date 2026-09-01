@@ -90,6 +90,9 @@
     .act-btn.good { border-color:rgba(76,175,80,0.35); color:#4caf50; }
     .act-btn.bad  { border-color:rgba(255,80,80,0.3); color:#ff6b6b; }
     .act-btn:disabled { opacity:0.35; cursor:not-allowed; }
+    /* The print control is an <a> when we have an attachment URL, so it needs
+       to sit on the same line as the sibling buttons. */
+    .act-link { display:inline-flex; align-items:center; justify-content:center; text-decoration:none; text-align:center; }
 
     .sign-warn { background:rgba(255,150,0,0.09); border:1px solid rgba(255,150,0,0.28); color:#ffb454; border-radius:10px; padding:0.8rem 1rem; font-size:0.8rem; line-height:1.55; margin-bottom:1.25rem; }
     .sign-warn strong { color:#fff; }
@@ -184,7 +187,8 @@
   const BUCKET = 'sticker-uploads';
 
   let sheets = [];
-  let signedUrls = {};             // sheet id -> signed print-file URL
+  let signedUrls = {};               // sheet id -> thumbnail URL
+  let downloadUrls = {};             // sheet id -> attachment URL for the link
   let filterStatus = 'pending_review';
   let filterDate = '';
   let myRole = null;
@@ -257,38 +261,68 @@
     }
 
     sheets = data || [];
-    await signPreviews();
+    await prepareUrls();
     render();
   }
 
-  /** One batched signing call keeps the grid from firing dozens of requests.
-   *  These URLs are only for the on-screen thumbnails — downloading uses the
-   *  authenticated client, so a signing failure costs previews, not prints. */
-  async function signPreviews() {
+  function printFileName(sheet) {
+    const o      = sheet.orders || {};
+    const safe   = (o.customer_name || 'customer').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+    const copies = sheet.copies || 1;
+    return `sticker-${o.delivery_date || 'undated'}-${safe}-x${copies}-${sheet.id.slice(0, 8)}.png`;
+  }
+
+  /** Mint the URLs each card needs: one for the thumbnail, one for the download.
+   *
+   *  The download link is signed per sheet with a `download` filename, which
+   *  makes Storage answer with Content-Disposition: attachment.  That lets the
+   *  Print file control be an ordinary link the browser handles natively —
+   *  far more reliable than scripting a click on a hidden anchor, which
+   *  browsers may swallow once the awaited fetch has outlived the click that
+   *  started it.  Signed for 8 hours so a queue left open all day still works. */
+  async function prepareUrls() {
     signedUrls = {};
+    downloadUrls = {};
     signError = null;
 
     const withPath = sheets.filter(s => s.print_path);
     if (!withPath.length) return;
 
+    const EIGHT_HOURS = 60 * 60 * 8;
+
+    // Thumbnails: one batched call rather than dozens.
     const { data, error } = await sb.storage
       .from(BUCKET)
-      .createSignedUrls(withPath.map(s => s.print_path), 60 * 60);
+      .createSignedUrls(withPath.map(s => s.print_path), EIGHT_HOURS);
 
     if (error) {
       signError = error.message;
       console.error('Could not sign sticker previews', error);
-      return;
+    } else {
+      const byPath = {};
+      (data || []).forEach(entry => {
+        if (entry.signedUrl) byPath[entry.path] = entry.signedUrl;
+        else console.error('Preview signing failed for', entry.path, entry.error);
+      });
+      withPath.forEach(s => {
+        if (byPath[s.print_path]) signedUrls[s.id] = byPath[s.print_path];
+      });
     }
 
-    const byPath = {};
-    (data || []).forEach(entry => {
-      if (entry.signedUrl) byPath[entry.path] = entry.signedUrl;
-      else console.error('Preview signing failed for', entry.path, entry.error);
-    });
-    withPath.forEach(s => {
-      if (byPath[s.print_path]) signedUrls[s.id] = byPath[s.print_path];
-    });
+    // Download links carry their own filename, so they must be signed one at
+    // a time; the batch endpoint takes a single name for every file.
+    await Promise.all(withPath.map(async (s) => {
+      try {
+        const { data: signed, error: err } = await sb.storage
+          .from(BUCKET)
+          .createSignedUrl(s.print_path, EIGHT_HOURS, { download: printFileName(s) });
+        if (err) throw err;
+        if (signed?.signedUrl) downloadUrls[s.id] = signed.signedUrl;
+      } catch (e) {
+        // Leave it out; the card falls back to the scripted download.
+        console.error('Could not sign download link', s.print_path, e);
+      }
+    }));
   }
 
   function setStatus(value, btn) {
@@ -377,7 +411,9 @@
         ${sheet.review_note ? `<div class="sheet-note">${escHtml(sheet.review_note)}</div>` : ''}
       </div>
       <div class="sheet-actions">
-        <button class="act-btn primary" onclick="downloadSheet('${sheet.id}')" ${sheet.print_path ? '' : 'disabled'}>⬇ Print file</button>
+        ${downloadUrls[sheet.id]
+          ? `<a class="act-btn primary act-link" href="${escHtml(downloadUrls[sheet.id])}" download>⬇ Print file</a>`
+          : `<button class="act-btn primary" onclick="downloadSheet('${sheet.id}')" ${sheet.print_path ? '' : 'disabled'}>⬇ Print file</button>`}
         ${sheet.status === 'pending_review' && review
           ? `<button class="act-btn good" onclick="setSheetStatus('${sheet.id}','approved')">✓ Approve</button>
              <button class="act-btn bad"  onclick="rejectSheet('${sheet.id}')">✕ Reject</button>`
@@ -407,11 +443,7 @@
       if (error) throw error;
       if (!blob || !blob.size) throw new Error('The print file came back empty.');
 
-      const o    = sheet.orders || {};
-      const safe = (o.customer_name || 'customer').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
-      const copies = sheet.copies || 1;
-      const name = `sticker-${o.delivery_date || 'undated'}-${safe}-x${copies}-${id.slice(0, 8)}.png`;
-
+      const name = printFileName(sheet);
       const href = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = href;
@@ -420,7 +452,10 @@
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(href), 10000);
-      toast(`Downloaded ${name}`);
+
+      // A scripted click only asks; the browser may still decline it silently,
+      // so don't claim the file landed.
+      toast(`Saving ${name} — check your Downloads folder.`);
     } catch (e) {
       console.error('Sticker print download failed', { sheetId: id, path: sheet.print_path, error: e });
       toast('Download failed: ' + (e.message || 'unknown error'));
