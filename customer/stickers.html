@@ -132,6 +132,10 @@
     .range-row { margin-bottom:0.9rem; }
     .range-row label { display:block; font-size:0.62rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--gray); margin-bottom:0.4rem; }
     input[type=range] { width:100%; accent-color:var(--red); }
+    .rot-readout { float:right; letter-spacing:0; text-transform:none; color:var(--light-gray); font-weight:400; }
+    .rot-quick { display:flex; gap:0.35rem; margin-bottom:0.5rem; }
+    .rot-quick .nudge-btn { flex:1; font-size:0.72rem; }
+    .spread-btn { width:100%; margin-top:1rem; padding:0.6rem 0.5rem; font-size:0.75rem; letter-spacing:0.04em; }
     .nudge-pad { display:grid; grid-template-columns:repeat(3,1fr); gap:0.3rem; max-width:130px; margin-bottom:0.9rem; }
     .nudge-btn { padding:0.4rem; border-radius:6px; border:1px solid var(--border-dim); background:transparent; color:var(--light-gray); cursor:pointer; font-size:0.8rem; line-height:1; }
     .nudge-btn:hover { border-color:var(--border); color:var(--white); }
@@ -270,6 +274,7 @@
           <div class="inline-error" id="upload-error" role="alert"></div>
           <div class="busy-note" id="upload-busy">Uploading&hellip;</div>
           <div class="library" id="library"></div>
+          <div id="spread-row"></div>
         </div>
 
         <!-- Middle: the sheet -->
@@ -431,12 +436,14 @@
 
   // Layouts are cols x rows, capped at 16 stickers per sheet.
   const PRESETS = [
-    { id: '1x1', cols: 1, rows: 1 },
-    { id: '1x2', cols: 1, rows: 2 },
-    { id: '2x2', cols: 2, rows: 2 },
-    { id: '2x3', cols: 2, rows: 3 },
-    { id: '3x3', cols: 3, rows: 3 },
-    { id: '4x4', cols: 4, rows: 4 },
+    { id: '1x1', cols: 1, rows: 1 },  // 1
+    { id: '1x2', cols: 1, rows: 2 },  // 2
+    { id: '2x2', cols: 2, rows: 2 },  // 4
+    { id: '2x3', cols: 2, rows: 3 },  // 6
+    { id: '2x4', cols: 2, rows: 4 },  // 8
+    { id: '3x3', cols: 3, rows: 3 },  // 9
+    { id: '3x4', cols: 3, rows: 4 },  // 12
+    { id: '4x4', cols: 4, rows: 4 },  // 16
   ];
 
   const SHEET_CENTS       = 200;
@@ -489,36 +496,52 @@
     return { w: r.w / SHEET.dpi, h: r.h / SHEET.dpi };
   }
 
+  /** Half-extents of a w x h box after rotating it by `deg`. */
+  function rotatedBox(w, h, deg) {
+    const rad = (deg || 0) * Math.PI / 180;
+    const c = Math.abs(Math.cos(rad));
+    const s = Math.abs(Math.sin(rad));
+    return { w: w * c + h * s, h: w * s + h * c };
+  }
+
   /** Scale at zoom 1: the whole image sits inside its cell on the white sheet.
-   *  Zooming past ~1 crops into the cell; below 1 leaves more white around it. */
-  function fitScale(img, rect) {
-    return Math.min(rect.w / img.naturalWidth, rect.h / img.naturalHeight);
+   *  Measured on the ROTATED footprint, so turning a wide photo sideways still
+   *  fits its cell.  Zooming past 1 crops in; below 1 leaves more white. */
+  function fitScale(img, rect, deg) {
+    const box = rotatedBox(img.naturalWidth, img.naturalHeight, deg);
+    return Math.min(rect.w / box.w, rect.h / box.h);
   }
 
   function drawPlacement(ctx, entry, rect, placement) {
     const img   = entry.img;
-    const scale = fitScale(img, rect) * (placement.zoom || 1);
+    const deg   = placement.rot || 0;
+    const scale = fitScale(img, rect, deg) * (placement.zoom || 1);
     const dw    = img.naturalWidth  * scale;
     const dh    = img.naturalHeight * scale;
+
     // Offsets work in both directions: pan a cropped image, or position a
-    // small one anywhere inside its cell.
-    const maxDX = Math.abs(dw - rect.w) / 2;
-    const maxDY = Math.abs(dh - rect.h) / 2;
-    const dx    = rect.x + (rect.w - dw) / 2 + (placement.offX || 0) * maxDX;
-    const dy    = rect.y + (rect.h - dh) / 2 + (placement.offY || 0) * maxDY;
+    // small one anywhere inside its cell.  Measured on the rotated footprint
+    // so the travel matches what the customer actually sees.
+    const box   = rotatedBox(dw, dh, deg);
+    const maxDX = Math.abs(box.w - rect.w) / 2;
+    const maxDY = Math.abs(box.h - rect.h) / 2;
+    const cx    = rect.x + rect.w / 2 + (placement.offX || 0) * maxDX;
+    const cy    = rect.y + rect.h / 2 + (placement.offY || 0) * maxDY;
 
     ctx.save();
     ctx.beginPath();
     ctx.rect(rect.x, rect.y, rect.w, rect.h);
     ctx.clip();
-    ctx.drawImage(img, dx, dy, dw, dh);
+    ctx.translate(cx, cy);
+    ctx.rotate(deg * Math.PI / 180);
+    ctx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
     ctx.restore();
   }
 
   /** Effective print resolution of a placement, in DPI. */
   function placementDpi(entry, placement, presetId, slotIdx) {
     const rect  = cellRects(presetId, PRINT_W, PRINT_H)[slotIdx];
-    const scale = fitScale(entry.img, rect) * (placement.zoom || 1);
+    const scale = fitScale(entry.img, rect, placement.rot || 0) * (placement.zoom || 1);
     return SHEET.dpi / scale;
   }
 
@@ -663,7 +686,7 @@
       const slots  = new Array(slotCount(preset)).fill(null);
       (r.slots || []).forEach(s => {
         if (s && s.slot < slots.length && library.some(l => l.id === s.imageId)) {
-          slots[s.slot] = { imageId: s.imageId, zoom: s.zoom || 1, offX: s.offX || 0, offY: s.offY || 0 };
+          slots[s.slot] = { imageId: s.imageId, zoom: s.zoom || 1, offX: s.offX || 0, offY: s.offY || 0, rot: s.rot || 0 };
         }
       });
       return { id: r.id, preset, copies: Math.max(1, Math.min(MAX_COPIES, r.copies || 1)), slots };
@@ -816,10 +839,14 @@
 
   function selectSlot(i) { selectedSlot = i; renderAll(); }
 
+  function newPlacement(imageId) {
+    return { imageId, zoom: 1, offX: 0, offY: 0, rot: 0 };
+  }
+
   function placeImage(imageId) {
     const sheet = currentSheet();
     if (selectedSlot < 0 || selectedSlot >= sheet.slots.length) selectedSlot = 0;
-    sheet.slots[selectedSlot] = { imageId, zoom: 1, offX: 0, offY: 0 };
+    sheet.slots[selectedSlot] = newPlacement(imageId);
     const nextEmpty = sheet.slots.findIndex(s => !s);
     if (nextEmpty !== -1) selectedSlot = nextEmpty;
     renderAll();
@@ -827,7 +854,16 @@
 
   function fillAll(imageId) {
     const sheet = currentSheet();
-    sheet.slots = sheet.slots.map(() => ({ imageId, zoom: 1, offX: 0, offY: 0 }));
+    sheet.slots = sheet.slots.map(() => newPlacement(imageId));
+    renderAll();
+  }
+
+  /** Deal every uploaded image across the sheet, cycling when there are more
+   *  spots than images: 7 images over 9 spots gives 1-7 then 1, 2 again. */
+  function spreadAll() {
+    if (!library.length) return;
+    const sheet = currentSheet();
+    sheet.slots = sheet.slots.map((_, i) => newPlacement(library[i % library.length].id));
     renderAll();
   }
 
@@ -836,11 +872,37 @@
     renderAll();
   }
 
+  // Tweaking a placement must NOT rebuild the slot editor's markup: replacing
+  // a range input mid-drag cancels the drag after a single step.  So these
+  // redraw the sheet and the readouts, and leave the controls alone.
+  function refreshPlacement() {
+    renderCanvas();
+    renderTabs();
+    renderPrice();
+    updateSlotReadouts();
+  }
+
   function setZoom(value) {
     const p = currentSheet().slots[selectedSlot];
     if (!p) return;
     p.zoom = parseFloat(value);
-    renderAll();
+    refreshPlacement();
+  }
+
+  function setRotation(value) {
+    const p = currentSheet().slots[selectedSlot];
+    if (!p) return;
+    p.rot = ((Math.round(Number(value)) % 360) + 360) % 360;
+    refreshPlacement();
+  }
+
+  /** Quarter turns — the common case is standing a wide photo on its end. */
+  function rotateBy(delta) {
+    const p = currentSheet().slots[selectedSlot];
+    if (!p) return;
+    setRotation((p.rot || 0) + delta);
+    const slider = document.getElementById('rot-range');
+    if (slider) slider.value = p.rot;
   }
 
   function nudge(dx, dy) {
@@ -848,7 +910,7 @@
     if (!p) return;
     p.offX = Math.max(-1, Math.min(1, (p.offX || 0) + dx));
     p.offY = Math.max(-1, Math.min(1, (p.offY || 0) + dy));
-    renderAll();
+    refreshPlacement();
   }
 
   function centerSlot() {
@@ -856,7 +918,7 @@
     if (!p) return;
     p.offX = 0;
     p.offY = 0;
-    renderAll();
+    refreshPlacement();
   }
 
   function addSheet() {
@@ -968,6 +1030,18 @@
   function renderLibrary() {
     const sheet = currentSheet();
     const el = document.getElementById('library');
+    const spread = document.getElementById('spread-row');
+
+    // One click to use every image at once; otherwise tap a spot, tap an image.
+    spread.innerHTML = library.length > 1
+      ? `<button class="btn-ghost spread-btn" onclick="spreadAll()">
+           Use all ${library.length} images
+         </button>
+         <p class="panel-hint" style="margin:0.5rem 0 0">
+           Fills every spot in order, repeating from the start if the sheet has more spots than images.
+         </p>`
+      : '';
+
     if (!library.length) {
       el.innerHTML = '<p class="panel-hint" style="grid-column:1/-1;margin:0">Nothing uploaded yet.</p>';
       return;
@@ -999,20 +1073,24 @@
       return;
     }
 
-    const entry = library.find(l => l.id === p.imageId);
-    const dpi   = entry ? placementDpi(entry, p, sheet.preset, selectedSlot) : 300;
-    const warn  = dpi < MIN_PRINT_DPI
-      ? `<div class="dpi-warn">This image is stretched to about ${Math.round(dpi)} DPI here and may look soft when printed. Try a smaller spot, less zoom, or a higher-resolution image.</div>`
-      : '';
-
     el.className = 'slot-editor';
     el.innerHTML = `
       <div class="panel-title">Spot ${selectedSlot + 1}</div>
-      ${warn}
+      <div id="slot-warn"></div>
       <div class="range-row">
         <label for="zoom-range">Size on sheet</label>
         <input type="range" id="zoom-range" min="0.3" max="3" step="0.05"
                value="${p.zoom || 1}" oninput="setZoom(this.value)" />
+      </div>
+      <div class="range-row">
+        <label for="rot-range">Rotation <span id="rot-readout" class="rot-readout"></span></label>
+        <div class="rot-quick">
+          <button class="nudge-btn" onclick="rotateBy(-90)" aria-label="Rotate left 90 degrees">↺ 90°</button>
+          <button class="nudge-btn" onclick="rotateBy(90)" aria-label="Rotate right 90 degrees">↻ 90°</button>
+        </div>
+        <input type="range" id="rot-range" min="0" max="359" step="1"
+               value="${p.rot || 0}" oninput="setRotation(this.value)"
+               aria-label="Fine rotation" />
       </div>
       <div class="nudge-pad" role="group" aria-label="Nudge image">
         <span class="nudge-spacer"></span>
@@ -1027,6 +1105,25 @@
       </div>
       <button class="btn-ghost" style="width:100%;padding:0.55rem;font-size:0.75rem" onclick="clearSlot()">Clear this spot</button>
     `;
+    updateSlotReadouts();
+  }
+
+  /** Values that change as the customer drags, written into the existing DOM
+   *  rather than re-rendering the controls around them. */
+  function updateSlotReadouts() {
+    const sheet = currentSheet();
+    const p     = sheet.slots[selectedSlot];
+    const warnEl = document.getElementById('slot-warn');
+    const rotEl  = document.getElementById('rot-readout');
+    if (!warnEl || !p) return;
+
+    if (rotEl) rotEl.textContent = `${Math.round(p.rot || 0)}°`;
+
+    const entry = library.find(l => l.id === p.imageId);
+    const dpi   = entry ? placementDpi(entry, p, sheet.preset, selectedSlot) : 300;
+    warnEl.innerHTML = dpi < MIN_PRINT_DPI
+      ? `<div class="dpi-warn">This image is stretched to about ${Math.round(dpi)} DPI here and may look soft when printed. Try a smaller spot, less zoom, or a higher-resolution image.</div>`
+      : '';
   }
 
   function renderCopies() {
@@ -1088,7 +1185,7 @@
       id: l.id, path: l.path, name: l.name, width: l.w, height: l.h,
     }));
     const slots = sheet.slots.map((p, i) => p ? {
-      slot: i, imageId: p.imageId, zoom: p.zoom || 1, offX: p.offX || 0, offY: p.offY || 0,
+      slot: i, imageId: p.imageId, zoom: p.zoom || 1, offX: p.offX || 0, offY: p.offY || 0, rot: p.rot || 0,
     } : null).filter(Boolean);
 
     const { error: rowErr } = await sb.from('sticker_sheets').upsert({
