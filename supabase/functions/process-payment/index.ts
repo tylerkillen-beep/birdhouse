@@ -210,6 +210,7 @@ serve(async (req) => {
       layoutPreset?: string;
       uniqueImageCount?: number;
       placedCount?: number;
+      copies?: number;
     }
 
     interface StickerSheetRow {
