@@ -5572,12 +5572,29 @@ async function loadRecipes() {
   ];
   if (!allInventory.length) tasks.push(loadInventory());
   tasks.push(sb.from('recipe_costs').select('*'));
+  // Kept out of `tasks` so the recipe_costs row lookup below can't pick it up.
+  const menuTask = ensureMenuItems();
   const [{ data }, ...rest] = await Promise.all(tasks);
   allRecipes = data || [];
   const costRows = rest.find(r => Array.isArray(r?.data))?.data || [];
   recipeCostMap = Object.fromEntries(costRows.map(c => [c.recipe_id, c]));
+  await menuTask;
   renderRecipes();
 }
+
+// Same fetch loadMenuItems() does, for the tabs that need the menu but aren't
+// the Menu tab. Selects everything so allMenuItems has its usual shape.
+async function ensureMenuItems() {
+  if (allMenuItems.length) return;
+  const { data } = await sb.from('menu_items').select('*').order('sort_order');
+  allMenuItems = data || [];
+}
+
+function htmlEscape(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+const normalizeName = s => String(s || '').trim().toLowerCase();
 
 // Renders the costed price of a drink, or why it can't be trusted yet. A recipe
 // with an uncosted ingredient still sums to a number, so saying "$0.36" there
@@ -5626,6 +5643,10 @@ function openRecipeModal(id) {
   document.getElementById('recipe-modal-title').textContent = id ? 'Edit Recipe' : 'Add Recipe';
   const recipe = id ? allRecipes.find(r => r.id === id) : null;
   document.getElementById('recipe-name').value = recipe?.name || '';
+  populateRecipeNameOptions();
+  updateRecipeNameHint();
+  // Only if someone opened the modal before the menu finished loading.
+  if (!allMenuItems.length) ensureMenuItems().then(() => { populateRecipeNameOptions(); updateRecipeNameHint(); });
   document.getElementById('recipe-desc').value = recipe?.description || '';
   document.getElementById('recipe-cup').value = recipe?.cup_type || '';
   document.getElementById('recipe-ice').value = recipe?.ice_amount || '';
@@ -5644,6 +5665,38 @@ function openRecipeModal(id) {
   openModal('recipe-modal');
 }
 
+// Ingredient usage is matched to sales by name, so a recipe named even slightly
+// differently from its menu item silently tracks nothing. Offering the real menu
+// items as you type means nobody has to retype a name and hope.
+function populateRecipeNameOptions() {
+  const dl = document.getElementById('recipe-name-options');
+  if (!dl) return;
+  const hasRecipe = new Set(allRecipes.filter(r => r.id !== editingRecipeId).map(r => normalizeName(r.name)));
+  dl.innerHTML = allMenuItems.map(item => {
+    const notes = [];
+    if (hasRecipe.has(normalizeName(item.name))) notes.push('has a recipe');
+    if (item.available === false) notes.push('hidden from menu');
+    const label = notes.length ? ` label="${htmlEscape(notes.join(' · '))}"` : '';
+    return `<option value="${htmlEscape(item.name)}"${label}></option>`;
+  }).join('');
+}
+
+function updateRecipeNameHint() {
+  const el = document.getElementById('recipe-name-hint');
+  if (!el) return;
+  const typed = normalizeName(document.getElementById('recipe-name').value);
+  if (!typed) { el.innerHTML = ''; return; }
+  const match = allMenuItems.find(item => normalizeName(item.name) === typed);
+  if (!match) {
+    el.innerHTML = '<span style="color:var(--warning,#e0a030)">⚠ No menu item goes by this name. The recipe will save, but ingredient usage won\'t be counted for it.</span>';
+    return;
+  }
+  const dupe = allRecipes.find(r => r.id !== editingRecipeId && normalizeName(r.name) === typed);
+  el.innerHTML = dupe
+    ? `<span style="color:var(--warning,#e0a030)">⚠ “${htmlEscape(match.name)}” already has a recipe — saving this creates a second one.</span>`
+    : `<span style="color:var(--accent)">✓ Matches the menu item “${htmlEscape(match.name)}”.</span>`;
+}
+
 function addIngredientRow(invId = '', amount = '', unit = '') {
   const el = document.getElementById('recipe-ingredients-list');
   const row = document.createElement('div');
@@ -5655,7 +5708,10 @@ function addIngredientRow(invId = '', amount = '', unit = '') {
 
 async function saveRecipe() {
   const msgEl = document.getElementById('recipe-modal-msg');
-  const name = document.getElementById('recipe-name').value.trim();
+  const typedName = document.getElementById('recipe-name').value.trim();
+  // Save the menu item's own spelling when the name matches apart from case, so
+  // the name-based match to sales lines up exactly.
+  const name = allMenuItems.find(item => normalizeName(item.name) === normalizeName(typedName))?.name || typedName;
   const desc = document.getElementById('recipe-desc').value.trim() || null;
   if (!name) { msgEl.textContent = 'Recipe name is required.'; msgEl.className = 'msg error'; msgEl.style.display = 'block'; return; }
   const buildSpec = {
@@ -5764,8 +5820,10 @@ async function deleteRecipe(id, name) {
     <button class="modal-close" onclick="closeModal('recipe-modal')" aria-label="Close">✕</button>
     <h2 class="modal-title" id="recipe-modal-title" style="font-weight:normal">Add Recipe</h2>
     <div class="form-group">
-      <label class="form-label" for="recipe-name">Menu Item Name <span style="color:var(--gray-mid);text-transform:none;font-weight:400">(must match exactly what appears on the menu)</span></label>
-      <input class="form-input" id="recipe-name" placeholder="e.g. Iced Latte, Chocolate Chip Cookie"/>
+      <label class="form-label" for="recipe-name">Menu Item Name <span style="color:var(--gray-mid);text-transform:none;font-weight:400">(start typing to pick from the menu)</span></label>
+      <input class="form-input" id="recipe-name" list="recipe-name-options" autocomplete="off" placeholder="Start typing a menu item…" oninput="updateRecipeNameHint()"/>
+      <datalist id="recipe-name-options"></datalist>
+      <div id="recipe-name-hint" style="font-size:0.74rem;margin-top:0.35rem;min-height:1.05rem"></div>
     </div>
     <div class="form-group">
       <label class="form-label" for="recipe-desc">Description (optional)</label>
