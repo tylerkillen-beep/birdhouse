@@ -116,6 +116,16 @@
     .log-change-neg{color:var(--red-bright);font-weight:500}
     .log-meta{font-size:0.7rem;color:var(--gray);margin-top:0.15rem}
 
+    /* Recipes */
+    .recipe-card{background:var(--card);border:1px solid var(--border-dim);border-radius:12px;padding:1.1rem 1.25rem;margin-bottom:0.6rem}
+    .recipe-card:hover{border-color:var(--border)}
+    .ingredient-row{display:flex;align-items:center;gap:0.5rem;margin-bottom:0.45rem}
+    .ingredient-row select,.ingredient-row input{background:#0d0d0d;border:1px solid var(--border-dim);border-radius:6px;color:var(--white);font-family:'DM Sans',sans-serif;font-size:0.8rem;padding:0.35rem 0.5rem;outline:none}
+    .ingredient-row select{flex:2}
+    .ingredient-row input{width:70px}
+    .ingredient-row .rm-btn{background:none;border:none;color:var(--gray);cursor:pointer;font-size:1rem;padding:0 0.2rem}
+    .ingredient-row .rm-btn:hover{color:var(--red-bright)}
+
     /* Inventory */
     .table-wrap { background: var(--card); border: 1px solid var(--border-dim); border-radius: 12px; overflow: hidden; }
     table { width: 100%; border-collapse: collapse; }
@@ -248,6 +258,7 @@
       <button class="nav-item" onclick="showSection('sales',this)"><span aria-hidden="true">📈</span> Sales Data</button>
       <button class="nav-item" onclick="showSection('menu',this)"><span aria-hidden="true">☕</span> Menu Availability</button>
       <a class="nav-item" href="recipe-sheet.html"><span aria-hidden="true">🗒️</span> Recipe Sheet</a>
+      <button class="nav-item" onclick="showSection('recipes',this)"><span aria-hidden="true">📖</span> Recipes</button>
       <a class="nav-item" href="../board.html" target="_blank" rel="noopener"><span aria-hidden="true">🖥️</span> Menu Board</a>
       <button class="nav-item" onclick="showSection('summary',this)"><span aria-hidden="true">📝</span> Weekly Summary</button>
       <button class="nav-item" onclick="showSection('peer-eval',this)" style="justify-content:space-between"><span aria-hidden="true">👥</span> Peer Evals <span id="peer-eval-badge" style="display:none;background:var(--red);color:white;font-size:0.6rem;padding:0.1rem 0.45rem;border-radius:10px"></span></button>
@@ -378,6 +389,17 @@
           <div id="log-body" style="max-height:320px;overflow-y:auto"></div>
         </div>
       </div>
+    </div>
+
+    <!-- Recipes -->
+    <div id="section-recipes" style="display:none">
+      <div class="page-eyebrow">Team Hub</div>
+      <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:0.4rem">
+        <h1 class="page-title" style="margin-bottom:0">Recipes</h1>
+        <button class="btn-primary" style="font-size:0.78rem;padding:0.55rem 1.1rem" onclick="openRecipeModal()">+ Add Recipe</button>
+      </div>
+      <p style="color:var(--gray);font-size:0.88rem;margin-bottom:1.5rem">Map each menu item to the ingredients and build steps it uses. Matched to the menu by name, and shown on the Recipe Sheet.</p>
+      <div id="recipes-content"></div>
     </div>
 
     <!-- Sales -->
@@ -1038,6 +1060,189 @@
     else{closeItemModal();loadInventory();}
   }
 
+  // ── Recipes ──
+  let allRecipes = [], allMenuItems = [], editingRecipeId = null, _recipeModalOpener = null;
+
+  function htmlEscape(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  const normalizeName = s => String(s || '').trim().toLowerCase();
+
+  async function ensureMenuItems() {
+    if (allMenuItems.length) return;
+    const { data } = await sb.from('menu_items').select('*').order('sort_order');
+    allMenuItems = data || [];
+  }
+
+  async function loadRecipes() {
+    // The ingredient dropdown in the recipe modal reads from allInventory, which
+    // is otherwise only populated by visiting the Inventory tab first.
+    const tasks = [sb.from('recipes').select('*, recipe_ingredients(*, inventory:inventory_id(id,name,unit))').order('name')];
+    if (!allInventory.length) tasks.push(loadInventory());
+    const menuTask = ensureMenuItems();
+    const [{ data }] = await Promise.all(tasks);
+    allRecipes = data || [];
+    await menuTask;
+    renderRecipes();
+  }
+
+  function renderRecipes() {
+    const el = document.getElementById('recipes-content');
+    if (!allRecipes.length) { el.innerHTML = '<div style="color:var(--gray);text-align:center;padding:2rem;background:var(--card);border:1px solid var(--border-dim);border-radius:12px">No recipes yet. Add one for each drink your team makes.</div>'; return; }
+    el.innerHTML = allRecipes.map(recipe => {
+      const ingList = recipe.recipe_ingredients?.map(ri =>
+        `<span style="font-size:0.78rem;background:rgba(255,255,255,0.04);border:1px solid var(--border-dim);border-radius:6px;padding:0.15rem 0.5rem;color:var(--light-gray)">${ri.amount} ${ri.unit || ri.inventory?.unit || ''} ${ri.inventory?.name || '?'}</span>`
+      ).join(' ') || '<span style="color:var(--gray);font-size:0.78rem">No ingredients listed</span>';
+      const buildBits = [recipe.cup_type ? `${recipe.cup_type} cup` : '', recipe.coffee_machine_selection, recipe.beverage_pour].filter(Boolean);
+      return `<div class="recipe-card">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:0.5rem;gap:1rem">
+          <div>
+            <div style="font-weight:600;font-size:0.95rem">${recipe.name}</div>
+            ${recipe.description ? `<div style="font-size:0.75rem;color:var(--gray);margin-top:0.15rem">${recipe.description}</div>` : ''}
+            ${buildBits.length ? `<div style="font-size:0.72rem;color:var(--gray);margin-top:0.15rem">${buildBits.join(' · ')}</div>` : ''}
+          </div>
+          <div style="display:flex;gap:0.4rem;flex-shrink:0">
+            <button class="inv-edit-btn" onclick="openRecipeModal('${recipe.id}')"><span aria-hidden="true">✏️</span> Edit</button>
+            <button class="inv-edit-btn" style="color:var(--red-bright);border-color:var(--border)" onclick="deleteRecipe('${recipe.id}','${recipe.name.replace(/'/g, "\\'")}')"><span aria-hidden="true">🗑</span></button>
+          </div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:0.35rem">${ingList}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Ingredient usage is matched to sales by name, so a recipe named even slightly
+  // differently from its menu item silently tracks nothing.
+  function populateRecipeNameOptions() {
+    const dl = document.getElementById('recipe-name-options');
+    if (!dl) return;
+    const hasRecipe = new Set(allRecipes.filter(r => r.id !== editingRecipeId).map(r => normalizeName(r.name)));
+    dl.innerHTML = allMenuItems.map(item => {
+      const notes = [];
+      if (hasRecipe.has(normalizeName(item.name))) notes.push('has a recipe');
+      if (item.available === false) notes.push('hidden from menu');
+      const label = notes.length ? ` label="${htmlEscape(notes.join(' · '))}"` : '';
+      return `<option value="${htmlEscape(item.name)}"${label}></option>`;
+    }).join('');
+  }
+
+  function updateRecipeNameHint() {
+    const el = document.getElementById('recipe-name-hint');
+    if (!el) return;
+    const typed = normalizeName(document.getElementById('recipe-name').value);
+    if (!typed) { el.innerHTML = ''; return; }
+    const match = allMenuItems.find(item => normalizeName(item.name) === typed);
+    if (!match) {
+      el.innerHTML = '<span style="color:#ff9800">⚠ No menu item goes by this name. The recipe will save, but won\'t be matched to sales.</span>';
+      return;
+    }
+    const dupe = allRecipes.find(r => r.id !== editingRecipeId && normalizeName(r.name) === typed);
+    el.innerHTML = dupe
+      ? `<span style="color:#ff9800">⚠ "${htmlEscape(match.name)}" already has a recipe — saving this creates a second one.</span>`
+      : `<span style="color:var(--red-bright)">✓ Matches the menu item "${htmlEscape(match.name)}".</span>`;
+  }
+
+  function addIngredientRow(invId = '', amount = '', unit = '') {
+    const el = document.getElementById('recipe-ingredients-list');
+    const row = document.createElement('div');
+    row.className = 'ingredient-row';
+    const opts = allInventory.map(inv => `<option value="${inv.id}"${inv.id === invId ? ' selected' : ''}>${inv.name} (${inv.unit})</option>`).join('');
+    row.innerHTML = `<select><option value="">— Select ingredient —</option>${opts}</select><input type="number" min="0" step="0.01" placeholder="Amount" value="${amount}"/><input type="text" placeholder="Unit" value="${unit}"/><button class="rm-btn" type="button" onclick="this.parentElement.remove()" aria-label="Remove ingredient">✕</button>`;
+    el.appendChild(row);
+  }
+
+  function trapRecipeModalFocus(e) {
+    if (e.key === 'Escape') { closeRecipeModal(); return; }
+    if (e.key !== 'Tab') return;
+    const modal = document.getElementById('recipe-modal');
+    const focusable = Array.from(modal.querySelectorAll('button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])'));
+    if (!focusable.length) return;
+    const first = focusable[0], last = focusable[focusable.length - 1];
+    if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last.focus(); } }
+    else { if (document.activeElement === last) { e.preventDefault(); first.focus(); } }
+  }
+
+  function showRecipeModal() {
+    const modal = document.getElementById('recipe-modal');
+    modal.style.display = 'flex';
+    modal.addEventListener('keydown', trapRecipeModalFocus);
+    const firstInput = modal.querySelector('input, select, textarea');
+    if (firstInput) firstInput.focus();
+  }
+
+  function closeRecipeModal() {
+    const modal = document.getElementById('recipe-modal');
+    modal.style.display = 'none';
+    modal.removeEventListener('keydown', trapRecipeModalFocus);
+    if (_recipeModalOpener) { _recipeModalOpener.focus(); _recipeModalOpener = null; }
+  }
+
+  async function openRecipeModal(id) {
+    editingRecipeId = id || null;
+    _recipeModalOpener = document.activeElement;
+    await ensureMenuItems();
+    document.getElementById('recipe-modal-title').textContent = id ? 'Edit Recipe' : 'Add Recipe';
+    const recipe = id ? allRecipes.find(r => r.id === id) : null;
+    document.getElementById('recipe-name').value = recipe?.name || '';
+    populateRecipeNameOptions();
+    updateRecipeNameHint();
+    document.getElementById('recipe-desc').value = recipe?.description || '';
+    document.getElementById('recipe-cup').value = recipe?.cup_type || '';
+    document.getElementById('recipe-ice').value = recipe?.ice_amount || '';
+    document.getElementById('recipe-machine').value = recipe?.coffee_machine_selection || '';
+    document.getElementById('recipe-packet').value = recipe?.packet || '';
+    document.getElementById('recipe-pour').value = recipe?.beverage_pour || '';
+    document.getElementById('recipe-toppings').value = recipe?.toppings || '';
+    document.getElementById('recipe-modal-msg').className = 'msg';
+    const listEl = document.getElementById('recipe-ingredients-list');
+    listEl.innerHTML = '';
+    if (recipe?.recipe_ingredients?.length) recipe.recipe_ingredients.forEach(ri => addIngredientRow(ri.inventory_id, ri.amount, ri.unit));
+    else addIngredientRow();
+    showRecipeModal();
+  }
+
+  async function saveRecipe() {
+    const msgEl = document.getElementById('recipe-modal-msg');
+    const typedName = document.getElementById('recipe-name').value.trim();
+    // Save the menu item's own spelling when the name matches apart from case, so
+    // the name-based match to sales lines up exactly.
+    const name = allMenuItems.find(item => normalizeName(item.name) === normalizeName(typedName))?.name || typedName;
+    const desc = document.getElementById('recipe-desc').value.trim() || null;
+    if (!name) { msgEl.textContent = 'Recipe name is required.'; msgEl.className = 'msg error'; return; }
+    const buildSpec = {
+      cup_type: document.getElementById('recipe-cup').value || null,
+      ice_amount: document.getElementById('recipe-ice').value || null,
+      coffee_machine_selection: document.getElementById('recipe-machine').value.trim() || null,
+      packet: document.getElementById('recipe-packet').value.trim() || null,
+      beverage_pour: document.getElementById('recipe-pour').value.trim() || null,
+      toppings: document.getElementById('recipe-toppings').value.trim() || null,
+    };
+    const rows = Array.from(document.querySelectorAll('#recipe-ingredients-list .ingredient-row'));
+    const ingredients = rows.map(row => {
+      const select = row.querySelector('select');
+      const inputs = row.querySelectorAll('input');
+      return { inventory_id: select?.value || null, amount: parseFloat(inputs[0]?.value) || 0, unit: inputs[1]?.value.trim() || null };
+    }).filter(r => r.inventory_id && r.amount > 0);
+    let recipeId = editingRecipeId;
+    if (editingRecipeId) {
+      const { error } = await sb.from('recipes').update({ name, description: desc, ...buildSpec, updated_at: new Date().toISOString() }).eq('id', editingRecipeId);
+      if (error) { msgEl.textContent = 'Error: ' + error.message; msgEl.className = 'msg error'; return; }
+      await sb.from('recipe_ingredients').delete().eq('recipe_id', editingRecipeId);
+    } else {
+      const { data, error } = await sb.from('recipes').insert({ name, description: desc, ...buildSpec, created_by: currentUser.id }).select().single();
+      if (error) { msgEl.textContent = 'Error: ' + error.message; msgEl.className = 'msg error'; return; }
+      recipeId = data.id;
+    }
+    if (ingredients.length) await sb.from('recipe_ingredients').insert(ingredients.map(r => ({ ...r, recipe_id: recipeId })));
+    closeRecipeModal();
+    loadRecipes();
+  }
+
+  async function deleteRecipe(id, name) {
+    if (!confirm(`Delete recipe "${name}"? This cannot be undone.`)) return;
+    await sb.from('recipe_ingredients').delete().eq('recipe_id', id);
+    await sb.from('recipes').delete().eq('id', id);
+    loadRecipes();
+  }
+
   // ── Change Log ──
   let logVisible=false;
   async function toggleLog() {
@@ -1475,6 +1680,7 @@
     if(name==='orders')loadOrders();
     if(name==='schedule')loadSchedule();
     if(name==='inventory')loadInventory();
+    if(name==='recipes')loadRecipes();
     if(name==='sales')initStudentSalesReport();
     if(name==='bio')loadBio();
     if(name==='peer-eval')loadPeerEvalSection();
@@ -2066,6 +2272,47 @@
     <div style="display:flex;gap:0.75rem;margin-top:1.25rem">
       <button style="background:transparent;color:#999;border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:0.82rem 1.5rem;font-family:'DM Sans',sans-serif;font-size:0.88rem;cursor:pointer" onclick="closeItemModal()">Cancel</button>
       <button class="btn-primary" onclick="saveItemModal()">Save Item</button>
+    </div>
+  </div>
+</div>
+<!-- Recipe Modal -->
+<div id="recipe-modal" role="dialog" aria-modal="true" aria-labelledby="recipe-modal-title" style="position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:100;display:none;align-items:center;justify-content:center;padding:1.5rem">
+  <div style="background:#111;border:1px solid rgba(204,0,0,0.18);border-radius:16px;padding:2rem;width:620px;max-width:100%;max-height:90vh;overflow-y:auto;position:relative">
+    <button onclick="closeRecipeModal()" aria-label="Close dialog" style="position:absolute;top:1rem;right:1rem;background:none;border:none;color:#555;font-size:1.2rem;cursor:pointer;line-height:1;padding:0.25rem">✕</button>
+    <h2 style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:0.05em;margin-bottom:1.5rem;font-weight:normal" id="recipe-modal-title">Add Recipe</h2>
+    <div style="margin-bottom:1rem"><label for="recipe-name" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Menu Item Name <span style="text-transform:none;letter-spacing:normal;color:var(--gray)">(start typing to pick from the menu)</span></label>
+      <input type="text" id="recipe-name" list="recipe-name-options" autocomplete="off" placeholder="Start typing a menu item…" oninput="updateRecipeNameHint()" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/>
+      <datalist id="recipe-name-options"></datalist>
+      <div id="recipe-name-hint" style="font-size:0.74rem;margin-top:0.35rem;min-height:1.05rem"></div>
+    </div>
+    <div style="margin-bottom:1rem"><label for="recipe-desc" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Description <span style="text-transform:none;letter-spacing:normal;color:var(--gray)">(optional)</span></label>
+      <input type="text" id="recipe-desc" placeholder="Brief notes about this recipe" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/></div>
+    <div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);margin-bottom:0.6rem;font-weight:600">Build steps (for the Recipe Sheet)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem;margin-bottom:0.25rem">
+      <div style="margin-bottom:1rem"><label for="recipe-cup" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Cup</label>
+        <select id="recipe-cup" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none">
+          <option value="">—</option><option value="Hot">Hot</option><option value="Cold">Cold</option>
+        </select></div>
+      <div style="margin-bottom:1rem"><label for="recipe-ice" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Ice</label>
+        <select id="recipe-ice" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none">
+          <option value="">—</option><option value="None">None</option><option value="Half Filled">Half Filled</option><option value="Full">Full</option>
+        </select></div>
+      <div style="margin-bottom:1rem"><label for="recipe-machine" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Coffee Machine Selection</label>
+        <input type="text" id="recipe-machine" placeholder="e.g. Iced Latte, Latte, None" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/></div>
+      <div style="margin-bottom:1rem"><label for="recipe-packet" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Packet</label>
+        <input type="text" id="recipe-packet" placeholder="e.g. Cherry Limeade (Half)" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/></div>
+      <div style="margin-bottom:1rem"><label for="recipe-pour" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Beverage Pour</label>
+        <input type="text" id="recipe-pour" placeholder="e.g. Sprite, Fresca, Diet Dr. Pepper" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/></div>
+      <div style="margin-bottom:1rem"><label for="recipe-toppings" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Topping(s)</label>
+        <input type="text" id="recipe-toppings" placeholder="e.g. Whipped Cream, Strawberry Boba" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/></div>
+    </div>
+    <div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);margin-bottom:0.6rem;font-weight:600">Syrups & inventory ingredients <span style="text-transform:none;letter-spacing:normal;font-weight:400">(also shown as Syrup(s) on the Recipe Sheet)</span></div>
+    <div id="recipe-ingredients-list"></div>
+    <button type="button" style="background:transparent;color:var(--gray);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:0.4rem 0.85rem;font-family:'DM Sans',sans-serif;font-size:0.78rem;cursor:pointer;margin-bottom:1rem" onclick="addIngredientRow()">+ Add Ingredient</button>
+    <div class="msg" id="recipe-modal-msg" role="status" aria-live="polite" aria-atomic="true"></div>
+    <div style="display:flex;gap:0.75rem;margin-top:1.25rem">
+      <button style="background:transparent;color:#999;border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:0.82rem 1.5rem;font-family:'DM Sans',sans-serif;font-size:0.88rem;cursor:pointer" onclick="closeRecipeModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveRecipe()">Save Recipe</button>
     </div>
   </div>
 </div>
