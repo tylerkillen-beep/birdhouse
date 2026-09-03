@@ -126,9 +126,11 @@
     .ingredient-row .rm-btn{background:none;border:none;color:var(--gray);cursor:pointer;font-size:1rem;padding:0 0.2rem}
     .ingredient-row .rm-btn:hover{color:var(--red-bright)}
     .check-grid{display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.6rem}
-    .check-pill{display:flex;align-items:center;gap:0.4rem;background:#0d0d0d;border:1px solid var(--border-dim);border-radius:20px;padding:0.35rem 0.75rem;font-size:0.8rem;cursor:pointer;user-select:none;color:var(--light-gray);transition:all 0.15s}
+    .check-pill{display:flex;align-items:center;gap:0.4rem;background:#0d0d0d;border:1px solid var(--border-dim);border-radius:20px;padding:0.35rem 0.75rem;font-size:0.8rem;user-select:none;color:var(--light-gray);transition:all 0.15s}
+    .check-pill label{display:flex;align-items:center;gap:0.4rem;cursor:pointer}
     .check-pill input{accent-color:var(--red)}
     .check-pill.checked{border-color:var(--red);color:var(--red-bright);background:rgba(204,0,0,0.08)}
+    .check-pill .packet-amount-select{margin-left:0.2rem;background:transparent;border:1px solid var(--border-dim);border-radius:10px;font-size:0.72rem;color:inherit;padding:0.1rem 0.4rem;cursor:pointer;font-family:'DM Sans',sans-serif}
     .check-add-row{display:flex;gap:0.5rem;margin-bottom:1.25rem}
     .check-add-row input{flex:1;padding:0.5rem 0.7rem;border:1px solid var(--border-dim);border-radius:6px;background:#0d0d0d;color:var(--white);font-family:'DM Sans',sans-serif;font-size:0.8rem;outline:none}
     .check-add-row button{background:transparent;color:var(--gray);border:1px solid var(--border-dim);border-radius:6px;padding:0.4rem 0.85rem;font-family:'DM Sans',sans-serif;font-size:0.78rem;cursor:pointer;white-space:nowrap}
@@ -1074,20 +1076,30 @@
   function htmlEscape(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   const normalizeName = s => String(s || '').trim().toLowerCase();
 
-  // Syrup, Boba, and Toppings used to be free-typed into a text box, so the
+  // Packet, Boba, and Toppings used to be free-typed into a text box, so the
   // same drink ended up spelled three different ways across recipes. These
-  // are checkbox groups instead: Syrup options come from Inventory's Flavors
-  // category (so the list is whatever's actually stocked); Boba and Toppings
-  // are auto-collected from what's already saved in other recipes (split by
-  // whether the value mentions "boba"), plus anything typed into the "add
-  // other" box for a value nobody's used yet. `extras` holds those one-off
-  // additions (and, when editing, any legacy value that no longer matches
-  // the collected list) so nothing gets silently dropped.
+  // are checkbox groups instead: Packet options are Inventory's Flavors items
+  // whose unit is literally "packet" (Cherry Limeade, Ocean Water, etc.) —
+  // pump syrups stay in the Inventory Ingredients section below, not here.
+  // Boba and Toppings are auto-collected from what's already saved in other
+  // recipes (split by whether the value mentions "boba"), plus anything
+  // typed into the "add other" box for a value nobody's used yet. `extras`
+  // holds those one-off additions (and, when editing, any legacy value that
+  // no longer matches the collected list) so nothing gets silently dropped.
   const RECIPE_CHECK_GROUPS = {
-    syrup:   { containerId: 'recipe-syrup-options',   inputId: 'recipe-syrup-other',   extras: [] },
+    packet:  { containerId: 'recipe-packet-options',  inputId: 'recipe-packet-other',  extras: [] },
     boba:    { containerId: 'recipe-boba-options',    inputId: 'recipe-boba-other',    extras: [] },
     topping: { containerId: 'recipe-topping-options', inputId: 'recipe-topping-other', extras: [] },
   };
+
+  // A recipe's assumed default is 2 pumps of any flavor syrup (handled in
+  // the Inventory Ingredients section below) and half a packet of any packet
+  // flavor. `recipePacketNotes` holds a packet's chosen override amount
+  // (Quarter/Full packet) keyed by item name — empty/unset means "use the
+  // half-packet default", so most recipes need no amount entered at all.
+  const PACKET_AMOUNT_OPTIONS = ['Quarter packet', 'Full packet'];
+  const PACKET_DEFAULT_LABEL = 'Half packet';
+  let recipePacketNotes = {};
 
   function collectDistinctValues(fieldGetter) {
     const set = new Set();
@@ -1099,8 +1111,16 @@
     return Array.from(set);
   }
 
+  // A value saved as "Cherry Limeade (Full packet)" is a name plus an
+  // override of the assumed default; plain "Cherry Limeade" means the
+  // default applies and needs no note.
+  function parseQualifiedValue(raw) {
+    const m = String(raw).trim().match(/^(.*?)\s*\(([^)]+)\)\s*$/);
+    return m ? { name: m[1].trim(), note: m[2].trim() } : { name: String(raw).trim(), note: '' };
+  }
+
   function recipeCheckBaseOptions(kind) {
-    if (kind === 'syrup') return allInventory.filter(i => i.category === 'flavors').map(i => i.name);
+    if (kind === 'packet') return allInventory.filter(i => i.category === 'flavors' && (i.unit || '').trim().toLowerCase() === 'packet').map(i => i.name);
     const collected = collectDistinctValues(r => r.toppings);
     const isBoba = v => /boba/i.test(v);
     return collected.filter(v => kind === 'boba' ? isBoba(v) : !isBoba(v));
@@ -1113,16 +1133,41 @@
     if (!options.length) { el.innerHTML = '<span style="color:var(--gray);font-size:0.78rem">Nothing yet — add one below.</span>'; return; }
     el.innerHTML = options.map(opt => {
       const isChecked = checkedSet.has(opt);
-      return `<label class="check-pill${isChecked ? ' checked' : ''}">
-        <input type="checkbox" value="${htmlEscape(opt)}"${isChecked ? ' checked' : ''} onchange="this.closest('label').classList.toggle('checked', this.checked)"/>
-        ${htmlEscape(opt)}
-      </label>`;
+      const amountPicker = kind === 'packet' ? renderPacketAmountSelect(opt) : '';
+      return `<div class="check-pill${isChecked ? ' checked' : ''}">
+        <label>
+          <input type="checkbox" value="${htmlEscape(opt)}"${isChecked ? ' checked' : ''} onchange="this.closest('.check-pill').classList.toggle('checked', this.checked)"/>
+          ${htmlEscape(opt)}
+        </label>${amountPicker}
+      </div>`;
     }).join('');
+  }
+
+  // A packet's amount select is a sibling of the label (not nested inside
+  // it), so clicking it never also toggles the checkbox.
+  function renderPacketAmountSelect(itemName) {
+    const current = recipePacketNotes[itemName] || '';
+    const known = new Set(PACKET_AMOUNT_OPTIONS);
+    const extraCurrent = current && !known.has(current) ? [current] : [];
+    const options = [`<option value="">${htmlEscape(PACKET_DEFAULT_LABEL)} (default)</option>`,
+      ...PACKET_AMOUNT_OPTIONS.map(o => `<option value="${htmlEscape(o)}"${o === current ? ' selected' : ''}>${htmlEscape(o)}</option>`),
+      ...extraCurrent.map(o => `<option value="${htmlEscape(o)}" selected>${htmlEscape(o)}</option>`)];
+    return `<select class="packet-amount-select" aria-label="Amount for ${htmlEscape(itemName)}" onchange="recipePacketNotes[${htmlEscape(JSON.stringify(itemName))}] = this.value">${options.join('')}</select>`;
   }
 
   function getCheckedValues(kind) {
     const cfg = RECIPE_CHECK_GROUPS[kind];
     return Array.from(document.querySelectorAll(`#${cfg.containerId} input:checked`)).map(i => i.value);
+  }
+
+  // Packets fold their chosen amount into the saved text (e.g. "Cherry
+  // Limeade (Full packet)") only when it differs from the default; a plain
+  // name means "use the default" without cluttering every recipe with it.
+  function getCheckedPacketEntries() {
+    return getCheckedValues('packet').map(name => {
+      const note = recipePacketNotes[name];
+      return note ? `${name} (${note})` : name;
+    });
   }
 
   function addCustomCheckOption(kind) {
@@ -1163,7 +1208,7 @@
         `<span style="font-size:0.78rem;background:rgba(255,255,255,0.04);border:1px solid var(--border-dim);border-radius:6px;padding:0.15rem 0.5rem;color:var(--light-gray)">${ri.amount} ${ri.unit || ri.inventory?.unit || ''} ${ri.inventory?.name || '?'}</span>`
       ).join(' ') || '<span style="color:var(--gray);font-size:0.78rem">No ingredients listed</span>';
       const buildBits = [recipe.cup_type ? `${recipe.cup_type} cup` : '', recipe.coffee_machine_selection, recipe.beverage_pour].filter(Boolean);
-      const tagBits = [recipe.packet ? `Syrup: ${recipe.packet}` : '', recipe.toppings ? `Toppings: ${recipe.toppings}` : ''].filter(Boolean);
+      const tagBits = [recipe.packet ? `Packet: ${recipe.packet}` : '', recipe.toppings ? `Toppings: ${recipe.toppings}` : ''].filter(Boolean);
       return `<div class="recipe-card">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:0.5rem;gap:1rem">
           <div>
@@ -1218,8 +1263,21 @@
     const row = document.createElement('div');
     row.className = 'ingredient-row';
     const opts = allInventory.map(inv => `<option value="${inv.id}"${inv.id === invId ? ' selected' : ''}>${inv.name} (${inv.unit})</option>`).join('');
-    row.innerHTML = `<select><option value="">— Select ingredient —</option>${opts}</select><input type="number" min="0" step="0.01" placeholder="Amount" value="${amount}"/><input type="text" placeholder="Unit" value="${unit}"/><button class="rm-btn" type="button" onclick="this.parentElement.remove()" aria-label="Remove ingredient">✕</button>`;
+    row.innerHTML = `<select onchange="applyIngredientDefault(this)"><option value="">— Select ingredient —</option>${opts}</select><input type="number" min="0" step="0.01" placeholder="Amount" value="${amount}"/><input type="text" placeholder="Unit" value="${unit}"/><button class="rm-btn" type="button" onclick="this.parentElement.remove()" aria-label="Remove ingredient">✕</button>`;
     el.appendChild(row);
+  }
+
+  // A flavor syrup (Inventory's Flavors category, not a packet item) assumes
+  // 2 pumps unless a drink needs something different -- prefill it so most
+  // rows need no typing, but only when the amount is still blank so picking
+  // a different ingredient on an already-filled row doesn't clobber it.
+  function applyIngredientDefault(selectEl) {
+    const inv = allInventory.find(i => i.id === selectEl.value);
+    if (!inv || inv.category !== 'flavors' || (inv.unit || '').trim().toLowerCase() === 'packet') return;
+    const row = selectEl.closest('.ingredient-row');
+    const [amountInput, unitInput] = row.querySelectorAll('input');
+    if (!amountInput.value) amountInput.value = '2';
+    if (!unitInput.value) unitInput.value = 'pumps';
   }
 
   function trapRecipeModalFocus(e) {
@@ -1265,16 +1323,19 @@
     document.getElementById('recipe-modal-msg').className = 'msg';
 
     Object.values(RECIPE_CHECK_GROUPS).forEach(g => g.extras = []);
-    const editSyrups = recipe?.packet ? recipe.packet.split(',').map(s => s.trim()).filter(Boolean) : [];
+    recipePacketNotes = {};
+    const editPacketEntries = recipe?.packet ? recipe.packet.split(',').map(s => s.trim()).filter(Boolean).map(parseQualifiedValue) : [];
+    const editPackets = editPacketEntries.map(e => e.name);
+    editPacketEntries.forEach(e => { if (e.note) recipePacketNotes[e.name] = e.note; });
     const editToppingsAll = recipe?.toppings ? recipe.toppings.split(',').map(s => s.trim()).filter(Boolean) : [];
     const editBoba = editToppingsAll.filter(v => /boba/i.test(v));
     const editToppings = editToppingsAll.filter(v => !/boba/i.test(v));
     // Show legacy values even if they no longer match the collected/inventory
-    // list (e.g. a syrup that's since been removed from Inventory).
-    RECIPE_CHECK_GROUPS.syrup.extras.push(...editSyrups);
+    // list (e.g. a packet flavor that's since been removed from Inventory).
+    RECIPE_CHECK_GROUPS.packet.extras.push(...editPackets);
     RECIPE_CHECK_GROUPS.boba.extras.push(...editBoba);
     RECIPE_CHECK_GROUPS.topping.extras.push(...editToppings);
-    renderCheckGroup('syrup', new Set(editSyrups));
+    renderCheckGroup('packet', new Set(editPackets));
     renderCheckGroup('boba', new Set(editBoba));
     renderCheckGroup('topping', new Set(editToppings));
 
@@ -1297,7 +1358,7 @@
       cup_type: document.getElementById('recipe-cup').value || null,
       ice_amount: document.getElementById('recipe-ice').value || null,
       coffee_machine_selection: document.getElementById('recipe-machine').value.trim() || null,
-      packet: getCheckedValues('syrup').join(', ') || null,
+      packet: getCheckedPacketEntries().join(', ') || null,
       beverage_pour: document.getElementById('recipe-pour').value.trim() || null,
       toppings: [...getCheckedValues('boba'), ...getCheckedValues('topping')].join(', ') || null,
     };
@@ -2389,12 +2450,13 @@
         <input type="text" id="recipe-pour" placeholder="e.g. Sprite, Fresca, Diet Dr. Pepper" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/></div>
     </div>
 
-    <div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);margin-bottom:0.6rem;font-weight:600">Syrup(s) <span style="text-transform:none;letter-spacing:normal;font-weight:400">(from Inventory's Flavors category)</span></div>
-    <div id="recipe-syrup-options" class="check-grid"></div>
+    <div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);margin-bottom:0.3rem;font-weight:600">Packet Flavor(s) <span style="text-transform:none;letter-spacing:normal;font-weight:400">(from Inventory's Flavors category, packet items only)</span></div>
+    <div style="font-size:0.72rem;color:var(--gray);margin-bottom:0.6rem">Assumes half a packet — pick an amount below only if this drink uses more or less.</div>
+    <div id="recipe-packet-options" class="check-grid"></div>
     <div class="check-add-row">
-      <label for="recipe-syrup-other" class="visually-hidden">Add a syrup not listed</label>
-      <input type="text" id="recipe-syrup-other" placeholder="Not in Inventory yet? Add it here…" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomCheckOption('syrup')}"/>
-      <button type="button" onclick="addCustomCheckOption('syrup')">+ Add</button>
+      <label for="recipe-packet-other" class="visually-hidden">Add a packet flavor not listed</label>
+      <input type="text" id="recipe-packet-other" placeholder="Not in Inventory yet? Add it here…" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomCheckOption('packet')}"/>
+      <button type="button" onclick="addCustomCheckOption('packet')">+ Add</button>
     </div>
 
     <div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);margin-bottom:0.6rem;font-weight:600">Boba</div>
@@ -2413,7 +2475,8 @@
       <button type="button" onclick="addCustomCheckOption('topping')">+ Add</button>
     </div>
 
-    <div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);margin-bottom:0.6rem;font-weight:600">Inventory ingredients <span style="text-transform:none;letter-spacing:normal;font-weight:400">(for cost tracking — amount used per drink)</span></div>
+    <div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);margin-bottom:0.3rem;font-weight:600">Inventory ingredients <span style="text-transform:none;letter-spacing:normal;font-weight:400">(for cost tracking — amount used per drink)</span></div>
+    <div style="font-size:0.72rem;color:var(--gray);margin-bottom:0.6rem">Picking a flavor syrup fills in 2 pumps automatically — only change it if this drink uses more or less.</div>
     <div id="recipe-ingredients-list"></div>
     <button type="button" style="background:transparent;color:var(--gray);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:0.4rem 0.85rem;font-family:'DM Sans',sans-serif;font-size:0.78rem;cursor:pointer;margin-bottom:1rem" onclick="addIngredientRow()">+ Add Ingredient</button>
     <div class="msg" id="recipe-modal-msg" role="status" aria-live="polite" aria-atomic="true"></div>
