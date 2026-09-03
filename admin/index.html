@@ -274,6 +274,11 @@
     .sched-team-position-student { font-size: 0.68rem; color: var(--gray-mid); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .sched-team-position-role { font-size: 0.62rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent); }
     .sched-team-position-empty { margin-top: 0.45rem; font-size: 0.64rem; color: var(--gray); }
+    .sched-team-wave-list { margin-top: 0.45rem; display: grid; gap: 0.6rem; }
+    .sched-team-wave-group { display: grid; gap: 0.3rem; }
+    .sched-team-wave-label { font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gray); border-bottom: 1px solid var(--border-dim); padding-bottom: 0.2rem; }
+    .sched-team-position-item.on-lunch { opacity: 0.6; }
+    .sched-team-position-item.on-lunch .sched-team-position-role { color: var(--gray-mid); }
     .sched-remove-btn { position: absolute; top: 0.3rem; right: 0.3rem; background: none; border: none; color: rgba(255,255,255,0.2); cursor: pointer; font-size: 0.72rem; transition: color 0.15s; padding: 0; line-height: 1; }
     .sched-remove-btn:hover { color: var(--danger); }
     .sched-drop-zone { border: 2px dashed rgba(255,255,255,0.07); border-radius: 7px; padding: 0.55rem; text-align: center; font-size: 0.7rem; color: rgba(255,255,255,0.18); cursor: pointer; transition: all 0.15s; min-height: 40px; display: flex; align-items: center; justify-content: center; }
@@ -298,6 +303,7 @@
     .pos-students-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.45rem; }
     .pos-row { display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.025); border: 1px solid var(--border-dim); border-radius: 7px; padding: 0.45rem 0.7rem; }
     .pos-student-name { font-size: 0.83rem; }
+    .pos-lunch-badge { font-size: 0.62rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--gray); background: rgba(255,255,255,0.05); border-radius: 4px; padding: 0.1rem 0.4rem; margin-left: 0.3rem; }
     .pos-select { background: #0d0d0d; border: 1px solid var(--border-dim); border-radius: 5px; padding: 0.28rem 0.45rem; color: var(--text); font-size: 0.76rem; font-family: 'DM Sans', sans-serif; outline: none; }
     .pos-select:focus { border-color: var(--accent); }
     .pos-modal-footer { padding: 1rem 1.6rem 1.4rem; border-top: 1px solid var(--border-dim); display: flex; gap: 0.75rem; justify-content: flex-end; }
@@ -3469,10 +3475,22 @@ const SCHED_ROLES = [
   { key:'menu',      label:'Menu Prep', icon:'📋', days:'In Class',  hasPositions:false },
   { key:'inclass',   label:'In Class',  icon:'📚', days:'All week',  hasPositions:false },
 ];
-const BIRDHOUSE_POSITIONS      = ['cashier','barista','stocker','custodian'];
-const BIRDHOUSE_POSITIONS_6TH  = ['cashier','barista','stocker','custodian','front_desk'];
+// 1st Hour teams are always exactly 3 students, so these three positions are
+// the only ones that will ever be filled.
+const BIRDHOUSE_POSITIONS      = ['cashier','barista','stocker'];
+// 6th Hour's base lineup is 2 cashiers, 1 barista, 1 deliverer (see
+// BIRDHOUSE_POSITIONS_6TH_SEED below for how the 2nd cashier slot is seeded).
+// Everyone on a 6th Hour team also picks a standing lunch wave (student
+// row's lunch_wave) -- see LUNCH_WAVES.
+const BIRDHOUSE_POSITIONS_6TH  = ['cashier','barista','deliverer'];
+// Seed used only when auto-building a 6th Hour team's day-role list, so the
+// first duplicate slot added for a 4-person team is a 2nd cashier rather
+// than a 2nd barista (see buildDayRoles's overflow logic).
+const BIRDHOUSE_POSITIONS_6TH_SEED = ['cashier','cashier','barista','deliverer'];
 const MATHEWS_POSITIONS        = ['deliverer','barista','stocker','custodian'];
 const POSITION_LABELS          = { cashier:'Cashier', barista:'Barista', stocker:'Stocker', custodian:'Custodian', deliverer:'Deliverer', front_desk:'Front Desk' };
+const LUNCH_WAVES               = [1,2,3];
+const LUNCH_WAVE_LABELS         = { 1:'Lunch 1', 2:'Lunch 2', 3:'Lunch 3' };
 
 let schedWeekOffset  = 0;
 let schedTeams       = [];
@@ -3506,7 +3524,7 @@ function schedFmtDate(d) { return d.toISOString().split('T')[0]; }
 function schedAddDays(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
 
 async function schedLoadTeams() {
-  const { data } = await sb.from('teams').select('*,students(id,first_name,last_name)').order('name');
+  const { data } = await sb.from('teams').select('*,students(id,first_name,last_name,lunch_wave)').order('name');
   schedTeams = data || [];
 }
 
@@ -3577,6 +3595,7 @@ async function schedLoadPositionSummary(monday) {
       summary[team.id][day.dateStr] = (team.students || []).map(student => ({
         studentName: `${student.first_name || ''} ${student.last_name || ''}`.trim(),
         position: POSITION_LABELS[byStudentDate[`${student.id}_${day.dateStr}`]] || null,
+        lunchWave: student.lunch_wave || null,
       }));
     });
   });
@@ -3661,10 +3680,28 @@ function schedRenderTeamPositionSummary(teamId, roleKey, selectedDate) {
   const hasAnyPosition = rows.some(r => !!r.position);
   if (!hasAnyPosition) return '<div class="sched-team-position-empty">Set positions to show student roles.</div>';
 
+  const team = schedTeams.find(t => t.id === teamId);
+  if (roleKey === 'birdhouse' && team?.period === '6th Hour') return schedRenderWaveSummary(rows);
+
   return `<div class="sched-team-position-list">${rows.map(r => `
     <div class="sched-team-position-item">
       <span class="sched-team-position-student">${r.studentName || 'Student'}</span>
       <span class="sched-team-position-role">${r.position || '—'}</span>
+    </div>`).join('')}</div>`;
+}
+
+// 6th Hour Birdhouse: show who's on the floor vs. at lunch for each of the
+// 3 waves. A student's position doesn't change between waves -- only
+// whether they're working it or on lunch that stretch.
+function schedRenderWaveSummary(rows) {
+  return `<div class="sched-team-wave-list">${LUNCH_WAVES.map(wave => `
+    <div class="sched-team-wave-group">
+      <div class="sched-team-wave-label">${LUNCH_WAVE_LABELS[wave]}</div>
+      ${rows.map(r => `
+        <div class="sched-team-position-item ${r.lunchWave === wave ? 'on-lunch' : ''}">
+          <span class="sched-team-position-student">${r.studentName || 'Student'}</span>
+          <span class="sched-team-position-role">${r.lunchWave === wave ? '🍽 Lunch' : (r.position || '—')}</span>
+        </div>`).join('')}
     </div>`).join('')}</div>`;
 }
 
@@ -3757,7 +3794,8 @@ async function schedOpenPosModal(teamId, roleKey, e) {
       while (roles.length < count) { roles.push(overflow[oi++ % overflow.length]); }
       return roles;
     }
-    const dayRoles = buildDayRoles(posSet, numStudents);
+    const seed = (roleKey === 'birdhouse' && team.period === '6th Hour') ? BIRDHOUSE_POSITIONS_6TH_SEED : posSet;
+    const dayRoles = buildDayRoles(seed, numStudents);
     workingDays.forEach((d, di) => {
       const dateStr = schedFmtDate(d.date);
       const rotated = [...dayRoles.slice(di % numStudents), ...dayRoles.slice(0, di % numStudents)];
@@ -3773,7 +3811,8 @@ async function schedOpenPosModal(teamId, roleKey, e) {
 }
 
 function schedBuildPosBody() {
-  const { students, workingDays, posMap, posSet } = schedPosData;
+  const { students, workingDays, posMap, posSet, roleKey, team } = schedPosData;
+  const showLunch = roleKey === 'birdhouse' && team.period === '6th Hour';
   return workingDays.map(d => {
     const dateStr = schedFmtDate(d.date);
     return `<div class="pos-day">
@@ -3784,7 +3823,7 @@ function schedBuildPosBody() {
       <div class="pos-students-grid">
         ${students.map(s => `
           <div class="pos-row">
-            <span class="pos-student-name">${s.first_name} ${s.last_name}</span>
+            <span class="pos-student-name">${s.first_name} ${s.last_name}${showLunch ? ` <span class="pos-lunch-badge">${s.lunch_wave ? LUNCH_WAVE_LABELS[s.lunch_wave] : 'No lunch set'}</span>` : ''}</span>
             <select class="pos-select" id="sched_pos_${s.id}_${dateStr}">
               ${posSet.map(p => `<option value="${p}" ${posMap[`${s.id}_${dateStr}`]===p?'selected':''}>${POSITION_LABELS[p]}</option>`).join('')}
             </select>
@@ -3840,7 +3879,8 @@ async function schedAutoAssignPositions(teamId, roleKey, monday) {
     while (roles.length < count) { roles.push(overflow[oi++ % overflow.length]); }
     return roles;
   }
-  const dayRoles = buildDayRoles(posSet, numStudents);
+  const seed = (roleKey === 'birdhouse' && team.period === '6th Hour') ? BIRDHOUSE_POSITIONS_6TH_SEED : posSet;
+  const dayRoles = buildDayRoles(seed, numStudents);
   const rows = [];
   workingDays.forEach((d, di) => {
     const dateStr = schedFmtDate(d.date);

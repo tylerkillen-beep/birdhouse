@@ -252,9 +252,10 @@
             <th scope="col" style="text-align:left;padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--light-gray)">Email</th>
             <th scope="col" style="text-align:left;padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--light-gray)">Team</th>
             <th scope="col" style="text-align:left;padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--light-gray)">Period</th>
+            <th scope="col" style="text-align:left;padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--light-gray)">Lunch <span style="text-transform:none;letter-spacing:normal;font-size:0.68rem">(6th Hour)</span></th>
             <th scope="col" style="padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-dim)"><span class="visually-hidden">Actions</span></th>
           </tr></thead>
-          <tbody id="all-students-tbody"><tr><td colspan="5" class="empty-state">Loading...</td></tr></tbody>
+          <tbody id="all-students-tbody"><tr><td colspan="6" class="empty-state">Loading...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -447,6 +448,13 @@
             <div class="student-chip">
               <span class="chip-name">${s.first_name} ${s.last_name}</span>
               <div class="chip-actions">
+                ${team.period==='6th Hour'?`
+                <select aria-label="Lunch wave for ${s.first_name} ${s.last_name}" onchange="saveLunchWave('${s.id}',this.value)" style="padding:0.25rem 0.4rem;background:#0d0d0d;border:1px solid var(--border-dim);border-radius:5px;color:var(--white);font-size:0.72rem;font-family:'DM Sans',sans-serif">
+                  <option value="">Lunch —</option>
+                  <option value="1" ${s.lunch_wave===1?'selected':''}>Lunch 1</option>
+                  <option value="2" ${s.lunch_wave===2?'selected':''}>Lunch 2</option>
+                  <option value="3" ${s.lunch_wave===3?'selected':''}>Lunch 3</option>
+                </select>`:''}
                 <button class="icon-btn" onclick="openReassignModal('${s.id}','${s.first_name} ${s.last_name}')" aria-label="Move ${s.first_name} ${s.last_name} to a different team">Move</button>
               </div>
             </div>`).join(''):`<div style="color:var(--gray);font-size:0.82rem;padding:0.75rem 0">No students assigned yet.</div>`}
@@ -545,14 +553,34 @@
 
   function renderAllStudents(list) {
     const tbody=document.getElementById('all-students-tbody');
-    if(!list.length){tbody.innerHTML='<tr><td colspan="5" class="empty-state">No students found.</td></tr>';return;}
-    tbody.innerHTML=list.map(s=>`<tr>
+    if(!list.length){tbody.innerHTML='<tr><td colspan="6" class="empty-state">No students found.</td></tr>';return;}
+    tbody.innerHTML=list.map(s=>{
+      const is6th = s.teams?.period === '6th Hour';
+      const lunchCell = is6th
+        ? `<select aria-label="Lunch wave for ${s.first_name} ${s.last_name}" onchange="saveLunchWave('${s.id}',this.value)" style="padding:0.35rem 0.6rem;background:#0d0d0d;border:1px solid var(--border-dim);border-radius:6px;color:var(--white);font-size:0.78rem;font-family:'DM Sans',sans-serif">
+            <option value="">Not set</option>
+            <option value="1" ${s.lunch_wave===1?'selected':''}>Lunch 1</option>
+            <option value="2" ${s.lunch_wave===2?'selected':''}>Lunch 2</option>
+            <option value="3" ${s.lunch_wave===3?'selected':''}>Lunch 3</option>
+          </select>`
+        : '<span style="color:var(--gray)">—</span>';
+      return `<tr>
       <td><strong>${s.first_name} ${s.last_name}</strong></td>
       <td style="color:var(--gray);font-size:0.82rem">${s.email}</td>
       <td>${s.teams?`<span style="background:rgba(204,0,0,0.08);color:var(--red-bright);padding:0.15rem 0.6rem;border-radius:4px;font-size:0.78rem">${s.teams.name}</span>`:'<span style="color:var(--gray)">—</span>'}</td>
       <td style="font-size:0.82rem;color:${s.teams?.period==='1st Hour'?'#ff9944':'#66aaff'}">${s.teams?.period||'—'}</td>
+      <td>${lunchCell}</td>
       <td><button class="icon-btn" onclick="openReassignModal('${s.id}','${s.first_name} ${s.last_name}')" aria-label="Move ${s.first_name} ${s.last_name} to a different team">Move Team</button></td>
-    </tr>`).join('');
+    </tr>`;
+    }).join('');
+  }
+
+  async function saveLunchWave(studentId, value) {
+    const lunchWave = value ? Number(value) : null;
+    const { error } = await sb.from('students').update({ lunch_wave: lunchWave }).eq('id', studentId);
+    if (error) { alert('Error saving lunch wave: ' + error.message); return; }
+    const student = allStudents.find(s => s.id === studentId);
+    if (student) student.lunch_wave = lunchWave;
   }
 
   function populateTeamFilters() {
