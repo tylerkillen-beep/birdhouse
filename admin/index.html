@@ -2240,6 +2240,9 @@ function renderStaffStudentRow(s) {
     <div class="staff-student-email">${s.email || '—'}</div>
     <div class="staff-student-status">Role: ${s.role || '—'} · Team: ${team?.name || 'No Team'}</div>
     <div class="staff-student-controls">
+      <select aria-label="Move ${s.first_name} ${s.last_name} to a different team" onchange="moveStaffStudent('${s.id}',this.value)" style="padding:0.3rem 0.5rem;background:#0d0d0d;border:1px solid var(--border-dim);border-radius:6px;color:var(--text);font-size:0.72rem;font-family:'DM Sans',sans-serif">
+        ${renderStaffTeamOptions(s.team_id)}
+      </select>
       ${is6thHour ? `
       <select aria-label="Lunch wave for ${s.first_name} ${s.last_name}" onchange="saveStaffLunchWave('${s.id}',this.value)" style="padding:0.3rem 0.5rem;background:#0d0d0d;border:1px solid var(--border-dim);border-radius:6px;color:var(--text);font-size:0.72rem;font-family:'DM Sans',sans-serif">
         <option value="">Lunch —</option>
@@ -2251,6 +2254,14 @@ function renderStaffStudentRow(s) {
       <button class="btn btn-danger btn-sm" onclick="removeStaff('${s.id}')">Remove</button>
     </div>
   </div>`;
+}
+
+async function moveStaffStudent(studentId, teamId) {
+  const team = staffTeams.find(t => t.id === teamId);
+  const payload = { team_id: teamId || null, period: team?.period || null };
+  const { error } = await sb.from('students').update(payload).eq('id', studentId);
+  if (error) { alert('Error moving student: ' + error.message); return; }
+  await loadStaff();
 }
 
 async function saveStaffLunchWave(studentId, value) {
