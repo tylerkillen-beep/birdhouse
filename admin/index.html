@@ -2234,15 +2234,31 @@ function renderStaffTeamBoard(active) {
 
 function renderStaffStudentRow(s) {
   const team = staffTeams.find(t => t.id === s.team_id);
+  const is6thHour = team?.period === '6th Hour';
   return `<div class="staff-student-row">
     <div class="staff-student-name">${s.first_name} ${s.last_name}</div>
     <div class="staff-student-email">${s.email || '—'}</div>
     <div class="staff-student-status">Role: ${s.role || '—'} · Team: ${team?.name || 'No Team'}</div>
     <div class="staff-student-controls">
+      ${is6thHour ? `
+      <select aria-label="Lunch wave for ${s.first_name} ${s.last_name}" onchange="saveStaffLunchWave('${s.id}',this.value)" style="padding:0.3rem 0.5rem;background:#0d0d0d;border:1px solid var(--border-dim);border-radius:6px;color:var(--text);font-size:0.72rem;font-family:'DM Sans',sans-serif">
+        <option value="">Lunch —</option>
+        <option value="1" ${s.lunch_wave===1?'selected':''}>Lunch 1</option>
+        <option value="2" ${s.lunch_wave===2?'selected':''}>Lunch 2</option>
+        <option value="3" ${s.lunch_wave===3?'selected':''}>Lunch 3</option>
+      </select>` : ''}
       <button class="btn btn-ghost btn-sm" onclick="openStaffStudentModal('${s.id}')">Edit</button>
       <button class="btn btn-danger btn-sm" onclick="removeStaff('${s.id}')">Remove</button>
     </div>
   </div>`;
+}
+
+async function saveStaffLunchWave(studentId, value) {
+  const lunchWave = value ? Number(value) : null;
+  const { error } = await sb.from('students').update({ lunch_wave: lunchWave }).eq('id', studentId);
+  if (error) { alert('Error saving lunch wave: ' + error.message); return; }
+  const student = allStaff.find(s => s.id === studentId);
+  if (student) student.lunch_wave = lunchWave;
 }
 
 function renderStaffRoleOptions(currentRole) {
