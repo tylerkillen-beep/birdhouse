@@ -380,6 +380,14 @@
     .ingredient-row select{flex:2}.ingredient-row input{width:70px}
     .ingredient-row .rm-btn{background:none;border:none;color:var(--gray-mid);cursor:pointer;font-size:1rem;padding:0 0.2rem}
     .ingredient-row .rm-btn:hover{color:#c0392b}
+    .check-grid{display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.6rem}
+    .check-pill{display:flex;align-items:center;gap:0.4rem;background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:0.35rem 0.75rem;font-size:0.8rem;cursor:pointer;user-select:none;color:var(--gray-mid);transition:all 0.15s}
+    .check-pill input{accent-color:var(--accent)}
+    .check-pill.checked{border-color:var(--accent);color:var(--accent);background:rgba(200,169,110,0.08)}
+    .check-add-row{display:flex;gap:0.5rem;margin-bottom:1.25rem}
+    .check-add-row input{flex:1;padding:0.5rem 0.7rem;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.8rem;outline:none}
+    .check-add-row button{background:transparent;color:var(--gray-mid);border:1px solid var(--border);border-radius:6px;padding:0.4rem 0.85rem;font-family:'DM Sans',sans-serif;font-size:0.78rem;cursor:pointer;white-space:nowrap}
+    .check-add-row button:hover{color:var(--text);border-color:var(--accent)}
     /* A long receipt is 20+ items. Cap the modal to the viewport and let the
        item list absorb whatever height is left, so the vendor fields and the
        Save button stay on screen however many lines the receipt has. */
@@ -5663,6 +5671,69 @@ function htmlEscape(s) {
 
 const normalizeName = s => String(s || '').trim().toLowerCase();
 
+// Syrup, Boba, and Toppings used to be free-typed into a text box, so the
+// same drink ended up spelled three different ways across recipes. These
+// are checkbox groups instead: Syrup options come from Inventory's Flavors
+// category (so the list is whatever's actually stocked); Boba and Toppings
+// are auto-collected from what's already saved in other recipes (split by
+// whether the value mentions "boba"), plus anything typed into the "add
+// other" box for a value nobody's used yet. `extras` holds those one-off
+// additions (and, when editing, any legacy value that no longer matches
+// the collected list) so nothing gets silently dropped.
+const RECIPE_CHECK_GROUPS = {
+  syrup:   { containerId: 'recipe-syrup-options',   inputId: 'recipe-syrup-other',   extras: [] },
+  boba:    { containerId: 'recipe-boba-options',    inputId: 'recipe-boba-other',    extras: [] },
+  topping: { containerId: 'recipe-topping-options', inputId: 'recipe-topping-other', extras: [] },
+};
+
+function collectDistinctValues(fieldGetter) {
+  const set = new Set();
+  allRecipes.forEach(r => {
+    const raw = fieldGetter(r);
+    if (!raw) return;
+    String(raw).split(',').forEach(v => { const t = v.trim(); if (t) set.add(t); });
+  });
+  return Array.from(set);
+}
+
+function recipeCheckBaseOptions(kind) {
+  if (kind === 'syrup') return allInventory.filter(i => i.category === 'flavors').map(i => i.name);
+  const collected = collectDistinctValues(r => r.toppings);
+  const isBoba = v => /boba/i.test(v);
+  return collected.filter(v => kind === 'boba' ? isBoba(v) : !isBoba(v));
+}
+
+function renderCheckGroup(kind, checkedSet) {
+  const cfg = RECIPE_CHECK_GROUPS[kind];
+  const options = Array.from(new Set([...recipeCheckBaseOptions(kind), ...cfg.extras])).sort((a, b) => a.localeCompare(b));
+  const el = document.getElementById(cfg.containerId);
+  if (!options.length) { el.innerHTML = '<span style="color:var(--gray-mid);font-size:0.78rem">Nothing yet — add one below.</span>'; return; }
+  el.innerHTML = options.map(opt => {
+    const isChecked = checkedSet.has(opt);
+    return `<label class="check-pill${isChecked ? ' checked' : ''}">
+      <input type="checkbox" value="${htmlEscape(opt)}"${isChecked ? ' checked' : ''} onchange="this.closest('label').classList.toggle('checked', this.checked)"/>
+      ${htmlEscape(opt)}
+    </label>`;
+  }).join('');
+}
+
+function getCheckedValues(kind) {
+  const cfg = RECIPE_CHECK_GROUPS[kind];
+  return Array.from(document.querySelectorAll(`#${cfg.containerId} input:checked`)).map(i => i.value);
+}
+
+function addCustomCheckOption(kind) {
+  const cfg = RECIPE_CHECK_GROUPS[kind];
+  const inputEl = document.getElementById(cfg.inputId);
+  const val = inputEl.value.trim();
+  if (!val) return;
+  inputEl.value = '';
+  const checked = new Set(getCheckedValues(kind));
+  checked.add(val);
+  if (!cfg.extras.some(e => normalizeName(e) === normalizeName(val))) cfg.extras.push(val);
+  renderCheckGroup(kind, checked);
+}
+
 // Renders the costed price of a drink, or why it can't be trusted yet. A recipe
 // with an uncosted ingredient still sums to a number, so saying "$0.36" there
 // would be actively misleading -- flag it instead.
@@ -5687,12 +5758,14 @@ function renderRecipes() {
       `<span style="font-size:0.78rem;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:6px;padding:0.15rem 0.5rem;color:var(--text-muted)">${ri.amount} ${ri.unit || ri.inventory?.unit || ''} ${ri.inventory?.name || '?'}</span>`
     ).join(' ') || '<span style="color:var(--gray-mid);font-size:0.78rem">No ingredients</span>';
     const buildBits = [recipe.cup_type ? `${recipe.cup_type} cup` : '', recipe.coffee_machine_selection, recipe.beverage_pour].filter(Boolean);
+    const tagBits = [recipe.packet ? `Syrup: ${recipe.packet}` : '', recipe.toppings ? `Toppings: ${recipe.toppings}` : ''].filter(Boolean);
     return `<div class="recipe-card">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:0.5rem">
         <div>
           <div style="font-weight:600;font-size:0.95rem">${recipe.name}</div>
           ${recipe.description ? `<div style="font-size:0.75rem;color:var(--gray-mid);margin-top:0.15rem">${recipe.description}</div>` : ''}
           ${buildBits.length ? `<div style="font-size:0.72rem;color:var(--gray-mid);margin-top:0.15rem">${buildBits.join(' · ')}</div>` : ''}
+          ${tagBits.length ? `<div style="font-size:0.72rem;color:var(--text);margin-top:0.15rem">${tagBits.join(' · ')}</div>` : ''}
         </div>
         <div style="display:flex;gap:0.4rem;flex-shrink:0">
           <button class="btn btn-ghost btn-sm" onclick="openRecipeModal('${recipe.id}')">✏️ Edit</button>
@@ -5718,10 +5791,23 @@ function openRecipeModal(id) {
   document.getElementById('recipe-cup').value = recipe?.cup_type || '';
   document.getElementById('recipe-ice').value = recipe?.ice_amount || '';
   document.getElementById('recipe-machine').value = recipe?.coffee_machine_selection || '';
-  document.getElementById('recipe-packet').value = recipe?.packet || '';
   document.getElementById('recipe-pour').value = recipe?.beverage_pour || '';
-  document.getElementById('recipe-toppings').value = recipe?.toppings || '';
-  document.getElementById('recipe-modal-msg').style.display = 'none';
+  document.getElementById('recipe-modal-msg').className = 'msg';
+
+  Object.values(RECIPE_CHECK_GROUPS).forEach(g => g.extras = []);
+  const editSyrups = recipe?.packet ? recipe.packet.split(',').map(s => s.trim()).filter(Boolean) : [];
+  const editToppingsAll = recipe?.toppings ? recipe.toppings.split(',').map(s => s.trim()).filter(Boolean) : [];
+  const editBoba = editToppingsAll.filter(v => /boba/i.test(v));
+  const editToppings = editToppingsAll.filter(v => !/boba/i.test(v));
+  // Show legacy values even if they no longer match the collected/inventory
+  // list (e.g. a syrup that's since been removed from Inventory).
+  RECIPE_CHECK_GROUPS.syrup.extras.push(...editSyrups);
+  RECIPE_CHECK_GROUPS.boba.extras.push(...editBoba);
+  RECIPE_CHECK_GROUPS.topping.extras.push(...editToppings);
+  renderCheckGroup('syrup', new Set(editSyrups));
+  renderCheckGroup('boba', new Set(editBoba));
+  renderCheckGroup('topping', new Set(editToppings));
+
   const listEl = document.getElementById('recipe-ingredients-list');
   listEl.innerHTML = '';
   if (recipe?.recipe_ingredients?.length) {
@@ -5785,9 +5871,9 @@ async function saveRecipe() {
     cup_type: document.getElementById('recipe-cup').value || null,
     ice_amount: document.getElementById('recipe-ice').value || null,
     coffee_machine_selection: document.getElementById('recipe-machine').value.trim() || null,
-    packet: document.getElementById('recipe-packet').value.trim() || null,
+    packet: getCheckedValues('syrup').join(', ') || null,
     beverage_pour: document.getElementById('recipe-pour').value.trim() || null,
-    toppings: document.getElementById('recipe-toppings').value.trim() || null,
+    toppings: [...getCheckedValues('boba'), ...getCheckedValues('topping')].join(', ') || null,
   };
   const rows = Array.from(document.querySelectorAll('#recipe-ingredients-list .ingredient-row'));
   const ingredients = rows.map(row => {
@@ -5920,19 +6006,36 @@ async function deleteRecipe(id, name) {
         <input class="form-input" id="recipe-machine" placeholder="e.g. Iced Latte, Latte, None"/>
       </div>
       <div class="form-group">
-        <label class="form-label" for="recipe-packet">Packet</label>
-        <input class="form-input" id="recipe-packet" placeholder="e.g. Cherry Limeade (Half)"/>
-      </div>
-      <div class="form-group">
         <label class="form-label" for="recipe-pour">Beverage Pour</label>
         <input class="form-input" id="recipe-pour" placeholder="e.g. Sprite, Fresca, Diet Dr. Pepper"/>
       </div>
-      <div class="form-group">
-        <label class="form-label" for="recipe-toppings">Topping(s)</label>
-        <input class="form-input" id="recipe-toppings" placeholder="e.g. Whipped Cream, Strawberry Boba"/>
-      </div>
     </div>
-    <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray-mid);margin-bottom:0.6rem;font-weight:600">Syrups & inventory ingredients <span style="text-transform:none;font-weight:400">(used for cost tracking; also shown as Syrup(s) on the Recipe Sheet)</span></div>
+
+    <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray-mid);margin-bottom:0.6rem;font-weight:600">Syrup(s) <span style="text-transform:none;font-weight:400">(from Inventory's Flavors category)</span></div>
+    <div id="recipe-syrup-options" class="check-grid"></div>
+    <div class="check-add-row">
+      <label for="recipe-syrup-other" class="visually-hidden">Add a syrup not listed</label>
+      <input type="text" id="recipe-syrup-other" placeholder="Not in Inventory yet? Add it here…" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomCheckOption('syrup')}"/>
+      <button class="btn btn-ghost btn-sm" onclick="addCustomCheckOption('syrup')">+ Add</button>
+    </div>
+
+    <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray-mid);margin-bottom:0.6rem;font-weight:600">Boba</div>
+    <div id="recipe-boba-options" class="check-grid"></div>
+    <div class="check-add-row">
+      <label for="recipe-boba-other" class="visually-hidden">Add a boba flavor not listed</label>
+      <input type="text" id="recipe-boba-other" placeholder="Add a boba flavor not listed…" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomCheckOption('boba')}"/>
+      <button class="btn btn-ghost btn-sm" onclick="addCustomCheckOption('boba')">+ Add</button>
+    </div>
+
+    <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray-mid);margin-bottom:0.6rem;font-weight:600">Toppings</div>
+    <div id="recipe-topping-options" class="check-grid"></div>
+    <div class="check-add-row">
+      <label for="recipe-topping-other" class="visually-hidden">Add a topping not listed</label>
+      <input type="text" id="recipe-topping-other" placeholder="Add a topping not listed…" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomCheckOption('topping')}"/>
+      <button class="btn btn-ghost btn-sm" onclick="addCustomCheckOption('topping')">+ Add</button>
+    </div>
+
+    <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray-mid);margin-bottom:0.6rem;font-weight:600">Inventory ingredients <span style="text-transform:none;font-weight:400">(for cost tracking — amount used per drink)</span></div>
     <div id="recipe-ingredients-list"></div>
     <button class="btn btn-ghost btn-sm" style="margin-bottom:1rem" onclick="addIngredientRow()">+ Add Ingredient</button>
     <div id="recipe-modal-msg" style="display:none;margin-top:0.5rem" class="msg"></div>
