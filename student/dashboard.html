@@ -1077,15 +1077,14 @@
   const normalizeName = s => String(s || '').trim().toLowerCase();
 
   // Packet, Boba, and Toppings used to be free-typed into a text box, so the
-  // same drink ended up spelled three different ways across recipes. These
-  // are checkbox groups instead: Packet options are Inventory's Flavors items
-  // whose unit is literally "packet" (Cherry Limeade, Ocean Water, etc.) —
-  // pump syrups stay in the Inventory Ingredients section below, not here.
-  // Boba and Toppings are auto-collected from what's already saved in other
-  // recipes (split by whether the value mentions "boba"), plus anything
-  // typed into the "add other" box for a value nobody's used yet. `extras`
-  // holds those one-off additions (and, when editing, any legacy value that
-  // no longer matches the collected list) so nothing gets silently dropped.
+  // same drink ended up spelled three different ways across recipes (and,
+  // worse, counted as two different options here just from casing). These
+  // are checkbox groups instead, each starting from a curated seed list
+  // (below) plus whatever's already saved across other recipes, plus
+  // anything typed into the "add other" box for a value nobody's used yet.
+  // `extras` holds those one-off additions (and, when editing, any legacy
+  // value that no longer matches the seed/collected list) so nothing gets
+  // silently dropped.
   const RECIPE_CHECK_GROUPS = {
     packet:  { containerId: 'recipe-packet-options',  inputId: 'recipe-packet-other',  extras: [] },
     boba:    { containerId: 'recipe-boba-options',    inputId: 'recipe-boba-other',    extras: [] },
@@ -1101,12 +1100,18 @@
   const PACKET_DEFAULT_LABEL = 'Half packet';
   let recipePacketNotes = {};
 
-  function collectDistinctValues(fieldGetter) {
+  // Preloaded starting points for each checkbox group -- "we can add others
+  // as needed" via the "+ Add" box, which is how these lists grow over time.
+  const PACKET_SEED_OPTIONS  = ['Cherry Limeade', 'Ocean Water'];
+  const BOBA_SEED_OPTIONS    = ['Strawberry', 'Mango', 'Raspberry', 'Dragonfruit'];
+  const TOPPING_SEED_OPTIONS = ['Whipped Cream', 'Chocolate Drizzle', 'Caramel Drizzle', 'Cold Foam', 'Marshmallows', 'Cinnamon'];
+
+  function collectDistinctValues(fieldGetter, extractName = v => v) {
     const set = new Set();
     allRecipes.forEach(r => {
       const raw = fieldGetter(r);
       if (!raw) return;
-      String(raw).split(',').forEach(v => { const t = v.trim(); if (t) set.add(t); });
+      String(raw).split(',').forEach(v => { const t = extractName(v.trim()); if (t) set.add(t); });
     });
     return Array.from(set);
   }
@@ -1119,20 +1124,51 @@
     return m ? { name: m[1].trim(), note: m[2].trim() } : { name: String(raw).trim(), note: '' };
   }
 
-  function recipeCheckBaseOptions(kind) {
-    if (kind === 'packet') return allInventory.filter(i => i.category === 'flavors' && (i.unit || '').trim().toLowerCase() === 'packet').map(i => i.name);
-    const collected = collectDistinctValues(r => r.toppings);
-    const isBoba = v => /boba/i.test(v);
-    return collected.filter(v => kind === 'boba' ? isBoba(v) : !isBoba(v));
+  // Boba and Toppings share one saved column (recipes.toppings), so a value
+  // needs to be sorted back into its group on reload. A seed list match
+  // decides it; a legacy free-text value (from before these were checkbox
+  // groups) falls back to whether it literally mentions "boba".
+  function classifyToppingValue(v) {
+    const key = normalizeName(v);
+    if (BOBA_SEED_OPTIONS.some(o => normalizeName(o) === key)) return 'boba';
+    if (TOPPING_SEED_OPTIONS.some(o => normalizeName(o) === key)) return 'topping';
+    return /boba/i.test(v) ? 'boba' : 'topping';
   }
 
-  function renderCheckGroup(kind, checkedSet) {
+  // Merges option lists into one, collapsing case-only duplicates ("Whipped
+  // Cream" vs. "whipped cream") into a single entry. Whichever source is
+  // listed first wins the casing, so the curated seed list's spelling is
+  // used whenever a later, auto-collected or custom value only differs by
+  // case from it.
+  function mergeOptionsCaseInsensitive(...lists) {
+    const seen = new Map();
+    lists.flat().forEach(v => {
+      const key = normalizeName(v);
+      if (key && !seen.has(key)) seen.set(key, v);
+    });
+    return Array.from(seen.values());
+  }
+
+  function recipeCheckBaseOptions(kind) {
+    if (kind === 'packet') {
+      const collected = collectDistinctValues(r => r.packet, v => parseQualifiedValue(v).name);
+      return mergeOptionsCaseInsensitive(PACKET_SEED_OPTIONS, collected);
+    }
+    const collected = collectDistinctValues(r => r.toppings).filter(v => classifyToppingValue(v) === kind);
+    return mergeOptionsCaseInsensitive(kind === 'boba' ? BOBA_SEED_OPTIONS : TOPPING_SEED_OPTIONS, collected);
+  }
+
+  // `checkedValues` can be any casing (it may come straight from saved
+  // recipe text) -- matched against the canonically-cased options list by
+  // normalized key so a legacy "cherry limeade" still checks "Cherry Limeade".
+  function renderCheckGroup(kind, checkedValues) {
     const cfg = RECIPE_CHECK_GROUPS[kind];
-    const options = Array.from(new Set([...recipeCheckBaseOptions(kind), ...cfg.extras])).sort((a,b) => a.localeCompare(b));
+    const options = mergeOptionsCaseInsensitive(recipeCheckBaseOptions(kind), cfg.extras).sort((a,b) => a.localeCompare(b));
+    const checkedKeys = new Set(Array.from(checkedValues, normalizeName));
     const el = document.getElementById(cfg.containerId);
     if (!options.length) { el.innerHTML = '<span style="color:var(--gray);font-size:0.78rem">Nothing yet — add one below.</span>'; return; }
     el.innerHTML = options.map(opt => {
-      const isChecked = checkedSet.has(opt);
+      const isChecked = checkedKeys.has(normalizeName(opt));
       const amountPicker = kind === 'packet' ? renderPacketAmountSelect(opt) : '';
       return `<div class="check-pill${isChecked ? ' checked' : ''}">
         <label>
@@ -1144,15 +1180,18 @@
   }
 
   // A packet's amount select is a sibling of the label (not nested inside
-  // it), so clicking it never also toggles the checkbox.
+  // it), so clicking it never also toggles the checkbox. recipePacketNotes
+  // is keyed by normalized name so a note recorded against saved text in one
+  // casing still surfaces when the option later renders in another.
   function renderPacketAmountSelect(itemName) {
-    const current = recipePacketNotes[itemName] || '';
+    const key = normalizeName(itemName);
+    const current = recipePacketNotes[key] || '';
     const known = new Set(PACKET_AMOUNT_OPTIONS);
     const extraCurrent = current && !known.has(current) ? [current] : [];
     const options = [`<option value="">${htmlEscape(PACKET_DEFAULT_LABEL)} (default)</option>`,
       ...PACKET_AMOUNT_OPTIONS.map(o => `<option value="${htmlEscape(o)}"${o === current ? ' selected' : ''}>${htmlEscape(o)}</option>`),
       ...extraCurrent.map(o => `<option value="${htmlEscape(o)}" selected>${htmlEscape(o)}</option>`)];
-    return `<select class="packet-amount-select" aria-label="Amount for ${htmlEscape(itemName)}" onchange="recipePacketNotes[${htmlEscape(JSON.stringify(itemName))}] = this.value">${options.join('')}</select>`;
+    return `<select class="packet-amount-select" aria-label="Amount for ${htmlEscape(itemName)}" onchange="recipePacketNotes[${htmlEscape(JSON.stringify(key))}] = this.value">${options.join('')}</select>`;
   }
 
   function getCheckedValues(kind) {
@@ -1165,7 +1204,7 @@
   // name means "use the default" without cluttering every recipe with it.
   function getCheckedPacketEntries() {
     return getCheckedValues('packet').map(name => {
-      const note = recipePacketNotes[name];
+      const note = recipePacketNotes[normalizeName(name)];
       return note ? `${name} (${note})` : name;
     });
   }
@@ -1326,18 +1365,18 @@
     recipePacketNotes = {};
     const editPacketEntries = recipe?.packet ? recipe.packet.split(',').map(s => s.trim()).filter(Boolean).map(parseQualifiedValue) : [];
     const editPackets = editPacketEntries.map(e => e.name);
-    editPacketEntries.forEach(e => { if (e.note) recipePacketNotes[e.name] = e.note; });
+    editPacketEntries.forEach(e => { if (e.note) recipePacketNotes[normalizeName(e.name)] = e.note; });
     const editToppingsAll = recipe?.toppings ? recipe.toppings.split(',').map(s => s.trim()).filter(Boolean) : [];
-    const editBoba = editToppingsAll.filter(v => /boba/i.test(v));
-    const editToppings = editToppingsAll.filter(v => !/boba/i.test(v));
-    // Show legacy values even if they no longer match the collected/inventory
-    // list (e.g. a packet flavor that's since been removed from Inventory).
+    const editBoba = editToppingsAll.filter(v => classifyToppingValue(v) === 'boba');
+    const editToppings = editToppingsAll.filter(v => classifyToppingValue(v) === 'topping');
+    // Show legacy values even if they no longer match the seed/collected
+    // list (e.g. a packet flavor nobody's picked in a while).
     RECIPE_CHECK_GROUPS.packet.extras.push(...editPackets);
     RECIPE_CHECK_GROUPS.boba.extras.push(...editBoba);
     RECIPE_CHECK_GROUPS.topping.extras.push(...editToppings);
-    renderCheckGroup('packet', new Set(editPackets));
-    renderCheckGroup('boba', new Set(editBoba));
-    renderCheckGroup('topping', new Set(editToppings));
+    renderCheckGroup('packet', editPackets);
+    renderCheckGroup('boba', editBoba);
+    renderCheckGroup('topping', editToppings);
 
     const listEl = document.getElementById('recipe-ingredients-list');
     listEl.innerHTML = '';
@@ -2450,7 +2489,7 @@
         <input type="text" id="recipe-pour" placeholder="e.g. Sprite, Fresca, Diet Dr. Pepper" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"/></div>
     </div>
 
-    <div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);margin-bottom:0.3rem;font-weight:600">Packet Flavor(s) <span style="text-transform:none;letter-spacing:normal;font-weight:400">(from Inventory's Flavors category, packet items only)</span></div>
+    <div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);margin-bottom:0.3rem;font-weight:600">Packet Flavor(s)</div>
     <div style="font-size:0.72rem;color:var(--gray);margin-bottom:0.6rem">Assumes half a packet — pick an amount below only if this drink uses more or less.</div>
     <div id="recipe-packet-options" class="check-grid"></div>
     <div class="check-add-row">
