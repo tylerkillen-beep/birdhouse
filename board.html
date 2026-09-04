@@ -118,12 +118,12 @@
       const REFRESH_MS = 5 * 60 * 1000; // kiosk display — refresh every 5 minutes
 
       // Same category grouping as menu.html, kept in sync intentionally.
-      // column 0 is the middle of the board, column 1 the right-hand edge.
-      // Tasty Treats rides with Cold Drinks rather than under the coffee list.
+      // column 0 is the middle of the board, column 1 the right-hand edge, and
+      // the order here is the order they stack within a column.
       const CATEGORIES = [
         { key: 'soda_tea', title: 'Cold Drinks',  icon: '🥤', column: 0 },
-        { key: 'food',     title: 'Tasty Treats', icon: '🍪', column: 0 },
         { key: 'coffee',   title: 'Birdie Brews', icon: '☕', column: 1 },
+        { key: 'food',     title: 'Tasty Treats', icon: '🍪', column: 1 },
       ];
 
       // Coffee is the coffee menu and nothing else, so it has to be matched
@@ -156,15 +156,19 @@
         return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
       }
 
+      // Cheapest first; items without a price fall to the end. The specials
+      // cards and every category list share it, so a customer scanning any
+      // part of the board always reads cheapest to dearest.
+      const byPriceAsc = (a, b) => {
+        const pa = priceCents(a), pb = priceCents(b);
+        if (pa == null) return pb == null ? 0 : 1;
+        if (pb == null) return -1;
+        return pa - pb;
+      };
+
       function renderSpecials(items) {
         if (!items.length) return '';
-        // Cheapest first; items without a price fall to the end.
-        const sorted = items.slice().sort((a, b) => {
-          const pa = priceCents(a), pb = priceCents(b);
-          if (pa == null) return pb == null ? 0 : 1;
-          if (pb == null) return -1;
-          return pa - pb;
-        });
+        const sorted = items.slice().sort(byPriceAsc);
         const cards = sorted.map(item => `
           <div class="special-card">
             ${item.image_url
@@ -184,7 +188,7 @@
 
       function renderList(cat, items) {
         if (!items.length) return '';
-        const rows = items.map(item => `
+        const rows = items.slice().sort(byPriceAsc).map(item => `
           <div class="list-row">
             <div>
               <div class="list-row-name">${escHtml(item.name)}</div>
