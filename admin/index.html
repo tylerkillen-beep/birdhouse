@@ -5691,11 +5691,12 @@ const RECIPE_CHECK_GROUPS = {
 
 // Flavor (pump) syrups. Unlike Boba/Toppings (free text saved to recipes.toppings)
 // a checked syrup is saved as a real recipe_ingredient at 2 pumps, so it feeds
-// cost tracking and the Recipe Sheet's Syrup(s) column -- which means it needs a
-// matching inventory item in the Flavors category (non-packet). The option list
-// is this curated seed plus whatever syrups are already on saved recipes plus
-// anything typed into the "add other" box. `recipeSyrupPumps` holds a per-syrup
-// pump override keyed by normalized name; unset means "use the 2-pump default".
+// cost tracking and the Recipe Sheet's Syrup(s) column. On save each name is
+// run through the ensure_flavor_syrup() RPC, which finds or creates a matching
+// Flavors inventory item. The option list is this curated seed plus whatever
+// syrups are already on saved recipes plus anything typed into the "add other"
+// box. `recipeSyrupPumps` holds a per-syrup pump override keyed by normalized
+// name; unset means "use the 2-pump default".
 const SYRUP_SEED_OPTIONS = ['Strawberry', 'Blackberry', 'Cherry', 'Blue Raspberry', 'Raspberry', 'Coconut', 'Lime'];
 const SYRUP_AMOUNT_OPTIONS = [1, 3, 4, 5, 6];
 const SYRUP_DEFAULT_PUMPS = 2;
@@ -5704,18 +5705,6 @@ let recipeSyrupPumps = {};
 function isFlavorSyrupInventory(invId) {
   const inv = allInventory.find(i => i.id === invId);
   return !!inv && inv.category === 'flavors' && (inv.unit || '').trim().toLowerCase() !== 'packet';
-}
-
-// A checked syrup name ("Blue Raspberry") has to resolve to a Flavors inventory
-// item to be saved as an ingredient; tolerate a trailing/leading "Syrup" so
-// "Lime" matches an inventory item named "Lime Syrup" and vice versa.
-function findFlavorSyrupInventoryByName(name) {
-  const n = normalizeName(name);
-  const variants = new Set([n, n.replace(/\s*syrup$/, '').trim(), `${n} syrup`]);
-  return allInventory.find(i =>
-    i.category === 'flavors'
-    && (i.unit || '').trim().toLowerCase() !== 'packet'
-    && variants.has(normalizeName(i.name)));
 }
 
 // A recipe's assumed default is 2 pumps of any flavor syrup (handled in the
@@ -6048,19 +6037,22 @@ async function saveRecipe() {
     return { inventory_id: selects[0]?.value || null, amount: parseFloat(inputs[0]?.value) || 0, unit: inputs[1]?.value.trim() || null };
   }).filter(r => r.inventory_id && r.amount > 0);
 
-  // Checked flavor syrups become recipe_ingredients (default 2 pumps). Each has
-  // to map to a Flavors inventory item; warn about any that don't rather than
-  // dropping them silently. A manual ingredient row for the same item wins.
-  const unmatchedSyrups = [];
-  const syrupIngredients = [];
-  getCheckedValues('syrup').forEach(nm => {
-    const inv = findFlavorSyrupInventoryByName(nm);
-    if (!inv) { unmatchedSyrups.push(nm); return; }
-    syrupIngredients.push({ inventory_id: inv.id, amount: Number(recipeSyrupPumps[normalizeName(nm)]) || SYRUP_DEFAULT_PUMPS, unit: 'pumps' });
-  });
-  if (unmatchedSyrups.length && !confirm(`These flavor syrups aren't in Inventory's Flavors category yet, so they won't be costed or shown on the Recipe Sheet:\n\n${unmatchedSyrups.join(', ')}\n\nAdd them under Inventory → Flavors to track them. Save the recipe without them for now?`)) return;
+  // Checked flavor syrups are saved as recipe_ingredients (default 2 pumps).
+  // ensure_flavor_syrup() resolves each name to a Flavors inventory item,
+  // creating a minimal one if it doesn't exist yet -- it works for any staff,
+  // whereas a direct inventory insert is admin/manager-only. A manual
+  // ingredient row for the same item wins over the syrup's default.
+  const checkedSyrups = getCheckedValues('syrup');
+  const syrupResults = await Promise.all(checkedSyrups.map(nm =>
+    sb.rpc('ensure_flavor_syrup', { p_name: nm }).then(res => ({ nm, ...res }))));
+  const syrupErr = syrupResults.find(r => r.error);
+  if (syrupErr) { msgEl.textContent = `Couldn't add syrup "${syrupErr.nm}": ${syrupErr.error.message}`; msgEl.className = 'msg error'; msgEl.style.display = 'block'; return; }
   const ingredientsByInv = new Map();
-  syrupIngredients.forEach(r => ingredientsByInv.set(r.inventory_id, r));
+  syrupResults.forEach(r => ingredientsByInv.set(r.data, {
+    inventory_id: r.data,
+    amount: Number(recipeSyrupPumps[normalizeName(r.nm)]) || SYRUP_DEFAULT_PUMPS,
+    unit: 'pumps',
+  }));
   ingredients.forEach(r => ingredientsByInv.set(r.inventory_id, r));
   const allIngredients = Array.from(ingredientsByInv.values());
 
@@ -6078,6 +6070,9 @@ async function saveRecipe() {
     await sb.from('recipe_ingredients').insert(allIngredients.map(r => ({ ...r, recipe_id: recipeId })));
   }
   closeModal('recipe-modal');
+  // A syrup may have just created a new Flavors inventory item; refresh so
+  // reopening this recipe recognizes it as a syrup rather than an orphan row.
+  if (checkedSyrups.length) await loadInventory();
   loadRecipes();
 }
 
@@ -6212,7 +6207,7 @@ async function deleteRecipe(id, name) {
     </div>
 
     <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray-mid);margin-bottom:0.3rem;font-weight:600">Flavor Syrups <span style="text-transform:none;font-weight:400">(pump syrups)</span></div>
-    <div style="font-size:0.78rem;color:var(--gray-mid);margin-bottom:0.6rem">Each checked syrup is added to the recipe as 2 pumps — pick an amount only if this drink uses more or less. Needs a matching Inventory item in the Flavors category to be costed.</div>
+    <div style="font-size:0.78rem;color:var(--gray-mid);margin-bottom:0.6rem">Each checked syrup is added to the recipe as 2 pumps — pick an amount only if this drink uses more or less. New syrups are added to Inventory → Flavors automatically.</div>
     <div id="recipe-syrup-options" class="check-grid"></div>
     <div class="check-add-row">
       <label for="recipe-syrup-other" class="visually-hidden">Add a flavor syrup not listed</label>
