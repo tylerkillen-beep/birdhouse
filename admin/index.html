@@ -3597,7 +3597,16 @@ async function schedLoadTeams() {
   schedTeams = data || [];
 }
 
+// The week label and schedWeekDays are set synchronously here, but the board
+// is painted at the end, behind several awaits. schedChangeWeek doesn't await
+// this, so until it finishes the header reads the new week while the grid
+// below still shows the old one -- and a second click can leave two loads
+// interleaving. Every load takes a token and drops out if a newer one has
+// started, so only the newest ever paints.
+let schedLoadToken = 0;
+
 async function schedLoadWeek() {
+  const token = ++schedLoadToken;
   const monday = schedGetMonday(schedWeekOffset);
   const friday = schedAddDays(monday, 4);
   document.getElementById('sched-week-label').textContent =
@@ -3617,6 +3626,7 @@ async function schedLoadWeek() {
   if (!schedWeekDays.some(d => d.dateStr === schedDayFilterByPeriod['6th Hour'])) schedDayFilterByPeriod['6th Hour'] = defaultDay;
 
   const { data: rows } = await sb.from('weekly_assignments').select('*').eq('week_start', schedFmtDate(monday));
+  if (token !== schedLoadToken) return;
   schedAssignments = {};
   const allConfirmed = rows?.length > 0 && rows.every(r => r.confirmed);
   (rows||[]).forEach(r => { schedAssignments[r.team_id] = { ...r }; });
@@ -3631,23 +3641,27 @@ async function schedLoadWeek() {
   document.getElementById('sched-suggest-banner').style.display =
     Object.keys(schedAssignments).length === 0 ? 'flex' : 'none';
 
-  // Give every rostered team its standard lineup before the week is drawn, so
-  // positions arrive ready to adjust rather than blank. It only writes the ones
-  // nobody has set, so reopening a week never undoes a change made by hand.
-  //
-  // Guarded because this is a write standing in front of a read: if it fails,
-  // the week should still draw with whatever positions are already saved,
-  // rather than the board coming up empty.
-  try {
-    const posTeams = Object.values(schedAssignments).filter(a => a.role === 'birdhouse' || a.role === 'mathews');
-    if (posTeams.length) await Promise.all(posTeams.map(a => schedAutoAssignPositions(a.team_id, a.role, monday)));
-  } catch (err) {
-    console.error('Auto-assign of positions failed; showing saved positions only.', err);
-  }
-
+  // Paint what's already saved before writing anything, so the week appears at
+  // once instead of after a round of position writes.
   await schedLoadPositionSummary(monday);
+  if (token !== schedLoadToken) return;
   schedRenderPool();
   schedRenderPeriods();
+
+  // Then fill in the positions nobody has set and repaint, but only if that
+  // actually wrote something. A failure here costs the auto-fill, never the
+  // week that's already on screen.
+  try {
+    const posTeams = Object.values(schedAssignments).filter(a => a.role === 'birdhouse' || a.role === 'mathews');
+    if (!posTeams.length) return;
+    const written = await Promise.all(posTeams.map(a => schedAutoAssignPositions(a.team_id, a.role, monday)));
+    if (token !== schedLoadToken || !written.some(n => n > 0)) return;
+    await schedLoadPositionSummary(monday);
+    if (token !== schedLoadToken) return;
+    schedRenderPeriods();
+  } catch (err) {
+    console.error('Auto-assign of positions failed; the week still shows its saved positions.', err);
+  }
 }
 
 function schedGetTeamRole(teamId) {
