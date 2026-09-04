@@ -34,10 +34,11 @@ alter table public.daily_positions
   add constraint daily_positions_lunch_wave_check
   check (lunch_wave between 0 and 3);
 
--- Widen the uniqueness key to include the wave. The old two-column key is
--- found by shape rather than by name, since it may have been created as either
--- a constraint or a bare unique index and the name isn't recorded anywhere in
--- this repo.
+-- Widen the uniqueness key to include the wave. The old two-column key is found
+-- by shape rather than by name, since it may have been created as either a
+-- constraint or a bare unique index and the name isn't recorded in this repo.
+-- attname is type "name", so every comparison casts to text explicitly --
+-- there is no name[] = text[] operator.
 do $$
 declare
   r record;
@@ -48,15 +49,16 @@ begin
     where c.conrelid = 'public.daily_positions'::regclass
       and c.contype = 'u'
       and (
-        select array_agg(a.attname order by a.attname)
+        select array_agg(a.attname::text order by a.attname::text)
         from unnest(c.conkey) k
         join pg_attribute a on a.attrelid = c.conrelid and a.attnum = k
-      ) = array['shift_date','student_id']
+      ) = array['shift_date','student_id']::text[]
   loop
     execute format('alter table public.daily_positions drop constraint %I', r.conname);
     raise notice 'dropped old unique constraint %', r.conname;
   end loop;
 
+  -- A unique constraint owns its index, so anything left here is a bare index.
   for r in
     select i.relname
     from pg_index x
@@ -65,10 +67,11 @@ begin
       and x.indisunique
       and not x.indisprimary
       and (
-        select array_agg(a.attname order by a.attname)
-        from unnest(x.indkey::int[]) k
-        join pg_attribute a on a.attrelid = x.indrelid and a.attnum = k
-      ) = array['shift_date','student_id']
+        select array_agg(a.attname::text order by a.attname::text)
+        from pg_attribute a
+        where a.attrelid = x.indrelid
+          and a.attnum = any(string_to_array(x.indkey::text, ' ')::smallint[])
+      ) = array['shift_date','student_id']::text[]
   loop
     execute format('drop index public.%I', r.relname);
     raise notice 'dropped old unique index %', r.relname;
