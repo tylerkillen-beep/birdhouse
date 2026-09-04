@@ -3634,8 +3634,16 @@ async function schedLoadWeek() {
   // Give every rostered team its standard lineup before the week is drawn, so
   // positions arrive ready to adjust rather than blank. It only writes the ones
   // nobody has set, so reopening a week never undoes a change made by hand.
-  const posTeams = Object.values(schedAssignments).filter(a => a.role === 'birdhouse' || a.role === 'mathews');
-  if (posTeams.length) await Promise.all(posTeams.map(a => schedAutoAssignPositions(a.team_id, a.role, monday)));
+  //
+  // Guarded because this is a write standing in front of a read: if it fails,
+  // the week should still draw with whatever positions are already saved,
+  // rather than the board coming up empty.
+  try {
+    const posTeams = Object.values(schedAssignments).filter(a => a.role === 'birdhouse' || a.role === 'mathews');
+    if (posTeams.length) await Promise.all(posTeams.map(a => schedAutoAssignPositions(a.team_id, a.role, monday)));
+  } catch (err) {
+    console.error('Auto-assign of positions failed; showing saved positions only.', err);
+  }
 
   await schedLoadPositionSummary(monday);
   schedRenderPool();
@@ -3954,6 +3962,7 @@ function schedClosePosModal() { closeModal('sched-pos-modal'); }
 // been. Running it twice over a week is a no-op, which is what lets it run on
 // every week load without quietly undoing a manual change.
 async function schedAutoAssignPositions(teamId, roleKey, monday) {
+  const team = schedTeams.find(t => t.id === teamId);
   if (!team) return 0;
   const students = team.students || [];
   if (!students.length) return 0;
