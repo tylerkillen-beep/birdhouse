@@ -695,13 +695,18 @@
       return String(label || '').trim().toLowerCase();
     }
 
+    // Coffee is the coffee menu and nothing else, so it has to be matched
+    // explicitly and everything left over falls to cold drinks. This used to be
+    // the other way round -- coffee was the catch-all -- which swept in every
+    // drink whose category didn't spell out "soda"/"tea", including the whole
+    // menu after the 2026-08-28 Square sync reset it all to 'Coffee'.
     function getDisplayCategory(item) {
       const normalized = normalizeCategory(item.category);
       if (normalized.includes('mathews')) return 'mathews';
       if (normalized.includes('special')) return 'specials';
-      if (normalized.includes('soda') || normalized.includes('tea') || normalized.includes('energy') || normalized.includes('refresher')) return 'soda_tea';
       if (normalized.includes('food') || normalized.includes('pastry') || normalized.includes('snack')) return 'food';
-      return 'coffee';
+      if (/coffee|espresso|brew|latte|mocha|americano|cappuccino/.test(normalized)) return 'coffee';
+      return 'soda_tea';
     }
 
     // Mathews teachers only see Mathews items; everyone else sees non-Mathews items.

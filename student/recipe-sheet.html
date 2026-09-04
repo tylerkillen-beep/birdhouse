@@ -123,7 +123,7 @@
         <p class="page-desc">How to build every drink on the menu — cup, ice, machine selection, syrups, and toppings. Ask a manager to add or edit a recipe if one's missing.</p>
       </div>
     </div>
-    <p style="font-size:0.8rem;color:var(--gray);margin:-0.75rem 0 1.25rem">Unless a recipe says otherwise, use <strong style="color:var(--light-gray)">2 pumps</strong> of any flavor syrup. Packet amounts are always spelled out.</p>
+    <p style="font-size:0.8rem;color:var(--gray);margin:-0.75rem 0 1.25rem">Syrup pump counts and packet amounts are always spelled out — build exactly what the row says.</p>
     <div class="search-row">
       <input class="search-input" id="recipe-search" type="search" placeholder="Search a drink…" oninput="renderSheet()" aria-label="Search recipes" />
     </div>
@@ -150,13 +150,19 @@
     { key: 'other',    title: 'Other' },
   ];
 
+  // Birdie Brews is the coffee menu and nothing else, so coffee has to be
+  // matched explicitly and everything left over falls to cold drinks. This
+  // used to be the other way round -- coffee was the catch-all -- which swept
+  // in every drink whose category didn't spell out "soda"/"tea", including
+  // the whole menu after the 2026-08-28 Square sync reset it all to 'Coffee'.
+  const COFFEE_CATEGORY_RE = /coffee|espresso|brew|latte|mocha|americano|cappuccino/;
   function getMenuCategory(rawCategory) {
     const n = String(rawCategory || '').trim().toLowerCase();
     if (n.includes('mathews')) return 'other';
     if (n.includes('special')) return 'specials';
-    if (n.includes('soda') || n.includes('tea') || n.includes('energy') || n.includes('refresher')) return 'soda_tea';
     if (n.includes('food') || n.includes('pastry') || n.includes('snack') || n.includes('bak') || n.includes('cookie')) return 'food';
-    return 'coffee';
+    if (COFFEE_CATEGORY_RE.test(n)) return 'coffee';
+    return 'soda_tea';
   }
 
   // ── Auth (same pattern as student/orders.html) ──────────────────────────────
@@ -269,7 +275,7 @@
             <table class="sheet-table">
               <thead><tr>
                 <th>Drink</th><th>Cup</th><th>Ice</th><th>Coffee Machine Selection</th>
-                <th>Syrup(s)</th><th>Packet</th><th>Beverage Pour</th><th>Boba</th><th>Topping(s)</th>
+                <th>Syrup Flavors (Pumps)</th><th>Packet</th><th>Beverage Pour</th><th>Boba</th><th>Topping(s)</th>
               </tr></thead>
               <tbody>${rows}</tbody>
             </table>
@@ -285,22 +291,41 @@
   const splitList = raw => String(raw || '').split(',').map(s => s.trim()).filter(Boolean);
   const cell = v => v ? escHtml(v) : '<span class="cell-muted">—</span>';
 
+  const SYRUP_DEFAULT_PUMPS = 2;
+
+  // Staff read this cell as the thing they punch into the machine, so build the
+  // name they'd actually say out loud rather than listing the parts: a Cold cup
+  // plus Mocha plus Caramel becomes "Iced Caramel Mocha".
+  function machineSelectionLabel(recipe) {
+    const drink = String(recipe.coffee_machine_selection || '').trim();
+    if (!drink) return '';
+    const iced = String(recipe.cup_type || '').trim().toLowerCase() === 'cold';
+    return [iced ? 'Iced' : '', ...splitList(recipe.coffee_machine_flavor), drink].filter(Boolean).join(' ');
+  }
+
+  // Syrups are saved as "Strawberry" (the 2-pump default) or "Lime (3 pumps)".
+  // The sheet always spells the count out -- "Strawberry (2)" -- so nobody has
+  // to remember what the default was.
+  function syrupLabel(raw) {
+    const m = String(raw).trim().match(/^(.*?)\s*\(\s*([\d.]+)\s*pumps?\s*\)$/i);
+    return m ? `${m[1].trim()} (${m[2]})` : `${String(raw).trim()} (${SYRUP_DEFAULT_PUMPS})`;
+  }
+
   function renderRow(recipe) {
     // Syrups live on the recipe row now. Recipes saved before that still only
     // have their old inventory ingredient rows, so fall back to those rather
     // than showing a blank column.
-    const syrups = recipe.syrups || (recipe.recipe_ingredients || [])
-      .map(ri => `${ri.inventory?.name || '?'}${ri.amount ? ` (${ri.amount}${ri.unit ? ' ' + ri.unit : ''})` : ''}`)
-      .join(', ');
+    const syrups = recipe.syrups
+      ? splitList(recipe.syrups).map(syrupLabel).join(', ')
+      : (recipe.recipe_ingredients || [])
+          .map(ri => `${ri.inventory?.name || '?'}${ri.amount ? ` (${ri.amount})` : ''}`)
+          .join(', ');
     // Same for boba, which used to share the toppings column.
     const savedToppings = splitList(recipe.toppings);
     const boba = recipe.boba || savedToppings.find(isBobaValue) || '';
     const toppings = savedToppings.filter(v => !isBobaValue(v)).join(', ');
     const iceFilled = recipe.ice_amount && recipe.ice_amount.toLowerCase() !== 'none';
-    // Flavors go in parens so a multi-flavor list can't read as a second drink.
-    const machine = recipe.coffee_machine_selection
-      ? recipe.coffee_machine_selection + (recipe.coffee_machine_flavor ? ` (${recipe.coffee_machine_flavor})` : '')
-      : '';
+    const machine = machineSelectionLabel(recipe);
     return `<tr>
       <td class="drink-name-cell">${escHtml(recipe.name)}</td>
       <td>${cell(recipe.cup_type)}</td>
