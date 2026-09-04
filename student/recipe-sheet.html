@@ -289,16 +289,27 @@
   const BOBA_NAMES = ['Strawberry', 'Raspberry', 'Mango', 'Dragonfruit', 'Kiwi'];
   const isBobaValue = v => /boba/i.test(v) || BOBA_NAMES.some(o => o.toLowerCase() === String(v).trim().toLowerCase());
   const splitList = raw => String(raw || '').split(',').map(s => s.trim()).filter(Boolean);
-  const cell = v => v ? escHtml(v) : '<span class="cell-muted">—</span>';
+
+  // Before these fields were pickers they were text boxes, and staff typed the
+  // word "none" to mean "nothing". Empty is empty however it was written, so it
+  // renders as the same em dash as a field nobody filled in.
+  const isNoneish = v => { const s = String(v || '').trim(); return !s || /^(none|n\/a|-{1,2})$/i.test(s); };
+  const cell = v => isNoneish(v) ? '<span class="cell-muted">—</span>' : escHtml(v);
 
   const SYRUP_DEFAULT_PUMPS = 2;
+  const SYRUP_NAMES = ['Blackberry', 'Blue Raspberry', 'Cherry', 'Coconut', 'Lime', 'Raspberry', 'Strawberry'];
 
   // Staff read this cell as the thing they punch into the machine, so build the
   // name they'd actually say out loud rather than listing the parts: a Cold cup
   // plus Mocha plus Caramel becomes "Iced Caramel Mocha".
   function machineSelectionLabel(recipe) {
-    const drink = String(recipe.coffee_machine_selection || '').trim();
-    if (!drink) return '';
+    if (isNoneish(recipe.coffee_machine_selection)) return '';
+    // A legacy free-text value may already carry the prefix ("iced latte"); the
+    // cup type supplies it now, so strip it rather than saying "Iced iced latte".
+    // Title-cased for the same reason -- it was typed by hand, not picked.
+    const drink = String(recipe.coffee_machine_selection).trim()
+      .replace(/^iced\s+/i, '')
+      .replace(/\S+/g, w => w[0].toUpperCase() + w.slice(1));
     const iced = String(recipe.cup_type || '').trim().toLowerCase() === 'cold';
     return [iced ? 'Iced' : '', ...splitList(recipe.coffee_machine_flavor), drink].filter(Boolean).join(' ');
   }
@@ -311,6 +322,16 @@
     return m ? `${m[1].trim()} (${m[2]})` : `${String(raw).trim()} (${SYRUP_DEFAULT_PUMPS})`;
   }
 
+  // Recipes predating recipes.syrups only have their old inventory rows, whose
+  // names are the supplier's ("Blue raspberry flavor shot syrup"). Match those
+  // back to the short name staff actually use -- longest first, so "Blue
+  // Raspberry" wins over plain "Raspberry".
+  function shortSyrupName(name) {
+    const n = String(name || '').toLowerCase();
+    return [...SYRUP_NAMES].sort((a, b) => b.length - a.length)
+      .find(o => n.includes(o.toLowerCase())) || String(name || '?').trim();
+  }
+
   function renderRow(recipe) {
     // Syrups live on the recipe row now. Recipes saved before that still only
     // have their old inventory ingredient rows, so fall back to those rather
@@ -318,7 +339,7 @@
     const syrups = recipe.syrups
       ? splitList(recipe.syrups).map(syrupLabel).join(', ')
       : (recipe.recipe_ingredients || [])
-          .map(ri => `${ri.inventory?.name || '?'}${ri.amount ? ` (${ri.amount})` : ''}`)
+          .map(ri => `${shortSyrupName(ri.inventory?.name)} (${ri.amount || SYRUP_DEFAULT_PUMPS})`)
           .join(', ');
     // Same for boba, which used to share the toppings column.
     const savedToppings = splitList(recipe.toppings);
