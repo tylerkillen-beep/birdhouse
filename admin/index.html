@@ -3262,7 +3262,7 @@ async function loadMenuSubmissions() {
     <tr>
       <td style="color:var(--gray-mid)">${new Date(s.created_at).toLocaleDateString()}</td>
       <td>${s.student_name || 'Student'}</td>
-      <td>${s.type === 'edit' ? 'Edit' : 'New'}</td>
+      <td>${s.type !== 'edit' ? 'New' : s.target_item_id ? 'Edit' : 'Edit <span style="color:var(--warning,#e0a030);font-size:0.72rem">(item deleted)</span>'}</td>
       <td><strong>${s.proposed_name || '—'}</strong></td>
       <td style="font-size:0.78rem;color:var(--gray-mid)">${s.proposed_description || ''}<div>${s.proposed_category || ''} ${(s.proposed_is_hot?'☕':'')}${(s.proposed_is_iced?'🧊':'')}</div>${s.notes ? `<div>Note: ${s.notes}</div>` : ''}</td>
       <td><span class="pill ${pill(s.status)}">${s.status || 'pending'}</span></td>
