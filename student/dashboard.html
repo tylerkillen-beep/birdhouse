@@ -843,8 +843,12 @@
     const {data:positions} = await sb.from('daily_positions').select('*')
       .eq('student_id',currentUser.id)
       .in('shift_date',weekDates.map(d=>d.toISOString().split('T')[0]));
-    const posMap = {};
-    (positions||[]).forEach(p=>posMap[p.shift_date]=p.position);
+    // A 6th Hour student holds a position per lunch wave, so one day can carry
+    // more than one; wave 0 is a whole-day position (1st Hour, Mathews).
+    const posByDate = {};
+    (positions||[]).forEach(p=>{ (posByDate[p.shift_date] = posByDate[p.shift_date] || []).push(p); });
+    const positionsOn = dateStr => (posByDate[dateStr]||[])
+      .slice().sort((a,b)=>(a.lunch_wave||0)-(b.lunch_wave||0)).map(p=>p.position);
 
     const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
     const grid = document.getElementById('schedule-grid');
@@ -864,7 +868,9 @@
       const isToday = date.toDateString()===today.toDateString();
       const working = hasPositions && isWorking(assignment.role, i);
       const inClassDay = assignment.role==='mathews' && !working;
-      const position = posMap[dateStr];
+      const dayPositions = positionsOn(dateStr);
+      const position = dayPositions[0] || null;
+      const positionLabel = [...new Set(dayPositions)].map(p=>POS_LABELS[p]||p).join(" / ");
       const locationLabel = assignment.role==='birdhouse'?'The Birdhouse':assignment.role==='mathews'?'Mathews':'';
 
       if(!hasPositions || inClassDay) {
@@ -882,7 +888,7 @@
         <div class="day-name">${dayName.slice(0,3)}</div>
         <div class="day-date">${date.getMonth()+1}/${date.getDate()}</div>
         <div class="day-shift" style="color:${role.color}">Working</div>
-        ${position?`<div class="day-time">${POS_LABELS[position]||position}</div>`:'<div class="day-time" style="color:var(--gray)">TBD</div>'}
+        ${position?`<div class="day-time">${positionLabel}</div>`:'<div class="day-time" style="color:var(--gray)">TBD</div>'}
         <div style="font-size:0.6rem;color:rgba(255,255,255,0.2);margin-top:0.3rem" aria-hidden="true">open checklist</div>
       </button>`;
     }).join('');

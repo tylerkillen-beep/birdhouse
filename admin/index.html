@@ -300,6 +300,7 @@
     .pos-modal-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 0.05em; }
     .pos-modal-body { padding: 1.4rem 1.6rem; }
     .pos-day { margin-bottom: 1.25rem; }
+    .pos-wave-label { font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gray); margin: 0.7rem 0 0.3rem; }
     .pos-day-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.6rem; }
     .pos-day-name { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gray-mid); font-weight: 500; min-width: 80px; }
     .pos-day-date { font-size: 0.67rem; color: var(--gray); }
@@ -657,7 +658,7 @@
     </div>
     <div class="sched-msg" id="sched-msg"></div>
     <div style="margin-top:0.6rem">
-      <button onclick="schedBackfillPositions()" style="background:none;border:none;color:var(--gray);font-size:0.76rem;cursor:pointer;font-family:'DM Sans',sans-serif;text-decoration:underline">Re-run auto-assign positions for this week</button>
+      <button onclick="schedBackfillPositions()" style="background:none;border:none;color:var(--gray);font-size:0.76rem;cursor:pointer;font-family:'DM Sans',sans-serif;text-decoration:underline">Reset this week to the standard lineup</button>
     </div>
   </div>
 
@@ -3533,8 +3534,32 @@ const BIRDHOUSE_POSITIONS_6TH  = ['cashier','barista','deliverer'];
 const BIRDHOUSE_POSITIONS_6TH_SEED = ['cashier','cashier','barista','deliverer'];
 const MATHEWS_POSITIONS        = ['deliverer','barista','stocker','custodian'];
 const POSITION_LABELS          = { cashier:'Cashier', barista:'Barista', stocker:'Stocker', custodian:'Custodian', deliverer:'Deliverer', front_desk:'Front Desk' };
+
 const LUNCH_WAVES               = [1,2,3];
 const LUNCH_WAVE_LABELS         = { 1:'Lunch 1', 2:'Lunch 2', 3:'Lunch 3' };
+
+// 6th Hour Birdhouse staffs each lunch wave from this list in order, so the
+// register and the bar are both covered before either doubles up. Every extra
+// student past the end of the list is a deliverer.
+const BIRDHOUSE_6TH_WAVE_ORDER    = ['cashier','barista','cashier','barista','deliverer','stocker','custodian'];
+const BIRDHOUSE_6TH_WAVE_OVERFLOW = 'deliverer';
+
+// The lineup for a wave with `count` students free: the standard 2 cashiers,
+// 2 baristas and a deliverer, trimmed when fewer are free, topped up with
+// deliverers when more are.
+function birdhouse6thWaveLineup(count) {
+  return Array.from({ length: count }, (_, i) =>
+    BIRDHOUSE_6TH_WAVE_ORDER[i] || BIRDHOUSE_6TH_WAVE_OVERFLOW);
+}
+
+// A student who never picked a lunch wave never goes to lunch, so they are on
+// the floor for all three.
+const isFreeInWave = (student, wave) => (student.lunch_wave || 0) !== wave;
+
+// Positions are stored per wave for 6th Hour Birdhouse and once per day
+// (lunch_wave 0) for everyone else -- see the 20260904 migration.
+const teamUsesLunchWaves = (team, roleKey) => roleKey === 'birdhouse' && team?.period === '6th Hour';
+const wavesFor = (team, roleKey) => teamUsesLunchWaves(team, roleKey) ? LUNCH_WAVES : [0];
 
 let schedWeekOffset  = 0;
 let schedTeams       = [];
@@ -3606,6 +3631,12 @@ async function schedLoadWeek() {
   document.getElementById('sched-suggest-banner').style.display =
     Object.keys(schedAssignments).length === 0 ? 'flex' : 'none';
 
+  // Give every rostered team its standard lineup before the week is drawn, so
+  // positions arrive ready to adjust rather than blank. It only writes the ones
+  // nobody has set, so reopening a week never undoes a change made by hand.
+  const posTeams = Object.values(schedAssignments).filter(a => a.role === 'birdhouse' || a.role === 'mathews');
+  if (posTeams.length) await Promise.all(posTeams.map(a => schedAutoAssignPositions(a.team_id, a.role, monday)));
+
   await schedLoadPositionSummary(monday);
   schedRenderPool();
   schedRenderPeriods();
@@ -3618,14 +3649,16 @@ function schedGetTeamRole(teamId) {
 async function schedLoadPositionSummary(monday) {
   const friday = schedAddDays(monday, 4);
   const { data: rows } = await sb.from('daily_positions')
-    .select('student_id,position,shift_date')
+    .select('student_id,position,shift_date,lunch_wave')
     .gte('shift_date', schedFmtDate(monday))
     .lte('shift_date', schedFmtDate(friday));
 
-  const byStudentDate = {};
+  // Keyed by wave too: a 6th Hour student holds a different position in each
+  // stretch, because a different third of the team is at lunch each time.
+  const byStudentDateWave = {};
   (rows || []).forEach(r => {
     if (!r?.student_id || !r?.position || !r?.shift_date) return;
-    byStudentDate[`${r.student_id}_${r.shift_date}`] = r.position;
+    byStudentDateWave[`${r.student_id}_${r.shift_date}_${r.lunch_wave || 0}`] = r.position;
   });
 
   const summary = {};
@@ -3636,11 +3669,15 @@ async function schedLoadPositionSummary(monday) {
 
     summary[team.id] = {};
     schedWeekDays.forEach(day => {
-      summary[team.id][day.dateStr] = (team.students || []).map(student => ({
-        studentName: `${student.first_name || ''} ${student.last_name || ''}`.trim(),
-        position: POSITION_LABELS[byStudentDate[`${student.id}_${day.dateStr}`]] || null,
-        lunchWave: student.lunch_wave || null,
-      }));
+      summary[team.id][day.dateStr] = (team.students || []).map(student => {
+        const at = wave => POSITION_LABELS[byStudentDateWave[`${student.id}_${day.dateStr}_${wave}`]] || null;
+        return {
+          studentName: `${student.first_name || ''} ${student.last_name || ''}`.trim(),
+          position: at(0),
+          positionByWave: Object.fromEntries(LUNCH_WAVES.map(w => [w, at(w)])),
+          lunchWave: student.lunch_wave || null,
+        };
+      });
     });
   });
 
@@ -3721,10 +3758,11 @@ function schedRenderTeamPositionSummary(teamId, roleKey, selectedDate) {
     return '<div class="sched-team-position-empty">Not scheduled for this day.</div>';
   }
 
-  const hasAnyPosition = rows.some(r => !!r.position);
+  const team = schedTeams.find(t => t.id === teamId);
+  const byWave = teamUsesLunchWaves(team, roleKey);
+  const hasAnyPosition = rows.some(r => byWave ? Object.values(r.positionByWave || {}).some(Boolean) : !!r.position);
   if (!hasAnyPosition) return '<div class="sched-team-position-empty">Set positions to show student roles.</div>';
 
-  const team = schedTeams.find(t => t.id === teamId);
   if (roleKey === 'birdhouse' && team?.period === '6th Hour') return schedRenderWaveSummary(rows);
 
   return `<div class="sched-team-position-list">${rows.map(r => `
@@ -3734,9 +3772,10 @@ function schedRenderTeamPositionSummary(teamId, roleKey, selectedDate) {
     </div>`).join('')}</div>`;
 }
 
-// 6th Hour Birdhouse: show who's on the floor vs. at lunch for each of the
-// 3 waves. A student's position doesn't change between waves -- only
-// whether they're working it or on lunch that stretch.
+// 6th Hour Birdhouse: who is on the floor vs. at lunch for each of the 3
+// waves. A student's position is per wave -- a different third of the team is
+// away each stretch, so holding one position all day would leave the floor a
+// cashier or a barista short for two thirds of the period.
 function schedRenderWaveSummary(rows) {
   return `<div class="sched-team-wave-list">${LUNCH_WAVES.map(wave => `
     <div class="sched-team-wave-group">
@@ -3744,7 +3783,7 @@ function schedRenderWaveSummary(rows) {
       ${rows.map(r => `
         <div class="sched-team-position-item ${r.lunchWave === wave ? 'on-lunch' : ''}">
           <span class="sched-team-position-student">${r.studentName || 'Student'}</span>
-          <span class="sched-team-position-role">${r.lunchWave === wave ? '🍽 Lunch' : (r.position || '—')}</span>
+          <span class="sched-team-position-role">${r.lunchWave === wave ? '🍽 Lunch' : (r.positionByWave?.[wave] || '—')}</span>
         </div>`).join('')}
     </div>`).join('')}</div>`;
 }
@@ -3820,32 +3859,19 @@ async function schedOpenPosModal(teamId, roleKey, e) {
   if (roleKey === 'birdhouse') workingDays = [0,1,2,3,4].map(i => ({ date: schedAddDays(monday,i), name: ['Monday','Tuesday','Wednesday','Thursday','Friday'][i] }));
   if (roleKey === 'mathews')   workingDays = [0,2,4].map(i => ({ date: schedAddDays(monday,i), name: ['Monday','Wednesday','Friday'][i] }));
 
-  const { data: existing } = await sb.from('daily_positions').select('*')
+  // Fill anything not set yet so the modal opens on the standard lineup rather
+  // than a wall of blanks; it leaves whatever is already there alone.
+  await schedAutoAssignPositions(teamId, roleKey, monday);
+
+  const { data: existing } = await sb.from('daily_positions')
+    .select('student_id,shift_date,position,lunch_wave')
     .in('shift_date', workingDays.map(d => schedFmtDate(d.date)))
     .in('student_id', students.map(s => s.id));
   const posMap = {};
-  (existing||[]).forEach(p => { posMap[`${p.student_id}_${p.shift_date}`] = p.position; });
+  (existing||[]).forEach(p => { posMap[`${p.student_id}_${p.shift_date}_${p.lunch_wave || 0}`] = p.position; });
 
   const posSet = roleKey === 'mathews' ? MATHEWS_POSITIONS
     : (team.period === '6th Hour' ? BIRDHOUSE_POSITIONS_6TH : BIRDHOUSE_POSITIONS);
-
-  if (!existing?.length) {
-    const numStudents = students.length;
-    function buildDayRoles(posArr, count) {
-      const roles = [...posArr];
-      const overflow = [posArr[1], posArr[0], posArr[2], posArr[3]||posArr[2]];
-      let oi = 0;
-      while (roles.length < count) { roles.push(overflow[oi++ % overflow.length]); }
-      return roles;
-    }
-    const seed = (roleKey === 'birdhouse' && team.period === '6th Hour') ? BIRDHOUSE_POSITIONS_6TH_SEED : posSet;
-    const dayRoles = buildDayRoles(seed, numStudents);
-    workingDays.forEach((d, di) => {
-      const dateStr = schedFmtDate(d.date);
-      const rotated = [...dayRoles.slice(di % numStudents), ...dayRoles.slice(0, di % numStudents)];
-      students.forEach((s, si) => { posMap[`${s.id}_${dateStr}`] = rotated[si % rotated.length]; });
-    });
-  }
 
   schedPosData = { teamId, roleKey, team, students, workingDays, posMap, posSet };
   document.getElementById('sched-pos-modal-title').textContent = `${team.name} — Positions`;
@@ -3856,39 +3882,66 @@ async function schedOpenPosModal(teamId, roleKey, e) {
 
 function schedBuildPosBody() {
   const { students, workingDays, posMap, posSet, roleKey, team } = schedPosData;
-  const showLunch = roleKey === 'birdhouse' && team.period === '6th Hour';
+  const byWave = teamUsesLunchWaves(team, roleKey);
+  // Every position is offered, not just the three standard ones, so a stocker
+  // or custodian can be set by hand on a day that calls for it.
+  const options = byWave ? Object.keys(POSITION_LABELS) : posSet;
+
+  const selectFor = (s, dateStr, wave) => `
+    <select class="pos-select" id="sched_pos_${s.id}_${dateStr}_${wave}">
+      ${options.map(p => `<option value="${p}" ${posMap[`${s.id}_${dateStr}_${wave}`]===p?'selected':''}>${POSITION_LABELS[p]}</option>`).join('')}
+    </select>`;
+
   return workingDays.map(d => {
     const dateStr = schedFmtDate(d.date);
-    return `<div class="pos-day">
-      <div class="pos-day-header">
+    const header = `<div class="pos-day-header">
         <span class="pos-day-name">${d.name}</span>
         <span class="pos-day-date">${d.date.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
-      </div>
-      <div class="pos-students-grid">
-        ${students.map(s => `
-          <div class="pos-row">
-            <span class="pos-student-name">${s.first_name} ${s.last_name}${showLunch ? ` <span class="pos-lunch-badge">${s.lunch_wave ? LUNCH_WAVE_LABELS[s.lunch_wave] : 'No lunch set'}</span>` : ''}</span>
-            <select class="pos-select" id="sched_pos_${s.id}_${dateStr}">
-              ${posSet.map(p => `<option value="${p}" ${posMap[`${s.id}_${dateStr}`]===p?'selected':''}>${POSITION_LABELS[p]}</option>`).join('')}
-            </select>
-          </div>`).join('')}
-      </div>
+      </div>`;
+
+    if (!byWave) {
+      return `<div class="pos-day">${header}
+        <div class="pos-students-grid">
+          ${students.map(s => `
+            <div class="pos-row">
+              <span class="pos-student-name">${s.first_name} ${s.last_name}</span>
+              ${selectFor(s, dateStr, 0)}
+            </div>`).join('')}
+        </div>
+      </div>`;
+    }
+
+    // One block per wave, because who is on the floor -- and so what they are
+    // doing -- changes each stretch. A student at lunch gets no dropdown.
+    return `<div class="pos-day">${header}
+      ${LUNCH_WAVES.map(wave => `
+        <div class="pos-wave-label">${LUNCH_WAVE_LABELS[wave]}</div>
+        <div class="pos-students-grid">
+          ${students.map(s => `
+            <div class="pos-row">
+              <span class="pos-student-name">${s.first_name} ${s.last_name}</span>
+              ${isFreeInWave(s, wave) ? selectFor(s, dateStr, wave) : '<span class="pos-lunch-badge">🍽 Lunch</span>'}
+            </div>`).join('')}
+        </div>`).join('')}
     </div>`;
   }).join('');
 }
 
 async function schedSavePositions() {
-  const { teamId, students, workingDays } = schedPosData;
+  const { teamId, students, workingDays, roleKey, team } = schedPosData;
   const rows = [];
+  const assignmentId = Object.values(schedAssignments).find(a => a.team_id === teamId)?.id || null;
   workingDays.forEach(d => {
     const dateStr = schedFmtDate(d.date);
-    const assignmentId = Object.values(schedAssignments).find(a => a.team_id === teamId)?.id || null;
-    students.forEach(s => {
-      const pos = document.getElementById(`sched_pos_${s.id}_${dateStr}`)?.value;
-      if (pos) rows.push({ assignment_id: assignmentId, student_id: s.id, shift_date: dateStr, position: pos });
+    wavesFor(team, roleKey).forEach(wave => {
+      students.forEach(s => {
+        if (wave !== 0 && !isFreeInWave(s, wave)) return; // at lunch, nothing to save
+        const pos = document.getElementById(`sched_pos_${s.id}_${dateStr}_${wave}`)?.value;
+        if (pos) rows.push({ assignment_id: assignmentId, student_id: s.id, shift_date: dateStr, lunch_wave: wave, position: pos });
+      });
     });
   });
-  await sb.from('daily_positions').upsert(rows, { onConflict: 'student_id,shift_date' });
+  await sb.from('daily_positions').upsert(rows, { onConflict: 'student_id,shift_date,lunch_wave' });
   await schedLoadPositionSummary(schedGetMonday(schedWeekOffset));
   schedRenderPeriods();
   schedClosePosModal();
@@ -3897,43 +3950,82 @@ async function schedSavePositions() {
 
 function schedClosePosModal() { closeModal('sched-pos-modal'); }
 
+// Fills in the positions nobody has set yet, and leaves every one that has
+// been. Running it twice over a week is a no-op, which is what lets it run on
+// every week load without quietly undoing a manual change.
 async function schedAutoAssignPositions(teamId, roleKey, monday) {
-  const team = schedTeams.find(t => t.id === teamId);
-  if (!team) return;
+  if (!team) return 0;
   const students = team.students || [];
-  if (!students.length) return;
+  if (!students.length) return 0;
 
   let workingDays = [];
-  if (roleKey === 'birdhouse') workingDays = [0,1,2,3,4].map(i => ({ date: schedAddDays(monday,i) }));
-  if (roleKey === 'mathews')   workingDays = [0,2,4].map(i => ({ date: schedAddDays(monday,i) }));
-  if (!workingDays.length) return;
+  if (roleKey === 'birdhouse') workingDays = [0,1,2,3,4].map(i => schedAddDays(monday,i));
+  if (roleKey === 'mathews')   workingDays = [0,2,4].map(i => schedAddDays(monday,i));
+  if (!workingDays.length) return 0;
 
-  const { data: existing } = await sb.from('daily_positions').select('id')
-    .in('shift_date', workingDays.map(d => schedFmtDate(d.date)))
+  const dateStrs = workingDays.map(schedFmtDate);
+  const { data: existing } = await sb.from('daily_positions')
+    .select('student_id,shift_date,position,lunch_wave')
+    .in('shift_date', dateStrs)
     .in('student_id', students.map(s => s.id));
-  if (existing?.length) return;
+  const taken = {};
+  (existing || []).forEach(p => { taken[`${p.student_id}_${p.shift_date}_${p.lunch_wave || 0}`] = p.position; });
 
-  const posSet = roleKey === 'mathews' ? MATHEWS_POSITIONS
-    : (team.period === '6th Hour' ? BIRDHOUSE_POSITIONS_6TH : BIRDHOUSE_POSITIONS);
-  const numStudents = students.length;
-  function buildDayRoles(posArr, count) {
-    const roles = [...posArr];
-    const overflow = [posArr[1], posArr[0], posArr[2], posArr[3]||posArr[2]];
-    let oi = 0;
-    while (roles.length < count) { roles.push(overflow[oi++ % overflow.length]); }
-    return roles;
-  }
-  const seed = (roleKey === 'birdhouse' && team.period === '6th Hour') ? BIRDHOUSE_POSITIONS_6TH_SEED : posSet;
-  const dayRoles = buildDayRoles(seed, numStudents);
+  const assignmentId = Object.values(schedAssignments).find(a => a.team_id === teamId)?.id || null;
   const rows = [];
-  workingDays.forEach((d, di) => {
-    const dateStr = schedFmtDate(d.date);
-    const rotated = [...dayRoles.slice(di % numStudents), ...dayRoles.slice(0, di % numStudents)];
-    students.forEach((s, si) => {
-      rows.push({ student_id: s.id, shift_date: dateStr, position: rotated[si % rotated.length], assignment_id: null });
+
+  dateStrs.forEach((dateStr, dayIndex) => {
+    wavesFor(team, roleKey).forEach(wave => {
+      // Whoever is on the floor this stretch. Rotating the order by the day
+      // (and the wave) stops the same student opening on register every shift.
+      const onFloor = wave === 0 ? students : students.filter(s => isFreeInWave(s, wave));
+      if (!onFloor.length) return;
+      const shift = (dayIndex + wave) % onFloor.length;
+      const ordered = [...onFloor.slice(shift), ...onFloor.slice(0, shift)];
+
+      const lineup = teamUsesLunchWaves(team, roleKey)
+        ? birdhouse6thWaveLineup(ordered.length)
+        : schedLegacyLineup(roleKey, team, ordered.length, dayIndex);
+
+      // Anything already set holds its spot, so the students still missing a
+      // position get what the lineup has left rather than a fresh 2-and-2 that
+      // would double up on what a manual edit already covers.
+      const remaining = [...lineup];
+      const blanks = [];
+      ordered.forEach(s => {
+        const key = `${s.id}_${dateStr}_${wave}`;
+        const held = taken[key];
+        if (held) {
+          const at = remaining.indexOf(held);
+          if (at !== -1) remaining.splice(at, 1);
+        } else {
+          blanks.push(s);
+        }
+      });
+      blanks.forEach((s, i) => {
+        const position = remaining[i] || BIRDHOUSE_6TH_WAVE_OVERFLOW;
+        rows.push({ assignment_id: assignmentId, student_id: s.id, shift_date: dateStr, lunch_wave: wave, position });
+      });
     });
   });
-  if (rows.length) await sb.from('daily_positions').upsert(rows, { onConflict: 'student_id,shift_date' });
+
+  if (rows.length) {
+    await sb.from('daily_positions').upsert(rows, { onConflict: 'student_id,shift_date,lunch_wave' });
+  }
+  return rows.length;
+}
+
+// 1st Hour Birdhouse and Mathews keep the original whole-day rotation: the
+// role list padded out to the team size and stepped one place each day.
+function schedLegacyLineup(roleKey, team, count, dayIndex) {
+  const posArr = roleKey === 'mathews' ? MATHEWS_POSITIONS
+    : (team.period === '6th Hour' ? BIRDHOUSE_POSITIONS_6TH : BIRDHOUSE_POSITIONS);
+  const roles = [...posArr];
+  const overflow = [posArr[1], posArr[0], posArr[2], posArr[3] || posArr[2]];
+  let oi = 0;
+  while (roles.length < count) roles.push(overflow[oi++ % overflow.length]);
+  const step = count ? dayIndex % count : 0;
+  return [...roles.slice(step), ...roles.slice(0, step)].slice(0, count);
 }
 
 async function schedConfirmWeek() {
@@ -3967,7 +4059,11 @@ async function schedConfirmWeek() {
   btn.disabled = false; btn.textContent = '✓ Confirm & Publish';
 }
 
+// Loading a week only fills the gaps, so this is the way back to the standard
+// lineup: it throws the week's positions away and rebuilds them. That discards
+// manual changes, hence the confirm.
 async function schedBackfillPositions() {
+  if (!confirm('Reset this week to the standard lineup? Any position you changed by hand will be overwritten.')) return;
   const monday = schedGetMonday(schedWeekOffset);
   const weekDates = [0,1,2,3,4].map(i => schedFmtDate(schedAddDays(monday,i)));
   const allStudentIds = schedTeams.flatMap(t => (t.students||[]).map(s => s.id));
@@ -3978,7 +4074,9 @@ async function schedBackfillPositions() {
   }
   const posTeams = Object.values(schedAssignments).filter(a => a.role === 'birdhouse' || a.role === 'mathews');
   await Promise.all(posTeams.map(a => schedAutoAssignPositions(a.team_id, a.role, monday)));
-  schedShowMsg(`✓ Positions re-assigned for ${posTeams.length} team(s).`, 'success');
+  await schedLoadPositionSummary(monday);
+  schedRenderPeriods();
+  schedShowMsg(`✓ Positions reset for ${posTeams.length} team(s).`, 'success');
 }
 
 async function schedClearWeek() {
