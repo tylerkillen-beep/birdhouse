@@ -1088,8 +1088,28 @@
   const RECIPE_CHECK_GROUPS = {
     packet:  { containerId: 'recipe-packet-options',  inputId: 'recipe-packet-other',  extras: [] },
     boba:    { containerId: 'recipe-boba-options',    inputId: 'recipe-boba-other',    extras: [] },
+    syrup:   { containerId: 'recipe-syrup-options',   inputId: 'recipe-syrup-other',   extras: [] },
     topping: { containerId: 'recipe-topping-options', inputId: 'recipe-topping-other', extras: [] },
   };
+
+  // Flavor (pump) syrups. Unlike Boba/Toppings (free text saved to
+  // recipes.toppings) a checked syrup is saved as a real recipe_ingredient at
+  // 2 pumps, so it feeds cost tracking and the Recipe Sheet's Syrup(s) column.
+  // On save each name is run through the ensure_flavor_syrup() RPC, which
+  // finds or creates a matching Flavors inventory item. The option list is
+  // this curated seed plus whatever syrups are already on saved recipes plus
+  // anything typed into the "add other" box. `recipeSyrupPumps` holds a
+  // per-syrup pump override keyed by normalized name; unset means "use the
+  // 2-pump default".
+  const SYRUP_SEED_OPTIONS = ['Strawberry', 'Blackberry', 'Cherry', 'Blue Raspberry', 'Raspberry', 'Coconut', 'Lime'];
+  const SYRUP_AMOUNT_OPTIONS = [1, 3, 4, 5, 6];
+  const SYRUP_DEFAULT_PUMPS = 2;
+  let recipeSyrupPumps = {};
+
+  function isFlavorSyrupInventory(invId) {
+    const inv = allInventory.find(i => i.id === invId);
+    return !!inv && inv.category === 'flavors' && (inv.unit || '').trim().toLowerCase() !== 'packet';
+  }
 
   // A recipe's assumed default is 2 pumps of any flavor syrup (handled in
   // the Inventory Ingredients section below) and half a packet of any packet
@@ -1154,6 +1174,15 @@
       const collected = collectDistinctValues(r => r.packet, v => parseQualifiedValue(v).name);
       return mergeOptionsCaseInsensitive(PACKET_SEED_OPTIONS, collected);
     }
+    if (kind === 'syrup') {
+      // Flavor syrups live in recipe_ingredients (not a text column), so
+      // collect them from the Flavors inventory items other recipes reference.
+      const saved = allRecipes.flatMap(r => (r.recipe_ingredients || [])
+        .filter(ri => isFlavorSyrupInventory(ri.inventory_id))
+        .map(ri => ri.inventory?.name)
+        .filter(Boolean));
+      return mergeOptionsCaseInsensitive(SYRUP_SEED_OPTIONS, saved);
+    }
     const collected = collectDistinctValues(r => r.toppings).filter(v => classifyToppingValue(v) === kind);
     return mergeOptionsCaseInsensitive(kind === 'boba' ? BOBA_SEED_OPTIONS : TOPPING_SEED_OPTIONS, collected);
   }
@@ -1169,7 +1198,8 @@
     if (!options.length) { el.innerHTML = '<span style="color:var(--gray);font-size:0.78rem">Nothing yet — add one below.</span>'; return; }
     el.innerHTML = options.map(opt => {
       const isChecked = checkedKeys.has(normalizeName(opt));
-      const amountPicker = kind === 'packet' ? renderPacketAmountSelect(opt) : '';
+      const amountPicker = kind === 'packet' ? renderPacketAmountSelect(opt)
+        : kind === 'syrup' ? renderSyrupAmountSelect(opt) : '';
       return `<div class="check-pill${isChecked ? ' checked' : ''}">
         <label>
           <input type="checkbox" value="${htmlEscape(opt)}"${isChecked ? ' checked' : ''} onchange="this.closest('.check-pill').classList.toggle('checked', this.checked)"/>
@@ -1192,6 +1222,21 @@
       ...PACKET_AMOUNT_OPTIONS.map(o => `<option value="${htmlEscape(o)}"${o === current ? ' selected' : ''}>${htmlEscape(o)}</option>`),
       ...extraCurrent.map(o => `<option value="${htmlEscape(o)}" selected>${htmlEscape(o)}</option>`)];
     return `<select class="packet-amount-select" aria-label="Amount for ${htmlEscape(itemName)}" onchange="recipePacketNotes[${htmlEscape(JSON.stringify(key))}] = this.value">${options.join('')}</select>`;
+  }
+
+  // A syrup's amount is real numeric pumps saved on the recipe_ingredient row;
+  // blank/default means SYRUP_DEFAULT_PUMPS so most recipes need nothing set.
+  // Keyed by normalized name (like recipePacketNotes) so a pump count recorded
+  // against one casing still surfaces when the option renders in another.
+  function renderSyrupAmountSelect(itemName) {
+    const key = normalizeName(itemName);
+    const current = Number(recipeSyrupPumps[key]) || null;
+    const known = new Set(SYRUP_AMOUNT_OPTIONS);
+    const extraCurrent = current && !known.has(current) ? [current] : [];
+    const options = [`<option value="">${SYRUP_DEFAULT_PUMPS} pumps (default)</option>`,
+      ...SYRUP_AMOUNT_OPTIONS.map(n => `<option value="${n}"${n === current ? ' selected' : ''}>${n} pump${n === 1 ? '' : 's'}</option>`),
+      ...extraCurrent.map(n => `<option value="${n}" selected>${n} pumps</option>`)];
+    return `<select class="packet-amount-select" aria-label="Pumps of ${htmlEscape(itemName)}" onchange="recipeSyrupPumps[${htmlEscape(JSON.stringify(key))}] = this.value ? Number(this.value) : undefined">${options.join('')}</select>`;
   }
 
   function getCheckedValues(kind) {
@@ -1363,24 +1408,36 @@
 
     Object.values(RECIPE_CHECK_GROUPS).forEach(g => g.extras = []);
     recipePacketNotes = {};
+    recipeSyrupPumps = {};
     const editPacketEntries = recipe?.packet ? recipe.packet.split(',').map(s => s.trim()).filter(Boolean).map(parseQualifiedValue) : [];
     const editPackets = editPacketEntries.map(e => e.name);
     editPacketEntries.forEach(e => { if (e.note) recipePacketNotes[normalizeName(e.name)] = e.note; });
     const editToppingsAll = recipe?.toppings ? recipe.toppings.split(',').map(s => s.trim()).filter(Boolean) : [];
     const editBoba = editToppingsAll.filter(v => classifyToppingValue(v) === 'boba');
     const editToppings = editToppingsAll.filter(v => classifyToppingValue(v) === 'topping');
+    // Flavor-syrup ingredients show as checked pills, not ingredient rows; a
+    // non-default pump count comes back as the syrup's amount override.
+    const editSyrupIngs = (recipe?.recipe_ingredients || []).filter(ri => isFlavorSyrupInventory(ri.inventory_id));
+    const editSyrups = editSyrupIngs.map(ri => ri.inventory?.name).filter(Boolean);
+    editSyrupIngs.forEach(ri => {
+      const nm = ri.inventory?.name;
+      if (nm && Number(ri.amount) && Number(ri.amount) !== SYRUP_DEFAULT_PUMPS) recipeSyrupPumps[normalizeName(nm)] = Number(ri.amount);
+    });
     // Show legacy values even if they no longer match the seed/collected
     // list (e.g. a packet flavor nobody's picked in a while).
     RECIPE_CHECK_GROUPS.packet.extras.push(...editPackets);
     RECIPE_CHECK_GROUPS.boba.extras.push(...editBoba);
+    RECIPE_CHECK_GROUPS.syrup.extras.push(...editSyrups);
     RECIPE_CHECK_GROUPS.topping.extras.push(...editToppings);
     renderCheckGroup('packet', editPackets);
     renderCheckGroup('boba', editBoba);
+    renderCheckGroup('syrup', editSyrups);
     renderCheckGroup('topping', editToppings);
 
     const listEl = document.getElementById('recipe-ingredients-list');
     listEl.innerHTML = '';
-    if (recipe?.recipe_ingredients?.length) recipe.recipe_ingredients.forEach(ri => addIngredientRow(ri.inventory_id, ri.amount, ri.unit));
+    const manualIngs = (recipe?.recipe_ingredients || []).filter(ri => !isFlavorSyrupInventory(ri.inventory_id));
+    if (manualIngs.length) manualIngs.forEach(ri => addIngredientRow(ri.inventory_id, ri.amount, ri.unit));
     else addIngredientRow();
     showRecipeModal();
   }
@@ -1407,6 +1464,26 @@
       const inputs = row.querySelectorAll('input');
       return { inventory_id: select?.value || null, amount: parseFloat(inputs[0]?.value) || 0, unit: inputs[1]?.value.trim() || null };
     }).filter(r => r.inventory_id && r.amount > 0);
+
+    // Checked flavor syrups are saved as recipe_ingredients (default 2 pumps).
+    // ensure_flavor_syrup() resolves each name to a Flavors inventory item,
+    // creating a minimal one if it doesn't exist yet -- it works for any staff,
+    // whereas a direct inventory insert is admin/manager-only. A manual
+    // ingredient row for the same item wins over the syrup's default.
+    const checkedSyrups = getCheckedValues('syrup');
+    const syrupResults = await Promise.all(checkedSyrups.map(nm =>
+      sb.rpc('ensure_flavor_syrup', { p_name: nm }).then(res => ({ nm, ...res }))));
+    const syrupErr = syrupResults.find(r => r.error);
+    if (syrupErr) { msgEl.textContent = `Couldn't add syrup "${syrupErr.nm}": ${syrupErr.error.message}`; msgEl.className = 'msg error'; return; }
+    const ingredientsByInv = new Map();
+    syrupResults.forEach(r => ingredientsByInv.set(r.data, {
+      inventory_id: r.data,
+      amount: Number(recipeSyrupPumps[normalizeName(r.nm)]) || SYRUP_DEFAULT_PUMPS,
+      unit: 'pumps',
+    }));
+    ingredients.forEach(r => ingredientsByInv.set(r.inventory_id, r));
+    const allIngredients = Array.from(ingredientsByInv.values());
+
     let recipeId = editingRecipeId;
     if (editingRecipeId) {
       const { error } = await sb.from('recipes').update({ name, description: desc, ...buildSpec, updated_at: new Date().toISOString() }).eq('id', editingRecipeId);
@@ -1417,8 +1494,11 @@
       if (error) { msgEl.textContent = 'Error: ' + error.message; msgEl.className = 'msg error'; return; }
       recipeId = data.id;
     }
-    if (ingredients.length) await sb.from('recipe_ingredients').insert(ingredients.map(r => ({ ...r, recipe_id: recipeId })));
+    if (allIngredients.length) await sb.from('recipe_ingredients').insert(allIngredients.map(r => ({ ...r, recipe_id: recipeId })));
     closeRecipeModal();
+    // A syrup may have just created a new Flavors inventory item; refresh so
+    // reopening this recipe recognizes it as a syrup rather than an orphan row.
+    if (checkedSyrups.length) await loadInventory();
     loadRecipes();
   }
 
@@ -2504,6 +2584,15 @@
       <label for="recipe-boba-other" class="visually-hidden">Add a boba flavor not listed</label>
       <input type="text" id="recipe-boba-other" placeholder="Add a boba flavor not listed…" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomCheckOption('boba')}"/>
       <button type="button" onclick="addCustomCheckOption('boba')">+ Add</button>
+    </div>
+
+    <div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);margin-bottom:0.3rem;font-weight:600">Flavor Syrups <span style="text-transform:none;letter-spacing:normal;font-weight:400">(pump syrups)</span></div>
+    <div style="font-size:0.72rem;color:var(--gray);margin-bottom:0.6rem">Each checked syrup is added to the recipe as 2 pumps — pick an amount only if this drink uses more or less. New syrups are added to Inventory → Flavors automatically.</div>
+    <div id="recipe-syrup-options" class="check-grid"></div>
+    <div class="check-add-row">
+      <label for="recipe-syrup-other" class="visually-hidden">Add a flavor syrup not listed</label>
+      <input type="text" id="recipe-syrup-other" placeholder="Add a flavor syrup not listed…" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomCheckOption('syrup')}"/>
+      <button type="button" onclick="addCustomCheckOption('syrup')">+ Add</button>
     </div>
 
     <div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);margin-bottom:0.6rem;font-weight:600">Toppings</div>
