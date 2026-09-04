@@ -376,6 +376,7 @@
     .upload-zone input{display:none}
     .recipe-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.1rem 1.25rem;margin-bottom:0.6rem}
     .visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+    [hidden]{display:none!important}
     /* Two per row so a long checklist stays scannable instead of wrapping ragged. */
     .check-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:0.6rem}
     @media (max-width:520px){ .check-grid{grid-template-columns:1fr} }
@@ -5698,7 +5699,9 @@ let recipeSyrupPumps = {};
 // "+ Add" box, since staff genuinely add one now and then -- `extras` holds
 // those additions and, when editing, any legacy value the lists no longer
 // offer, so nothing gets silently dropped.
+// (machineFlavor has no "+ Add" box -- the machine has the flavor pumps it has.)
 const RECIPE_CHECK_GROUPS = {
+  machineFlavor: { containerId: 'recipe-machine-flavor-options', seeds: MACHINE_FLAVOR_OPTIONS, field: r => r.coffee_machine_flavor, extras: [] },
   syrup:   { containerId: 'recipe-syrup-options',   inputId: 'recipe-syrup-other',   seeds: SYRUP_OPTIONS,   field: r => r.syrups,   extras: [] },
   topping: { containerId: 'recipe-topping-options', inputId: 'recipe-topping-other', seeds: TOPPING_OPTIONS, field: r => r.toppings, extras: [] },
 };
@@ -5798,6 +5801,18 @@ function syncPacketAmountState() {
   if (!flavor) amountEl.value = PACKET_DEFAULT_AMOUNT;
 }
 
+// The machine's flavor pumps are meaningless without a machine drink, so the
+// whole checklist stays hidden until one is picked -- and clears when the
+// drink is cleared, so a stray flavor can't be saved on its own.
+function syncMachineFlavorState(checked) {
+  const drink = document.getElementById('recipe-machine').value;
+  document.getElementById('recipe-machine-flavor-wrap').hidden = !drink;
+  // Switching between drinks keeps whatever's already ticked; only clearing
+  // the drink wipes them.
+  const keep = checked ?? getCheckedValues('machineFlavor');
+  renderCheckGroup('machineFlavor', drink ? keep : []);
+}
+
 // `checkedValues` can be any casing (it may come straight from saved
 // recipe text) -- matched against the canonically-cased options list by
 // normalized key so a legacy "cold foam" still checks "Cold Foam".
@@ -5886,7 +5901,9 @@ function renderRecipes() {
     const ingList = recipe.recipe_ingredients?.map(ri =>
       `<span style="font-size:0.78rem;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:6px;padding:0.15rem 0.5rem;color:var(--text-muted)">${ri.amount} ${ri.unit || ri.inventory?.unit || ''} ${ri.inventory?.name || '?'}</span>`
     ).join(' ') || '<span style="color:var(--gray-mid);font-size:0.78rem">No ingredients</span>';
-    const machine = [recipe.coffee_machine_selection, recipe.coffee_machine_flavor].filter(Boolean).join(' · ');
+    const machine = recipe.coffee_machine_selection
+      ? recipe.coffee_machine_selection + (recipe.coffee_machine_flavor ? ` (${recipe.coffee_machine_flavor})` : '')
+      : '';
     const buildBits = [recipe.cup_type ? `${recipe.cup_type} cup` : '', machine, recipe.beverage_pour].filter(Boolean);
     const tagBits = [
       recipe.packet ? `Packet: ${recipe.packet}` : '',
@@ -5930,7 +5947,6 @@ function openRecipeModal(id) {
   // A saved value the curated list no longer offers stays selected rather
   // than silently reverting to "—" the first time someone opens the recipe.
   fillSelectOptions('recipe-machine', MACHINE_DRINK_OPTIONS, recipe?.coffee_machine_selection || '', '— None —');
-  fillSelectOptions('recipe-machine-flavor', MACHINE_FLAVOR_OPTIONS, recipe?.coffee_machine_flavor || '', '— None —');
   fillSelectOptions('recipe-pour', BEVERAGE_POUR_OPTIONS, recipe?.beverage_pour || '', '— None —');
 
   // Only one packet per drink now; older recipes could list several, so take
@@ -5961,8 +5977,11 @@ function openRecipeModal(id) {
 
   // Show legacy values even if the curated/collected lists no longer offer
   // them (e.g. a topping nobody's picked in a while).
+  const editMachineFlavors = splitSavedList(recipe?.coffee_machine_flavor);
+  RECIPE_CHECK_GROUPS.machineFlavor.extras.push(...editMachineFlavors);
   RECIPE_CHECK_GROUPS.syrup.extras.push(...editSyrups);
   RECIPE_CHECK_GROUPS.topping.extras.push(...editToppings);
+  syncMachineFlavorState(editMachineFlavors);
   renderCheckGroup('syrup', editSyrups);
   renderCheckGroup('topping', editToppings);
   openModal('recipe-modal');
@@ -6008,14 +6027,16 @@ async function saveRecipe() {
   const name = allMenuItems.find(item => normalizeName(item.name) === normalizeName(typedName))?.name || typedName;
   const desc = document.getElementById('recipe-desc').value.trim() || null;
   if (!name) { msgEl.textContent = 'Recipe name is required.'; msgEl.className = 'msg error'; msgEl.style.display = 'block'; return; }
-  // No packet picked means no packet, so the amount alongside it is moot.
+  // No packet picked means no packet, so the amount alongside it is moot; same
+  // for machine flavors without a machine drink.
   const packetFlavor = document.getElementById('recipe-packet').value;
   const packetAmount = document.getElementById('recipe-packet-amount').value || PACKET_DEFAULT_AMOUNT;
+  const machineDrink = document.getElementById('recipe-machine').value;
   const buildSpec = {
     cup_type: document.getElementById('recipe-cup').value || null,
     ice_amount: document.getElementById('recipe-ice').value || null,
-    coffee_machine_selection: document.getElementById('recipe-machine').value || null,
-    coffee_machine_flavor: document.getElementById('recipe-machine-flavor').value || null,
+    coffee_machine_selection: machineDrink || null,
+    coffee_machine_flavor: machineDrink ? (getCheckedValues('machineFlavor').join(', ') || null) : null,
     packet: packetFlavor ? `${packetFlavor} (${packetAmount})` : null,
     beverage_pour: document.getElementById('recipe-pour').value || null,
     syrups: getCheckedSyrupEntries().join(', ') || null,
@@ -6138,16 +6159,17 @@ async function deleteRecipe(id, name) {
       </div>
       <div class="form-group">
         <label class="form-label" for="recipe-machine">Coffee Machine — Drink</label>
-        <select class="form-input" id="recipe-machine"></select>
-      </div>
-      <div class="form-group">
-        <label class="form-label" for="recipe-machine-flavor">Coffee Machine — Flavor</label>
-        <select class="form-input" id="recipe-machine-flavor"></select>
+        <select class="form-input" id="recipe-machine" onchange="syncMachineFlavorState()"></select>
       </div>
       <div class="form-group">
         <label class="form-label" for="recipe-pour">Beverage Pour</label>
         <select class="form-input" id="recipe-pour"></select>
       </div>
+    </div>
+
+    <div id="recipe-machine-flavor-wrap" hidden>
+      <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray-mid);margin-bottom:0.6rem;font-weight:600">Coffee Machine — Flavor(s) <span style="text-transform:none;font-weight:400">(pick as many as apply)</span></div>
+      <div id="recipe-machine-flavor-options" class="check-grid" style="margin-bottom:1.25rem"></div>
     </div>
 
     <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray-mid);margin-bottom:0.6rem;font-weight:600">Packet Flavor</div>

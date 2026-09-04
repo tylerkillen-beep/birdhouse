@@ -297,7 +297,10 @@
     const boba = recipe.boba || savedToppings.find(isBobaValue) || '';
     const toppings = savedToppings.filter(v => !isBobaValue(v)).join(', ');
     const iceFilled = recipe.ice_amount && recipe.ice_amount.toLowerCase() !== 'none';
-    const machine = [recipe.coffee_machine_selection, recipe.coffee_machine_flavor].filter(Boolean).join(' · ');
+    // Flavors go in parens so a multi-flavor list can't read as a second drink.
+    const machine = recipe.coffee_machine_selection
+      ? recipe.coffee_machine_selection + (recipe.coffee_machine_flavor ? ` (${recipe.coffee_machine_flavor})` : '')
+      : '';
     return `<tr>
       <td class="drink-name-cell">${escHtml(recipe.name)}</td>
       <td>${cell(recipe.cup_type)}</td>
