@@ -128,13 +128,19 @@
         { key: 'food',     title: 'Food',       icon: '🍽️' },
       ];
 
+      // Coffee is the coffee menu and nothing else, so it has to be matched
+      // explicitly and everything left over falls to cold drinks. This used to
+      // be the other way round -- coffee was the catch-all -- which swept in
+      // every drink whose category didn't spell out "soda"/"tea", including the
+      // whole menu after the 2026-08-28 Square sync reset it all to 'Coffee'.
+      const COFFEE_CATEGORY_RE = /coffee|espresso|brew|latte|mocha|americano|cappuccino/;
       function getCategory(item) {
         const n = String(item.category || '').trim().toLowerCase();
         if (n.includes('mathews')) return null;
         if (n.includes('special')) return 'specials';
-        if (n.includes('soda') || n.includes('tea') || n.includes('energy') || n.includes('refresher')) return 'soda_tea';
         if (n.includes('food') || n.includes('pastry') || n.includes('snack') || n.includes('bak') || n.includes('cookie')) return 'food';
-        return 'coffee';
+        if (COFFEE_CATEGORY_RE.test(n)) return 'coffee';
+        return 'soda_tea';
       }
 
       function formatPrice(item) {
