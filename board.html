@@ -24,14 +24,14 @@
       background-image: linear-gradient(rgba(204,0,0,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(204,0,0,0.03) 1px, transparent 1px);
       background-size: 40px 40px; pointer-events: none; z-index: 0;
     }
-    .board { position: relative; z-index: 1; padding: 2.5rem 3rem 3rem; min-height: 100vh; }
+    .board { position: relative; z-index: 1; padding: 1.5rem 3rem; min-height: 100vh; }
     .board-header { display: flex; align-items: baseline; gap: 1.25rem; margin-bottom: 0.25rem; }
     .board-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(2.75rem, 5.5vw, 4.75rem); letter-spacing: 0.03em; line-height: 1; color: var(--white); }
     .board-sub {
       font-family: 'Bebas Neue', sans-serif; font-size: clamp(1.4rem, 2.6vw, 2.1rem); letter-spacing: 0.08em;
       color: transparent; -webkit-text-stroke: 1.5px var(--red-bright); text-transform: uppercase;
     }
-    .board-updated { font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gray); margin-top: 0.75rem; margin-bottom: 2rem; }
+    .board-updated { font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gray); margin-top: 0.75rem; margin-bottom: 1rem; }
     .board-loading, .board-error { color: var(--gray); font-size: 1rem; padding: 3rem 0; text-align: center; }
     .board-error { color: var(--red-bright); }
 
@@ -44,7 +44,7 @@
     /* Bebas Neue ships a single weight, so font-weight does nothing. Thicken the
        strokes with text-stroke instead — these are read from across the room. */
     .specials-heading {
-      font-family: 'Bebas Neue', sans-serif; font-size: 1.9rem; letter-spacing: 0.1em; text-transform: uppercase;
+      font-family: 'Bebas Neue', sans-serif; font-size: 2rem; letter-spacing: 0.1em; text-transform: uppercase;
       color: var(--red-bright); -webkit-text-stroke: 0.7px var(--red-bright);
       border-bottom: 2px solid var(--border); padding-bottom: 0.5rem; margin-bottom: 0.25rem;
     }
@@ -59,33 +59,37 @@
       display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
     }
     .special-name-row { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
-    .special-name { font-size: 1.35rem; font-weight: 600; color: var(--white); }
-    .special-price { font-size: 1.35rem; color: var(--red-bright); font-weight: 600; white-space: nowrap; }
-    .special-desc { font-size: 0.78rem; color: var(--light-gray); line-height: 1.4; margin-top: 0.2rem; font-weight: 300; }
+    .special-name { font-size: 1.6rem; font-weight: 600; color: var(--white); }
+    .special-price { font-size: 1.6rem; color: var(--red-bright); font-weight: 600; white-space: nowrap; }
+    .special-desc { font-size: 0.8rem; color: var(--light-gray); line-height: 1.4; margin-top: 0.2rem; font-weight: 300; }
 
     /* Category lists column */
     .lists-col { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start; }
     @media (max-width: 700px) { .lists-col { grid-template-columns: 1fr; } }
-    .lists-column { display: flex; flex-direction: column; gap: 2rem; }
+    .lists-column { display: flex; flex-direction: column; gap: 1.2rem; }
     .list-group { margin-bottom: 0; }
     .list-heading {
       display: flex; align-items: center; gap: 0.6rem;
-      font-family: 'Bebas Neue', sans-serif; font-size: 1.85rem; letter-spacing: 0.08em; text-transform: uppercase;
+      font-family: 'Bebas Neue', sans-serif; font-size: 2rem; letter-spacing: 0.08em; text-transform: uppercase;
       color: var(--red-bright); -webkit-text-stroke: 0.7px var(--red-bright);
       border-bottom: 2px solid var(--border); padding-bottom: 0.5rem; margin-bottom: 0.6rem;
     }
     .list-row {
       display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem;
-      padding: 0.42rem 0; border-bottom: 1px dashed rgba(255,255,255,0.06);
+      padding: 0.34rem 0; border-bottom: 1px dashed rgba(255,255,255,0.06);
     }
     .list-row:last-child { border-bottom: none; }
-    /* Names and prices carry the board from across the room, so they run well
+    /* The board is fitted to the screen height by fitBoard(), so these sizes are
+       ratios, not absolutes: growing a name shortens the fitted root size a
+       little but still nets a bigger name, because row padding and the
+       description do not grow with it. Names and prices carry the board from
+       across the room, so they run well
        ahead of the descriptions rather than a notch above them. */
-    .list-row-name { font-size: 1.2rem; color: var(--white); font-weight: 600; }
-    .list-row-desc { font-size: 0.72rem; color: var(--gray); font-weight: 300; margin-top: 0.1rem; }
-    .list-row-price { font-size: 1.2rem; color: var(--red-bright); font-weight: 600; white-space: nowrap; flex-shrink: 0; }
+    .list-row-name { font-size: 1.5rem; color: var(--white); font-weight: 600; }
+    .list-row-desc { font-size: 0.68rem; color: var(--gray); font-weight: 300; margin-top: 0.1rem; }
+    .list-row-price { font-size: 1.5rem; color: var(--red-bright); font-weight: 600; white-space: nowrap; flex-shrink: 0; }
 
-    .board-footer { margin-top: 2.5rem; text-align: center; font-size: 0.68rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--gray); }
+    .board-footer { margin-top: 1rem; text-align: center; font-size: 0.68rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--gray); }
   </style>
 </head>
 <body>
@@ -114,10 +118,12 @@
       const REFRESH_MS = 5 * 60 * 1000; // kiosk display — refresh every 5 minutes
 
       // Same category grouping as menu.html, kept in sync intentionally.
+      // column 0 is the middle of the board, column 1 the right-hand edge.
+      // Tasty Treats rides with Cold Drinks rather than under the coffee list.
       const CATEGORIES = [
-        { key: 'coffee',   title: 'Birdie Brews', icon: '☕', column: 0 },
-        { key: 'soda_tea', title: 'Cold Drinks',  icon: '🥤', column: 1 },
-        { key: 'food',     title: 'Tasty Treats', icon: '🍪', column: 1 },
+        { key: 'soda_tea', title: 'Cold Drinks',  icon: '🥤', column: 0 },
+        { key: 'food',     title: 'Tasty Treats', icon: '🍪', column: 0 },
+        { key: 'coffee',   title: 'Birdie Brews', icon: '☕', column: 1 },
       ];
 
       // Coffee is the coffee menu and nothing else, so it has to be matched
@@ -255,7 +261,8 @@
           });
 
           const specialsHtml = renderSpecials(specials);
-          // Render into fixed columns so Tasty Treats sits under Cold Drinks, not under Birdie Brews.
+          // Render into fixed columns so each category lands on the side it belongs to,
+          // rather than wherever the row counts happen to push it.
           const columns = [0, 1].map(col =>
             CATEGORIES.filter(c => c.column === col).map(c => renderList(c, groups[c.key])).join('')
           );
