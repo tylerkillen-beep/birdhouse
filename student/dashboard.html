@@ -120,6 +120,7 @@
     .recipe-card{background:var(--card);border:1px solid var(--border-dim);border-radius:12px;padding:1.1rem 1.25rem;margin-bottom:0.6rem}
     .recipe-card:hover{border-color:var(--border)}
     .visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+    [hidden]{display:none!important}
     /* Two per row so a long checklist stays scannable instead of wrapping ragged. */
     .check-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:0.6rem}
     @media (max-width:520px){ .check-grid{grid-template-columns:1fr} }
@@ -1100,7 +1101,9 @@
   // "+ Add" box, since staff genuinely add one now and then -- `extras` holds
   // those additions and, when editing, any legacy value the lists no longer
   // offer, so nothing gets silently dropped.
+  // (machineFlavor has no "+ Add" box -- the machine has the flavor pumps it has.)
   const RECIPE_CHECK_GROUPS = {
+    machineFlavor: { containerId: 'recipe-machine-flavor-options', seeds: MACHINE_FLAVOR_OPTIONS, field: r => r.coffee_machine_flavor, extras: [] },
     syrup:   { containerId: 'recipe-syrup-options',   inputId: 'recipe-syrup-other',   seeds: SYRUP_OPTIONS,   field: r => r.syrups,   extras: [] },
     topping: { containerId: 'recipe-topping-options', inputId: 'recipe-topping-other', seeds: TOPPING_OPTIONS, field: r => r.toppings, extras: [] },
   };
@@ -1201,6 +1204,18 @@
     if (!flavor) amountEl.value = PACKET_DEFAULT_AMOUNT;
   }
 
+  // The machine's flavor pumps are meaningless without a machine drink, so the
+  // whole checklist stays hidden until one is picked -- and clears when the
+  // drink is cleared, so a stray flavor can't be saved on its own.
+  function syncMachineFlavorState(checked) {
+    const drink = document.getElementById('recipe-machine').value;
+    document.getElementById('recipe-machine-flavor-wrap').hidden = !drink;
+    // Switching between drinks keeps whatever's already ticked; only clearing
+    // the drink wipes them.
+    const keep = checked ?? getCheckedValues('machineFlavor');
+    renderCheckGroup('machineFlavor', drink ? keep : []);
+  }
+
   // `checkedValues` can be any casing (it may come straight from saved
   // recipe text) -- matched against the canonically-cased options list by
   // normalized key so a legacy "cold foam" still checks "Cold Foam".
@@ -1291,7 +1306,9 @@
       const ingList = recipe.recipe_ingredients?.map(ri =>
         `<span style="font-size:0.78rem;background:rgba(255,255,255,0.04);border:1px solid var(--border-dim);border-radius:6px;padding:0.15rem 0.5rem;color:var(--light-gray)">${ri.amount} ${ri.unit || ri.inventory?.unit || ''} ${ri.inventory?.name || '?'}</span>`
       ).join(' ') || '<span style="color:var(--gray);font-size:0.78rem">No ingredients listed</span>';
-      const machine = [recipe.coffee_machine_selection, recipe.coffee_machine_flavor].filter(Boolean).join(' · ');
+      const machine = recipe.coffee_machine_selection
+        ? recipe.coffee_machine_selection + (recipe.coffee_machine_flavor ? ` (${recipe.coffee_machine_flavor})` : '')
+        : '';
       const buildBits = [recipe.cup_type ? `${recipe.cup_type} cup` : '', machine, recipe.beverage_pour].filter(Boolean);
       const tagBits = [
         recipe.packet ? `Packet: ${recipe.packet}` : '',
@@ -1391,7 +1408,6 @@
     // A saved value the curated list no longer offers stays selected rather
     // than silently reverting to "—" the first time someone opens the recipe.
     fillSelectOptions('recipe-machine', MACHINE_DRINK_OPTIONS, recipe?.coffee_machine_selection || '', '— None —');
-    fillSelectOptions('recipe-machine-flavor', MACHINE_FLAVOR_OPTIONS, recipe?.coffee_machine_flavor || '', '— None —');
     fillSelectOptions('recipe-pour', BEVERAGE_POUR_OPTIONS, recipe?.beverage_pour || '', '— None —');
 
     // Only one packet per drink now; older recipes could list several, so take
@@ -1422,8 +1438,11 @@
 
     // Show legacy values even if the curated/collected lists no longer offer
     // them (e.g. a topping nobody's picked in a while).
+    const editMachineFlavors = splitSavedList(recipe?.coffee_machine_flavor);
+    RECIPE_CHECK_GROUPS.machineFlavor.extras.push(...editMachineFlavors);
     RECIPE_CHECK_GROUPS.syrup.extras.push(...editSyrups);
     RECIPE_CHECK_GROUPS.topping.extras.push(...editToppings);
+    syncMachineFlavorState(editMachineFlavors);
     renderCheckGroup('syrup', editSyrups);
     renderCheckGroup('topping', editToppings);
     showRecipeModal();
@@ -1437,14 +1456,16 @@
     const name = allMenuItems.find(item => normalizeName(item.name) === normalizeName(typedName))?.name || typedName;
     const desc = document.getElementById('recipe-desc').value.trim() || null;
     if (!name) { msgEl.textContent = 'Recipe name is required.'; msgEl.className = 'msg error'; return; }
-    // No packet picked means no packet, so the amount alongside it is moot.
+    // No packet picked means no packet, so the amount alongside it is moot; same
+    // for machine flavors without a machine drink.
     const packetFlavor = document.getElementById('recipe-packet').value;
     const packetAmount = document.getElementById('recipe-packet-amount').value || PACKET_DEFAULT_AMOUNT;
+    const machineDrink = document.getElementById('recipe-machine').value;
     const buildSpec = {
       cup_type: document.getElementById('recipe-cup').value || null,
       ice_amount: document.getElementById('recipe-ice').value || null,
-      coffee_machine_selection: document.getElementById('recipe-machine').value || null,
-      coffee_machine_flavor: document.getElementById('recipe-machine-flavor').value || null,
+      coffee_machine_selection: machineDrink || null,
+      coffee_machine_flavor: machineDrink ? (getCheckedValues('machineFlavor').join(', ') || null) : null,
       packet: packetFlavor ? `${packetFlavor} (${packetAmount})` : null,
       beverage_pour: document.getElementById('recipe-pour').value || null,
       syrups: getCheckedSyrupEntries().join(', ') || null,
@@ -2524,9 +2545,11 @@
           <option value="">—</option><option value="None">None</option><option value="Half Filled">Half Filled</option><option value="Full">Full</option>
         </select></div>
       <div style="margin-bottom:1rem"><label for="recipe-machine" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Coffee Machine — Drink</label>
-        <select id="recipe-machine" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"></select></div>
-      <div style="margin-bottom:1rem"><label for="recipe-machine-flavor" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Coffee Machine — Flavor</label>
-        <select id="recipe-machine-flavor" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"></select></div>
+        <select id="recipe-machine" onchange="syncMachineFlavorState()" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"></select></div>
+      <div id="recipe-machine-flavor-wrap" style="margin-bottom:1rem" hidden>
+        <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Coffee Machine — Flavor(s) <span style="text-transform:none;letter-spacing:normal">(pick as many as apply)</span></div>
+        <div id="recipe-machine-flavor-options" class="check-grid"></div>
+      </div>
       <div style="margin-bottom:1rem"><label for="recipe-pour" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Beverage Pour</label>
         <select id="recipe-pour" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"></select></div>
       <div style="margin-bottom:1rem"><label for="recipe-packet" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Packet Flavor</label>
