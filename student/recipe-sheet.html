@@ -123,7 +123,7 @@
         <p class="page-desc">How to build every drink on the menu — cup, ice, machine selection, syrups, and toppings. Ask a manager to add or edit a recipe if one's missing.</p>
       </div>
     </div>
-    <p style="font-size:0.8rem;color:var(--gray);margin:-0.75rem 0 1.25rem">Unless a recipe says otherwise: use <strong style="color:var(--light-gray)">2 pumps</strong> of any flavor syrup, and <strong style="color:var(--light-gray)">half a packet</strong> of any packet flavor (Cherry Limeade, Ocean Water, etc.).</p>
+    <p style="font-size:0.8rem;color:var(--gray);margin:-0.75rem 0 1.25rem">Unless a recipe says otherwise, use <strong style="color:var(--light-gray)">2 pumps</strong> of any flavor syrup. Packet amounts are always spelled out.</p>
     <div class="search-row">
       <input class="search-input" id="recipe-search" type="search" placeholder="Search a drink…" oninput="renderSheet()" aria-label="Search recipes" />
     </div>
@@ -269,7 +269,7 @@
             <table class="sheet-table">
               <thead><tr>
                 <th>Drink</th><th>Cup</th><th>Ice</th><th>Coffee Machine Selection</th>
-                <th>Syrup(s)</th><th>Packet</th><th>Beverage Pour</th><th>Topping(s)</th>
+                <th>Syrup(s)</th><th>Packet</th><th>Beverage Pour</th><th>Boba</th><th>Topping(s)</th>
               </tr></thead>
               <tbody>${rows}</tbody>
             </table>
@@ -280,20 +280,34 @@
     container.innerHTML = html;
   }
 
+  const BOBA_NAMES = ['Strawberry', 'Raspberry', 'Mango', 'Dragonfruit', 'Kiwi'];
+  const isBobaValue = v => /boba/i.test(v) || BOBA_NAMES.some(o => o.toLowerCase() === String(v).trim().toLowerCase());
+  const splitList = raw => String(raw || '').split(',').map(s => s.trim()).filter(Boolean);
+  const cell = v => v ? escHtml(v) : '<span class="cell-muted">—</span>';
+
   function renderRow(recipe) {
-    const ingredients = (recipe.recipe_ingredients || [])
-      .map(ri => `${escHtml(ri.inventory?.name || '?')}${ri.amount ? ` (${ri.amount}${ri.unit ? ' ' + escHtml(ri.unit) : ''})` : ''}`)
+    // Syrups live on the recipe row now. Recipes saved before that still only
+    // have their old inventory ingredient rows, so fall back to those rather
+    // than showing a blank column.
+    const syrups = recipe.syrups || (recipe.recipe_ingredients || [])
+      .map(ri => `${ri.inventory?.name || '?'}${ri.amount ? ` (${ri.amount}${ri.unit ? ' ' + ri.unit : ''})` : ''}`)
       .join(', ');
+    // Same for boba, which used to share the toppings column.
+    const savedToppings = splitList(recipe.toppings);
+    const boba = recipe.boba || savedToppings.find(isBobaValue) || '';
+    const toppings = savedToppings.filter(v => !isBobaValue(v)).join(', ');
     const iceFilled = recipe.ice_amount && recipe.ice_amount.toLowerCase() !== 'none';
+    const machine = [recipe.coffee_machine_selection, recipe.coffee_machine_flavor].filter(Boolean).join(' · ');
     return `<tr>
       <td class="drink-name-cell">${escHtml(recipe.name)}</td>
-      <td>${recipe.cup_type ? escHtml(recipe.cup_type) : '<span class="cell-muted">—</span>'}</td>
+      <td>${cell(recipe.cup_type)}</td>
       <td>${recipe.ice_amount ? `<span class="ice-pill${iceFilled ? ' filled' : ''}">${escHtml(recipe.ice_amount)}</span>` : '<span class="cell-muted">—</span>'}</td>
-      <td>${recipe.coffee_machine_selection ? escHtml(recipe.coffee_machine_selection) : '<span class="cell-muted">—</span>'}</td>
-      <td>${ingredients || '<span class="cell-muted">—</span>'}</td>
-      <td>${recipe.packet ? escHtml(recipe.packet) : '<span class="cell-muted">—</span>'}</td>
-      <td>${recipe.beverage_pour ? escHtml(recipe.beverage_pour) : '<span class="cell-muted">—</span>'}</td>
-      <td>${recipe.toppings ? escHtml(recipe.toppings) : '<span class="cell-muted">—</span>'}</td>
+      <td>${cell(machine)}</td>
+      <td>${cell(syrups)}</td>
+      <td>${cell(recipe.packet)}</td>
+      <td>${cell(recipe.beverage_pour)}</td>
+      <td>${cell(boba)}</td>
+      <td>${cell(toppings)}</td>
     </tr>`;
   }
 
