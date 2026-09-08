@@ -847,7 +847,7 @@
       <div class="stat-card"><div class="stat-label">Active</div><div class="stat-value accent" id="sub-stat-active">—</div></div>
       <div class="stat-card"><div class="stat-label">Paused</div><div class="stat-value" id="sub-stat-paused">—</div></div>
       <div class="stat-card"><div class="stat-label">Cancelled</div><div class="stat-value" id="sub-stat-cancelled">—</div></div>
-      <div class="stat-card"><div class="stat-label">MRR</div><div class="stat-value accent" id="sub-stat-mrr">—</div></div>
+      <div class="stat-card"><div class="stat-label">Weekly Revenue</div><div class="stat-value accent" id="sub-stat-wrr">—</div></div>
     </div>
     <div class="filter-bar">
       <input class="filter-input" id="sub-search" placeholder="Search by name or email…" oninput="filterSubscriptions()" style="flex:1;min-width:200px" aria-label="Search subscriptions by name or email" />
@@ -1487,7 +1487,7 @@
         <input class="form-input" id="plan-name" placeholder="e.g. Daily Brew" />
       </div>
       <div class="form-group">
-        <label class="form-label" for="plan-price">Price per Month ($)</label>
+        <label class="form-label" for="plan-price">Price per Week ($)</label>
         <input class="form-input" id="plan-price" type="number" step="0.01" placeholder="0.00" />
       </div>
       <div class="form-group">
@@ -2696,12 +2696,12 @@ async function loadSubscriptions() {
   const active    = allSubscriptions.filter(s => s.status === 'active').length;
   const paused    = allSubscriptions.filter(s => s.status === 'paused').length;
   const cancelled = allSubscriptions.filter(s => s.status === 'cancelled').length;
-  const mrr = allSubscriptions.filter(s => s.status === 'active').reduce((sum, s) => sum + (s.subscription_plans?.price_cents || 0), 0);
+  const wrr = allSubscriptions.filter(s => s.status === 'active').reduce((sum, s) => sum + (s.subscription_plans?.price_cents || 0), 0);
 
   document.getElementById('sub-stat-active').textContent    = active;
   document.getElementById('sub-stat-paused').textContent    = paused;
   document.getElementById('sub-stat-cancelled').textContent = cancelled;
-  document.getElementById('sub-stat-mrr').textContent       = '$' + (mrr / 100).toFixed(2);
+  document.getElementById('sub-stat-wrr').textContent       = '$' + (wrr / 100).toFixed(2);
 
   const planFilter = document.getElementById('sub-plan-filter');
   const planNames = [...new Set(allSubscriptions.map(s => s.subscription_plans?.name).filter(Boolean))];
@@ -2872,7 +2872,7 @@ function renderPlanCards(plans, countByPlan) {
       <div class="plan-card-header">
         <div>
           <div class="plan-card-name">${p.name}</div>
-          <div class="plan-card-price">$${(p.price_cents/100).toFixed(2)}<span> / month</span></div>
+          <div class="plan-card-price">$${(p.price_cents/100).toFixed(2)}<span> / week</span></div>
         </div>
         ${p.active ? '<span class="pill pill-green">Active</span>' : '<span class="pill pill-gray">Inactive</span>'}
       </div>
