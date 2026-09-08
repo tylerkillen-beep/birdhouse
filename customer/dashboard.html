@@ -443,6 +443,16 @@
     }
   }
 
+  /** What this subscriber is actually billed each week. The plan price is the
+   *  list price; a teacher's discount_pct comes off it, and save-card and
+   *  charge-subscriptions both charge the discounted figure — so showing the
+   *  list price here would contradict their card statement. */
+  function weeklyPriceLabel(sub) {
+    const listCents = sub?.subscription_plans?.price_cents || 0;
+    const pct = Math.min(100, Math.max(0, sub?.discount_pct || 0));
+    return '$' + (Math.round(listCents * (1 - pct / 100)) / 100).toFixed(2);
+  }
+
   function renderSubWidget(sub) {
     const el = document.getElementById('overview-sub-widget');
     if (!sub || sub.status === 'cancelled') {
@@ -477,7 +487,7 @@
       <div class="sub-overview-header">
         <div>
           <div class="sub-overview-plan">${plan?.name || '—'}</div>
-          <div class="sub-overview-price">$${((plan?.price_cents||0)/100).toFixed(2)}/week</div>
+          <div class="sub-overview-price">${weeklyPriceLabel(sub)}/week</div>
         </div>
         <span class="sub-status-badge ${badgeClass}">${badgeLabel}</span>
       </div>
@@ -531,7 +541,7 @@
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.25rem">
           <div>
             <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:0.05em">${plan?.name || '—'}</div>
-            <div style="font-size:0.85rem;color:var(--light-gray)">$${((plan?.price_cents||0)/100).toFixed(2)}/week · Renews ${renewal}</div>
+            <div style="font-size:0.85rem;color:var(--light-gray)">${weeklyPriceLabel(sub)}/week · Renews ${renewal}</div>
           </div>
           <span class="sub-status-badge ${badgeClass}">${badgeLabel}</span>
         </div>
