@@ -455,7 +455,7 @@
   let applyLoyaltyCredit = false; // whether the credit checkbox is checked
   let selectedDeliveryMethod = 'delivery'; // 'delivery' | 'pickup' — students only
 
-  const EMPLOYEE_DISCOUNT = 0.50; // 50% off for approved staff-hub accounts
+  const EMPLOYEE_DISCOUNT = 0.25; // 25% off for approved staff-hub accounts
   const TEACHER_DISCOUNT  = 0.25; // 25% off for teachers
 
   function getCustomerType(email, profile) {
@@ -482,7 +482,7 @@
   }
 
   function discountLabel() {
-    if (hasEmployeeDiscount()) return '💼 Employee Discount (50%)';
+    if (hasEmployeeDiscount()) return '💼 Employee Discount (25%)';
     if (customerType === 'teacher') return '🍎 Teacher Discount (25%)';
     return '';
   }
