@@ -244,7 +244,7 @@ serve(async (req) => {
       const slotRows = drinkSlots.map((s: Record<string, unknown>) => ({
         subscription_id: subscriptionId,
         slot_number: s.slotNumber,
-        menu_item_id: s.drinkItemId,
+        drink_item_id: s.drinkItemId,
         drink_modifiers: s.drinkModifiers ?? [],
         delivery_day: s.deliveryDay,
         delivery_time: s.deliveryTime,

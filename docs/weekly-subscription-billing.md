@@ -102,7 +102,7 @@ not in version control. The code assumes these column names:
 | Table | Columns it writes |
 |---|---|
 | `subscriptions` | `user_id`, `plan_id`, `status`, `discount_pct`, `billing_interval`, `square_customer_id`, `square_card_id`, `next_billing_date`, `renewal_date`, `last_charged_at`, `failed_charge_count` |
-| `subscription_drink_slots` | `subscription_id`, `slot_number`, `menu_item_id`, `drink_modifiers`, `delivery_day`, `delivery_time`, `delivery_location` |
+| `subscription_drink_slots` | `subscription_id`, `slot_number`, `drink_item_id`, `drink_modifiers`, `delivery_day`, `delivery_time`, `delivery_location` |
 | `subscription_events` | `subscription_id`, `event_type`, `amount_cents`, `note` |
 
 Check with:
@@ -115,10 +115,10 @@ where table_schema = 'public'
 order by table_name, ordinal_position;
 ```
 
-`menu_item_id` on `subscription_drink_slots` is the likeliest mismatch — the
-customer dashboard reads it through a `menu_items(name)` join, which does not
-reveal the column name. If yours differs, fix it in
-`supabase/functions/save-card/index.ts`.
+Verified against the live database on 2026-09-08. Note that the drink column is
+`drink_item_id`, not `menu_item_id` — the customer dashboard reads it through a
+`menu_items(name)` join, which hides the real column name, so it is easy to
+guess wrong. If these ever drift, `save-card` is what needs updating.
 
 ### Step 4 — Set the secrets
 
