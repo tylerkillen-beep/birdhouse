@@ -170,6 +170,12 @@
 
     .lead-note { background:rgba(204,0,0,0.07); border:1px solid var(--border); border-radius:10px; padding:0.9rem 1.1rem; font-size:0.8rem; color:var(--light-gray); line-height:1.55; margin-bottom:1.5rem; }
     .lead-note strong { color:var(--white); }
+    .lead-note ul { margin:0.45rem 0 0 1.1rem; padding:0; }
+    .lead-note li { margin-bottom:0.2rem; }
+    .rules-note { max-width:72ch; }
+    .rules-note + .rules-note { margin-top:-0.65rem; }
+    .pay-terms { font-size:0.72rem; color:var(--gray); line-height:1.5; margin-top:0.9rem; }
+    .pay-terms strong { color:var(--light-gray); }
 
     .pay-layout { display:grid; grid-template-columns:1fr 1fr; gap:2rem; align-items:start; }
     .order-summary-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:1.75rem; }
@@ -247,6 +253,22 @@
       Using the same image in every spot costs nothing extra, and if you want several
       of the same sheet just set <strong>Sheet Copies</strong> instead of rebuilding it.
     </p>
+
+    <div class="lead-note rules-note">
+      <strong>Keep it school appropriate.</strong>
+      Our team reviews every sheet before it prints. If you upload an obscene or profane image:
+      <ul>
+        <li>your payment will <strong>not</strong> be refunded, and</li>
+        <li>you will be written up for the behavior.</li>
+      </ul>
+    </div>
+
+    <div class="lead-note rules-note">
+      <strong>Stickers stay off school property.</strong>
+      By making this purchase you agree not to place your stickers on school property &mdash;
+      lockers, walls, doors, desks, bathrooms, buses, or anything else the school owns.
+      Stickers found on school property can lead to disciplinary action.
+    </div>
 
     <ol class="steps" aria-label="Sticker sheet steps">
       <li class="step active" id="step-ind-1" aria-current="step"><div class="step-num" aria-hidden="true">1</div> Design</li>
@@ -393,6 +415,11 @@
           <button class="btn-primary btn-full" id="pay-btn" onclick="submitPayment()" disabled>
             💳 Pay <span id="pay-btn-amount">$0.00</span>
           </button>
+          <p class="pay-terms">
+            By paying you confirm your images are school appropriate and you agree not to place your
+            stickers on school property. <strong>Obscene or profane images are not refunded and are
+            written up</strong>, and stickers placed on school property can lead to disciplinary action.
+          </p>
         </div>
       </div>
       <div class="btn-row">
