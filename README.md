@@ -69,6 +69,14 @@ In Supabase → **Authentication → URL Configuration**:
 
 ---
 
+## Subscription Billing
+
+- Subscriptions bill **weekly**, not monthly.
+- Recurring charges run daily via the `charge-subscriptions` edge function and bill each subscriber every seventh day.
+- See `docs/weekly-subscription-billing.md` for how it works, how to turn it on, and the runbook for failed charges.
+
+---
+
 ## User Roles
 
 | Role | Can Do |

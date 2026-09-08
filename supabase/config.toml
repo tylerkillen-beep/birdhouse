@@ -48,6 +48,15 @@ verify_jwt = false
 [functions.request-receipt]
 verify_jwt = true
 
+# Called by a signed-in student from subscribe.html.
+[functions.save-card]
+verify_jwt = true
+
+# Called by pg_cron via pg_net, which carries no user JWT. The CRON_SECRET
+# header is the gate instead — the function refuses to run without it.
+[functions.charge-subscriptions]
+verify_jwt = false
+
 [analytics]
 enabled = false
 port = 54327

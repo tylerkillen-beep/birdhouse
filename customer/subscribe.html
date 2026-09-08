@@ -425,13 +425,13 @@
         <div class="card-form-wrap">
           <div class="card-form-title">Save Your Card</div>
           <div class="billing-notice" id="billing-notice">
-            <span aria-hidden="true">⚠️</span> Your card will be saved securely and charged <strong id="billing-amount"></strong> on the same date each month. You can cancel anytime from your dashboard.
+            <span aria-hidden="true">⚠️</span> Your card will be saved securely and charged <strong id="billing-amount"></strong> on the same day each week. You can cancel anytime from your dashboard.
           </div>
           <p class="card-form-sub">Card details are handled entirely by Square — we never see your card number.</p>
           <div id="pay-error" class="pay-error" role="alert" aria-live="polite" aria-atomic="true"></div>
           <div id="card-container"><div class="card-loading">Loading payment form...</div></div>
           <button class="btn-primary btn-full" id="subscribe-btn" onclick="submitSubscription()" disabled aria-describedby="billing-notice">
-            <span aria-hidden="true">🔒</span> Start Subscription — <span id="subscribe-btn-amount"></span>/mo
+            <span aria-hidden="true">🔒</span> Start Subscription — <span id="subscribe-btn-amount"></span>/wk
           </button>
         </div>
       </div>
@@ -686,7 +686,7 @@
       return `<button type="button" class="plan-card${isFeatured ? ' featured' : ''}" id="plan-card-${p.id}" onclick="selectPlan('${p.id}')" aria-pressed="false">
         ${isFeatured ? '<div class="plan-badge">Most Popular</div>' : ''}
         <div class="plan-name">${p.name}</div>
-        <div class="plan-price">${priceDisplay}<span>/month</span></div>
+        <div class="plan-price">${priceDisplay}<span>/week</span></div>
         <div class="plan-desc">${p.description || ''}</div>
         <ul class="plan-features">
           <li>${drinksLabel}</li>
@@ -992,8 +992,8 @@
       : price;
     const billingLine = customerType === 'teacher'
       ? `<div class="summary-line"><span class="summary-key" style="color:#f5c842"><span aria-hidden="true">🍎</span> Teacher Discount (25%)</span><span class="summary-val" style="color:#f5c842">−$${(parseFloat(price) - parseFloat(finalPrice)).toFixed(2)}</span></div>
-         <div class="summary-line"><span class="summary-key">Billed monthly</span><span class="summary-val">$${finalPrice}/mo</span></div>`
-      : `<div class="summary-line"><span class="summary-key">Billed monthly</span><span class="summary-val">$${price}/mo</span></div>`;
+         <div class="summary-line"><span class="summary-key">Billed weekly</span><span class="summary-val">$${finalPrice}/wk</span></div>`
+      : `<div class="summary-line"><span class="summary-key">Billed weekly</span><span class="summary-val">$${price}/wk</span></div>`;
 
     lines += billingLine;
 
@@ -1106,7 +1106,7 @@ const res = await fetch(`${SUPABASE_URL}/functions/v1/save-card`, {
       const resetPrice = customerType === 'teacher'
         ? (discountedCents(selectedPlan.price_cents)/100).toFixed(2)
         : (selectedPlan.price_cents/100).toFixed(2);
-      btn.innerHTML = `<span aria-hidden="true">🔒</span> Start Subscription — <span id="subscribe-btn-amount">$${resetPrice}</span>/mo`;
+      btn.innerHTML = `<span aria-hidden="true">🔒</span> Start Subscription — <span id="subscribe-btn-amount">$${resetPrice}</span>/wk`;
     }
   }
 
