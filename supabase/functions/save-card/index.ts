@@ -159,10 +159,7 @@ serve(async (req) => {
     const isNewSubscription = !existingSub;
     const previousStatus = existingSub?.status ?? null;
 
-    let squareCustomerId: string;
-    if (existingSub?.square_customer_id) {
-      squareCustomerId = existingSub.square_customer_id;
-    } else {
+    const createSquareCustomer = async (): Promise<string> => {
       const customerRes = await fetch(`${SQ}/customers`, {
         method: "POST",
         headers: sqHeaders,
@@ -178,21 +175,47 @@ serve(async (req) => {
       if (customerData.errors?.length) {
         throw new Error("Failed to create Square customer: " + customerData.errors[0].detail);
       }
-      squareCustomerId = customerData.customer.id;
-    }
+      return customerData.customer.id;
+    };
+
+    const createCardOnFile = async (customerId: string) => {
+      const cardRes = await fetch(`${SQ}/cards`, {
+        method: "POST",
+        headers: sqHeaders,
+        body: JSON.stringify({
+          idempotency_key: crypto.randomUUID(),
+          source_id: sourceId,
+          card: { customer_id: customerId },
+        }),
+      });
+      return await cardRes.json();
+    };
+
+    /** Square customer ids belong to the environment that issued them, so an id
+     *  saved while this function pointed at sandbox is meaningless in
+     *  production. Square answers NOT_FOUND rather than anything more specific,
+     *  so that is what we key off. */
+    const customerMissing = (errors: Array<Record<string, string>> | undefined) =>
+      !!errors?.some(
+        (e) => e.code === "NOT_FOUND" || /customer with id .* not found/i.test(e.detail || "")
+      );
 
     // ── 2. Save card to Square customer ───────────────────────────────────
-    const cardRes = await fetch(`${SQ}/cards`, {
-      method: "POST",
-      headers: sqHeaders,
-      body: JSON.stringify({
-        idempotency_key: crypto.randomUUID(),
-        source_id: sourceId,
-        card: { customer_id: squareCustomerId },
-      }),
-    });
+    let squareCustomerId: string = existingSub?.square_customer_id || (await createSquareCustomer());
+    let cardData = await createCardOnFile(squareCustomerId);
 
-    const cardData = await cardRes.json();
+    if (cardData.errors?.length && existingSub?.square_customer_id && customerMissing(cardData.errors)) {
+      // The stored id is stale — most likely left over from a sandbox signup.
+      // Issue a fresh customer in the current environment and try once more.
+      // The card token is untouched by a failed CreateCard, so it is still good.
+      console.warn("Stored Square customer not found in this environment; recreating.", {
+        userId,
+        staleCustomerId: existingSub.square_customer_id,
+      });
+      squareCustomerId = await createSquareCustomer();
+      cardData = await createCardOnFile(squareCustomerId);
+    }
+
     if (cardData.errors?.length) {
       throw new Error("Failed to save card: " + cardData.errors[0].detail);
     }
