@@ -2730,7 +2730,7 @@ function renderSubscriptions(list) {
   tbody.innerHTML = list.map(s => {
     const name  = s.students ? `${s.students.first_name} ${s.students.last_name}` : '—';
     const email = s.students?.email || '—';
-    const nextBilling = s.next_billing_date ? new Date(s.next_billing_date).toLocaleDateString() : '—';
+    const nextBilling = s.next_billing_date ? new Date(s.next_billing_date + 'T12:00:00').toLocaleDateString() : '—';
     const started     = s.created_at ? new Date(s.created_at).toLocaleDateString() : '—';
     return `<tr>
       <td>

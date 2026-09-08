@@ -72,7 +72,8 @@ In Supabase → **Authentication → URL Configuration**:
 ## Subscription Billing
 
 - Subscriptions bill **weekly**, not monthly.
-- See `docs/weekly-billing-migration.md` for what changed in this repo and what still has to be applied to the `save-card` edge function and to Square before weekly billing is actually live.
+- Recurring charges run daily via the `charge-subscriptions` edge function and bill each subscriber every seventh day.
+- See `docs/weekly-subscription-billing.md` for how it works, how to turn it on, and the runbook for failed charges.
 
 ---
 

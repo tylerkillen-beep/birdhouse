@@ -455,7 +455,7 @@
 
     const plan    = sub.subscription_plans;
     const slots   = sub.subscription_drink_slots || [];
-    const renewal = new Date(sub.renewal_date).toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
+    const renewal = new Date((sub.next_billing_date || sub.renewal_date) + 'T12:00:00').toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
     const badgeClass = {
       active: 'badge-active', paused: 'badge-paused',
       payment_failed: 'badge-failed', cancelled: 'badge-cancelled'
@@ -507,7 +507,7 @@
 
     const plan    = sub.subscription_plans;
     const slots   = sub.subscription_drink_slots || [];
-    const renewal = new Date(sub.renewal_date).toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+    const renewal = new Date((sub.next_billing_date || sub.renewal_date) + 'T12:00:00').toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
     const badgeClass = {
       active:'badge-active', paused:'badge-paused',
       payment_failed:'badge-failed', cancelled:'badge-cancelled'
