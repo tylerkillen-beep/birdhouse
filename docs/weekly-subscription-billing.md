@@ -289,6 +289,54 @@ select cron.unschedule('charge-subscriptions-daily');
 
 ---
 
+## End of the school year — cancel everything in May
+
+**Subscriptions do not carry over the summer.** Cancel them all when the shop
+closes in May; students set them up fresh in the fall.
+
+This is deliberate. Summer is not on the closure calendar, so an active
+subscription would bill every week from May to August for drinks nobody
+delivers. It is also the honest default for a school: seniors graduate, cards
+expire, room numbers change, and a year-old card quietly reactivating in
+September is not something a family agreed to.
+
+Run this on the last day of school. It cancels every live subscription and
+records why, in one transaction:
+
+```sql
+with stopped as (
+  update public.subscriptions
+     set status = 'cancelled'
+   where status in ('active', 'paused', 'payment_failed')
+  returning id
+)
+insert into public.subscription_events (subscription_id, event_type, note)
+select id, 'cancelled', 'End of school year — cancelled for summer'
+from stopped;
+```
+
+Confirm nothing is left running:
+
+```sql
+select status, count(*) from public.subscriptions group by status;
+```
+
+Nothing should be `active`, `paused`, or `payment_failed`. As a belt-and-braces
+check, a dry run should report `"due": 0` every day thereafter.
+
+The subscription rows themselves stay — `subscriptions.user_id` is unique, so a
+returning student's signup reuses their existing row and its billing history
+rather than starting a second one. Their old card stays on file at Square and is
+harmless; `save-card` stores a fresh one when they re-enroll.
+
+If you would rather not rely on remembering, the alternative is to block the
+summer weekdays in **Admin → Closed Days** as a single range. Billing then stops
+on its own — but `MAX_SKIPPED_WEEKS` in `charge-subscriptions` must be raised
+from 10 to about 20 first, because roughly thirteen weeks of summer exceeds the
+current cap.
+
+---
+
 ## Known gaps
 
 - **Nobody is emailed when a card fails.** The student only finds out by opening
