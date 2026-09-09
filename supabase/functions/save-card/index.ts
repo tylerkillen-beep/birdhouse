@@ -1,22 +1,28 @@
 // Supabase Edge Function: save-card
-// Starts a weekly drink subscription for a student or teacher.
+// Deploy: supabase functions deploy save-card --no-verify-jwt
 //
-// Required Supabase secrets (set via: supabase secrets set KEY=value):
+// Called at subscription signup. Creates a Square customer + saves a card on
+// file, writes the subscription and drink slots, and charges the first week.
+//
+// Required Supabase secrets:
 //   SQUARE_ACCESS_TOKEN  — access token from Square Developer Dashboard (matches environment)
 //   SQUARE_LOCATION_ID   — your Square location ID (matches environment)
 //   SQUARE_ENV           — "production" (default) or "sandbox"
 //
-// Why this function exists at all: the token subscribe.html gets back from the
-// Square Web Payments SDK is single-use and expires within minutes. It cannot
-// be charged again next week. So the token is exchanged here, once, for a
-// Square customer and a card on file, and it is those two ids — not the token —
-// that charge-subscriptions bills every week afterwards.
+// Why a card on file: the token subscribe.html gets from the Square Web
+// Payments SDK is single-use and expires within minutes, so it cannot be
+// charged again next week. It is exchanged here, once, for a Square customer
+// and a stored card, and it is those two ids that charge-subscriptions bills
+// every seventh day afterwards.
 //
-// This function charges the first week immediately. That is deliberate: it
-// proves the card works before a student is enrolled, and it matches what
-// "Start Subscription — $12/wk" implies at the moment they click it. Set
-// CHARGE_FIRST_WEEK_IMMEDIATELY to false to enroll on a free first week
-// instead, in which case the first charge lands seven days later.
+// This charges the first week immediately, which proves the card works before
+// a student is enrolled and matches what "Start Subscription — $12/wk" implies
+// at the moment they click. Set CHARGE_FIRST_WEEK_IMMEDIATELY to false to
+// enroll on a free first week instead.
+//
+// Note that subscriptions.user_id is UNIQUE: a student has one subscription row
+// for life, reused when they resubscribe. Nothing here may delete that row once
+// it has history, because subscription_charges cascades from it.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -72,12 +78,6 @@ function fail(message: string, status = 400) {
   });
 }
 
-function getBearerToken(req: Request) {
-  const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) return null;
-  return authHeader.slice(7).trim();
-}
-
 /** Square caps idempotency keys at 45 characters, so the uuid loses its dashes.
  *  The same subscription and billing date always produce the same key, which is
  *  what makes a retry safe: Square returns the original payment instead of
@@ -92,8 +92,7 @@ function amountForPlan(priceCents: number, discountPct: number) {
   return Math.round(priceCents * (1 - pct / 100));
 }
 
-/** A Square error we received and understood: the charge definitively did not
- *  happen, so rolling the signup back is safe. Deliberately distinct from a
+/** A failure we understood, where no money moved. Deliberately distinct from a
  *  network failure, where the charge may well have gone through. */
 class SignupFailed extends Error {}
 
@@ -101,164 +100,214 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
   try {
-    const { sourceId, userId, planId, discountPct, customerInfo, drinkSlots } = await req.json();
-
-    if (!sourceId) return fail("Missing card details");
-    if (!planId) return fail("Missing plan");
-    if (!Array.isArray(drinkSlots) || drinkSlots.length === 0) {
-      return fail("Pick at least one drink");
+    // ── Manual JWT verification ───────────────────────────────────────────
+    // This function deploys with --no-verify-jwt, so the token is checked here.
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return fail("Missing or invalid authorization header", 401);
     }
+    const userToken = authHeader.replace("Bearer ", "");
 
-    // ── Validate auth ──────────────────────────────────────────────────────
-    const accessToken = getBearerToken(req);
-    if (!accessToken) return fail("Authentication required", 401);
+    const supabaseUser = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: `Bearer ${userToken}` } } }
+    );
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabaseUser.auth.getUser();
+
+    if (authError || !user) {
+      console.error("Auth error:", authError);
+      return fail("Unauthorized — invalid session", 401);
+    }
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser(accessToken);
+    const { sourceId, planId, discountPct, customerInfo, drinkSlots } = await req.json();
 
-    if (authError || !user) return fail("Authentication required", 401);
-    // The client sends userId, but the token is the only thing we trust.
-    if (userId && userId !== user.id) return fail("Authentication required", 401);
+    const userId = user.id;
+    if (!sourceId) throw new Error("Missing payment token");
+    if (!planId) throw new Error("Missing plan");
+    if (!drinkSlots?.length) throw new Error("At least one drink slot is required");
+    if (!customerInfo?.email) throw new Error("Customer email is required");
 
     const squareToken = Deno.env.get("SQUARE_ACCESS_TOKEN");
     const locationId = Deno.env.get("SQUARE_LOCATION_ID");
-    if (!squareToken || !locationId) {
-      return fail("Square credentials not configured — contact admin", 500);
-    }
-    const squareBaseUrl = getSquareBaseUrl();
+    if (!squareToken || !locationId) throw new Error("Square credentials not configured");
 
-    // ── One live subscription per person ───────────────────────────────────
-    const { data: existing } = await supabase
-      .from("subscriptions")
-      .select("id, status")
-      .eq("user_id", user.id)
-      .in("status", ["active", "paused"])
-      .maybeSingle();
-
-    if (existing) {
-      return fail(
-        "You already have a subscription. Manage it from your dashboard instead of starting a new one."
-      );
-    }
-
-    // ── Load the plan; the price comes from the database, never the client ──
-    const { data: plan, error: planError } = await supabase
-      .from("subscription_plans")
-      .select("id, name, price_cents, active")
-      .eq("id", planId)
-      .single();
-
-    if (planError || !plan) return fail("That plan is no longer available");
-    if (!plan.active) return fail("That plan is no longer available");
-
-    const discount = Number(discountPct) || 0;
-    const amountCents = amountForPlan(plan.price_cents, discount);
-
-    const squareHeaders = {
+    const SQ = `${getSquareBaseUrl()}/v2`;
+    const sqHeaders = {
       "Square-Version": SQUARE_VERSION,
       "Authorization": `Bearer ${squareToken}`,
       "Content-Type": "application/json",
     };
 
-    // ── Square: customer, then card on file ────────────────────────────────
-    const customerRes = await fetch(`${squareBaseUrl}/v2/customers`, {
-      method: "POST",
-      headers: squareHeaders,
-      body: JSON.stringify({
-        idempotency_key: crypto.randomUUID(),
-        given_name: customerInfo?.firstName || "",
-        family_name: customerInfo?.lastName || "",
-        email_address: customerInfo?.email || user.email || "",
-        reference_id: user.id,
-        note: "Birdhouse subscription",
-      }),
-    });
-
-    const customerData = await customerRes.json();
-    if (!customerRes.ok || customerData.errors?.length) {
-      console.error("Square create customer failed:", customerData.errors);
-      return fail(
-        customerData.errors?.[0]?.detail ?? "Could not set up billing. Please try again."
-      );
-    }
-    const squareCustomerId = customerData.customer.id;
-
-    const cardRes = await fetch(`${squareBaseUrl}/v2/cards`, {
-      method: "POST",
-      headers: squareHeaders,
-      body: JSON.stringify({
-        idempotency_key: crypto.randomUUID(),
-        source_id: sourceId,
-        card: {
-          customer_id: squareCustomerId,
-          cardholder_name: `${customerInfo?.firstName || ""} ${customerInfo?.lastName || ""}`.trim(),
-        },
-      }),
-    });
-
-    const cardData = await cardRes.json();
-    if (!cardRes.ok || cardData.errors?.length) {
-      console.error("Square create card failed:", cardData.errors);
-      return fail(
-        cardData.errors?.[0]?.detail ??
-          "That card could not be saved. Please check the details and try again."
-      );
-    }
-    const squareCardId = cardData.card.id;
-
-    // ── Create the subscription ────────────────────────────────────────────
-    const firstBillingDate = localToday();
-
-    const { data: subscription, error: subError } = await supabase
+    // ── 1. Reuse this student's Square customer if they have one ──────────
+    // subscriptions.user_id is unique, so there is at most one row to find.
+    const { data: existingSub } = await supabase
       .from("subscriptions")
-      .insert({
-        user_id: user.id,
-        plan_id: plan.id,
-        status: "active",
-        billing_interval: "week",
-        discount_pct: discount,
-        square_customer_id: squareCustomerId,
-        square_card_id: squareCardId,
-        // Provisional. This only moves forward once the first charge clears.
-        next_billing_date: firstBillingDate,
-        renewal_date: firstBillingDate,
-      })
-      .select("id")
+      .select("id, status, square_customer_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    const isNewSubscription = !existingSub;
+    const previousStatus = existingSub?.status ?? null;
+
+    const createSquareCustomer = async (): Promise<string> => {
+      const customerRes = await fetch(`${SQ}/customers`, {
+        method: "POST",
+        headers: sqHeaders,
+        body: JSON.stringify({
+          idempotency_key: crypto.randomUUID(),
+          given_name: customerInfo.firstName,
+          family_name: customerInfo.lastName,
+          email_address: customerInfo.email,
+          reference_id: userId,
+        }),
+      });
+      const customerData = await customerRes.json();
+      if (customerData.errors?.length) {
+        throw new Error("Failed to create Square customer: " + customerData.errors[0].detail);
+      }
+      return customerData.customer.id;
+    };
+
+    const createCardOnFile = async (customerId: string) => {
+      const cardRes = await fetch(`${SQ}/cards`, {
+        method: "POST",
+        headers: sqHeaders,
+        body: JSON.stringify({
+          idempotency_key: crypto.randomUUID(),
+          source_id: sourceId,
+          card: { customer_id: customerId },
+        }),
+      });
+      return await cardRes.json();
+    };
+
+    /** Square customer ids belong to the environment that issued them, so an id
+     *  saved while this function pointed at sandbox is meaningless in
+     *  production. Square answers NOT_FOUND rather than anything more specific,
+     *  so that is what we key off. */
+    const customerMissing = (errors: Array<Record<string, string>> | undefined) =>
+      !!errors?.some(
+        (e) => e.code === "NOT_FOUND" || /customer with id .* not found/i.test(e.detail || "")
+      );
+
+    // ── 2. Save card to Square customer ───────────────────────────────────
+    let squareCustomerId: string = existingSub?.square_customer_id || (await createSquareCustomer());
+    let cardData = await createCardOnFile(squareCustomerId);
+
+    if (cardData.errors?.length && existingSub?.square_customer_id && customerMissing(cardData.errors)) {
+      // The stored id is stale — most likely left over from a sandbox signup.
+      // Issue a fresh customer in the current environment and try once more.
+      // The card token is untouched by a failed CreateCard, so it is still good.
+      console.warn("Stored Square customer not found in this environment; recreating.", {
+        userId,
+        staleCustomerId: existingSub.square_customer_id,
+      });
+      squareCustomerId = await createSquareCustomer();
+      cardData = await createCardOnFile(squareCustomerId);
+    }
+
+    if (cardData.errors?.length) {
+      throw new Error("Failed to save card: " + cardData.errors[0].detail);
+    }
+    const squareCardId: string = cardData.card.id;
+
+    // ── 3. Fetch the plan; the price comes from the database, never the client
+    const { data: plan, error: planError } = await supabase
+      .from("subscription_plans")
+      .select("*")
+      .eq("id", planId)
       .single();
 
-    if (subError || !subscription) {
-      console.error("Subscription insert failed:", subError);
-      return fail("Could not start your subscription. Please try again.");
-    }
+    if (planError || !plan) throw new Error("Invalid plan");
+    if (!plan.active) throw new Error("That plan is no longer available");
+
+    const resolvedDiscountPct = Number(discountPct) || 0;
+    const amountCents = amountForPlan(plan.price_cents, resolvedDiscountPct);
+
+    const firstBillingDate = localToday();
+
+    // ── 4. Upsert subscription record ─────────────────────────────────────
+    // next_billing_date is provisional; it only moves forward once the first
+    // charge clears.
+    const { data: subscription, error: subError } = await supabase
+      .from("subscriptions")
+      .upsert(
+        {
+          user_id: userId,
+          plan_id: planId,
+          status: "active",
+          billing_interval: "week",
+          square_customer_id: squareCustomerId,
+          square_card_id: squareCardId,
+          next_billing_date: firstBillingDate,
+          renewal_date: firstBillingDate,
+          discount_pct: resolvedDiscountPct,
+          failed_charge_count: 0,
+        },
+        { onConflict: "user_id" }
+      )
+      .select()
+      .single();
+
+    if (subError) throw new Error("Failed to save subscription: " + subError.message);
 
     const subscriptionId = subscription.id;
 
-    try {
-      const slotRows = drinkSlots.map((s: Record<string, unknown>) => ({
-        subscription_id: subscriptionId,
-        slot_number: s.slotNumber,
-        drink_item_id: s.drinkItemId,
-        drink_modifiers: s.drinkModifiers ?? [],
-        delivery_day: s.deliveryDay,
-        delivery_time: s.deliveryTime,
-        delivery_location: s.deliveryLocation,
-      }));
-
-      const { error: slotError } = await supabase
-        .from("subscription_drink_slots")
-        .insert(slotRows);
-
-      if (slotError) {
-        console.error("Drink slot insert failed:", slotError);
-        throw new SignupFailed("Could not save your drink choices. Please try again.");
+    /** Undo as much as is safe. A brand-new subscription can be deleted
+     *  outright; an existing one must not be, because subscription_charges
+     *  cascades from it and that is the student's billing history. */
+    const rollback = async () => {
+      if (isNewSubscription) {
+        await supabase.from("subscriptions").delete().eq("id", subscriptionId);
+      } else {
+        await supabase
+          .from("subscriptions")
+          .update({ status: previousStatus ?? "cancelled" })
+          .eq("id", subscriptionId);
       }
+    };
+
+    try {
+      // ── 5. Upsert drink slots ───────────────────────────────────────────
+      for (const slot of drinkSlots) {
+        const { error: slotError } = await supabase
+          .from("subscription_drink_slots")
+          .upsert(
+            {
+              subscription_id: subscriptionId,
+              slot_number: slot.slotNumber,
+              drink_item_id: slot.drinkItemId,
+              drink_modifiers: slot.drinkModifiers || [],
+              delivery_day: slot.deliveryDay,
+              delivery_time: slot.deliveryTime,
+              delivery_location: slot.deliveryLocation,
+            },
+            { onConflict: "subscription_id,slot_number" }
+          );
+        if (slotError) throw new SignupFailed("Failed to save drink slot: " + slotError.message);
+      }
+
+      // Dropping from two drinks a week to one would otherwise leave the old
+      // second slot behind, still being delivered.
+      const keptSlotNumbers = drinkSlots.map((s: Record<string, unknown>) => s.slotNumber);
+      await supabase
+        .from("subscription_drink_slots")
+        .delete()
+        .eq("subscription_id", subscriptionId)
+        .not("slot_number", "in", `(${keptSlotNumbers.join(",")})`);
+
+      // ── 6. Charge the first week ────────────────────────────────────────
+      let alreadyPaidForToday = false;
 
       if (CHARGE_FIRST_WEEK_IMMEDIATELY && amountCents > 0) {
         const idempotencyKey = chargeIdempotencyKey(subscriptionId, firstBillingDate);
@@ -275,89 +324,117 @@ serve(async (req) => {
         });
 
         if (ledgerError) {
-          console.error("Charge ledger insert failed:", ledgerError);
-          throw new SignupFailed("Could not start your subscription. Please try again.");
-        }
+          // Unique (subscription_id, billing_date) — someone already billed
+          // this student today. Resubscribing twice in one day must not charge
+          // twice.
+          const { data: prior } = await supabase
+            .from("subscription_charges")
+            .select("status")
+            .eq("subscription_id", subscriptionId)
+            .eq("billing_date", firstBillingDate)
+            .maybeSingle();
 
-        let paymentData: Record<string, any>;
-
-        try {
-          const paymentRes = await fetch(`${squareBaseUrl}/v2/payments`, {
-            method: "POST",
-            headers: squareHeaders,
-            body: JSON.stringify({
-              source_id: squareCardId,
-              customer_id: squareCustomerId,
-              idempotency_key: idempotencyKey,
-              amount_money: { amount: amountCents, currency: "USD" },
-              location_id: locationId,
-              ...(customerInfo?.email ? { buyer_email_address: customerInfo.email } : {}),
-              note: `Birdhouse Subscription — ${plan.name} — week of ${firstBillingDate}`,
-            }),
-          });
-
-          paymentData = await paymentRes.json();
-
-          if (!paymentRes.ok || paymentData.errors?.length) {
-            const err = paymentData.errors?.[0];
-            console.error("Square subscription charge error:", {
-              category: err?.category,
-              code: err?.code,
-              detail: err?.detail,
-              subscriptionId,
-            });
-
+          if (prior?.status === "succeeded") {
+            alreadyPaidForToday = true;
+          } else if (prior?.status === "pending") {
+            throw new SignupFailed(
+              "A payment for today is already being processed. Check your dashboard in a moment."
+            );
+          } else {
             await supabase
               .from("subscription_charges")
               .update({
-                status: "failed",
-                error_detail: err?.detail ?? "Declined",
+                status: "pending",
+                amount_cents: amountCents,
                 updated_at: new Date().toISOString(),
               })
               .eq("subscription_id", subscriptionId)
               .eq("billing_date", firstBillingDate);
-
-            throw new SignupFailed(
-              err?.detail ?? "Your card was declined. Please try a different card."
-            );
           }
-        } catch (netErr) {
-          if (netErr instanceof SignupFailed) throw netErr;
-
-          // We never heard back from Square. The charge may or may not have
-          // happened, so the subscription is flagged rather than deleted and
-          // the pending ledger row is left for reconciliation. Rolling back
-          // here could hide a real charge.
-          console.error("Square unreachable during first charge:", netErr, { subscriptionId });
-          await supabase
-            .from("subscriptions")
-            .update({ status: "payment_failed" })
-            .eq("id", subscriptionId);
-
-          return fail(
-            "We could not confirm your payment. Please do not try again — check your dashboard in a few minutes or contact the Birdhouse team."
-          );
         }
 
-        await supabase
-          .from("subscription_charges")
-          .update({
-            status: "succeeded",
-            square_payment_id: paymentData.payment?.id ?? null,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("subscription_id", subscriptionId)
-          .eq("billing_date", firstBillingDate);
+        if (!alreadyPaidForToday) {
+          let paymentData: Record<string, any>;
 
-        await supabase.from("subscription_events").insert({
-          subscription_id: subscriptionId,
-          event_type: "charged",
-          amount_cents: amountCents,
-          note: `First week — ${plan.name}`,
-        });
+          try {
+            const paymentRes = await fetch(`${SQ}/payments`, {
+              method: "POST",
+              headers: sqHeaders,
+              body: JSON.stringify({
+                source_id: squareCardId,
+                customer_id: squareCustomerId,
+                idempotency_key: idempotencyKey,
+                amount_money: { amount: amountCents, currency: "USD" },
+                location_id: locationId,
+                buyer_email_address: customerInfo.email,
+                note: `Birdhouse Subscription — ${plan.name} — week of ${firstBillingDate}`,
+              }),
+            });
+
+            paymentData = await paymentRes.json();
+
+            if (!paymentRes.ok || paymentData.errors?.length) {
+              const err = paymentData.errors?.[0];
+              console.error("Square subscription charge error:", {
+                category: err?.category,
+                code: err?.code,
+                detail: err?.detail,
+                subscriptionId,
+              });
+
+              await supabase
+                .from("subscription_charges")
+                .update({
+                  status: "failed",
+                  error_detail: err?.detail ?? "Declined",
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("subscription_id", subscriptionId)
+                .eq("billing_date", firstBillingDate);
+
+              throw new SignupFailed(
+                err?.detail ?? "Your card was declined. Please try a different card."
+              );
+            }
+          } catch (netErr) {
+            if (netErr instanceof SignupFailed) throw netErr;
+
+            // We never heard back from Square. The charge may or may not have
+            // happened, so the subscription is flagged rather than rolled back
+            // and the pending ledger row is left for reconciliation. Undoing
+            // here could hide a real charge.
+            console.error("Square unreachable during first charge:", netErr, { subscriptionId });
+            await supabase
+              .from("subscriptions")
+              .update({ status: "payment_failed" })
+              .eq("id", subscriptionId);
+
+            return fail(
+              "We could not confirm your payment. Please do not try again — check your dashboard in a few minutes or contact the Birdhouse team."
+            );
+          }
+
+          await supabase
+            .from("subscription_charges")
+            .update({
+              status: "succeeded",
+              square_payment_id: paymentData.payment?.id ?? null,
+              error_detail: null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("subscription_id", subscriptionId)
+            .eq("billing_date", firstBillingDate);
+
+          await supabase.from("subscription_events").insert({
+            subscription_id: subscriptionId,
+            event_type: "charged",
+            amount_cents: amountCents,
+            note: `First week — ${plan.name}`,
+          });
+        }
       }
 
-      // Only now does the clock start: the next charge is a week out.
+      // ── 7. Start the weekly clock ───────────────────────────────────────
       const nextBillingDate = addDays(firstBillingDate, BILLING_INTERVAL_DAYS);
 
       await supabase
@@ -365,28 +442,30 @@ serve(async (req) => {
         .update({
           next_billing_date: nextBillingDate,
           renewal_date: nextBillingDate,
-          last_charged_at: CHARGE_FIRST_WEEK_IMMEDIATELY ? new Date().toISOString() : null,
+          last_charged_at:
+            CHARGE_FIRST_WEEK_IMMEDIATELY && amountCents > 0 ? new Date().toISOString() : null,
         })
         .eq("id", subscriptionId);
 
+      // ── 8. Log the event ────────────────────────────────────────────────
       await supabase.from("subscription_events").insert({
         subscription_id: subscriptionId,
-        event_type: "created",
-        note: `${plan.name} — billed weekly`,
+        event_type: isNewSubscription ? "created" : "card_updated",
+        note: `Plan: ${plan.name} — billed weekly${
+          resolvedDiscountPct ? ` — ${resolvedDiscountPct}% teacher discount` : ""
+        }`,
       });
 
       return ok({ success: true, subscriptionId, nextBillingDate });
     } catch (err) {
       if (err instanceof SignupFailed) {
-        // Nothing was charged, so leave no half-built subscription behind.
-        // Slots and ledger rows cascade with the row.
-        await supabase.from("subscriptions").delete().eq("id", subscriptionId);
+        await rollback();
         return fail(err.message);
       }
       throw err;
     }
   } catch (err) {
-    console.error("save-card unexpected error:", err);
-    return fail(err instanceof Error ? err.message : "Something went wrong", 500);
+    console.error("save-card error:", err);
+    return fail(err instanceof Error ? err.message : "An unexpected error occurred");
   }
 });

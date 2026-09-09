@@ -48,9 +48,9 @@ verify_jwt = false
 [functions.request-receipt]
 verify_jwt = true
 
-# Called by a signed-in student from subscribe.html.
+# Verifies the caller token itself, so the gateway check stays off.
 [functions.save-card]
-verify_jwt = true
+verify_jwt = false
 
 # Called by pg_cron via pg_net, which carries no user JWT. The CRON_SECRET
 # header is the gate instead — the function refuses to run without it.
