@@ -940,6 +940,25 @@
     </div>
 
     <div class="section-header">
+      <div class="section-title">Subscription Season End</div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin-bottom:2rem;max-width:480px">
+      <p style="font-size:0.82rem;color:var(--gray-mid);line-height:1.55;margin-bottom:1rem">
+        Subscriptions stop being charged on and after this date. Summer is not on the
+        closure calendar, so without it subscribers would be billed every week all
+        summer. Set it to the first day you want billing to stop — usually the last
+        day of school. Leave blank to bill year round.
+      </p>
+      <div class="form-group" style="margin-bottom:1rem">
+        <label class="form-label" for="season-end-input">Stop charging on and after</label>
+        <input type="text" id="season-end-input" class="form-input" placeholder="Select a date…" readonly style="cursor:pointer" />
+      </div>
+      <button class="btn btn-primary" onclick="saveSeasonEnd()">Save Season End</button>
+      <button class="btn btn-ghost" style="margin-left:0.5rem" onclick="clearSeasonEnd()">Clear</button>
+      <div id="season-end-msg" style="margin-top:0.75rem;font-size:0.82rem;display:none"></div>
+    </div>
+
+    <div class="section-header">
       <div class="section-title">Upcoming Blocked Dates</div>
     </div>
     <div class="table-wrap">
@@ -4462,8 +4481,63 @@ function initClosedDayPicker() {
   });
 }
 
+let seasonEndPicker = null;
+
+function initSeasonEndPicker() {
+  if (seasonEndPicker) return;
+  seasonEndPicker = flatpickr('#season-end-input', {
+    dateFormat: 'Y-m-d',
+    disableMobile: true,
+  });
+}
+
+async function loadSeasonEnd() {
+  initSeasonEndPicker();
+  const { data } = await sb.from('store_config').select('value').eq('key', 'subscription_season_end').maybeSingle();
+  const val = typeof data?.value === 'string' ? data.value : '';
+  if (val) seasonEndPicker.setDate(val, false);
+  else seasonEndPicker.clear();
+}
+
+async function saveSeasonEnd() {
+  const picked = seasonEndPicker?.selectedDates || [];
+  if (!picked.length) { showSeasonEndMsg('Pick a date, or use Clear to bill year round.', 'error'); return; }
+
+  const pad   = n => String(n).padStart(2, '0');
+  const d     = picked[0];
+  const isoDate = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+  const { error } = await sb
+    .from('store_config')
+    .upsert({ key: 'subscription_season_end', value: isoDate }, { onConflict: 'key' });
+
+  if (error) { showSeasonEndMsg(error.message, 'error'); return; }
+  showSeasonEndMsg(`Saved. No subscription is charged on or after ${isoDate}.`, 'success');
+}
+
+async function clearSeasonEnd() {
+  if (!confirm('Clear the season end date? Subscriptions will then be charged year round, including all summer.')) return;
+
+  const { error } = await sb
+    .from('store_config')
+    .upsert({ key: 'subscription_season_end', value: null }, { onConflict: 'key' });
+
+  if (error) { showSeasonEndMsg(error.message, 'error'); return; }
+  seasonEndPicker.clear();
+  showSeasonEndMsg('Cleared — subscriptions will be charged year round.', 'success');
+}
+
+function showSeasonEndMsg(text, type) {
+  const el = document.getElementById('season-end-msg');
+  el.textContent = text;
+  el.style.display = 'block';
+  el.style.color = type === 'error' ? 'var(--danger)' : 'var(--success)';
+  setTimeout(() => { el.style.display = 'none'; }, 4000);
+}
+
 async function loadClosedDays() {
   initClosedDayPicker();
+  loadSeasonEnd();
   const tbody = document.getElementById('closed-days-tbody');
   tbody.innerHTML = '<tr class="loading-row"><td colspan="5">Loading…</td></tr>';
 
