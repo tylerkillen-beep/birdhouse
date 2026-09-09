@@ -42,6 +42,49 @@ gets picked up the next morning instead of silently skipping someone's week.
 
 ---
 
+## School breaks
+
+**Nobody is charged for a week in which they receive nothing.**
+
+Break dates live in `blocked_dates` — the same closure calendar the order page
+and `process-payment` already use, so they are maintained in exactly one place.
+Block a break once in **Admin → Closed Days** (click a start and an end date to
+block the whole range at once) and delivery and billing both respect it.
+
+The rule is per subscriber, not per school week. When a charge comes due, the
+charger works out which dates that subscriber's delivery days land on during the
+week ahead. If **every** one of them is closed, it skips the charge and moves
+the billing date forward seven days, repeating until it finds a week where they
+would actually receive something.
+
+Worked examples, for a Tuesday-billed subscriber during a Thanksgiving week with
+Wednesday–Friday closed:
+
+| Their delivery day | Falls on | Outcome |
+|---|---|---|
+| Wednesday | Nov 25 — closed | **Not charged.** Billing moves to Tue Dec 1 |
+| Monday | Nov 30 — open | **Charged.** They still get their drink |
+
+A two-week break is skipped entirely in one run, and because each step is exactly
+seven days the subscriber keeps their original weekday forever.
+
+Charging is the default. A subscriber with no drink slots, or a delivery day the
+charger cannot parse, is charged normally — skipping a payment requires positive
+evidence that the person receives nothing, never merely an absence of evidence
+that they receive something.
+
+A skipped week is recorded as a `billing_skipped` event and shows on the
+student's dashboard as "No charge — school closed". A run reports its total as
+`breakWeeks`, and a dry run shows the skips without writing anything, so you can
+confirm a break is set up correctly before it arrives.
+
+> If `subscription_events.event_type` has a CHECK constraint, add
+> `billing_skipped` to it. Billing is correct either way — only the student's
+> visible history loses a line — but the function logs a warning when the insert
+> is rejected.
+
+---
+
 ## Why it will not double-charge
 
 This is the part worth understanding before you turn it on. Three independent
@@ -248,11 +291,6 @@ select cron.unschedule('charge-subscriptions-daily');
 
 ## Known gaps
 
-- **Breaks are not on the calendar.** Billing runs every seven days year-round.
-  The 14-day arrears guard stops a long gap from producing a surprise charge,
-  but it will not pause billing over Thanksgiving on its own. If you want that,
-  the cleanest fix is a `billing_paused_until` date on `subscriptions` that the
-  charger respects.
 - **Nobody is emailed when a card fails.** The student only finds out by opening
   their dashboard. Square sends its own receipt for successful charges.
 - **The unused `plans` table** from

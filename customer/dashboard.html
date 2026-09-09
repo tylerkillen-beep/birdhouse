@@ -587,12 +587,12 @@
     const dotMap = {
       charged:'dot-charged', charge_failed:'dot-failed', created:'dot-created',
       paused:'dot-paused', resumed:'dot-resumed', cancelled:'dot-cancelled',
-      plan_changed:'dot-changed', drink_changed:'dot-changed', card_updated:'dot-changed'
+      plan_changed:'dot-changed', drink_changed:'dot-changed', card_updated:'dot-changed', billing_skipped:'dot-paused'
     };
     const labelMap = {
       charged:'Payment charged', charge_failed:'Payment failed', created:'Subscription created',
       paused:'Subscription paused', resumed:'Subscription resumed', cancelled:'Subscription cancelled',
-      plan_changed:'Plan changed', drink_changed:'Drink updated', card_updated:'Card updated'
+      plan_changed:'Plan changed', drink_changed:'Drink updated', card_updated:'Card updated', billing_skipped:'No charge — school closed'
     };
 
     el.innerHTML = `<div class="sub-event-list">${events.map(e => `
