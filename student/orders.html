@@ -72,6 +72,7 @@
 
     /* ── Orders table ── */
     .orders-section-title { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--gray); margin-bottom: 0.75rem; }
+    .orders-hidden-note { font-size: 0.78rem; color: var(--light-gray); margin: -0.4rem 0 0.8rem; }
     .order-card { background: var(--card); border: 1px solid var(--border-dim); border-radius: 12px; padding: 1.1rem 1.25rem 1.1rem 1.5rem; margin-bottom: 0.6rem; display: grid; grid-template-columns: 1fr auto; gap: 1rem; align-items: center; transition: border-color 0.2s; position: relative; }
     .order-card:hover { border-color: var(--border); }
     .order-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; border-radius: 12px 0 0 12px; }
@@ -193,6 +194,14 @@
 
     <!-- Filter bar -->
     <div class="filter-bar">
+      <!-- Due window -->
+      <div class="filter-row">
+        <span class="filter-label" id="window-label">Show</span>
+        <div class="filter-pills" id="window-pills" role="group" aria-labelledby="window-label">
+          <button class="filter-pill active" data-val="soon" onclick="setWindowFilter('soon', this)" aria-pressed="true"><span aria-hidden="true">⏱️</span> Due Soon</button>
+          <button class="filter-pill" data-val="all" onclick="setWindowFilter('all', this)" aria-pressed="false"><span aria-hidden="true">📋</span> Whole Day</button>
+        </div>
+      </div>
       <!-- Sort by -->
       <div class="filter-row">
         <span class="filter-label" id="sort-label">Sort by</span>
@@ -267,6 +276,7 @@
 
     <!-- Orders list -->
     <div class="orders-section-title" id="orders-section-label">Orders</div>
+    <div class="orders-hidden-note" id="orders-hidden-note" style="display:none" aria-live="polite"></div>
     <div id="orders-container">
       <div class="empty-state"><div class="empty-state-icon" aria-hidden="true">☕</div><div class="empty-state-msg">Loading orders...</div></div>
     </div>
@@ -287,7 +297,13 @@
   let filterDate     = todayStr();  // 'YYYY-MM-DD' or null (all dates)
   let filterLocation = 'all';       // 'all' | 'birdhouse' | 'mathews'
   let filterType     = 'all';       // 'all' | 'menu' | 'stickers'
+  let filterWindow   = 'soon';      // 'soon' (nearly due only) | 'all'
   let pollTimer    = null;
+  let hiddenByWindow = 0;           // orders today held back by the due-soon window
+
+  // Staff only need to see what they should be making now; an order hours out
+  // is noise on the bar. Raise this to give the team more lead time.
+  const DUE_SOON_MINUTES = 10;
 
   // ── Audio alert ────────────────────────────────────────────────────────────
   let audioCtx = null;
@@ -488,6 +504,12 @@
     renderOrders();
   }
 
+  function setWindowFilter(val, btn) {
+    filterWindow = val;
+    _activatePill('window-pills', btn);
+    renderOrders();
+  }
+
   // ── Data loading ───────────────────────────────────────────────────────────
   async function loadOrders(manual = false) {
     if (manual) {
@@ -616,6 +638,16 @@
     if (filterLocation === 'mathews')        orders = orders.filter(o => isMathewsOrder(o));
     else if (filterLocation === 'birdhouse') orders = orders.filter(o => !isMathewsOrder(o));
 
+    // Due-soon window. Only meaningful while looking at today — on another
+    // date, or All Dates, nothing is "due soon" and hiding every card would
+    // just make the page look broken.
+    hiddenByWindow = 0;
+    if (filterWindow === 'soon' && filterDate === todayStr()) {
+      const before = orders.length;
+      orders = orders.filter(o => isDueSoon(o));
+      hiddenByWindow = before - orders.length;
+    }
+
     // Sort
     if (filterSort === 'scheduled') {
       orders.sort((a, b) => {
@@ -643,6 +675,22 @@
     return h * 60 + min;
   }
 
+  function nowMinutes() {
+    const n = new Date();
+    return n.getHours() * 60 + n.getMinutes();
+  }
+
+  // An order earns its spot on the queue once it is within DUE_SOON_MINUTES of
+  // its delivery time. Past-due orders keep that spot: one that slipped still
+  // has to be made, so it must never vanish before someone closes it out.
+  // Orders with no usable delivery time always show — there is nothing to
+  // schedule them against, and dropping them would lose the order silently.
+  function isDueSoon(order) {
+    const due = parseTime(order.delivery_time);
+    if (due === 9999) return true;
+    return due - nowMinutes() <= DUE_SOON_MINUTES;
+  }
+
   function renderOrders() {
     const filtered = applyFilters();
     const container = document.getElementById('orders-container');
@@ -655,8 +703,19 @@
     const statusLabel = { active: 'Active', pending: 'Pending', paid: 'Paid', delivered: 'Delivered', cancelled: 'Cancelled', all: 'All' }[filterStatus] || '';
     document.getElementById('orders-section-label').textContent = `${statusLabel} Orders — ${dateLabel}`;
 
+    const note = document.getElementById('orders-hidden-note');
+    if (hiddenByWindow > 0) {
+      note.textContent = `⏱️ ${hiddenByWindow} later order${hiddenByWindow === 1 ? '' : 's'} today — each appears ${DUE_SOON_MINUTES} minutes before its delivery time.`;
+      note.style.display = '';
+    } else {
+      note.style.display = 'none';
+    }
+
     if (!filtered.length) {
-      container.innerHTML = `<div class="empty-state"><div class="empty-state-icon" aria-hidden="true">☕</div><div class="empty-state-msg">No orders match the current filters.</div></div>`;
+      const emptyMsg = hiddenByWindow > 0
+        ? `Nothing due in the next ${DUE_SOON_MINUTES} minutes.`
+        : 'No orders match the current filters.';
+      container.innerHTML = `<div class="empty-state"><div class="empty-state-icon" aria-hidden="true">☕</div><div class="empty-state-msg">${emptyMsg}</div></div>`;
       return;
     }
 
