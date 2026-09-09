@@ -78,10 +78,10 @@ student's dashboard as "No charge — school closed". A run reports its total as
 `breakWeeks`, and a dry run shows the skips without writing anything, so you can
 confirm a break is set up correctly before it arrives.
 
-> If `subscription_events.event_type` has a CHECK constraint, add
-> `billing_skipped` to it. Billing is correct either way — only the student's
-> visible history loses a line — but the function logs a warning when the insert
-> is rejected.
+The `billing_skipped` value is permitted by
+`20260909_allow_billing_skipped_event.sql`, which widens the CHECK constraint on
+`subscription_events.event_type`. Without that migration the skip still happens
+correctly and only the history line is lost.
 
 ---
 
