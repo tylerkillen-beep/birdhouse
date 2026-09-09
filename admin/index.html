@@ -928,14 +928,14 @@
     </div>
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin-bottom:2rem;max-width:480px">
       <div class="form-group" style="margin-bottom:1rem">
-        <label class="form-label" for="closed-day-date-input">Date</label>
-        <input type="text" id="closed-day-date-input" class="form-input" placeholder="Select a date…" readonly style="cursor:pointer" />
+        <label class="form-label" for="closed-day-date-input">Date <span style="color:var(--gray);font-weight:300;text-transform:none;letter-spacing:0">(click one day, or two to block a whole break)</span></label>
+        <input type="text" id="closed-day-date-input" class="form-input" placeholder="Select a date, or a start and end date…" readonly style="cursor:pointer" />
       </div>
       <div class="form-group" style="margin-bottom:1rem">
         <label class="form-label" for="closed-day-reason">Reason <span style="color:var(--gray);font-weight:300;text-transform:none;letter-spacing:0">(optional — shown to customers as a tooltip)</span></label>
         <input type="text" id="closed-day-reason" class="form-input" placeholder="e.g. School holiday, Teacher workday…" />
       </div>
-      <button class="btn btn-primary" onclick="addClosedDay()">+ Block This Day</button>
+      <button class="btn btn-primary" onclick="addClosedDay()">+ Block These Days</button>
       <div id="closed-day-msg" style="margin-top:0.75rem;font-size:0.82rem;display:none"></div>
     </div>
 
@@ -4455,6 +4455,7 @@ let poArrivalPicker = null;
 function initClosedDayPicker() {
   if (closedDayPicker) return;
   closedDayPicker = flatpickr('#closed-day-date-input', {
+    mode: 'range',
     minDate: 'today',
     dateFormat: 'Y-m-d',
     disableMobile: true,
@@ -4501,21 +4502,45 @@ async function loadClosedDays() {
 }
 
 async function addClosedDay() {
-  const dateVal = document.getElementById('closed-day-date-input').value;
-  const reason  = document.getElementById('closed-day-reason').value.trim();
-  const msgEl   = document.getElementById('closed-day-msg');
+  const picked = closedDayPicker?.selectedDates || [];
+  const reason = document.getElementById('closed-day-reason').value.trim();
 
-  if (!dateVal) { showClosedDayMsg('Please select a date.', 'error'); return; }
+  if (!picked.length) { showClosedDayMsg('Please select a date.', 'error'); return; }
 
-  const { error } = await sb.from('blocked_dates').insert({ date: dateVal, reason: reason || null });
-  if (error) {
-    showClosedDayMsg(error.code === '23505' ? 'That date is already blocked.' : error.message, 'error');
-    return;
+  const pad   = n => String(n).padStart(2, '0');
+  const toISO = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+  // One click gives a single date; two gives a range. A whole break is one entry.
+  const start = picked[0];
+  const end   = picked[1] || picked[0];
+
+  // Weekends are never delivery days, so blocking them would only clutter the
+  // list without changing what anyone is delivered or charged.
+  const rows = [];
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const dow = d.getDay();
+    if (dow === 0 || dow === 6) continue;
+    rows.push({ date: toISO(d), reason: reason || null });
   }
+
+  if (!rows.length) { showClosedDayMsg('That range is all weekend — nothing to block.', 'error'); return; }
+
+  // Re-blocking a day that is already blocked is a no-op rather than an error,
+  // so overlapping ranges are safe to add.
+  const { error } = await sb
+    .from('blocked_dates')
+    .upsert(rows, { onConflict: 'date', ignoreDuplicates: true });
+
+  if (error) { showClosedDayMsg(error.message, 'error'); return; }
 
   closedDayPicker.clear();
   document.getElementById('closed-day-reason').value = '';
-  showClosedDayMsg('Date blocked successfully.', 'success');
+  showClosedDayMsg(
+    rows.length === 1
+      ? 'Date blocked successfully.'
+      : `Blocked ${rows.length} days (${rows[0].date} – ${rows[rows.length - 1].date}).`,
+    'success'
+  );
   loadClosedDays();
 }
 

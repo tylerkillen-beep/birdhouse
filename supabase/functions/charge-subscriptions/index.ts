@@ -45,6 +45,12 @@ const MAX_FAILED_ATTEMPTS = 3;
 // next upcoming billing date and flagged instead.
 const MAX_ARREARS_DAYS = 14;
 
+// A subscriber is not billed for a week in which every one of their delivery
+// days is closed, so summer would otherwise step forward one week per run
+// forever. This caps how far a single subscription can jump ahead in one go —
+// about two months, comfortably more than the longest school break.
+const MAX_SKIPPED_WEEKS = 10;
+
 // Ceiling on one run, so a bad query can never turn into hundreds of charges.
 const MAX_CHARGES_PER_RUN = 200;
 
@@ -86,6 +92,63 @@ function advanceBillingDate(fromDate: string, today: string): string {
     next = addDays(next, BILLING_INTERVAL_DAYS);
   }
   return next;
+}
+
+const DAY_INDEX: Record<string, number> = {
+  sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6,
+};
+
+function dayOfWeek(dateStr: string): number {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+
+/** The date a "Wednesday" delivery lands on for the service week that starts on
+ *  billingDate. Any 7-day window contains each weekday exactly once, so this is
+ *  unambiguous. */
+function deliveryDateInWeek(billingDate: string, dayName: string): string | null {
+  const target = DAY_INDEX[(dayName || "").trim().toLowerCase()];
+  if (target === undefined) return null;
+  const offset = (target - dayOfWeek(billingDate) + 7) % 7;
+  return addDays(billingDate, offset);
+}
+
+/** True when this subscriber would receive nothing at all during the week
+ *  beginning on billingDate, because every one of their delivery days falls on
+ *  a closed date.
+ *
+ *  Charging is the default: with no slots, or a delivery day we cannot parse,
+ *  this returns false. Skipping someone's payment needs positive evidence that
+ *  they get nothing, never an absence of evidence that they get something. */
+function weekIsFullyClosed(
+  billingDate: string,
+  deliveryDays: string[],
+  closedDates: Set<string>
+): boolean {
+  if (!deliveryDays.length) return false;
+  const dates = deliveryDays.map((d) => deliveryDateInWeek(billingDate, d));
+  if (dates.some((d) => d === null)) return false;
+  return dates.every((d) => closedDates.has(d as string));
+}
+
+/** Step past every week the subscriber would receive nothing, a week at a time.
+ *  A two-week break is skipped entirely in a single run, and the weekday anchor
+ *  is preserved because each step is exactly seven days. */
+function skipClosedWeeks(
+  billingDate: string,
+  deliveryDays: string[],
+  closedDates: Set<string>
+): { billingDate: string; skippedWeeks: number } {
+  let cursor = billingDate;
+  let skippedWeeks = 0;
+  while (
+    skippedWeeks < MAX_SKIPPED_WEEKS &&
+    weekIsFullyClosed(cursor, deliveryDays, closedDates)
+  ) {
+    cursor = addDays(cursor, BILLING_INTERVAL_DAYS);
+    skippedWeeks++;
+  }
+  return { billingDate: cursor, skippedWeeks };
 }
 
 function getSquareBaseUrl() {
@@ -162,16 +225,32 @@ serve(async (req) => {
     failed: 0,
     skipped: 0,
     reAnchored: 0,
+    breakWeeks: 0,
     totalCents: 0,
     details: [] as Array<Record<string, unknown>>,
   };
 
   try {
     // ── Who is due? ────────────────────────────────────────────────────────
+    // The same closure calendar the order page and process-payment use, so
+    // break dates are maintained in exactly one place.
+    const { data: closedRows, error: closedError } = await supabase
+      .from("blocked_dates")
+      .select("date");
+
+    if (closedError) {
+      // Without the calendar we cannot tell a break from an ordinary week, and
+      // guessing would mean charging families over a closure.
+      console.error("Could not load blocked_dates:", closedError);
+      return fail("Could not load the closure calendar", 500);
+    }
+
+    const closedDates = new Set<string>((closedRows ?? []).map((r) => r.date));
+
     const { data: due, error: dueError } = await supabase
       .from("subscriptions")
       .select(
-        "id, user_id, status, discount_pct, next_billing_date, failed_charge_count, square_customer_id, square_card_id, subscription_plans(name, price_cents)"
+        "id, user_id, status, discount_pct, next_billing_date, failed_charge_count, square_customer_id, square_card_id, subscription_plans(name, price_cents), subscription_drink_slots(delivery_day)"
       )
       .eq("status", "active")
       .lte("next_billing_date", today)
@@ -190,8 +269,11 @@ serve(async (req) => {
         ? sub.subscription_plans[0]
         : sub.subscription_plans;
 
-      const billingDate: string = sub.next_billing_date;
-      const label = { subscriptionId: sub.id, billingDate };
+      const scheduledDate: string = sub.next_billing_date;
+      let label: Record<string, unknown> = {
+        subscriptionId: sub.id,
+        billingDate: scheduledDate,
+      };
 
       if (!plan) {
         results.skipped++;
@@ -203,6 +285,55 @@ serve(async (req) => {
         results.skipped++;
         results.details.push({ ...label, outcome: "skipped", reason: "no card on file" });
         continue;
+      }
+
+      // ── School breaks ────────────────────────────────────────────────────
+      // Checked before arrears, because a closure is a legitimate explanation
+      // for a gap and must not be mistaken for a neglected subscription.
+      const deliveryDays: string[] = (sub.subscription_drink_slots ?? [])
+        .map((s: Record<string, string>) => s.delivery_day)
+        .filter(Boolean);
+
+      const closure = skipClosedWeeks(scheduledDate, deliveryDays, closedDates);
+      const billingDate = closure.billingDate;
+
+      if (closure.skippedWeeks > 0) {
+        const weekWord = closure.skippedWeeks === 1 ? "week" : "weeks";
+        label = { subscriptionId: sub.id, billingDate };
+
+        results.breakWeeks += closure.skippedWeeks;
+        results.details.push({
+          subscriptionId: sub.id,
+          billingDate: scheduledDate,
+          outcome: "break",
+          weeksSkipped: closure.skippedWeeks,
+          resumesOn: billingDate,
+        });
+
+        if (!dryRun) {
+          await supabase
+            .from("subscriptions")
+            .update({ next_billing_date: billingDate, renewal_date: billingDate })
+            .eq("id", sub.id);
+
+          // Not load-bearing: if event_type has a CHECK constraint that does not
+          // know this value, billing still behaves correctly and only the
+          // student's visible history loses a line.
+          const { error: eventError } = await supabase.from("subscription_events").insert({
+            subscription_id: sub.id,
+            event_type: "billing_skipped",
+            note: `No charge for ${closure.skippedWeeks} ${weekWord} — school closed. Billing resumes ${billingDate}.`,
+          });
+          if (eventError) {
+            console.warn("Could not log billing_skipped event:", eventError.message);
+          }
+        }
+
+        // Still ahead of us, so nothing is owed in this run.
+        if (daysBetween(billingDate, today) < 0) {
+          continue;
+        }
+        // Otherwise the break is behind us and this week is genuinely due.
       }
 
       // ── Too far overdue to charge honestly ───────────────────────────────
@@ -444,6 +575,7 @@ serve(async (req) => {
       failed: results.failed,
       skipped: results.skipped,
       reAnchored: results.reAnchored,
+      breakWeeks: results.breakWeeks,
       totalCents: results.totalCents,
     });
 
