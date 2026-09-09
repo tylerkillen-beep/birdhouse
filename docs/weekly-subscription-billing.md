@@ -300,6 +300,31 @@ delivers. It is also the honest default for a school: seniors graduate, cards
 expire, room numbers change, and a year-old card quietly reactivating in
 September is not something a family agreed to.
 
+### The safety net: season end date
+
+Set **Admin → Closed Days → Subscription Season End** to the first day billing
+should stop, usually the last day of school. On and after that date
+`charge-subscriptions` charges nobody and reports why, whatever else is true —
+active subscriptions, a due billing date, none of it matters.
+
+This exists because the cancellation below depends on a person remembering in
+the middle of end-of-year chaos, and the cost of forgetting is charging families
+all summer for drinks nobody delivers. With the date set, forgetting costs
+nothing.
+
+It is a stop, not a cancellation. Nothing is destroyed, so it is safe to set
+early and safe to get slightly wrong — and it does not remove the need to cancel,
+because subscriptions left active would resume billing once you set next year's
+date. Clear it to bill year round.
+
+Stored in `store_config` under `subscription_season_end`. Verify with:
+
+```sql
+select value from public.store_config where key = 'subscription_season_end';
+```
+
+### Then cancel
+
 Run this on the last day of school. It cancels every live subscription and
 records why, in one transaction:
 

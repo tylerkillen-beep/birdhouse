@@ -231,6 +231,36 @@ serve(async (req) => {
   };
 
   try {
+    // ── Season end: a hard stop, not a preference ──────────────────────────
+    // Summer is not on the closure calendar, so without this the charger would
+    // happily bill every week from May to August for drinks nobody delivers.
+    // Set in Admin → Closed Days; blank means bill year round.
+    const { data: seasonRow, error: seasonError } = await supabase
+      .from("store_config")
+      .select("value")
+      .eq("key", "subscription_season_end")
+      .maybeSingle();
+
+    if (seasonError) {
+      console.error("Could not read subscription_season_end:", seasonError);
+      return fail("Could not read the season end date", 500);
+    }
+
+    const seasonEnd =
+      typeof seasonRow?.value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(seasonRow.value)
+        ? seasonRow.value
+        : null;
+
+    if (seasonEnd && daysBetween(seasonEnd, today) >= 0) {
+      console.log("charge-subscriptions: season ended, no charges.", { today, seasonEnd });
+      return ok({
+        success: true,
+        ...results,
+        seasonEnd,
+        stopped: `The season ended on ${seasonEnd}; nobody is charged on or after that date.`,
+      });
+    }
+
     // ── Who is due? ────────────────────────────────────────────────────────
     // The same closure calendar the order page and process-payment use, so
     // break dates are maintained in exactly one place.
