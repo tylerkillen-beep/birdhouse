@@ -480,7 +480,7 @@
 
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   let currentUser = null, sessionToken = null;
-  let plans = [], menuItems = [], modifierListsMap = {};
+  let plans = [], menuItems = [], modifierListsMap = {}, squareCategoryNames = {};
   let selectedPlan = null, squareCard = null;
   let customerProfile = null;
   let customerType = 'student'; // 'student' | 'teacher' | 'mathews'
@@ -605,6 +605,7 @@
       free_modifier_count: planRow.free_modifier_count,
       description: planRow.description,
       early_access: !!planRow.early_access,
+      allowed_square_category_ids: planRow.allowed_square_category_ids || [],
       sort_order: planRow.sort_order,
       active: planRow.active,
     };
@@ -628,6 +629,7 @@
 
       if (!error && data) {
         plans = data.map(normalizePlanRecord);
+        await loadSquareCategoryNames();
         renderPlans();
         return;
       }
@@ -660,6 +662,21 @@
     }
   }
 
+  // Names for the Square categories a plan is limited to. Only the plan cards
+  // use them; if this fails the cards skip that line and filtering still works.
+  async function loadSquareCategoryNames() {
+    const { data, error } = await sb.from('square_categories').select('square_id, name');
+    if (error) { console.warn('square_categories lookup failed', error); return; }
+    squareCategoryNames = Object.fromEntries((data || []).map(c => [c.square_id, c.name]));
+  }
+
+  // A plan with no categories offers every drink; otherwise the drink must be in one of them.
+  function planAllowsItem(plan, item) {
+    const allowed = plan?.allowed_square_category_ids || [];
+    if (!allowed.length) return true;
+    return (item.square_category_ids || []).some(id => allowed.includes(id));
+  }
+
   function renderPlans() {
     const grid = document.getElementById('plans-grid');
     if (!plans.length) {
@@ -682,6 +699,10 @@
         ? '2 drinks per week'
         : '1 drink per week';
       const earlyLabel = p.early_access ? 'Early access to seasonal items' : null;
+      const categoryNames = p.allowed_square_category_ids.map(id => squareCategoryNames[id]).filter(Boolean);
+      const choiceLabel = !p.allowed_square_category_ids.length
+        ? 'Choose any drink on the menu'
+        : categoryNames.length ? `Drinks from ${categoryNames.join(', ')}` : null;
 
       return `<button type="button" class="plan-card${isFeatured ? ' featured' : ''}" id="plan-card-${p.id}" onclick="selectPlan('${p.id}')" aria-pressed="false">
         ${isFeatured ? '<div class="plan-badge">Most Popular</div>' : ''}
@@ -690,6 +711,7 @@
         <div class="plan-desc">${p.description || ''}</div>
         <ul class="plan-features">
           <li>${drinksLabel}</li>
+          ${choiceLabel ? `<li>${choiceLabel}</li>` : ''}
           <li>${modLabel}</li>
           <li>Choose your delivery day &amp; time</li>
           <li>Change your drink anytime</li>
@@ -701,6 +723,11 @@
 
   function selectPlan(planId) {
     selectedPlan = plans.find(p => p.id === planId);
+    // A drink picked under a broader plan must not carry over to one that excludes it.
+    [1, 2].forEach(n => {
+      const item = menuItems.find(i => i.id === drinkSlots[n].drinkItemId);
+      if (drinkSlots[n].drinkItemId && !(item && planAllowsItem(selectedPlan, item))) clearSlot(n);
+    });
     document.querySelectorAll('.plan-card').forEach(c => {
       c.classList.remove('selected');
       c.setAttribute('aria-pressed', 'false');
@@ -746,14 +773,16 @@
     }
 
     // Filter by campus: Mathews teachers only see Mathews items; others see non-Mathews items.
+    // Then by plan: a plan limited to Square categories only offers drinks from them.
     const isMathews = customerType === 'mathews';
     const filtered  = menuItems.filter(i => {
       const cat = String(i.category || '').toLowerCase();
-      return isMathews ? cat.includes('mathews') : !cat.includes('mathews');
+      const campusMatch = isMathews ? cat.includes('mathews') : !cat.includes('mathews');
+      return campusMatch && planAllowsItem(selectedPlan, i);
     });
 
     if (!filtered.length) {
-      container.innerHTML = '<div style="color:var(--gray);padding:1rem">No menu items available for your campus.</div>';
+      container.innerHTML = '<div style="color:var(--gray);padding:1rem">No drinks on this plan are available for your campus. Go back and try a different plan.</div>';
       return;
     }
 

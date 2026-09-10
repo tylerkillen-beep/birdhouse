@@ -1503,6 +1503,11 @@
       <label class="form-label" for="plan-desc">Description</label>
       <textarea class="form-input" id="plan-desc" rows="2" placeholder="Short description shown to students…" style="resize:vertical"></textarea>
     </div>
+    <div class="form-group">
+      <div class="form-label" id="plan-categories-label">Drinks this plan can choose from</div>
+      <div style="font-size:0.78rem;color:var(--gray-mid);margin-bottom:0.6rem">Square categories, with how many available items each has. Leave all unchecked to offer every drink on the menu.</div>
+      <div id="plan-category-options" class="check-grid" role="group" aria-labelledby="plan-categories-label"></div>
+    </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
       <div class="form-group">
         <label class="form-label" for="plan-free-mods">Free Modifiers per Drink</label>
@@ -1669,6 +1674,8 @@ let allStaff = [];
 let staffTeams = [];
 let allSubscriptions = [];
 let allPlans = [];
+let allSquareCategories = [];
+let squareCategoryItemCounts = {};
 let allRubric = [];
 let allMenuItems = [];
 let allMenuSubmissions = [];
@@ -2832,6 +2839,7 @@ async function loadPlans() {
     return;
   }
   allPlans = plans || [];
+  await loadSquareCategories();
   const { data: subCounts, error: subCountsError } = await sb.from('subscriptions').select('plan_id').eq('status', 'active');
   if (subCountsError) {
     renderPlansLoadError(subCountsError);
@@ -2841,6 +2849,57 @@ async function loadPlans() {
   (subCounts||[]).forEach(s => { countByPlan[s.plan_id] = (countByPlan[s.plan_id]||0) + 1; });
   renderPlanCards(allPlans, countByPlan);
   renderPlansTable(allPlans, countByPlan);
+}
+
+// Square categories a plan can be limited to, filled in by sync-catalog. A
+// missing table or an unsynced catalog just means no choices yet — never a
+// reason to break the Plan Manager.
+async function loadSquareCategories() {
+  const [{ data: cats, error: catsError }, { data: items }] = await Promise.all([
+    sb.from('square_categories').select('square_id, name').order('name'),
+    sb.from('menu_items').select('square_category_ids').eq('available', true),
+  ]);
+  if (catsError) console.warn('square_categories unavailable', catsError);
+  allSquareCategories = cats || [];
+  squareCategoryItemCounts = {};
+  (items || []).forEach(i => (i.square_category_ids || []).forEach(id => {
+    squareCategoryItemCounts[id] = (squareCategoryItemCounts[id] || 0) + 1;
+  }));
+}
+
+function squareCategoryName(id) {
+  return allSquareCategories.find(c => c.square_id === id)?.name || 'Removed from Square';
+}
+
+function planCategoryLabel(plan) {
+  const ids = plan.allowed_square_category_ids || [];
+  return ids.length ? ids.map(squareCategoryName).join(', ') : 'All';
+}
+
+function renderPlanCategoryOptions(selectedIds) {
+  const wrap = document.getElementById('plan-category-options');
+  const selected = new Set(selectedIds);
+  // A category deleted in Square can still be saved on a plan. Keep it listed
+  // so it can be unchecked instead of silently lingering.
+  const known = new Set(allSquareCategories.map(c => c.square_id));
+  const options = [
+    ...allSquareCategories,
+    ...selectedIds.filter(id => !known.has(id)).map(id => ({ square_id: id, name: squareCategoryName(id) })),
+  ];
+  if (!options.length) {
+    wrap.innerHTML = '<div style="font-size:0.8rem;color:var(--gray-mid);grid-column:1/-1">No Square categories yet. Run <strong>Sync Square Catalog</strong> on the menu page, then reopen this plan.</div>';
+    return;
+  }
+  wrap.innerHTML = options.map(c => {
+    const checked = selected.has(c.square_id);
+    return `<div class="check-pill${checked ? ' checked' : ''}">
+      <label>
+        <input type="checkbox" value="${escHtml(c.square_id)}"${checked ? ' checked' : ''} onchange="this.closest('.check-pill').classList.toggle('checked', this.checked)"/>
+        ${escHtml(c.name)}
+      </label>
+      <span style="font-size:0.7rem;color:var(--gray)">${squareCategoryItemCounts[c.square_id] || 0}</span>
+    </div>`;
+  }).join('');
 }
 
 function renderPlansLoadError(error) {
@@ -2878,7 +2937,7 @@ function renderPlanCards(plans, countByPlan) {
       </div>
       <div class="plan-card-detail">🥤 ${p.drinks_per_week} drink${p.drinks_per_week !== 1 ? 's' : ''} per week</div>
       <div class="plan-card-detail" style="margin-top:0.3rem;color:var(--gray)">${p.description||''}</div>
-      <div class="plan-card-modifiers"><span class="modifier-tag">Cookies: ${p.cookies_per_week || 0}/wk</span><span class="modifier-tag">Free Modifiers: ${freeModsLabel}</span>${p.early_access ? '<span class="modifier-tag">Early Access</span>' : ''}</div>
+      <div class="plan-card-modifiers"><span class="modifier-tag">Drinks: ${escHtml(planCategoryLabel(p))}</span><span class="modifier-tag">Cookies: ${p.cookies_per_week || 0}/wk</span><span class="modifier-tag">Free Modifiers: ${freeModsLabel}</span>${p.early_access ? '<span class="modifier-tag">Early Access</span>' : ''}</div>
       <div class="plan-card-detail" style="margin-top:0.75rem;color:var(--gray)">${countByPlan[p.id]||0} active subscriber${(countByPlan[p.id]||0) !== 1 ? 's' : ''}</div>
       <button class="btn btn-ghost btn-sm plan-edit-btn" onclick="openEditPlanModal('${p.id}')">Edit</button>
     </div>`;
@@ -2915,6 +2974,7 @@ function openAddPlanModal() {
   document.getElementById('plan-early-access').checked = false;
   document.getElementById('plan-sort').value = allPlans.length + 1;
   document.getElementById('plan-active').checked = true;
+  renderPlanCategoryOptions([]);
   openModal('plan-modal');
 }
 
@@ -2932,6 +2992,7 @@ function openEditPlanModal(id) {
   document.getElementById('plan-cookies').value = String(p.cookies_per_week ?? 0);
   document.getElementById('plan-early-access').checked = !!p.early_access;
   document.getElementById('plan-active').checked = p.active;
+  renderPlanCategoryOptions(p.allowed_square_category_ids || []);
   openModal('plan-modal');
 }
 
@@ -2950,7 +3011,11 @@ async function savePlan() {
   if (isNaN(drinks) || drinks < 1) { alert('Enter a valid drinks per week.'); return; }
   if (isNaN(cookies) || cookies < 0) { alert('Enter a valid cookies per week value.'); return; }
   if (!(freeMods === -1 || (freeMods >= 0 && freeMods <= 8))) { alert('Free modifiers must be between 0 and 8, or unlimited.'); return; }
-  const payload = { name, price_cents: Math.round(price * 100), drinks_per_week: drinks, sort_order: sort, description: desc, cookies_per_week: cookies, free_modifier_count: freeMods, early_access: earlyAccess, active };
+  const allowedCategoryIds = Array.from(document.querySelectorAll('#plan-category-options input:checked')).map(cb => cb.value);
+  if (active && allowedCategoryIds.length && !allowedCategoryIds.some(id => squareCategoryItemCounts[id])) {
+    if (!confirm('None of the checked categories has any available items, so subscribers on this plan would have nothing to pick. Save anyway?')) return;
+  }
+  const payload = { name, price_cents: Math.round(price * 100), drinks_per_week: drinks, sort_order: sort, description: desc, cookies_per_week: cookies, free_modifier_count: freeMods, early_access: earlyAccess, allowed_square_category_ids: allowedCategoryIds, active };
   const btn = document.getElementById('plan-save-btn');
   btn.disabled = true; btn.textContent = 'Saving…';
   let error;

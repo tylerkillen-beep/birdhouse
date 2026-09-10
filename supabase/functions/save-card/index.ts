@@ -148,7 +148,47 @@ serve(async (req) => {
       "Content-Type": "application/json",
     };
 
-    // ── 1. Reuse this student's Square customer if they have one ──────────
+    // ── 1. Check the plan and drinks before anything touches Square ───────
+    // The price comes from the database, never the client. Checking first
+    // means a rejected signup never leaves a stray card on file behind.
+    const { data: plan, error: planError } = await supabase
+      .from("subscription_plans")
+      .select("*")
+      .eq("id", planId)
+      .single();
+
+    if (planError || !plan) throw new Error("Invalid plan");
+    if (!plan.active) throw new Error("That plan is no longer available");
+
+    // A plan may be limited to drinks from chosen Square categories (empty
+    // means every drink). subscribe.html only offers eligible drinks, but the
+    // request body is the student's to edit, so this is the check that holds.
+    const allowedCategoryIds: string[] = plan.allowed_square_category_ids || [];
+    const drinkIds = [...new Set(drinkSlots.map((s: Record<string, unknown>) => s.drinkItemId))];
+    if (drinkIds.some((id) => !id)) throw new Error("Please pick a drink for every slot");
+
+    const { data: drinks, error: drinksError } = await supabase
+      .from("menu_items")
+      .select("id, name, available, square_category_ids")
+      .in("id", drinkIds);
+    if (drinksError) throw new Error("Could not check your drinks: " + drinksError.message);
+
+    for (const drinkId of drinkIds) {
+      const drink = drinks?.find((d) => d.id === drinkId);
+      if (!drink?.available) {
+        throw new Error("One of your drinks is no longer on the menu. Please pick another.");
+      }
+      const inPlan = !allowedCategoryIds.length ||
+        (drink.square_category_ids || []).some((id: string) => allowedCategoryIds.includes(id));
+      if (!inPlan) {
+        throw new Error(`${drink.name} isn't included in the ${plan.name} plan. Please pick another drink.`);
+      }
+    }
+
+    const resolvedDiscountPct = Number(discountPct) || 0;
+    const amountCents = amountForPlan(plan.price_cents, resolvedDiscountPct);
+
+    // ── 2. Reuse this student's Square customer if they have one ──────────
     // subscriptions.user_id is unique, so there is at most one row to find.
     const { data: existingSub } = await supabase
       .from("subscriptions")
@@ -200,7 +240,7 @@ serve(async (req) => {
         (e) => e.code === "NOT_FOUND" || /customer with id .* not found/i.test(e.detail || "")
       );
 
-    // ── 2. Save card to Square customer ───────────────────────────────────
+    // ── 3. Save card to Square customer ───────────────────────────────────
     let squareCustomerId: string = existingSub?.square_customer_id || (await createSquareCustomer());
     let cardData = await createCardOnFile(squareCustomerId);
 
@@ -220,19 +260,6 @@ serve(async (req) => {
       throw new Error("Failed to save card: " + cardData.errors[0].detail);
     }
     const squareCardId: string = cardData.card.id;
-
-    // ── 3. Fetch the plan; the price comes from the database, never the client
-    const { data: plan, error: planError } = await supabase
-      .from("subscription_plans")
-      .select("*")
-      .eq("id", planId)
-      .single();
-
-    if (planError || !plan) throw new Error("Invalid plan");
-    if (!plan.active) throw new Error("That plan is no longer available");
-
-    const resolvedDiscountPct = Number(discountPct) || 0;
-    const amountCents = amountForPlan(plan.price_cents, resolvedDiscountPct);
 
     const firstBillingDate = localToday();
 
