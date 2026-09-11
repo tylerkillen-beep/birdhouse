@@ -7,6 +7,7 @@
   <meta name="description" content="Browse the full Birdhouse menu. Coffee, soda, tea, food, and specials — student-run at Nixa High School." />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <script src="/lib/subscription-exclusives.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -158,12 +159,15 @@
       async function loadMenu() {
         const container = document.getElementById('menu-content');
         try {
-          const res = await fetch(
-            `${SUPABASE_URL}/rest/v1/menu_items?select=name,description,category,base_price_cents,base_price,sort_order,website_discount_pct&available=eq.true&order=category.asc,sort_order.asc`,
-            { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
-          );
+          const headers = { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY };
+          const [res, catRes] = await Promise.all([
+            fetch(`${SUPABASE_URL}/rest/v1/menu_items?select=name,description,category,base_price_cents,base_price,sort_order,website_discount_pct,square_category_ids&available=eq.true&order=category.asc,sort_order.asc`, { headers }),
+            fetch(`${SUPABASE_URL}/rest/v1/square_categories?select=square_id,name`, { headers }).catch(() => null),
+          ]);
           if (!res.ok) throw new Error('Failed to load menu');
-          const items = await res.json();
+          // Subscription exclusives are for subscribers only, never the public menu.
+          const exclusiveIds = subscriptionExclusiveCategoryIds(catRes?.ok ? await catRes.json() : []);
+          const items = (await res.json()).filter(item => !isSubscriptionExclusive(item, exclusiveIds));
 
           const groups = {};
           CATEGORIES.forEach(c => { groups[c.key] = []; });
