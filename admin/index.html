@@ -1181,7 +1181,7 @@
     <!-- Mathews campus items. Fully live, just kept out of the main list. -->
     <details id="mathews-menu-details" style="margin-top:1rem" hidden>
       <summary class="section-title" style="cursor:pointer">Mathews Menu (<span id="mathews-menu-count">0</span>)</summary>
-      <p style="font-size:0.8rem;color:var(--gray);margin:0.5rem 0 0.75rem">Items for the Mathews campus.</p>
+      <p style="font-size:0.8rem;color:var(--gray);margin:0.5rem 0 0.75rem">Items in the Teacher Menu category in Square, plus any whose category says Mathews.</p>
       <div class="table-wrap">
         <table>
           <thead>
@@ -3284,9 +3284,15 @@ async function loadMenuItems() {
     return;
   }
   const exclusiveIds = subscriptionExclusiveCategoryIds(squareCategories);
-  // Matched on the raw category rather than getMenuCategoryKey, which checks
-  // Coffee first and so would call "Mathews Coffee" coffee.
-  const isMathews = item => normalizeMenuCategory(item.category).includes('mathews');
+  // Mathews items come over from Square in the Teacher Menu category. Older
+  // ones may instead say "Mathews" in the site's own category -- matched on
+  // the raw text rather than getMenuCategoryKey, which checks Coffee first and
+  // so would call "Mathews Coffee" coffee.
+  const mathewsCategoryIds = new Set((squareCategories || [])
+    .filter(c => MATHEWS_SQUARE_CATEGORY_NAMES.includes(normalizeMenuCategory(c.name)))
+    .map(c => c.square_id));
+  const isMathews = item => normalizeMenuCategory(item.category).includes('mathews')
+    || (item.square_category_ids || []).some(id => mathewsCategoryIds.has(id));
   const categoryFilter = document.getElementById('menu-category-filter')?.value || '';
   const categorySortOrder = [...MENU_CATEGORY_CONFIG.map(c => c.key)];
   const list = [...allMenuItems]
@@ -3323,6 +3329,9 @@ async function loadMenuItems() {
 }
 
 const isRetiredMenuItem = item => item.in_square === false || item.retired === true;
+
+// Square categories that hold the Mathews campus menu.
+const MATHEWS_SQUARE_CATEGORY_NAMES = ['teacher menu'];
 
 // The collapsed lists under Live Menu Items ('exclusive', 'mathews',
 // 'retired'). Each only appears when it has something in it.
