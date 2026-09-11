@@ -686,8 +686,9 @@
         options:  [],
       };
     });
+    // Flavors marked out of stock in Admin → Modifier Sets aren't offered.
     (modOptions || []).forEach(opt => {
-      if (modifierListsMap[opt.modifier_list_id]) {
+      if (modifierListsMap[opt.modifier_list_id] && opt.available !== false) {
         modifierListsMap[opt.modifier_list_id].options.push(opt);
       }
     });
