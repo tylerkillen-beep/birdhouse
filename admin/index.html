@@ -9,6 +9,7 @@
   <script src="/lib/supabase.js"></script>
   <link rel="stylesheet" href="/lib/flatpickr-themes/dark.css" />
   <script src="/lib/flatpickr.js"></script>
+  <script src="/lib/receiving.js"></script>
   <style>
     :root {
       --bg: #0a0a0a;
@@ -440,6 +441,12 @@
     .status-po-received{background:rgba(76,175,80,0.1);color:#4caf50;border:1px solid rgba(76,175,80,0.2)}
     .status-po-partial{background:rgba(33,150,243,0.1);color:#4a90e2;border:1px solid rgba(33,150,243,0.25)}
     .status-po-pending{background:rgba(200,169,110,0.1);color:var(--accent);border:1px solid rgba(200,169,110,0.25)}
+    .status-po-needs_receipt{background:rgba(230,126,34,0.1);color:#f0a044;border:1px solid rgba(230,126,34,0.3)}
+    .po-flag{font-size:0.72rem;color:#f0a044}
+    .poi-match{grid-column:1/-1;font-size:0.72rem;color:var(--gray-mid);margin-top:-0.2rem}
+    .poi-match.known{color:var(--accent)}
+    .po-arrival-opts{display:flex;flex-wrap:wrap;gap:0.75rem 1.5rem;align-items:center;margin:0 0 1rem;font-size:0.8rem;color:var(--gray-mid)}
+    .po-arrival-opts select{width:auto;display:inline-block;padding:0.35rem 0.6rem;font-size:0.8rem;margin-left:0.35rem}
   </style>
 </head>
 <body class="auth-pending">
@@ -487,6 +494,7 @@
       </button>
       <button type="button" class="nav-item" onclick="showSection('purchases')" id="nav-purchases">
         <span class="nav-icon" aria-hidden="true">🛒</span><span class="nav-label"> Purchases</span>
+        <span class="nav-badge" id="badge-purchases" style="display:none"></span>
       </button>
       <button type="button" class="nav-item" onclick="showSection('recipes')" id="nav-recipes">
         <span class="nav-icon" aria-hidden="true">📋</span><span class="nav-label"> Recipes</span>
@@ -1076,7 +1084,7 @@
   <div class="section-panel" id="section-purchases">
     <div class="page-header">
       <h1>Purchases</h1>
-      <p>Upload Amazon or Walmart receipts to track orders and update inventory on arrival.</p>
+      <p>Upload Amazon or Walmart receipts. When a delivery arrives, confirm it here — or managers can, on their Deliveries page — and the counts go up by what came in.</p>
     </div>
     <label class="upload-zone" id="upload-zone" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleReceiptDrop(event)">
       <input type="file" id="receipt-file-input" accept="application/pdf" onchange="handleReceiptFile(this.files[0])"/>
@@ -1088,7 +1096,8 @@
     <div class="section-header">
       <div style="display:flex;gap:0.4rem;flex-wrap:wrap" id="po-filter-btns" role="group" aria-label="Filter purchases by status">
         <button class="inv-cat-btn active" onclick="filterPO('all',this)" aria-pressed="true">All</button>
-        <button class="inv-cat-btn" onclick="filterPO('pending',this)" aria-pressed="false">Pending</button>
+        <button class="inv-cat-btn" onclick="filterPO('needs_receipt',this)" aria-pressed="false">Needs Receipt</button>
+        <button class="inv-cat-btn" onclick="filterPO('pending',this)" aria-pressed="false">On the Way</button>
         <button class="inv-cat-btn" onclick="filterPO('received',this)" aria-pressed="false">Received</button>
       </div>
     </div>
@@ -1746,7 +1755,7 @@ const sb = supabase.createClient(
   SUPABASE_URL,
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqdWtyaG5laWtxYmFiY21jcGV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyODg1MjEsImV4cCI6MjA4Nzg2NDUyMX0.UbtB_-syG9a9vLcJp04w_k2F3XP2tMScYtB4sez3j78'
 );
-let allPurchaseOrders = [], poFilter = 'all', currentParsedReceipt = null, confirmingPoId = null;
+let allPurchaseOrders = [], poFilter = 'all', currentParsedReceipt = null;
 let allRecipes = [], editingRecipeId = null;
 // recipe_id -> row from the recipe_costs view
 let recipeCostMap = {};
@@ -1850,6 +1859,7 @@ async function init() {
     await loadDashboard();
     loadPendingBadge();
     loadOrdersBadge();
+    loadPurchasesBadge();
   } catch (e) {
     await sb.auth.signOut();
     window.location.href = 'login.html';
@@ -4339,6 +4349,8 @@ document.addEventListener('keydown', e => {
 let allInventory = [], currentInvFilter = 'all', editingInvItemId = null, invLogVisible = false;
 // normalized receipt wording -> inventory id, from confirmed past mappings
 let inventoryAliasMap = {};
+// normalized receipt wording -> confirmed counted units per purchase
+let inventoryAliasPer = {};
 
 const INV_CAT_LABELS = {
   cold_drinks: '🧊 Cold Drinks',
@@ -4352,8 +4364,11 @@ async function loadInventory() {
   const { data } = await sb.from('inventory').select('*').order('category').order('name');
   allInventory = data || [];
 
-  const { data: aliases } = await sb.from('inventory_aliases').select('raw_name_norm, inventory_id');
+  const { data: aliases } = await sb.from('inventory_aliases').select('*');
   inventoryAliasMap = Object.fromEntries((aliases || []).map(a => [a.raw_name_norm, a.inventory_id]));
+  inventoryAliasPer = Object.fromEntries((aliases || [])
+    .filter(a => Number(a.counted_per_purchase) > 0)
+    .map(a => [a.raw_name_norm, Number(a.counted_per_purchase)]));
 
   // Low stock banner
   const lowItems = allInventory.filter(i => i.quantity <= i.par_level);
@@ -5704,6 +5719,46 @@ async function loadPurchases() {
     .order('created_at', { ascending: false });
   allPurchaseOrders = data || [];
   renderPurchaseOrders();
+  setPurchasesBadge(allPurchaseOrders.filter(purchaseNeedsAttention).length);
+}
+
+// What needs the admin: a delivery that arrived with no receipt, or one past
+// its expected date that nobody has confirmed.
+const purchaseNeedsAttention = po => po.status === 'needs_receipt' || isDeliveryOverdue(po);
+
+async function loadPurchasesBadge() {
+  const { data } = await sb.from('purchase_orders').select('status, expected_arrival')
+    .in('status', ['pending', 'partial', 'needs_receipt']);
+  setPurchasesBadge((data || []).filter(purchaseNeedsAttention).length);
+}
+
+function setPurchasesBadge(n) {
+  const badge = document.getElementById('badge-purchases');
+  if (!badge) return;
+  if (n > 0) {
+    badge.textContent = n;
+    badge.setAttribute('aria-label', `${n} ${n === 1 ? 'delivery needs' : 'deliveries need'} attention`);
+    badge.style.display = 'inline-block';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+// Receiving is shared with the manager Deliveries page (lib/receiving.js).
+async function openPurchaseReceive(poId) {
+  const po = allPurchaseOrders.find(p => p.id === poId);
+  if (!po) return;
+  if (!allInventory.length) await loadInventory();
+  const name = `${currentUser.user_metadata?.first_name || ''} ${currentUser.user_metadata?.last_name || ''}`.trim() || currentUser.email;
+  openReceiveModal({ sb, po, inventory: allInventory, receivedByName: name, onDone: () => loadPurchases() });
+}
+
+// A reported delivery's "Upload Its Receipt": the next upload offers to attach
+// to it, so it becomes that order instead of a second one.
+let receiptAttachPoId = null;
+function uploadReceiptFor(poId) {
+  receiptAttachPoId = poId;
+  document.getElementById('receipt-file-input').click();
 }
 
 function filterPO(f, btn) {
@@ -5716,12 +5771,31 @@ function filterPO(f, btn) {
 
 function renderPurchaseOrders() {
   const el = document.getElementById('purchases-content');
-  let pos = allPurchaseOrders;
-  if (poFilter !== 'all') pos = pos.filter(p => p.status === poFilter);
+  const matchesFilter = p => poFilter === 'all' ? true
+    : poFilter === 'pending' ? (p.status === 'pending' || p.status === 'partial')
+    : p.status === poFilter;
+  // Whatever is waiting on someone goes first: no receipt yet, then overdue.
+  const rank = p => p.status === 'needs_receipt' ? 0 : isDeliveryOverdue(p) ? 1 : 2;
+  const pos = allPurchaseOrders.filter(matchesFilter).sort((a, b) => rank(a) - rank(b));
   if (!pos.length) { el.innerHTML = '<div style="color:var(--gray-mid);text-align:center;padding:2rem;background:var(--card);border:1px solid var(--border);border-radius:12px">No purchase orders yet. Upload a receipt to get started.</div>'; return; }
   const fmtDate = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
   const fmtMoney = c => c != null ? '$' + (c / 100).toFixed(2) : '—';
   el.innerHTML = pos.map(po => {
+    if (po.status === 'needs_receipt') {
+      const arrived = po.arrived_at ? new Date(po.arrived_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'recently';
+      return `<div class="po-row">
+      <span class="po-vendor po-vendor-${po.vendor}">${po.vendor.toUpperCase()}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:500;font-size:0.9rem">Arrived ${arrived} — no receipt uploaded yet</div>
+        <div style="font-size:0.72rem;color:var(--gray-mid)">${po.notes ? `“${escHtml(po.notes)}”` : 'Reported from the manager Deliveries page.'}</div>
+      </div>
+      <span class="badge status-po-needs_receipt" style="font-size:0.68rem;padding:0.15rem 0.5rem;border-radius:20px">needs receipt</span>
+      <div style="display:flex;gap:0.4rem;flex-shrink:0">
+        <button class="btn btn-primary btn-sm" onclick="uploadReceiptFor('${po.id}')">Upload Its Receipt</button>
+        <button class="btn btn-ghost btn-sm" onclick="deletePO('${po.id}')" aria-label="Delete">🗑</button>
+      </div>
+    </div>`;
+    }
     const statusClass = po.status === 'received' ? 'status-po-received' : po.status === 'partial' ? 'status-po-partial' : 'status-po-pending';
     const itemCount = po.purchase_order_items?.length || 0;
     const matchedCount = po.purchase_order_items?.filter(i => i.inventory_id).length || 0;
@@ -5730,14 +5804,14 @@ function renderPurchaseOrders() {
       <div style="flex:1;min-width:0">
         <div style="font-weight:500;font-size:0.9rem">${po.order_number || 'No order #'}</div>
         <div style="font-size:0.72rem;color:var(--gray-mid)">Ordered: ${fmtDate(po.order_date)} · ${itemCount} item${itemCount !== 1 ? 's' : ''} · ${matchedCount}/${itemCount} matched to inventory</div>
-        ${po.expected_arrival ? `<div style="font-size:0.72rem;color:var(--gray-mid)">Expected: ${fmtDate(po.expected_arrival)}</div>` : ''}
+        ${po.expected_arrival ? `<div style="font-size:0.72rem;color:var(--gray-mid)">Expected: ${fmtDate(po.expected_arrival)}${isDeliveryOverdue(po) ? ' <span class="po-flag">· overdue — has it arrived?</span>' : ''}</div>` : ''}
       </div>
       <div style="text-align:right;margin-right:0.5rem;flex-shrink:0">
         <div style="font-weight:600">${fmtMoney(po.total_cents)}</div>
         <span class="badge ${statusClass}" style="font-size:0.68rem;padding:0.15rem 0.5rem;border-radius:20px">${po.status}</span>
       </div>
       <div style="display:flex;gap:0.4rem;flex-shrink:0">
-        ${po.status === 'pending' ? `<button class="btn btn-primary btn-sm" onclick="openConfirmArrival('${po.id}')">Confirm Arrival</button>` : ''}
+        ${po.status === 'pending' || po.status === 'partial' ? `<button class="btn btn-primary btn-sm" onclick="openPurchaseReceive('${po.id}')">${po.status === 'partial' ? 'Receive the Rest' : 'Confirm Arrival'}</button>` : ''}
         <button class="btn btn-ghost btn-sm" onclick="deletePO('${po.id}')">🗑</button>
       </div>
     </div>`;
@@ -5755,10 +5829,16 @@ async function handleReceiptFile(file) {
   if (!file) return;
   if (file.type !== 'application/pdf') { alert('Please upload a PDF file.'); return; }
   const status = document.getElementById('upload-status');
-  status.textContent = '⏳ Parsing receipt with AI…';
+  status.textContent = '⏳ Reading the receipt and matching it to inventory…';
   const { data: { session } } = await sb.auth.getSession();
   const form = new FormData();
   form.append('file', file);
+  // The parser matches lines while it reads, using the item list and every
+  // match confirmed on a past receipt.
+  if (!allInventory.length) await loadInventory();
+  form.append('inventory', JSON.stringify(allInventory.map(i => ({ id: i.id, name: i.name, unit: i.unit }))));
+  form.append('known', JSON.stringify(Object.entries(inventoryAliasMap).map(([raw_name, inventory_id]) =>
+    ({ raw_name, inventory_id, counted_per_purchase: inventoryAliasPer[raw_name] ?? null }))));
   try {
     const res = await fetch(`${SUPABASE_URL}/functions/v1/parse-receipt`, {
       method: 'POST',
@@ -5798,6 +5878,20 @@ function openReceiptModal(parsed) {
   document.getElementById('po-total').value = parsed.total_cents ? (parsed.total_cents / 100).toFixed(2) : '';
   document.getElementById('po-notes').value = '';
   document.getElementById('receipt-modal-msg').style.display = 'none';
+
+  // A delivery a manager already reported can take this receipt instead of a
+  // second order being created -- and since it's here, receive it next.
+  const flagged = allPurchaseOrders.filter(p => p.status === 'needs_receipt');
+  const attachSel = document.getElementById('po-attach');
+  attachSel.innerHTML = '<option value="">A new order</option>' + flagged.map(p => {
+    const when = p.arrived_at ? new Date(p.arrived_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'recently';
+    return `<option value="${p.id}">${escHtml(RECEIVING_VENDORS[p.vendor] || p.vendor)} delivery that arrived ${when}${p.notes ? ' — ' + escHtml(p.notes) : ''}</option>`;
+  }).join('');
+  attachSel.value = flagged.some(p => p.id === receiptAttachPoId) ? receiptAttachPoId : '';
+  receiptAttachPoId = null;
+  document.getElementById('po-attach-wrap').hidden = !flagged.length;
+  document.getElementById('po-arrived').checked = !!attachSel.value;
+
   renderPOItemsForReview(parsed.items || []);
   openModal('receipt-modal');
 }
@@ -5834,14 +5928,12 @@ function updatePoiCost(i) {
 function renderPOItemsForReview(items) {
   const el = document.getElementById('po-items-list');
   el.innerHTML = items.map((item, i) => {
-    const invOptions = allInventory.map(inv => `<option value="${inv.id}">${inv.name}</option>`).join('');
     return `<div class="poi-row">
       <span style="font-size:0.8rem">${item.name}</span>
       <input type="number" value="${item.quantity || 1}" min="0" step="0.5" id="poi-qty-${i}" style="width:70px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.8rem;padding:0.3rem 0.4rem;outline:none"/>
       <span style="font-size:0.8rem">${item.unit_cost_cents ? '$' + (item.unit_cost_cents / 100).toFixed(2) : '—'}</span>
-      <select id="poi-inv-${i}" onchange="updatePoiCost(${i})" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.78rem;padding:0.3rem 0.4rem;outline:none;width:100%">
-        <option value="">— Not mapped —</option>
-        ${invOptions}
+      <select id="poi-inv-${i}" onchange="updatePoiCost(${i}); updatePoiCountUnit(${i})" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.78rem;padding:0.3rem 0.4rem;outline:none;width:100%">
+        ${receivingInventoryOptions(allInventory, null, '— Not tracked —')}
       </select>
       <div class="poi-cost">
         <span>Pack:</span>
@@ -5851,6 +5943,13 @@ function renderPOItemsForReview(items) {
         <input type="text" id="poi-uom-${i}" value="${escHtml(item.unit_size_uom || '')}" placeholder="fl oz" style="width:60px" aria-label="Unit of measure" />
         <span class="derived" id="poi-derived-${i}"></span>
       </div>
+      <div class="poi-cost">
+        <span>Counts as:</span>
+        <input type="number" min="0" step="any" id="poi-per-${i}" aria-label="Counted units per purchased unit" />
+        <span id="poi-per-unit-${i}">units</span>
+        <span>per purchase</span>
+      </div>
+      <div class="poi-match" id="poi-match-${i}"></div>
     </div>`;
   }).join('');
   const skipWords = new Set(['great','value','country','time','kroger','store','brand','the','a','an','of','and','with','for','oz','lb','lbs','gallon','gal','pack','count','ct','mix','drink','zero','original','classic','natural','organic','fresh','size','fl','pk','reduced','fat','extra','heavy','sugar','free','low','diet','pure','premium','select','choice']);
@@ -5869,12 +5968,36 @@ function renderPOItemsForReview(items) {
       for (const w of invWords) { if (nm.includes(w)) score += 3; }
       if (score > bestScore) { bestScore = score; bestMatch = inv; }
     }
-    // A mapping you confirmed on a previous receipt beats any fuzzy guess.
-    const alias = inventoryAliasMap[normalizeRawName(item.name)];
-    if (alias) sel.value = alias;
-    else if (bestMatch && bestScore >= 3) sel.value = bestMatch.id;
+    // Best source first: a match confirmed on a past receipt, then the
+    // parser's (it read the whole listing against the inventory). The word
+    // overlap guess only runs when the parser didn't match at all -- an older
+    // deploy of it -- so a deliberate "no match" isn't overridden.
+    const norm = normalizeRawName(item.name);
+    const alias = inventoryAliasMap[norm];
+    const note = document.getElementById('poi-match-' + i);
+    if (alias) {
+      sel.value = alias;
+      note.textContent = '✓ Matched from a past receipt';
+      note.className = 'poi-match known';
+    } else if (currentParsedReceipt?.matched) {
+      sel.value = item.inventory_id || '';
+      note.textContent = item.inventory_id ? `Suggested${item.match_note ? ' — ' + item.match_note : ''}` : (item.match_note || '');
+    } else if (bestMatch && bestScore >= 3) {
+      sel.value = bestMatch.id;
+      note.textContent = 'Guessed from the name — check it';
+    }
+    const inv = allInventory.find(v => v.id === sel.value);
+    document.getElementById('poi-per-' + i).value = inventoryAliasPer[norm]
+      ?? (Number(item.counted_per_purchase) > 0 ? Number(item.counted_per_purchase) : guessCountedPerPurchase(item, inv));
+    updatePoiCountUnit(i);
     updatePoiCost(i);
   });
+}
+
+function updatePoiCountUnit(i) {
+  const inv = allInventory.find(v => v.id === document.getElementById('poi-inv-' + i)?.value);
+  const el = document.getElementById('poi-per-unit-' + i);
+  if (el) el.textContent = inv?.unit || 'units';
 }
 
 // Vendors reword the same product constantly ("Sprite Zero 12pk" vs "Sprite Zero
@@ -5908,7 +6031,7 @@ async function applyReceiptCosts(items) {
   // this vendor maps itself.
   const aliases = items
     .filter(it => it.inventory_id)
-    .map(it => ({ raw_name_norm: normalizeRawName(it.raw_name), inventory_id: it.inventory_id, created_by: currentUser.id }))
+    .map(it => ({ raw_name_norm: normalizeRawName(it.raw_name), inventory_id: it.inventory_id, counted_per_purchase: it.counted_per_purchase ?? null, created_by: currentUser.id }))
     .filter(a => a.raw_name_norm);
   if (aliases.length) {
     await sb.from('inventory_aliases').upsert(aliases, { onConflict: 'raw_name_norm' });
@@ -5937,13 +6060,17 @@ async function savePurchaseOrder() {
       pack_count: Number.isFinite(packCount) ? packCount : null,
       unit_size: Number.isFinite(unitSize) ? unitSize : null,
       unit_size_uom: document.getElementById('poi-uom-' + i)?.value.trim() || null,
+      counted_per_purchase: (v => v > 0 ? v : null)(parseFloat(document.getElementById('poi-per-' + i)?.value)),
       _costCalc: poiCostPerBaseUnit(i)
     };
   });
-  const { data: po, error: poErr } = await sb.from('purchase_orders').insert({
-    vendor, order_number: orderNumber, order_date: orderDate, expected_arrival: expectedArrival,
-    total_cents: totalCents, notes, created_by: currentUser.id
-  }).select().single();
+  // Attaching to a reported delivery fills in that order rather than creating
+  // a second one; it keeps its arrival time and becomes receivable.
+  const attachId = document.getElementById('po-attach').value || null;
+  const poFields = { vendor, order_number: orderNumber, order_date: orderDate, expected_arrival: expectedArrival, total_cents: totalCents };
+  const { data: po, error: poErr } = attachId
+    ? await sb.from('purchase_orders').update({ ...poFields, status: 'pending', ...(notes ? { notes } : {}) }).eq('id', attachId).select().single()
+    : await sb.from('purchase_orders').insert({ ...poFields, notes, created_by: currentUser.id }).select().single();
   if (poErr) { msgEl.textContent = 'Error: ' + poErr.message; msgEl.className = 'msg error'; msgEl.style.display = 'block'; return; }
   if (items.length) {
     const { error: itemErr } = await sb.from('purchase_order_items').insert(items.map(({ _costCalc, ...it }) => ({
@@ -5959,49 +6086,12 @@ async function savePurchaseOrder() {
       await sb.from('inventory').update({ last_ordered_at: orderDate || today, expected_arrival: expectedArrival }).eq('id', it.inventory_id);
     }
   }
+  const alreadyHere = document.getElementById('po-arrived').checked;
   closeModal('receipt-modal');
   document.getElementById('receipt-file-input').value = '';
-  loadPurchases();
-}
-
-function openConfirmArrival(poId) {
-  confirmingPoId = poId;
-  const po = allPurchaseOrders.find(p => p.id === poId);
-  if (!po) return;
-  document.getElementById('confirm-arrival-items').innerHTML = (po.purchase_order_items || []).map((item, i) => `
-    <div style="display:flex;align-items:center;gap:0.75rem;padding:0.5rem 0;border-bottom:1px solid var(--border-dim);font-size:0.84rem">
-      <span style="flex:1">${item.raw_name}</span>
-      <span style="font-size:0.72rem;color:var(--gray-mid)">Ordered: ${item.quantity}</span>
-      <input type="number" value="${item.quantity}" min="0" step="0.5"
-        style="width:75px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.82rem;padding:0.35rem 0.45rem;outline:none"
-        data-item-id="${item.id}" data-inv-id="${item.inventory_id || ''}"/>
-      <span style="font-size:0.72rem;color:var(--gray-mid)">${item.inventory?.unit || ''}</span>
-    </div>`).join('');
-  document.getElementById('confirm-arrival-msg').style.display = 'none';
-  openModal('confirm-arrival-modal');
-}
-
-async function confirmArrival() {
-  const po = allPurchaseOrders.find(p => p.id === confirmingPoId);
-  if (!po) return;
-  const inputs = document.querySelectorAll('#confirm-arrival-items input[data-item-id]');
-  const adminName = (currentUser.user_metadata?.first_name || '') + ' ' + (currentUser.user_metadata?.last_name || '');
-  for (const input of inputs) {
-    const recvQty = parseFloat(input.value) || 0;
-    const itemId = input.dataset.itemId;
-    const invId = input.dataset.invId;
-    await sb.from('purchase_order_items').update({ received_quantity: recvQty }).eq('id', itemId);
-    if (invId) {
-      const invItem = allInventory.find(i => i.id === invId);
-      const prev = invItem?.quantity || 0;
-      const newQty = prev + recvQty;
-      await sb.from('inventory').update({ quantity: newQty, updated_at: new Date().toISOString() }).eq('id', invId);
-      await sb.from('inventory_log').insert({ inventory_id: invId, item_name: invItem?.name || '', previous_quantity: prev, new_quantity: newQty, change_amount: recvQty, change_type: 'restock', changed_by_id: currentUser.id, changed_by_name: adminName });
-    }
-  }
-  await sb.from('purchase_orders').update({ status: 'received', received_at: new Date().toISOString() }).eq('id', confirmingPoId);
-  closeModal('confirm-arrival-modal');
-  loadPurchases();
+  await loadPurchases();
+  // Already on the shelf: go straight to confirming what came in.
+  if (alreadyHere) openPurchaseReceive(po.id);
 }
 
 async function deletePO(id) {
@@ -6944,28 +7034,17 @@ function renderUsageConversions(ctx, gapsOnly) {
         <input class="form-input" id="po-notes" placeholder="Optional"/>
       </div>
     </div>
-    <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray-mid);margin-bottom:0.6rem;font-weight:600">Line Items — match each to an inventory item</div>
+    <div class="po-arrival-opts">
+      <span id="po-attach-wrap" hidden><label for="po-attach">This receipt is for</label><select class="form-input" id="po-attach" onchange="if (this.value) document.getElementById('po-arrived').checked = true"></select></span>
+      <label><input type="checkbox" id="po-arrived"/> It's already here — confirm the delivery next</label>
+    </div>
+    <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray-mid);margin-bottom:0.6rem;font-weight:600">Line Items — check each match and what one purchase counts as</div>
     <div class="poi-row poi-header"><span>Product</span><span>Qty</span><span>Unit Cost</span><span>Inventory Item</span></div>
     <div id="po-items-list"></div>
     <div id="receipt-modal-msg" style="display:none;margin-top:0.75rem" class="msg"></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('receipt-modal')">Cancel</button>
       <button class="btn btn-primary" onclick="savePurchaseOrder()">Save Purchase Order</button>
-    </div>
-  </div>
-</div>
-
-<!-- Confirm Arrival Modal -->
-<div class="modal-overlay" id="confirm-arrival-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-arrival-modal-title">
-  <div class="modal">
-    <button class="modal-close" onclick="closeModal('confirm-arrival-modal')" aria-label="Close">✕</button>
-    <h2 class="modal-title" id="confirm-arrival-modal-title" style="font-weight:normal">Confirm Delivery</h2>
-    <p style="font-size:0.84rem;color:var(--gray-mid);margin-bottom:1.25rem">Adjust received quantities if anything was short or missing. Inventory will be updated automatically.</p>
-    <div id="confirm-arrival-items"></div>
-    <div id="confirm-arrival-msg" style="display:none;margin-top:0.75rem" class="msg"></div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal('confirm-arrival-modal')">Cancel</button>
-      <button class="btn btn-primary" onclick="confirmArrival()">Mark as Received & Update Inventory</button>
     </div>
   </div>
 </div>
