@@ -1,12 +1,14 @@
 # Inventory Tracking — Setup and Roadmap
 
 The goal: every sale records what it used, inventory counts itself down, and the
-site tells you what to order before you run out. This is being built in four
-phases. **Phase 1 is the setup — nothing deducts stock yet.**
+site tells you what to order before you run out. This is being built in
+phases. **Usage is set up and deliveries add stock correctly; sales don't
+deduct anything yet.**
 
 | Phase | What it does | Status |
 |---|---|---|
-| 1. Usage setup | Links every sale to the inventory it uses | **This one** |
+| 1. Usage setup | Links every sale to the inventory it uses | Done |
+| 1b. Receiving | Receipts match themselves; deliveries add the right amount | Done |
 | 2. App orders | Paid app orders deduct stock; cancelled ones put it back | Next |
 | 3. Register + subscriptions | In-person Square sales and subscription drinks deduct too | Planned |
 | 4. Forecasting | Days of stock left, "order by" dates, a Needs Ordering list | Planned |
@@ -74,6 +76,39 @@ switching it would make the stored receipt cost mean the wrong thing.
 "Uses no stock" only quiets the checklist. Anything that *is* linked is still
 counted.
 
+---
+
+## Receiving deliveries
+
+Run `supabase/migrations/20260912_receiving.sql` first, then deploy the updated
+`parse-receipt` function.
+
+**Uploading a receipt** (Admin → Purchases). The parser now matches each line
+to an inventory item while it reads, using the inventory list and every match
+confirmed on a past receipt. Each line shows where its match came from — "✓
+Matched from a past receipt", "Suggested — …", or nothing when it's unsure — and
+a **Counts as** field: how many of the item's counted units one purchase adds
+(a 4-pack of bottles = 4). Check those, save, and the matches and pack sizes are
+remembered for the next receipt with the same wording.
+
+If the delivery is already here, tick **It's already here** and the Confirm
+Delivery screen opens right after saving.
+
+**When boxes arrive** (Admin → Purchases, or Manager → Deliveries). Press
+**Confirm Arrival** / **It Arrived** and enter what actually came in. Each line
+adds *arrived × counts as* to the count, in one step, and logs it as a restock.
+Anything short leaves the order **partial**, still on the list to receive the
+rest.
+
+**When a box beats the receipt.** A manager presses **Report It** on the
+Deliveries page. It shows up for the admin as **needs receipt** (and on the
+Purchases badge). Press **Upload Its Receipt**; the upload attaches to that
+delivery instead of making a second order, and goes straight to confirming it.
+
+The Purchases badge counts deliveries needing a receipt plus orders past their
+expected date that nobody has confirmed. The manager Deliveries badge counts
+orders due by today.
+
 ### Checking it in SQL
 
 ```sql
@@ -97,9 +132,6 @@ select * from public.menu_item_usage('<menu item id>', array['<modifier square i
 
 - **The manager page's "Used" and "Variance" numbers** still come from the old
   name-guessing code and mix units. Phase 2 replaces them.
-- **Receiving a purchase order** adds received quantity (purchased units, e.g.
-  a 4-pack) straight onto the count (bottles). With `pack_size` and the new
-  conversion both known, phase 2 can convert it properly.
 - **Register sales** carry a Square variation id; `sync-catalog` only stores an
   item's first variation, so multi-variation items (Hot/Iced sizes) will need
   mapping in phase 3.

@@ -7,6 +7,7 @@
   <link rel="icon" type="image/png" href="/favicon.png" />
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <script src="/lib/supabase.js"></script>
+<script src="/lib/receiving.js"></script>
 <style>
   :root{--red:#cc0000;--red-bright:#ff1a1a;--black:#0a0a0a;--card:#111;--border:rgba(204,0,0,0.18);--border-dim:rgba(255,255,255,0.06);--gray:#888;--light-gray:#999;--white:#f0f0f0}
   *{margin:0;padding:0;box-sizing:border-box}
@@ -127,6 +128,13 @@
   .po-vendor-other{background:rgba(255,255,255,0.06);color:var(--gray)}
   .status-received{background:rgba(76,175,80,0.1);color:#4caf50;border:1px solid rgba(76,175,80,0.2)}
   .status-partial{background:rgba(33,150,243,0.1);color:#2196f3;border:1px solid rgba(33,150,243,0.25)}
+  /* Deliveries */
+  .po-status{font-size:0.66rem;padding:0.15rem 0.55rem;border-radius:20px;white-space:nowrap}
+  .po-status.waiting{background:rgba(255,255,255,0.05);color:var(--light-gray);border:1px solid var(--border-dim)}
+  .po-status.partial{background:rgba(33,150,243,0.1);color:#2196f3;border:1px solid rgba(33,150,243,0.25)}
+  .po-status.needs{background:rgba(255,152,0,0.1);color:#ff9800;border:1px solid rgba(255,152,0,0.25)}
+  .deliv-group{font-size:0.7rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--gray);font-weight:600;margin:1.5rem 0 0.6rem}
+  .deliv-report{background:var(--card);border:1px solid var(--border-dim);border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem;display:flex;flex-wrap:wrap;gap:0.75rem;align-items:flex-end}
   .upload-zone{border:2px dashed rgba(255,255,255,0.12);border-radius:14px;padding:2.5rem;text-align:center;cursor:pointer;transition:all 0.2s;margin-bottom:1.5rem}
   .upload-zone:hover,.upload-zone.drag{border-color:var(--red);background:rgba(204,0,0,0.04)}
   .upload-zone input{display:none}
@@ -185,6 +193,7 @@
     <button class="nav-item" onclick="showSection('schedule',this)"><span aria-hidden="true">📅</span> Schedule</button>
     <button class="nav-item" onclick="showSection('orders',this)"><span aria-hidden="true">🧾</span> Active Orders</button>
     <button class="nav-item" onclick="showSection('inventory',this)"><span aria-hidden="true">📦</span> Inventory<span class="nav-badge" id="inv-nav-badge" style="display:none" aria-label=""></span></button>
+    <button class="nav-item" onclick="showSection('deliveries',this)"><span aria-hidden="true">🚚</span> Deliveries<span class="nav-badge" id="deliv-nav-badge" style="display:none" aria-label=""></span></button>
     <a class="nav-item" href="../student/recipe-sheet.html" target="_blank" rel="noopener"><span aria-hidden="true">🗒️</span> Recipe Sheet</a>
     <a class="nav-item" href="../board.html" target="_blank" rel="noopener"><span aria-hidden="true">🖥️</span> Menu Board</a>
     <div class="nav-section">Students</div>
@@ -245,6 +254,29 @@
       </div>
       <div id="inventory-content"></div>
       <div id="inv-msg" style="display:none" class="msg" role="status" aria-live="polite"></div>
+    </div>
+
+    <div class="section" id="section-deliveries">
+      <div class="page-eyebrow">Stock Management</div>
+      <h1 class="page-title">DELIVERIES</h1>
+      <p style="color:var(--gray);font-size:0.85rem;margin:-1rem 0 1.25rem;max-width:70ch">When boxes arrive, confirm what came in and the inventory counts go up by the right amount. If something shows up that isn't on the list, report it so the admin knows to upload its receipt.</p>
+      <div class="deliv-report">
+        <div class="form-group" style="margin:0">
+          <label class="form-label" for="deliv-vendor">Something arrived that isn't listed?</label>
+          <select class="form-input" id="deliv-vendor" style="width:auto">
+            <option value="amazon">Amazon</option>
+            <option value="walmart">Walmart</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0;flex:1;min-width:200px">
+          <label class="form-label" for="deliv-note">What's in it <span style="text-transform:none;letter-spacing:0">(optional)</span></label>
+          <input class="form-input" id="deliv-note" placeholder="e.g. 2 boxes — looks like syrup and cups"/>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="reportDelivery()">Report It</button>
+      </div>
+      <div id="deliv-msg" class="msg" style="display:none" role="status" aria-live="polite"></div>
+      <div id="deliveries-content"></div>
     </div>
 
     <div class="section" id="section-scores">
@@ -360,6 +392,7 @@ function showApp(){
   const hr=new Date().getHours();
   document.getElementById('overview-greeting').textContent=`GOOD ${hr<12?'MORNING':hr<17?'AFTERNOON':'EVENING'}, ${(currentUser.user_metadata?.first_name||'').toUpperCase()}!`;
   loadOverview();
+  loadDeliveriesBadge();
 }
 
 async function doLogin(){
@@ -383,6 +416,7 @@ function showSection(name,el){
   if(name==='schedule')loadSchedule();
   if(name==='orders')loadOrders();
   if(name==='inventory')loadInventory();
+  if(name==='deliveries')loadDeliveries();
   if(name==='scores')loadScores();
   closeNav();
   window.scrollTo(0,0);
@@ -413,6 +447,93 @@ function getMondayStr(offset){
   const today=new Date(),day=today.getDay(),diff=day===0?-6:1-day;
   const monday=new Date(today);monday.setDate(today.getDate()+diff+(offset*7));monday.setHours(0,0,0,0);
   return monday.toISOString().split('T')[0];
+}
+
+// DELIVERIES
+// Receiving is shared with the admin Purchases page (lib/receiving.js), so a
+// manager confirming a box does exactly what the admin confirming it does.
+let allDeliveries=[];
+
+// Worth a badge: on the way and due by today (or with no date to go on).
+const deliveryIsDue=po=>po.status!=='needs_receipt'&&(!po.expected_arrival||po.expected_arrival<=receivingToday());
+
+async function loadDeliveries(){
+  const el=document.getElementById('deliveries-content');
+  if(!allInventory.length){const {data:inv}=await sb.from('inventory').select('*').order('name');allInventory=inv||[];}
+  const {data,error}=await sb.from('purchase_orders').select('*, purchase_order_items(*)')
+    .in('status',['pending','partial','needs_receipt']).order('created_at',{ascending:false});
+  if(error){el.innerHTML=`<div class="msg error">Couldn't load deliveries: ${receivingEsc(error.message)}</div>`;return;}
+  allDeliveries=data||[];
+  setDeliveriesBadge(allDeliveries.filter(deliveryIsDue).length);
+  const fmtDate=d=>d?new Date(d+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}):'no date given';
+  const onTheWay=allDeliveries.filter(p=>p.status!=='needs_receipt')
+    .sort((a,b)=>(isDeliveryOverdue(b)-isDeliveryOverdue(a))||String(a.expected_arrival||'9999').localeCompare(String(b.expected_arrival||'9999')));
+  const reported=allDeliveries.filter(p=>p.status==='needs_receipt');
+  const poRow=po=>{
+    const items=po.purchase_order_items||[];
+    const preview=items.slice(0,3).map(i=>receivingEsc(i.raw_name)).join(', ')+(items.length>3?` +${items.length-3} more`:'');
+    const status=po.status==='partial'?'<span class="po-status partial">Part arrived</span>'
+      :isDeliveryOverdue(po)?'<span class="po-status needs">Overdue</span>':'<span class="po-status waiting">On the way</span>';
+    return `<div class="po-row">
+      <span class="po-vendor po-vendor-${receivingEsc(po.vendor)}">${receivingEsc(po.vendor)}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:500;font-size:0.9rem">${po.order_number?'#'+receivingEsc(po.order_number):'No order #'} · expected ${fmtDate(po.expected_arrival)}</div>
+        <div style="font-size:0.72rem;color:var(--gray);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${preview||'No items listed'}</div>
+      </div>
+      ${status}
+      <button class="btn btn-primary btn-sm" onclick="receiveDelivery('${po.id}')">${po.status==='partial'?'Receive the Rest':'It Arrived'}</button>
+    </div>`;
+  };
+  const reportedRow=po=>`<div class="po-row">
+      <span class="po-vendor po-vendor-${receivingEsc(po.vendor)}">${receivingEsc(po.vendor)}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:500;font-size:0.9rem">Arrived ${po.arrived_at?new Date(po.arrived_at).toLocaleDateString('en-US',{month:'short',day:'numeric'}):'recently'}</div>
+        <div style="font-size:0.72rem;color:var(--gray)">${po.notes?receivingEsc(po.notes):'No note'}</div>
+      </div>
+      <span class="po-status needs">Waiting on receipt</span>
+    </div>`;
+  el.innerHTML=(onTheWay.length
+      ?`<div class="deliv-group">On the way (${onTheWay.length})</div>`+onTheWay.map(poRow).join('')
+      :'<div style="color:var(--gray);text-align:center;padding:2rem;background:var(--card);border-radius:12px;border:1px solid var(--border-dim)">Nothing on the way right now.</div>')
+    +(reported.length?`<div class="deliv-group">Reported — waiting on the receipt (${reported.length})</div>`+reported.map(reportedRow).join(''):'');
+}
+
+function receiveDelivery(id){
+  const po=allDeliveries.find(p=>p.id===id);
+  if(!po)return;
+  const name=`${currentUser.user_metadata?.first_name||''} ${currentUser.user_metadata?.last_name||''}`.trim()||currentUser.email;
+  openReceiveModal({sb,po,inventory:allInventory,receivedByName:name,onDone:status=>{
+    showDelivMsg(status==='received'?'Delivery received — inventory updated.':'Saved. The rest stays on the list until it arrives.','success');
+    allInventory=[];
+    loadDeliveries();
+  }});
+}
+
+async function reportDelivery(){
+  const vendor=document.getElementById('deliv-vendor').value;
+  const note=document.getElementById('deliv-note').value.trim();
+  const {error}=await reportUnlistedDelivery(sb,{vendor,note,userId:currentUser.id});
+  if(error){showDelivMsg('Error: '+error.message,'error');return;}
+  document.getElementById('deliv-note').value='';
+  showDelivMsg('Reported. It shows up for the admin as needing a receipt.','success');
+  loadDeliveries();
+}
+
+function showDelivMsg(text,kind){
+  const m=document.getElementById('deliv-msg');
+  m.textContent=text;m.className='msg '+kind;m.style.display='block';
+}
+
+async function loadDeliveriesBadge(){
+  const {data}=await sb.from('purchase_orders').select('status,expected_arrival').in('status',['pending','partial']);
+  setDeliveriesBadge((data||[]).filter(deliveryIsDue).length);
+}
+
+function setDeliveriesBadge(n){
+  const b=document.getElementById('deliv-nav-badge');
+  if(!b)return;
+  if(n){b.textContent=n;b.setAttribute('aria-label',n+(n===1?' delivery':' deliveries')+' to confirm');b.style.display='';}
+  else{b.style.display='none';b.setAttribute('aria-label','');}
 }
 
 // SCHEDULE
@@ -462,7 +583,7 @@ function renderOrders(){
 async function loadInventory(){
   const [{data},{data:poItemData},{data:recipeData},{data:orderData}]=await Promise.all([
     sb.from('inventory').select('*').order('category').order('name'),
-    sb.from('purchase_order_items').select('inventory_id,quantity,received_quantity,purchase_orders!inner(status)').eq('purchase_orders.status','received'),
+    sb.from('purchase_order_items').select('inventory_id,quantity,received_quantity,received_count,purchase_orders!inner(status)').in('purchase_orders.status',['received','partial']),
     sb.from('recipe_ingredients').select('inventory_id,amount,recipe_id'),
     sb.from('orders').select('cart_items,status').in('status',['delivered','ready','preparing'])
   ]);
@@ -471,7 +592,8 @@ async function loadInventory(){
   const receivedMap={};
   (poItemData||[]).forEach(it=>{
     if(!it.inventory_id)return;
-    receivedMap[it.inventory_id]=(receivedMap[it.inventory_id]||0)+(it.received_quantity??it.quantity);
+    // received_count is in counted units; older orders only have purchased units.
+    receivedMap[it.inventory_id]=(receivedMap[it.inventory_id]||0)+(it.received_count??it.received_quantity??0);
   });
   // Build recipe usage totals per inventory item by matching cart item names to recipe names
   const usageMap={};
