@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="/lib/flatpickr-themes/dark.css" />
   <script src="/lib/flatpickr.js"></script>
   <script src="/lib/receiving.js"></script>
+  <script src="/lib/subscription-exclusives.js"></script>
   <style>
     :root {
       --bg: #0a0a0a;
@@ -1173,6 +1174,20 @@
             <tr><th scope="col">Name</th><th scope="col">Category</th><th scope="col">Temp</th><th scope="col">Price</th><th scope="col">Availability</th><th scope="col">Actions</th></tr>
           </thead>
           <tbody id="exclusive-menu-tbody"></tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- Mathews campus items. Fully live, just kept out of the main list. -->
+    <details id="mathews-menu-details" style="margin-top:1rem" hidden>
+      <summary class="section-title" style="cursor:pointer">Mathews Menu (<span id="mathews-menu-count">0</span>)</summary>
+      <p style="font-size:0.8rem;color:var(--gray);margin:0.5rem 0 0.75rem">Items for the Mathews campus.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">Name</th><th scope="col">Category</th><th scope="col">Temp</th><th scope="col">Price</th><th scope="col">Availability</th><th scope="col">Actions</th></tr>
+          </thead>
+          <tbody id="mathews-menu-tbody"></tbody>
         </table>
       </div>
     </details>
@@ -3264,13 +3279,14 @@ async function loadMenuItems() {
   if (!allMenuItems.length) {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--gray);padding:1.5rem">No menu items yet.</td></tr>';
     renderCollapsedMenuList('exclusive', []);
+    renderCollapsedMenuList('mathews', []);
     renderCollapsedMenuList('retired', [], true);
     return;
   }
-  const exclusiveCategoryIds = new Set((squareCategories || [])
-    .filter(c => SUBSCRIPTION_EXCLUSIVE_CATEGORY_NAMES.includes(String(c.name || '').trim().toLowerCase()))
-    .map(c => c.square_id));
-  const isSubscriptionExclusive = item => (item.square_category_ids || []).some(id => exclusiveCategoryIds.has(id));
+  const exclusiveIds = subscriptionExclusiveCategoryIds(squareCategories);
+  // Matched on the raw category rather than getMenuCategoryKey, which checks
+  // Coffee first and so would call "Mathews Coffee" coffee.
+  const isMathews = item => normalizeMenuCategory(item.category).includes('mathews');
   const categoryFilter = document.getElementById('menu-category-filter')?.value || '';
   const categorySortOrder = [...MENU_CATEGORY_CONFIG.map(c => c.key)];
   const list = [...allMenuItems]
@@ -3283,31 +3299,33 @@ async function loadMenuItems() {
       return (a.name || '').localeCompare(b.name || '');
     });
 
-  // Retired items move to the collapsed list below: deleted from Square
-  // (in_square = false, set by the sync) or retired here by hand (retired,
-  // which the sync never touches). Retired wins, so a retired subscription
-  // drink goes there too. Subscription exclusives get their own collapsed
-  // list above it. Hidden items that are neither -- next week's specials,
-  // say -- stay here, since this is where they get switched on.
-  const retired = list.filter(isRetiredMenuItem);
-  const exclusives = list.filter(item => !isRetiredMenuItem(item) && isSubscriptionExclusive(item));
-  const live = list.filter(item => !isRetiredMenuItem(item) && !isSubscriptionExclusive(item));
-  renderCollapsedMenuList('exclusive', exclusives);
-  renderCollapsedMenuList('retired', retired, true);
+  // Each item lands in exactly one list, checked in this order. Retired:
+  // deleted from Square (in_square = false, set by the sync) or retired here
+  // by hand (retired, which the sync never touches). Then subscription
+  // exclusives, then Mathews, each in its own collapsed list. Everything else
+  // -- including hidden items like next week's specials -- stays here, since
+  // this is where they get switched on.
+  const groups = { live: [], exclusive: [], mathews: [], retired: [] };
+  list.forEach(item => {
+    const key = isRetiredMenuItem(item) ? 'retired'
+      : isSubscriptionExclusive(item, exclusiveIds) ? 'exclusive'
+      : isMathews(item) ? 'mathews'
+      : 'live';
+    groups[key].push(item);
+  });
+  renderCollapsedMenuList('exclusive', groups.exclusive);
+  renderCollapsedMenuList('mathews', groups.mathews);
+  renderCollapsedMenuList('retired', groups.retired, true);
 
-  tbody.innerHTML = live.length
-    ? live.map(item => menuItemRow(item)).join('')
+  tbody.innerHTML = groups.live.length
+    ? groups.live.map(item => menuItemRow(item)).join('')
     : '<tr><td colspan="6" style="text-align:center;color:var(--gray);padding:1.5rem">No menu items in this category yet.</td></tr>';
 }
 
 const isRetiredMenuItem = item => item.in_square === false || item.retired === true;
 
-// Subscription-only drinks are the ones Square files under these categories
-// (the same names the Recipe Sheet uses for its Subscriptions section).
-const SUBSCRIPTION_EXCLUSIVE_CATEGORY_NAMES = ['birdhouse roost exclusive', 'birdhouse eyrie exclusive'];
-
-// The collapsed lists under Live Menu Items ('exclusive', 'retired'). Each
-// only appears when it has something in it.
+// The collapsed lists under Live Menu Items ('exclusive', 'mathews',
+// 'retired'). Each only appears when it has something in it.
 function renderCollapsedMenuList(key, items, retired = false) {
   document.getElementById(`${key}-menu-details`).hidden = !items.length;
   document.getElementById(`${key}-menu-count`).textContent = items.length;

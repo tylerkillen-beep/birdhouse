@@ -7,6 +7,7 @@
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
   <script src="/lib/supabase.js"></script>
+  <script src="/lib/subscription-exclusives.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -211,9 +212,6 @@
     { key: 'next_specials', title: 'Next Week’s Specials' },
   ];
 
-  // Subscription-only drinks are the ones Square files under these categories.
-  const SUBSCRIPTION_CATEGORY_NAMES = ['birdhouse roost exclusive', 'birdhouse eyrie exclusive'];
-
   const normalize = s => String(s || '').trim().toLowerCase();
 
   // Cold Drinks is decided by the site's own category, as it always has been.
@@ -306,9 +304,7 @@
       if (key && (!menuItemsByName[key] || rank(mi) > rank(menuItemsByName[key]))) menuItemsByName[key] = mi;
     });
 
-    subscriptionCategoryIds = new Set((squareCategories || [])
-      .filter(c => SUBSCRIPTION_CATEGORY_NAMES.includes(normalize(c.name)))
-      .map(c => c.square_id));
+    subscriptionCategoryIds = subscriptionExclusiveCategoryIds(squareCategories);
 
     allRecipes = recipes || [];
     renderSheet();

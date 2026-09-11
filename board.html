@@ -8,6 +8,7 @@
   <meta name="robots" content="noindex" />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <script src="/lib/subscription-exclusives.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -322,6 +323,17 @@
 
       // The add-ons are extra: if they fail to load, the rest of the board
       // still shows, just without them.
+      // Subscription exclusives never go on the board. If the categories fail to
+      // load, nothing is filtered -- process-payment still refuses to sell them.
+      async function loadExclusiveCategoryIds() {
+        try {
+          const res = await rest('square_categories?select=square_id,name');
+          return subscriptionExclusiveCategoryIds(res.ok ? await res.json() : []);
+        } catch {
+          return new Set();
+        }
+      }
+
       async function loadAddOnOptions() {
         const [listsRes, optionsRes] = await Promise.all([
           rest('modifier_lists?select=id,square_id,name'),
@@ -334,12 +346,13 @@
       async function loadBoard() {
         const status = document.getElementById('board-status');
         try {
-          const [res, addOnData] = await Promise.all([
-            rest('menu_items?select=name,description,category,base_price_cents,base_price,sort_order,image_url,square_modifier_list_ids&available=eq.true&order=category.asc,sort_order.asc'),
+          const [res, addOnData, exclusiveIds] = await Promise.all([
+            rest('menu_items?select=name,description,category,base_price_cents,base_price,sort_order,image_url,square_modifier_list_ids,square_category_ids&available=eq.true&order=category.asc,sort_order.asc'),
             loadAddOnOptions().catch(() => null),
+            loadExclusiveCategoryIds(),
           ]);
           if (!res.ok) throw new Error('Failed to load menu');
-          const items = await res.json();
+          const items = (await res.json()).filter(item => !isSubscriptionExclusive(item, exclusiveIds));
 
           const specials = [];
           const groups = {};

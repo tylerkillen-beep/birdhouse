@@ -36,6 +36,11 @@ const CREDIT_REWARD_CENTS   = 300;  // $3.00
 const EMPLOYEE_DISCOUNT = 0.25; // approved staff-hub accounts
 const TEACHER_DISCOUNT  = 0.25; // @nixaschools.net, except Mathews
 
+// Subscription-only drinks are whatever Square files under these categories;
+// they're never sold a la carte. Same names as lib/subscription-exclusives.js,
+// which this function can't import.
+const SUBSCRIPTION_EXCLUSIVE_CATEGORY_NAMES = ["birdhouse roost exclusive", "birdhouse eyrie exclusive"];
+
 // Sticker sheet pricing.  The first uploaded image on each sheet is free;
 // repeating that image across slots costs nothing extra.  The extra-image
 // surcharge is a one-time design fee, so ordering ten copies of a design pays
@@ -99,13 +104,24 @@ async function priceMenuCart(
 
   const { data: rows, error: itemErr } = await supabase
     .from("menu_items")
-    .select("id, name, available, base_price, base_price_cents, website_discount_pct, square_modifier_list_ids")
+    .select("id, name, available, base_price, base_price_cents, website_discount_pct, square_modifier_list_ids, square_category_ids")
     .in("id", itemIds);
   if (itemErr) {
     console.error("Menu price lookup failed:", itemErr);
     throw new Error("We couldn't check menu prices. Please try again.");
   }
   const itemsById = new Map((rows || []).map((r) => [r.id, r]));
+
+  const { data: categories, error: catErr } = await supabase
+    .from("square_categories")
+    .select("square_id, name");
+  if (catErr) {
+    console.error("Square category lookup failed:", catErr);
+    throw new Error("We couldn't check menu prices. Please try again.");
+  }
+  const exclusiveIds = new Set((categories || [])
+    .filter((c) => SUBSCRIPTION_EXCLUSIVE_CATEGORY_NAMES.includes(String(c.name || "").trim().toLowerCase()))
+    .map((c) => c.square_id));
 
   // Add-ons are identified by their Square id, the same way the order page sends them.
   const optionsBySquareId = new Map();
@@ -130,6 +146,9 @@ async function priceMenuCart(
     const row = itemsById.get(String(raw?.id ?? ""));
     if (!row?.available) {
       throw new Error(`${row?.name || raw?.name || "An item in your cart"} is no longer on the menu. Refresh the page and try again.`);
+    }
+    if ((row.square_category_ids || []).some((id: string) => exclusiveIds.has(id))) {
+      throw new Error(`${row.name} is only available with a subscription.`);
     }
 
     const quantity = Number(raw.quantity);

@@ -9,6 +9,7 @@
   <script src="/lib/supabase.js"></script>
   <script src="/lib/locations.js"></script>
   <script src="/lib/delivery-slots.js"></script>
+  <script src="/lib/subscription-exclusives.js"></script>
   <script src="https://web.squarecdn.com/v1/square.js"></script>
   <link rel="stylesheet" href="/lib/flatpickr-themes/dark.css" />
   <script src="/lib/flatpickr.js"></script>
@@ -670,12 +671,16 @@
 
   // ── Menu + Modifiers ──────────────────────────────────────────────────────
   async function loadMenu() {
-    const [{ data: items }, { data: modLists }, { data: modOptions }, { data: reviews }] = await Promise.all([
+    const [{ data: allItems }, { data: modLists }, { data: modOptions }, { data: reviews }, { data: squareCategories }] = await Promise.all([
       sb.from('menu_items').select('*').eq('available', true).order('sort_order'),
       sb.from('modifier_lists').select('*'),
       sb.from('modifier_options').select('*').order('sort_order'),
       sb.from('reviews').select('menu_item_id, rating'),
+      sb.from('square_categories').select('square_id, name'),
     ]);
+    // Subscription exclusives are sold only through a subscription.
+    const exclusiveIds = subscriptionExclusiveCategoryIds(squareCategories);
+    const items = (allItems || []).filter(item => !isSubscriptionExclusive(item, exclusiveIds));
 
     // Aggregate review stats per menu item
     menuRatings = {};
