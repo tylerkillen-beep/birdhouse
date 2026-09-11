@@ -286,6 +286,8 @@ serve(async (req) => {
         square_modifier_list_ids: squareModifierListIds,
         square_category_ids: squareCategoryIds,
         image_url: imageUrl,
+        // Cleared by the archive step below once an item leaves Square.
+        in_square: true,
       };
 
       // Fields the site owns: staff curate these in the admin page and Square has
@@ -343,6 +345,11 @@ serve(async (req) => {
     // pagination) would otherwise permanently destroy rows -- which is exactly
     // what happened on 2026-08-28. Hiding is reversible; staff can flip an item
     // back on in the admin page, and re-adding it in Square restores it too.
+    //
+    // They are also marked in_square = false, which is how the Recipe Sheet
+    // tells a retired special (deleted from Square) from next week's (hidden
+    // but still in Square). Rows already hidden get the flag too, so a special
+    // staff hid by hand and later deleted in Square is caught as well.
     const validSquareIds = items.map((o) => o.id);
     let archived = 0;
     let archiveErrors = 0;
@@ -350,14 +357,14 @@ serve(async (req) => {
       const { data: toArchive } = await serviceClient
         .from("menu_items")
         .select("id, square_item_id")
-        .eq("available", true)
+        .or("available.eq.true,in_square.eq.true")
         .not("square_item_id", "is", null)
         .not("square_item_id", "in", `(${validSquareIds.join(",")})`);
 
       for (const row of toArchive || []) {
         const { error } = await serviceClient
           .from("menu_items")
-          .update({ available: false })
+          .update({ available: false, in_square: false })
           .eq("id", row.id);
         if (!error) {
           archived += 1;
