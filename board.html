@@ -63,6 +63,21 @@
     .special-price { font-size: 1.6rem; color: var(--red-bright); font-weight: 600; white-space: nowrap; }
     .special-desc { font-size: 0.8rem; color: var(--light-gray); line-height: 1.4; margin-top: 0.2rem; font-weight: 300; }
 
+    /* Add-ons under the specials. Deliberately no card or heading row: the
+       board is fitted to its tallest column, so anything much taller than the
+       gap under the specials shrinks every item on the board. */
+    .addons {
+      margin-top: 0.9rem; padding-top: 0.55rem; border-top: 2px solid var(--border);
+      display: grid; grid-template-columns: auto 1fr; column-gap: 0.9rem; align-items: baseline;
+    }
+    .addons-label {
+      font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--red-bright); -webkit-text-stroke: 0.5px var(--red-bright); line-height: 1.15;
+    }
+    .addon-tier { grid-column: 2; display: flex; align-items: baseline; gap: 0.7rem; padding: 0.12rem 0; }
+    .addon-price { font-size: 1.15rem; font-weight: 600; color: var(--red-bright); min-width: 2.6rem; white-space: nowrap; }
+    .addon-names { font-size: 1.05rem; font-weight: 500; color: var(--white); }
+
     /* Category lists column */
     .lists-col { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start; }
     @media (max-width: 700px) { .lists-col { grid-template-columns: 1fr; } }
@@ -104,6 +119,7 @@
         </div>
         <div class="board-updated" id="board-updated"></div>
         <div id="board-specials"></div>
+        <div id="board-addons"></div>
       </div>
       <div class="lists-col" id="board-lists"></div>
     </div>
@@ -186,6 +202,59 @@
         return `<div class="specials-col"><div class="specials-heading">✨ Specials</div>${cards}</div>`;
       }
 
+      // Add-ons under the specials, grouped by price like the old board. Prices
+      // come live from the modifier options attached to items on the board, so
+      // a Square price change shows up here and a group whose options are all
+      // marked out of stock drops off. Each option joins the first group it
+      // matches; anything unmatched is left off, which keeps the board generic
+      // (it says "Flavor Shot", never which flavors). Groups are listed in the
+      // order they appear on the board.
+      const ADD_ON_GROUPS = [
+        { label: 'Marshmallows',  match: (opt) => /marshmallow/i.test(opt) },
+        { label: 'Flavor Shot',   match: (opt, list) => /flavor/i.test(list) && !/whip/i.test(opt) },
+        { label: 'Whipped Cream', match: (opt) => /whip/i.test(opt) },
+        { label: 'Espresso Shot', match: (opt) => /espresso/i.test(opt) },
+        { label: 'Cold Foam',     match: (opt) => /cold foam/i.test(opt) },
+        { label: 'Drizzle',       match: (opt) => /drizzle/i.test(opt) },
+        { label: 'Iced',          match: (opt) => /^iced$/i.test(opt.trim()) },
+        { label: 'Boba',          match: (opt, list) => /boba/i.test(list) || /boba/i.test(opt) },
+      ];
+
+      /** [[priceCents, [labels…]], …], cheapest tier first. Only lists attached
+       *  to an item on the board count, so old unused lists in Square (with
+       *  their own prices) can't leak onto it. A group priced differently
+       *  across options shows its lowest price. */
+      function buildAddOnTiers(items, lists, options) {
+        const onBoard = new Set(items.filter(i => getCategory(i)).flatMap(i => i.square_modifier_list_ids || []));
+        const listNames = new Map(lists.filter(l => onBoard.has(l.square_id)).map(l => [l.id, l.name]));
+        const prices = new Map();
+        options.forEach(opt => {
+          if (opt.available === false || !(opt.price_cents > 0) || !listNames.has(opt.modifier_list_id)) return;
+          const group = ADD_ON_GROUPS.find(g => g.match(opt.name || '', listNames.get(opt.modifier_list_id)));
+          if (group) prices.set(group.label, Math.min(prices.get(group.label) ?? Infinity, opt.price_cents));
+        });
+        const tiers = new Map();
+        ADD_ON_GROUPS.forEach(g => {
+          if (!prices.has(g.label)) return;
+          const cents = prices.get(g.label);
+          if (!tiers.has(cents)) tiers.set(cents, []);
+          tiers.get(cents).push(g.label);
+        });
+        return [...tiers].sort((a, b) => a[0] - b[0]);
+      }
+
+      function renderAddOns(tiers) {
+        if (!tiers.length) return '';
+        const price = cents => cents < 100 ? cents + '¢' : '$' + (cents / 100).toFixed(2);
+        const rows = tiers.map(([cents, labels]) => `
+          <div class="addon-tier">
+            <span class="addon-price">${price(cents)}</span>
+            <span class="addon-names">${labels.map(escHtml).join(' · ')}</span>
+          </div>
+        `).join('');
+        return `<div class="addons"><div class="addons-label" style="grid-row:1 / span ${tiers.length}">Add-Ons</div>${rows}</div>`;
+      }
+
       function renderList(cat, items) {
         if (!items.length) return '';
         const rows = items.slice().sort(byPriceAsc).map(item => `
@@ -245,13 +314,30 @@
         board.style.minHeight = prevMinHeight;
       }
 
+      function rest(path) {
+        return fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+          headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY },
+        });
+      }
+
+      // The add-ons are extra: if they fail to load, the rest of the board
+      // still shows, just without them.
+      async function loadAddOnOptions() {
+        const [listsRes, optionsRes] = await Promise.all([
+          rest('modifier_lists?select=id,square_id,name'),
+          rest('modifier_options?select=*'),
+        ]);
+        if (!listsRes.ok || !optionsRes.ok) return null;
+        return { lists: await listsRes.json(), options: await optionsRes.json() };
+      }
+
       async function loadBoard() {
         const status = document.getElementById('board-status');
         try {
-          const res = await fetch(
-            `${SUPABASE_URL}/rest/v1/menu_items?select=name,description,category,base_price_cents,base_price,sort_order,image_url&available=eq.true&order=category.asc,sort_order.asc`,
-            { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
-          );
+          const [res, addOnData] = await Promise.all([
+            rest('menu_items?select=name,description,category,base_price_cents,base_price,sort_order,image_url,square_modifier_list_ids&available=eq.true&order=category.asc,sort_order.asc'),
+            loadAddOnOptions().catch(() => null),
+          ]);
           if (!res.ok) throw new Error('Failed to load menu');
           const items = await res.json();
 
@@ -265,6 +351,7 @@
           });
 
           const specialsHtml = renderSpecials(specials);
+          const addOnsHtml = addOnData ? renderAddOns(buildAddOnTiers(items, addOnData.lists, addOnData.options)) : '';
           // Render into fixed columns so each category lands on the side it belongs to,
           // rather than wherever the row counts happen to push it.
           const columns = [0, 1].map(col =>
@@ -282,6 +369,7 @@
             grid.style.display = '';
             status.innerHTML = '';
             document.getElementById('board-specials').innerHTML = specialsHtml;
+            document.getElementById('board-addons').innerHTML = addOnsHtml;
             document.getElementById('board-lists').innerHTML = listsHtml;
           }
           document.getElementById('board-updated').textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
