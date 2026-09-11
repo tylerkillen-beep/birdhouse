@@ -1162,6 +1162,21 @@
       </table>
     </div>
 
+    <!-- Subscription-only drinks. Fully live -- same buttons as any item --
+         just kept out of the main list to keep it short. -->
+    <details id="exclusive-menu-details" style="margin-top:1rem" hidden>
+      <summary class="section-title" style="cursor:pointer">Subscription Exclusives (<span id="exclusive-menu-count">0</span>)</summary>
+      <p style="font-size:0.8rem;color:var(--gray);margin:0.5rem 0 0.75rem">Drinks in the Birdhouse Roost Exclusive and Birdhouse Eyrie Exclusive categories in Square.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">Name</th><th scope="col">Category</th><th scope="col">Temp</th><th scope="col">Price</th><th scope="col">Availability</th><th scope="col">Actions</th></tr>
+          </thead>
+          <tbody id="exclusive-menu-tbody"></tbody>
+        </table>
+      </div>
+    </details>
+
     <!-- Items deleted from Square (the sync hides them rather than deleting the
          rows) or retired here by hand. Kept for reference, out of the live list. -->
     <details id="retired-menu-details" style="margin-top:1rem" hidden>
@@ -3236,7 +3251,10 @@ async function syncSquareMenu() {
 async function loadMenuItems() {
   const tbody = document.getElementById('menu-items-tbody');
   tbody.innerHTML = '<tr class="loading-row"><td colspan="6">Loading menu items…</td></tr>';
-  const { data, error } = await sb.from('menu_items').select('*').order('sort_order');
+  const [{ data, error }, { data: squareCategories }] = await Promise.all([
+    sb.from('menu_items').select('*').order('sort_order'),
+    sb.from('square_categories').select('square_id, name'),
+  ]);
   if (error) {
     tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#ff6b6b;padding:1.25rem">${error.message}</td></tr>`;
     return;
@@ -3245,9 +3263,14 @@ async function loadMenuItems() {
   populateMenuCategoryControls(allMenuItems);
   if (!allMenuItems.length) {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--gray);padding:1.5rem">No menu items yet.</td></tr>';
-    renderRetiredMenuItems([]);
+    renderCollapsedMenuList('exclusive', []);
+    renderCollapsedMenuList('retired', [], true);
     return;
   }
+  const exclusiveCategoryIds = new Set((squareCategories || [])
+    .filter(c => SUBSCRIPTION_EXCLUSIVE_CATEGORY_NAMES.includes(String(c.name || '').trim().toLowerCase()))
+    .map(c => c.square_id));
+  const isSubscriptionExclusive = item => (item.square_category_ids || []).some(id => exclusiveCategoryIds.has(id));
   const categoryFilter = document.getElementById('menu-category-filter')?.value || '';
   const categorySortOrder = [...MENU_CATEGORY_CONFIG.map(c => c.key)];
   const list = [...allMenuItems]
@@ -3262,11 +3285,15 @@ async function loadMenuItems() {
 
   // Retired items move to the collapsed list below: deleted from Square
   // (in_square = false, set by the sync) or retired here by hand (retired,
-  // which the sync never touches). Hidden items that aren't retired -- next
-  // week's specials, say -- stay here, since this is where they get switched on.
+  // which the sync never touches). Retired wins, so a retired subscription
+  // drink goes there too. Subscription exclusives get their own collapsed
+  // list above it. Hidden items that are neither -- next week's specials,
+  // say -- stay here, since this is where they get switched on.
   const retired = list.filter(isRetiredMenuItem);
-  const live = list.filter(item => !isRetiredMenuItem(item));
-  renderRetiredMenuItems(retired);
+  const exclusives = list.filter(item => !isRetiredMenuItem(item) && isSubscriptionExclusive(item));
+  const live = list.filter(item => !isRetiredMenuItem(item) && !isSubscriptionExclusive(item));
+  renderCollapsedMenuList('exclusive', exclusives);
+  renderCollapsedMenuList('retired', retired, true);
 
   tbody.innerHTML = live.length
     ? live.map(item => menuItemRow(item)).join('')
@@ -3275,10 +3302,16 @@ async function loadMenuItems() {
 
 const isRetiredMenuItem = item => item.in_square === false || item.retired === true;
 
-function renderRetiredMenuItems(items) {
-  document.getElementById('retired-menu-details').hidden = !items.length;
-  document.getElementById('retired-menu-count').textContent = items.length;
-  document.getElementById('retired-menu-tbody').innerHTML = items.map(item => menuItemRow(item, true)).join('');
+// Subscription-only drinks are the ones Square files under these categories
+// (the same names the Recipe Sheet uses for its Subscriptions section).
+const SUBSCRIPTION_EXCLUSIVE_CATEGORY_NAMES = ['birdhouse roost exclusive', 'birdhouse eyrie exclusive'];
+
+// The collapsed lists under Live Menu Items ('exclusive', 'retired'). Each
+// only appears when it has something in it.
+function renderCollapsedMenuList(key, items, retired = false) {
+  document.getElementById(`${key}-menu-details`).hidden = !items.length;
+  document.getElementById(`${key}-menu-count`).textContent = items.length;
+  document.getElementById(`${key}-menu-tbody`).innerHTML = items.map(item => menuItemRow(item, retired)).join('');
 }
 
 // A retired row has no Show button. One retired by hand gets Restore instead;
