@@ -1162,11 +1162,11 @@
       </table>
     </div>
 
-    <!-- Items deleted from Square. The sync hides them rather than deleting the
-         rows, so they're kept here for reference, out of the live list. -->
+    <!-- Items deleted from Square (the sync hides them rather than deleting the
+         rows) or retired here by hand. Kept for reference, out of the live list. -->
     <details id="retired-menu-details" style="margin-top:1rem" hidden>
-      <summary class="section-title" style="cursor:pointer">Retired from Square (<span id="retired-menu-count">0</span>)</summary>
-      <p style="font-size:0.8rem;color:var(--gray);margin:0.5rem 0 0.75rem">Deleted from Square, so they're off the menu. Kept here for reference; to bring one back, re-create it in Square and sync.</p>
+      <summary class="section-title" style="cursor:pointer">Retired (<span id="retired-menu-count">0</span>)</summary>
+      <p style="font-size:0.8rem;color:var(--gray);margin:0.5rem 0 0.75rem">Off the menu and kept here for reference. Restore puts an item back in the live list, still hidden. An item deleted from Square comes back by re-creating it in Square and syncing.</p>
       <div class="table-wrap">
         <table>
           <thead>
@@ -3260,11 +3260,12 @@ async function loadMenuItems() {
       return (a.name || '').localeCompare(b.name || '');
     });
 
-  // Items the sync has found deleted from Square (in_square = false) move to
-  // the collapsed Retired list. Hidden items still in Square -- next week's
-  // specials, say -- stay here, since this is where they get switched on.
-  const retired = list.filter(item => item.in_square === false);
-  const live = list.filter(item => item.in_square !== false);
+  // Retired items move to the collapsed list below: deleted from Square
+  // (in_square = false, set by the sync) or retired here by hand (retired,
+  // which the sync never touches). Hidden items that aren't retired -- next
+  // week's specials, say -- stay here, since this is where they get switched on.
+  const retired = list.filter(isRetiredMenuItem);
+  const live = list.filter(item => !isRetiredMenuItem(item));
   renderRetiredMenuItems(retired);
 
   tbody.innerHTML = live.length
@@ -3272,15 +3273,22 @@ async function loadMenuItems() {
     : '<tr><td colspan="6" style="text-align:center;color:var(--gray);padding:1.5rem">No menu items in this category yet.</td></tr>';
 }
 
+const isRetiredMenuItem = item => item.in_square === false || item.retired === true;
+
 function renderRetiredMenuItems(items) {
   document.getElementById('retired-menu-details').hidden = !items.length;
   document.getElementById('retired-menu-count').textContent = items.length;
   document.getElementById('retired-menu-tbody').innerHTML = items.map(item => menuItemRow(item, true)).join('');
 }
 
-// A retired row has no Show button: the next sync would hide it again, since
-// it's gone from Square. Re-creating it in Square is what brings it back.
+// A retired row has no Show button. One retired by hand gets Restore instead;
+// one deleted from Square gets nothing, since the next sync would just hide it
+// again -- re-creating it in Square is what brings it back.
 function menuItemRow(item, retired = false) {
+  const actions = retired
+    ? (item.in_square === false ? '' : `<button class="btn btn-ghost btn-sm" onclick="setMenuItemRetired('${item.id}', false)">Restore</button>`)
+    : `<button id="avail-btn-${item.id}" class="btn btn-success btn-sm" onclick="toggleMenuItemAvailability('${item.id}', ${item.available ? 'false' : 'true'})">${item.available ? 'Hide' : 'Show'}</button>
+      <button class="btn btn-ghost btn-sm" onclick="setMenuItemRetired('${item.id}', true)">Retire</button>`;
   const temp = `${item.is_hot !== false ? '☕' : ''}${item.is_iced ? '🧊' : ''}` || '—';
   const priceCents = item.base_price_cents ?? Math.round((parseFloat(item.base_price) || 0) * 100);
   const discountPct = item.website_discount_pct || 0;
@@ -3296,7 +3304,7 @@ function menuItemRow(item, retired = false) {
     <td id="avail-status-${item.id}">${retired ? '<span style="color:var(--gray)">Retired</span>' : item.available ? '<span style="color:#27ae60">Available</span>' : '<span style="color:var(--gray)">Hidden</span>'}</td>
     <td>
       <button class="btn btn-ghost btn-sm" onclick="editMenuItem('${item.id}')">Edit</button>
-      ${retired ? '' : `<button id="avail-btn-${item.id}" class="btn btn-success btn-sm" onclick="toggleMenuItemAvailability('${item.id}', ${item.available ? 'false' : 'true'})">${item.available ? 'Hide' : 'Show'}</button>`}
+      ${actions}
       <button class="btn btn-danger btn-sm" onclick="deleteMenuItem('${item.id}')">Delete</button>
     </td>
   </tr>`;
@@ -3441,6 +3449,16 @@ async function toggleMenuItemAvailability(id, nextVal) {
     btnEl.textContent = 'Show';
     btnEl.onclick = () => toggleMenuItemAvailability(id, true);
   }
+}
+
+// Retiring also hides the item, so it's off the menu everywhere. Restoring
+// leaves it hidden; Show it from the live list when it's ready.
+async function setMenuItemRetired(id, retired) {
+  const item = allMenuItems.find(i => i.id === id);
+  if (retired && !confirm(`Retire ${item?.name || 'this item'}? It will be hidden from the menu and moved to the Retired list.`)) return;
+  const { error } = await sb.from('menu_items').update(retired ? { retired: true, available: false } : { retired: false }).eq('id', id);
+  if (error) { alert(error.message); return; }
+  await loadMenuItems();
 }
 
 async function deleteMenuItem(id) {

@@ -1677,8 +1677,9 @@
   async function loadMenuAvailability() {
     const {data: rows} = await sb.from('menu_items').select('*').order('sort_order');
     if(!rows) return;
-    // Items deleted from Square (retired) are kept for reference in admin only.
-    const data = rows.filter(i => i.in_square !== false);
+    // Retired items (deleted from Square, or retired in admin) are kept for
+    // reference in admin only.
+    const data = rows.filter(i => i.in_square !== false && i.retired !== true);
     const isMathewsItem = i => String(i.category || '').toLowerCase().includes('mathews');
     const hotItems     = data.filter(i => !isMathewsItem(i) && i.is_hot !== false && i.is_iced !== true);
     const icedItems    = data.filter(i => !isMathewsItem(i) && i.is_iced === true);

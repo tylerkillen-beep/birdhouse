@@ -299,7 +299,7 @@
     // new Square item with the same name while the retired row lingers, so
     // when names collide keep the row that is still in Square, then the one
     // switched on.
-    const rank = mi => (mi.in_square !== false ? 2 : 0) + (mi.available !== false ? 1 : 0);
+    const rank = mi => (!isRetired(mi) ? 2 : 0) + (mi.available !== false ? 1 : 0);
     menuItemsByName = {};
     (menuItems || []).forEach(mi => {
       const key = normalize(mi.name);
@@ -314,19 +314,22 @@
     renderSheet();
   }
 
+  // Deleted from Square (set by the sync) or retired by hand in admin.
+  const isRetired = mi => mi.in_square === false || mi.retired === true;
+
   // Subscriptions are checked first because a subscription drink can carry a
   // cold-drink category on the site too. Cold Drinks is unchanged. Everything
   // else is a special, placed by where it is in the weekly rotation: switched
-  // on now, hidden but still in Square (next week's, being prepped), or gone
-  // from Square (retired: left off, though the recipe stays saved). A recipe
-  // that matches no menu item isn't on the menu yet, so it waits with next
-  // week's. Returns null for a recipe the sheet leaves off.
+  // on now, hidden but not retired (next week's, being prepped), or retired
+  // (left off, though the recipe stays saved). A recipe that matches no menu
+  // item isn't on the menu yet, so it waits with next week's. Returns null for
+  // a recipe the sheet leaves off.
   function sectionFor(recipe) {
     const item = menuItemsByName[normalize(recipe.name)];
     if (!item) return 'next_specials';
     if ((item.square_category_ids || []).some(id => subscriptionCategoryIds.has(id))) return 'subscriptions';
     if (getMenuCategory(item.category) === 'soda_tea') return 'soda_tea';
-    if (item.in_square === false) return null;
+    if (isRetired(item)) return null;
     return item.available === false ? 'next_specials' : 'specials';
   }
 
