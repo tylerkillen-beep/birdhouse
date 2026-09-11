@@ -1162,6 +1162,21 @@
       </table>
     </div>
 
+    <!-- Items deleted from Square. The sync hides them rather than deleting the
+         rows, so they're kept here for reference, out of the live list. -->
+    <details id="retired-menu-details" style="margin-top:1rem" hidden>
+      <summary class="section-title" style="cursor:pointer">Retired from Square (<span id="retired-menu-count">0</span>)</summary>
+      <p style="font-size:0.8rem;color:var(--gray);margin:0.5rem 0 0.75rem">Deleted from Square, so they're off the menu. Kept here for reference; to bring one back, re-create it in Square and sync.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">Name</th><th scope="col">Category</th><th scope="col">Temp</th><th scope="col">Price</th><th scope="col">Availability</th><th scope="col">Actions</th></tr>
+          </thead>
+          <tbody id="retired-menu-tbody"></tbody>
+        </table>
+      </div>
+    </details>
+
     <div class="section-header" style="margin-top:1.5rem">
       <div class="section-title">Student Suggestions</div>
       <button class="btn btn-ghost btn-sm" onclick="loadMenuSubmissions()">Refresh</button>
@@ -3230,6 +3245,7 @@ async function loadMenuItems() {
   populateMenuCategoryControls(allMenuItems);
   if (!allMenuItems.length) {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--gray);padding:1.5rem">No menu items yet.</td></tr>';
+    renderRetiredMenuItems([]);
     return;
   }
   const categoryFilter = document.getElementById('menu-category-filter')?.value || '';
@@ -3244,32 +3260,46 @@ async function loadMenuItems() {
       return (a.name || '').localeCompare(b.name || '');
     });
 
-  if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--gray);padding:1.5rem">No menu items in this category yet.</td></tr>';
-    return;
-  }
+  // Items the sync has found deleted from Square (in_square = false) move to
+  // the collapsed Retired list. Hidden items still in Square -- next week's
+  // specials, say -- stay here, since this is where they get switched on.
+  const retired = list.filter(item => item.in_square === false);
+  const live = list.filter(item => item.in_square !== false);
+  renderRetiredMenuItems(retired);
 
-  tbody.innerHTML = list.map(item => {
-    const temp = `${item.is_hot !== false ? '☕' : ''}${item.is_iced ? '🧊' : ''}` || '—';
-    const priceCents = item.base_price_cents ?? Math.round((parseFloat(item.base_price) || 0) * 100);
-    const discountPct = item.website_discount_pct || 0;
-    const price = discountPct > 0
-      ? `<s style="color:var(--gray)">$${(priceCents / 100).toFixed(2)}</s> $${(Math.round(priceCents * (1 - discountPct / 100)) / 100).toFixed(2)} <span class="pill pill-yellow">${discountPct}% off online</span>`
-      : `$${(priceCents / 100).toFixed(2)}`;
-    const categoryLabel = getMenuCategoryLabel(item.category);
-    return `<tr>
-      <td><div style="display:flex;align-items:center;gap:0.6rem">${item.image_url ? `<img src="${item.image_url}" alt="" style="width:32px;height:32px;object-fit:cover;border-radius:6px;border:1px solid var(--border);flex-shrink:0" />` : ''}<div><strong>${item.name || '—'}</strong><div style="font-size:0.72rem;color:var(--gray)">${item.description || ''}</div></div></div></td>
-      <td>${categoryLabel}</td>
-      <td>${temp}</td>
-      <td>${price}</td>
-      <td id="avail-status-${item.id}">${item.available ? '<span style="color:#27ae60">Available</span>' : '<span style="color:var(--gray)">Hidden</span>'}</td>
-      <td>
-        <button class="btn btn-ghost btn-sm" onclick="editMenuItem('${item.id}')">Edit</button>
-        <button id="avail-btn-${item.id}" class="btn btn-success btn-sm" onclick="toggleMenuItemAvailability('${item.id}', ${item.available ? 'false' : 'true'})">${item.available ? 'Hide' : 'Show'}</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteMenuItem('${item.id}')">Delete</button>
-      </td>
-    </tr>`;
-  }).join('');
+  tbody.innerHTML = live.length
+    ? live.map(item => menuItemRow(item)).join('')
+    : '<tr><td colspan="6" style="text-align:center;color:var(--gray);padding:1.5rem">No menu items in this category yet.</td></tr>';
+}
+
+function renderRetiredMenuItems(items) {
+  document.getElementById('retired-menu-details').hidden = !items.length;
+  document.getElementById('retired-menu-count').textContent = items.length;
+  document.getElementById('retired-menu-tbody').innerHTML = items.map(item => menuItemRow(item, true)).join('');
+}
+
+// A retired row has no Show button: the next sync would hide it again, since
+// it's gone from Square. Re-creating it in Square is what brings it back.
+function menuItemRow(item, retired = false) {
+  const temp = `${item.is_hot !== false ? '☕' : ''}${item.is_iced ? '🧊' : ''}` || '—';
+  const priceCents = item.base_price_cents ?? Math.round((parseFloat(item.base_price) || 0) * 100);
+  const discountPct = item.website_discount_pct || 0;
+  const price = discountPct > 0
+    ? `<s style="color:var(--gray)">$${(priceCents / 100).toFixed(2)}</s> $${(Math.round(priceCents * (1 - discountPct / 100)) / 100).toFixed(2)} <span class="pill pill-yellow">${discountPct}% off online</span>`
+    : `$${(priceCents / 100).toFixed(2)}`;
+  const categoryLabel = getMenuCategoryLabel(item.category);
+  return `<tr>
+    <td><div style="display:flex;align-items:center;gap:0.6rem">${item.image_url ? `<img src="${item.image_url}" alt="" style="width:32px;height:32px;object-fit:cover;border-radius:6px;border:1px solid var(--border);flex-shrink:0" />` : ''}<div><strong>${item.name || '—'}</strong><div style="font-size:0.72rem;color:var(--gray)">${item.description || ''}</div></div></div></td>
+    <td>${categoryLabel}</td>
+    <td>${temp}</td>
+    <td>${price}</td>
+    <td id="avail-status-${item.id}">${retired ? '<span style="color:var(--gray)">Retired</span>' : item.available ? '<span style="color:#27ae60">Available</span>' : '<span style="color:var(--gray)">Hidden</span>'}</td>
+    <td>
+      <button class="btn btn-ghost btn-sm" onclick="editMenuItem('${item.id}')">Edit</button>
+      ${retired ? '' : `<button id="avail-btn-${item.id}" class="btn btn-success btn-sm" onclick="toggleMenuItemAvailability('${item.id}', ${item.available ? 'false' : 'true'})">${item.available ? 'Hide' : 'Show'}</button>`}
+      <button class="btn btn-danger btn-sm" onclick="deleteMenuItem('${item.id}')">Delete</button>
+    </td>
+  </tr>`;
 }
 
 function menuItemPayloadFromForm() {
