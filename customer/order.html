@@ -458,6 +458,8 @@
   let applyLoyaltyCredit = false; // whether the credit checkbox is checked
   let selectedDeliveryMethod = 'delivery'; // 'delivery' | 'pickup' — students only
 
+  // process-payment re-prices every order with these same rules (priceMenuCart
+  // there) and refuses one whose real price is higher, so change both together.
   const EMPLOYEE_DISCOUNT = 0.25; // 25% off for approved staff-hub accounts
   const TEACHER_DISCOUNT  = 0.25; // 25% off for teachers
 
