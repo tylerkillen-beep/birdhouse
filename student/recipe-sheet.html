@@ -199,21 +199,29 @@
   );
 
   let allRecipes = [];
-  let categoryOrderMap = {}; // normalized menu item name -> { categoryKey, sortOrder }
+  let menuItemsByName = {};              // normalized menu item name -> menu_items row
+  let subscriptionCategoryIds = new Set(); // Square category ids of subscription-only drinks
 
+  // Coffee and food are a la carte and need no recipe, so the sheet is just
+  // these. Next Week's Specials only appears when there are some.
   const CATEGORIES = [
-    { key: 'specials', title: 'Specials' },
-    { key: 'coffee',   title: 'Birdie Brews' },
-    { key: 'soda_tea', title: 'Cold Drinks' },
-    { key: 'food',     title: 'Tasty Treats' },
-    { key: 'other',    title: 'Other' },
+    { key: 'specials',      title: 'Specials' },
+    { key: 'soda_tea',      title: 'Cold Drinks' },
+    { key: 'subscriptions', title: 'Subscriptions' },
+    { key: 'next_specials', title: 'Next Week’s Specials' },
   ];
 
-  // Birdie Brews is the coffee menu and nothing else, so coffee has to be
-  // matched explicitly and everything left over falls to cold drinks. This
-  // used to be the other way round -- coffee was the catch-all -- which swept
-  // in every drink whose category didn't spell out "soda"/"tea", including
-  // the whole menu after the 2026-08-28 Square sync reset it all to 'Coffee'.
+  // Subscription-only drinks are the ones Square files under these categories.
+  const SUBSCRIPTION_CATEGORY_NAMES = ['birdhouse roost exclusive', 'birdhouse eyrie exclusive'];
+
+  const normalize = s => String(s || '').trim().toLowerCase();
+
+  // Cold Drinks is decided by the site's own category, as it always has been.
+  // Coffee has to be matched explicitly and everything left over falls to cold
+  // drinks. This used to be the other way round -- coffee was the catch-all --
+  // which swept in every drink whose category didn't spell out "soda"/"tea",
+  // including the whole menu after the 2026-08-28 Square sync reset it all to
+  // 'Coffee'.
   const COFFEE_CATEGORY_RE = /coffee|espresso|brew|latte|mocha|americano|cappuccino/;
   function getMenuCategory(rawCategory) {
     const n = String(rawCategory || '').trim().toLowerCase();
@@ -270,11 +278,14 @@
 
   // ── Data loading ───────────────────────────────────────────────────────────
   async function loadSheet() {
-    const [{ data: recipes, error }, { data: menuItems }] = await Promise.all([
+    const [{ data: recipes, error }, { data: menuItems }, { data: squareCategories }] = await Promise.all([
       sb.from('recipes')
         .select('*, recipe_ingredients(amount, unit, inventory:inventory_id(name, category))')
         .order('name'),
-      sb.from('menu_items').select('name, category, sort_order'),
+      // '*' rather than a column list, so the sheet still loads before
+      // in_square exists (every item then counts as still in Square).
+      sb.from('menu_items').select('*'),
+      sb.from('square_categories').select('square_id, name'),
     ]);
 
     if (error) {
@@ -283,22 +294,40 @@
       return;
     }
 
-    // Match each recipe to a menu item by name (same fuzzy match used for
-    // inventory usage tracking elsewhere in the app) so the sheet follows
-    // the same category order as the live menu.
-    categoryOrderMap = {};
+    // Recipes match menu items by name (the same match used for inventory
+    // usage tracking elsewhere in the app). Re-running an old special makes a
+    // new Square item with the same name while the retired row lingers, so
+    // when names collide keep the row that is still in Square, then the one
+    // switched on.
+    const rank = mi => (mi.in_square !== false ? 2 : 0) + (mi.available !== false ? 1 : 0);
+    menuItemsByName = {};
     (menuItems || []).forEach(mi => {
-      const key = (mi.name || '').trim().toLowerCase();
-      if (key) categoryOrderMap[key] = { categoryKey: getMenuCategory(mi.category), sortOrder: mi.sort_order || 0 };
+      const key = normalize(mi.name);
+      if (key && (!menuItemsByName[key] || rank(mi) > rank(menuItemsByName[key]))) menuItemsByName[key] = mi;
     });
+
+    subscriptionCategoryIds = new Set((squareCategories || [])
+      .filter(c => SUBSCRIPTION_CATEGORY_NAMES.includes(normalize(c.name)))
+      .map(c => c.square_id));
 
     allRecipes = recipes || [];
     renderSheet();
   }
 
-  function matchForRecipe(recipe) {
-    const rname = (recipe.name || '').trim().toLowerCase();
-    return categoryOrderMap[rname] || null;
+  // Subscriptions are checked first because a subscription drink can carry a
+  // cold-drink category on the site too. Cold Drinks is unchanged. Everything
+  // else is a special, placed by where it is in the weekly rotation: switched
+  // on now, hidden but still in Square (next week's, being prepped), or gone
+  // from Square (retired: left off, though the recipe stays saved). A recipe
+  // that matches no menu item isn't on the menu yet, so it waits with next
+  // week's. Returns null for a recipe the sheet leaves off.
+  function sectionFor(recipe) {
+    const item = menuItemsByName[normalize(recipe.name)];
+    if (!item) return 'next_specials';
+    if ((item.square_category_ids || []).some(id => subscriptionCategoryIds.has(id))) return 'subscriptions';
+    if (getMenuCategory(item.category) === 'soda_tea') return 'soda_tea';
+    if (item.in_square === false) return null;
+    return item.available === false ? 'next_specials' : 'specials';
   }
 
   // ── Rendering ──────────────────────────────────────────────────────────────
@@ -316,9 +345,8 @@
     const groups = {};
     CATEGORIES.forEach(c => { groups[c.key] = []; });
     filtered.forEach(r => {
-      const match = matchForRecipe(r);
-      const key = match ? match.categoryKey : 'other';
-      (groups[key] || groups.other).push({ recipe: r, sortOrder: match ? match.sortOrder : 0 });
+      const key = sectionFor(r);
+      if (key) groups[key].push({ recipe: r, sortOrder: menuItemsByName[normalize(r.name)]?.sort_order || 0 });
     });
 
     const html = CATEGORIES
@@ -342,7 +370,8 @@
         </div>`;
       }).join('');
 
-    container.innerHTML = html;
+    // Every match may be a retired special the sheet leaves off.
+    container.innerHTML = html || `<div class="empty-state"><div class="empty-state-icon" aria-hidden="true">🗒️</div><div class="empty-state-msg">No recipes match your search.</div></div>`;
   }
 
   // Runs for the button and for Ctrl+P alike, so a printout always says when it
