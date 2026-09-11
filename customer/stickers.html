@@ -8,6 +8,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
   <script src="/lib/supabase.js"></script>
   <script src="/lib/locations.js"></script>
+  <script src="/lib/delivery-slots.js"></script>
   <script src="https://web.squarecdn.com/v1/square.js"></script>
   <link rel="stylesheet" href="/lib/flatpickr-themes/dark.css" />
   <script src="/lib/flatpickr.js"></script>
@@ -490,7 +491,9 @@
   let activeSheet = 0;
   let selectedSlot = 0;
   let squareCard = null;
-  let allDeliveryTimes = [];
+  let allDeliveryTimes = [];             // flat list: pickups and Mathews
+  let deliverySchedule = null;           // bell schedule: high school deliveries
+  let timesRequestId = 0;
   let blockedDatesSet = new Set(), blockedReasonsMap = {};
   let deliveryDatePicker = null;
   let deliveryMethod = 'delivery';
@@ -1339,6 +1342,7 @@
     document.getElementById('btn-method-pickup').setAttribute('aria-pressed', String(isPickup));
     document.getElementById('room-group').style.display = isPickup ? 'none' : '';
     renderPrice();
+    updateStickerTimes(); // pickup and delivery offer different times
   }
 
   function toDateStr(d) {
@@ -1367,6 +1371,7 @@
       '10:30 AM','10:45 AM','11:00 AM','11:15 AM','11:30 AM','11:45 AM',
       '12:00 PM','12:15 PM','12:30 PM','12:45 PM','1:00 PM','1:15 PM','1:30 PM',
     ];
+    deliverySchedule = await loadDeliverySchedule(sb);
 
     const { data: blockedData } = await sb.from('blocked_dates').select('date,reason');
     blockedDatesSet  = new Set((blockedData || []).map(b => b.date));
@@ -1376,12 +1381,6 @@
     const minDate = nextSchoolDay();
     const maxDate = new Date(minDate);
     maxDate.setDate(maxDate.getDate() + 14);
-
-    // Every slot is fair game: the earliest date is already a full day out, so
-    // there's no same-day cutoff to apply the way the coffee order page does.
-    const timeSel = document.getElementById('delivery-time');
-    timeSel.innerHTML = '<option value="">Select a time…</option>' +
-      allDeliveryTimes.map(t => `<option value="${t}">${t}</option>`).join('');
 
     deliveryDatePicker = flatpickr('#delivery-date', {
       minDate,
@@ -1405,7 +1404,33 @@
           if (blockedReasonsMap[dateStr]) dayElem.title = blockedReasonsMap[dateStr];
         }
       },
+      onChange: () => updateStickerTimes(),
     });
+    updateStickerTimes();
+  }
+
+  /** Fills the time list for the picked date: the bell schedule's open slots
+   *  for high school delivery, the flat list for pickup and Mathews. The
+   *  earliest date is already a full day out, so there's no same-day cutoff to
+   *  apply the way the coffee order page does. */
+  async function updateStickerTimes() {
+    const sel = document.getElementById('delivery-time');
+    const picked = deliveryDatePicker?.selectedDates[0];
+    if (!picked) { sel.innerHTML = '<option value="">Select a date first…</option>'; return; }
+    const prevVal = sel.value;
+    const requestId = ++timesRequestId;
+
+    let times = allDeliveryTimes;
+    if (deliveryMethod === 'delivery' && customerType !== 'mathews' && deliverySchedule) {
+      sel.innerHTML = '<option value="">Checking open times…</option>';
+      times = await openDeliveryTimesForDate(sb, deliverySchedule, picked);
+      if (requestId !== timesRequestId) return; // the date or method changed meanwhile
+    }
+
+    sel.innerHTML = times.length
+      ? '<option value="">Select a time…</option>' + times.map(t => `<option value="${t}">${t}</option>`).join('')
+      : '<option value="">No times left that day — please pick another day</option>';
+    if (prevVal && times.includes(prevVal)) sel.value = prevVal;
   }
 
   // ── Payment ───────────────────────────────────────────────────────────────

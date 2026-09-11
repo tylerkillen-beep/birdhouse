@@ -185,6 +185,22 @@ serve(async (req) => {
       }
     }
 
+    // Each plan includes a set number of free modifiers per drink (-1 means
+    // unlimited). The weekly price is flat, so anything past that would be a
+    // giveaway. subscribe.html blocks it; this catches a stale or crafted page.
+    const freeModifierCount: number = plan.free_modifier_count ?? 0;
+    if (freeModifierCount !== -1) {
+      for (const slot of drinkSlots) {
+        if ((slot.drinkModifiers?.length ?? 0) > freeModifierCount) {
+          throw new Error(
+            freeModifierCount === 0
+              ? `The ${plan.name} plan doesn't include modifiers. Remove them and try again.`
+              : `The ${plan.name} plan includes up to ${freeModifierCount} modifiers per drink.`
+          );
+        }
+      }
+    }
+
     const resolvedDiscountPct = Number(discountPct) || 0;
     const amountCents = amountForPlan(plan.price_cents, resolvedDiscountPct);
 
@@ -321,7 +337,15 @@ serve(async (req) => {
             },
             { onConflict: "subscription_id,slot_number" }
           );
-        if (slotError) throw new SignupFailed("Failed to save drink slot: " + slotError.message);
+        if (slotError) {
+          // The delivery-slot trigger raises plain exceptions (P0001) whose
+          // text is written for the customer, e.g. a time that is full.
+          throw new SignupFailed(
+            slotError.code === "P0001"
+              ? slotError.message
+              : "Failed to save drink slot: " + slotError.message
+          );
+        }
       }
 
       // Dropping from two drinks a week to one would otherwise leave the old
