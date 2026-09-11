@@ -1108,7 +1108,7 @@
 
   <!-- ── MODIFIER SETS ── -->
   <div class="section-panel" id="section-modifiers">
-    <div class="page-header"><h1>Modifier Sets</h1><p>Create and manage customization options that can be attached to menu items.</p></div>
+    <div class="page-header"><h1>Modifier Sets</h1><p>Create and manage customization options that can be attached to menu items. Mark a flavor out of stock to hide it from online ordering until it's back.</p></div>
     <div class="section-header">
       <div class="section-title">All Modifier Sets</div>
       <button class="btn btn-primary btn-sm" onclick="openAddModifierSetModal()">+ New Modifier Set</button>
@@ -3439,16 +3439,21 @@ async function loadModifierSets() {
   container.innerHTML = lists.map(ml => {
     const opts = optionsByList[ml.id] || [];
     const optRows = opts.length
-      ? opts.map(opt => `
+      ? opts.map(opt => {
+        const inStock = opt.available !== false;
+        return `
         <tr>
           <td style="padding:0.45rem 0.75rem">${opt.name}</td>
           <td style="padding:0.45rem 0.75rem">${opt.price_cents > 0 ? `+$${(opt.price_cents / 100).toFixed(2)}` : 'Free'}</td>
+          <td style="padding:0.45rem 0.75rem">${inStock ? '<span class="pill pill-green">Available</span>' : '<span class="pill pill-gray">Out of stock</span>'}</td>
           <td style="padding:0.45rem 0.75rem">
+            <button class="btn btn-ghost btn-sm" onclick="setModifierOptionAvailable('${opt.id}', ${!inStock})">${inStock ? 'Mark Out of Stock' : 'Back in Stock'}</button>
             <button class="btn btn-ghost btn-sm" onclick="openEditOptionModal('${opt.id}', '${ml.id}')">Edit</button>
             <button class="btn btn-danger btn-sm" onclick="deleteModifierOption('${opt.id}', '${ml.id}')">Delete</button>
           </td>
-        </tr>`).join('')
-      : '<tr><td colspan="3" style="padding:0.6rem 0.75rem;color:var(--gray);font-size:0.83rem">No options yet.</td></tr>';
+        </tr>`;
+      }).join('')
+      : '<tr><td colspan="4" style="padding:0.6rem 0.75rem;color:var(--gray);font-size:0.83rem">No options yet.</td></tr>';
 
     return `
       <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:1.25rem;overflow:hidden">
@@ -3467,6 +3472,7 @@ async function loadModifierSets() {
           <thead><tr style="background:#0d0d0d">
             <th style="padding:0.45rem 0.75rem;text-align:left;font-size:0.72rem;color:var(--gray-mid)">Option</th>
             <th style="padding:0.45rem 0.75rem;text-align:left;font-size:0.72rem;color:var(--gray-mid)">Price</th>
+            <th style="padding:0.45rem 0.75rem;text-align:left;font-size:0.72rem;color:var(--gray-mid)">Status</th>
             <th style="padding:0.45rem 0.75rem;text-align:left;font-size:0.72rem;color:var(--gray-mid)">Actions</th>
           </tr></thead>
           <tbody>${optRows}</tbody>
@@ -3586,6 +3592,15 @@ async function saveModifierOption() {
   } finally {
     btn.disabled = false;
   }
+}
+
+// Out-of-stock flavors stay listed here so they're one click from coming back;
+// the order and subscribe pages just stop offering them. The Square sync never
+// writes this column, so a sync won't switch one back on.
+async function setModifierOptionAvailable(optId, available) {
+  const { error } = await sb.from('modifier_options').update({ available }).eq('id', optId);
+  if (error) { alert(error.message); return; }
+  await loadModifierSets();
 }
 
 async function deleteModifierOption(optId, listId) {
