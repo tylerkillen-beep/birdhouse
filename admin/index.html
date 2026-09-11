@@ -1471,6 +1471,11 @@
         <label class="form-label" for="menu-item-sort">Sort Order</label>
         <input class="form-input" id="menu-item-sort" type="number" placeholder="1" />
       </div>
+      <div class="form-group">
+        <label class="form-label" for="menu-item-discount">Website Discount (%)</label>
+        <input class="form-input" id="menu-item-discount" type="number" step="1" min="0" max="99" placeholder="0" aria-describedby="menu-item-discount-note" />
+        <div id="menu-item-discount-note" style="color:var(--gray-mid);font-size:0.75rem;margin-top:0.3rem;line-height:1.4">Online orders only — Square and the Menu Board keep the full price. 0 = no discount.</div>
+      </div>
       <div class="form-group" style="grid-column:1/-1">
         <label class="form-label">Modifier Sets</label>
         <div id="menu-item-mod-checkboxes" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.25rem;min-height:2rem;align-items:center">
@@ -3247,7 +3252,10 @@ async function loadMenuItems() {
   tbody.innerHTML = list.map(item => {
     const temp = `${item.is_hot !== false ? '☕' : ''}${item.is_iced ? '🧊' : ''}` || '—';
     const priceCents = item.base_price_cents ?? Math.round((parseFloat(item.base_price) || 0) * 100);
-    const price = `$${(priceCents / 100).toFixed(2)}`;
+    const discountPct = item.website_discount_pct || 0;
+    const price = discountPct > 0
+      ? `<s style="color:var(--gray)">$${(priceCents / 100).toFixed(2)}</s> $${(Math.round(priceCents * (1 - discountPct / 100)) / 100).toFixed(2)} <span class="pill pill-yellow">${discountPct}% off online</span>`
+      : `$${(priceCents / 100).toFixed(2)}`;
     const categoryLabel = getMenuCategoryLabel(item.category);
     return `<tr>
       <td><div style="display:flex;align-items:center;gap:0.6rem">${item.image_url ? `<img src="${item.image_url}" alt="" style="width:32px;height:32px;object-fit:cover;border-radius:6px;border:1px solid var(--border);flex-shrink:0" />` : ''}<div><strong>${item.name || '—'}</strong><div style="font-size:0.72rem;color:var(--gray)">${item.description || ''}</div></div></div></td>
@@ -3268,8 +3276,12 @@ function menuItemPayloadFromForm() {
   const name = document.getElementById('menu-item-name').value.trim();
   const price = parseFloat(document.getElementById('menu-item-price').value || '0');
   const category = document.getElementById('menu-item-category').value.trim();
+  const discountPct = Number(document.getElementById('menu-item-discount').value || '0');
   if (!name) throw new Error('Menu item name is required.');
   if (isNaN(price) || price < 0) throw new Error('Enter a valid non-negative price.');
+  if (!Number.isInteger(discountPct) || discountPct < 0 || discountPct > 99) {
+    throw new Error('Website discount must be a whole number from 0 to 99.');
+  }
   const checkedBoxes = document.querySelectorAll('#menu-item-mod-checkboxes input[type=checkbox]:checked');
   const square_modifier_list_ids = Array.from(checkedBoxes).map(cb => cb.value);
   return {
@@ -3283,6 +3295,7 @@ function menuItemPayloadFromForm() {
     square_modifier_list_ids,
     base_price: price.toFixed(2),
     base_price_cents: Math.round(price * 100),
+    website_discount_pct: discountPct,
   };
 }
 
@@ -3312,6 +3325,7 @@ function resetMenuItemModal() {
   document.getElementById('menu-item-description').value = '';
   document.getElementById('menu-item-category').value = 'Coffee';
   document.getElementById('menu-item-price').value = '';
+  document.getElementById('menu-item-discount').value = '';
   document.getElementById('menu-item-sort').value = '1';
   document.getElementById('menu-item-hot').checked = true;
   document.getElementById('menu-item-iced').checked = false;
@@ -3354,6 +3368,7 @@ function editMenuItem(id) {
   const categoryInput = document.getElementById('menu-item-category');
   categoryInput.value = getMenuCategoryLabel(item.category);
   document.getElementById('menu-item-price').value = ((item.base_price_cents ?? Math.round((parseFloat(item.base_price) || 0) * 100)) / 100).toFixed(2);
+  document.getElementById('menu-item-discount').value = item.website_discount_pct || '';
   document.getElementById('menu-item-sort').value = item.sort_order || 1;
   document.getElementById('menu-item-hot').checked = item.is_hot !== false;
   document.getElementById('menu-item-iced').checked = item.is_iced === true;

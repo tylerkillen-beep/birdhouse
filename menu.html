@@ -143,18 +143,23 @@
         return 'soda_tea';
       }
 
+      // A website discount (set per item in the admin page) shows as a sale
+      // here; it only applies to online orders, so the label says so.
       function formatPrice(item) {
-        const cents = item.base_price_cents;
-        if (cents != null) return '$' + (cents / 100).toFixed(2);
-        if (item.base_price != null) return '$' + parseFloat(item.base_price).toFixed(2);
-        return '';
+        let cents = item.base_price_cents;
+        if (cents == null && item.base_price != null) cents = Math.round(parseFloat(item.base_price) * 100);
+        if (cents == null) return '';
+        const dollars = c => '$' + (c / 100).toFixed(2);
+        const pct = item.website_discount_pct || 0;
+        if (pct <= 0) return dollars(cents);
+        return `<s style="color:var(--gray);font-weight:300">${dollars(cents)}</s> ${dollars(Math.round(cents * (1 - pct / 100)))} <span style="font-size:0.72rem;color:#f5c842">${pct}% off online</span>`;
       }
 
       async function loadMenu() {
         const container = document.getElementById('menu-content');
         try {
           const res = await fetch(
-            `${SUPABASE_URL}/rest/v1/menu_items?select=name,description,category,base_price_cents,base_price,sort_order&available=eq.true&order=category.asc,sort_order.asc`,
+            `${SUPABASE_URL}/rest/v1/menu_items?select=name,description,category,base_price_cents,base_price,sort_order,website_discount_pct&available=eq.true&order=category.asc,sort_order.asc`,
             { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
           );
           if (!res.ok) throw new Error('Failed to load menu');
