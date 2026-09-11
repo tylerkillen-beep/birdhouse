@@ -479,8 +479,20 @@
     return 0;
   }
 
-  function applyDiscount(priceCents) {
-    const rate = discountRate();
+  /** The admin's website-only sale on one item (Menu Items → Website Discount),
+   *  as a rate. Square never sees it, so the register keeps full price. */
+  function saleRate(item) {
+    return Math.min(99, Math.max(0, Number(item?.website_discount_pct) || 0)) / 100;
+  }
+
+  // Discounts don't stack: a drink gets its sale or the customer's teacher or
+  // employee discount, whichever takes more off.
+  function itemDiscountRate(item) {
+    return Math.max(discountRate(), saleRate(item));
+  }
+
+  function applyDiscount(item, priceCents) {
+    const rate = itemDiscountRate(item);
     return rate > 0 ? Math.round(priceCents * (1 - rate)) : priceCents;
   }
 
@@ -765,7 +777,12 @@
   }
 
   function menuCard(item, temp) {
-    const price    = item.base_price ? `$${parseFloat(item.base_price).toFixed(2)}` : 'Price TBD';
+    const sale      = saleRate(item);
+    const baseCents = Math.round((parseFloat(item.base_price) || 0) * 100);
+    const price     = !item.base_price ? 'Price TBD'
+      : sale > 0
+        ? `<s style="color:var(--gray);font-weight:400"><span class="visually-hidden">Was </span>$${(baseCents / 100).toFixed(2)}</s> <span class="visually-hidden">now </span>$${(Math.round(baseCents * (1 - sale)) / 100).toFixed(2)} <span style="font-size:0.72rem;color:#f5c842">${Math.round(sale * 100)}% off</span>`
+        : `$${(baseCents / 100).toFixed(2)}`;
     const hasMods  = item.square_modifier_list_ids?.length > 0;
     const btnLabel = hasMods ? '+ Customize & Add' : '+ Add to Cart';
     const cat      = String(item.category || '').toLowerCase();
@@ -930,9 +947,10 @@
     const checkboxes = document.querySelectorAll('#mod-options-container input[type=checkbox]');
     let extra = 0;
     checkboxes.forEach(cb => { if (cb.checked) extra += parseInt(cb.dataset.price || '0'); });
+    const item = menuItems.find(i => i.id === pendingItemId);
     const rawCents = pendingBaseCents + extra;
-    const rate = discountRate();
-    const finalCents = applyDiscount(rawCents);
+    const rate = itemDiscountRate(item);
+    const finalCents = applyDiscount(item, rawCents);
     const discountNote = rate > 0 ? ` <span style="font-size:0.7rem;color:#f5c842">(${Math.round(rate * 100)}% off)</span>` : '';
     document.getElementById('mod-total-price').innerHTML = `$${(finalCents / 100).toFixed(2)}${discountNote}`;
   }
@@ -961,7 +979,7 @@
 
     const modsCents  = selectedModifiers.reduce((s, m) => s + m.priceCents, 0);
     const rawCents   = pendingBaseCents + modsCents;
-    const totalCents = applyDiscount(rawCents);
+    const totalCents = applyDiscount(item, rawCents);
 
     addToCart(pendingItemId, pendingTemp, selectedModifiers, totalCents, rawCents);
     closeModModal();
@@ -987,6 +1005,8 @@
         priceCents:        totalCents,
         price:             totalCents / 100,
         originalCents:     originalCents || totalCents,
+        // The sale beat the customer's own discount, so it's the one applied.
+        onSale:            saleRate(item) > discountRate(),
         quantity:          1,
         squareVariationId: item.square_variation_id,
         selectedModifiers,
@@ -1131,9 +1151,13 @@
     const time = document.getElementById('delivery-time').value;
     const subtotal = cartTotal();
     const activeDiscount = discountLabel();
-    const discountLine = activeDiscount
+    // Sale drinks got the sale instead of the customer's own discount, so only
+    // claim the discounts that were actually used.
+    const discountLine = (activeDiscount && cart.some(c => !c.onSale)
       ? `<div class="summary-line"><span class="summary-key" style="color:#f5c842">${activeDiscount}</span><span class="summary-val" style="color:#f5c842">applied</span></div>`
-      : '';
+      : '') + (cart.some(c => c.onSale)
+      ? `<div class="summary-line"><span class="summary-key" style="color:#f5c842"><span aria-hidden="true">🏷️</span> Online sale price</span><span class="summary-val" style="color:#f5c842">applied</span></div>`
+      : '');
 
     // Credit checkbox — only shown if the customer has credit available
     const totalWithFee = subtotal + deliveryFeeDollars();
