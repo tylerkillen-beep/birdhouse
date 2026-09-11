@@ -38,12 +38,15 @@ type SquareObject = {
     name?: string;
     description?: string;
     category_id?: string;
+    categories?: Array<{ id: string }>;
+    reporting_category?: { id?: string };
     image_ids?: string[];
     variations?: Array<{ id: string }>;
     modifier_list_info?: Array<{ modifier_list_id: string; enabled: boolean }>;
   };
   category_data?: {
     name?: string;
+    parent_category?: { id?: string };
   };
   image_data?: {
     url?: string;
@@ -133,16 +136,42 @@ serve(async (req) => {
     } while (listCursor);
 
     const categories = new Map<string, string>();
+    const parentCategories = new Map<string, string>();
     const variations = new Map<string, number>();
     const modifierLists = new Map<string, SquareObject>();
     const images = new Map<string, string>();
 
     for (const o of allObjects) {
       if (o.type === "IMAGE" && o.image_data?.url) images.set(o.id, o.image_data.url);
-      if (o.type === "CATEGORY") categories.set(o.id, o.category_data?.name || "Coffee");
+      if (o.type === "CATEGORY") {
+        categories.set(o.id, o.category_data?.name || "Coffee");
+        const parentId = o.category_data?.parent_category?.id;
+        if (parentId) parentCategories.set(o.id, parentId);
+      }
       if (o.type === "ITEM_VARIATION") variations.set(o.id, o.item_variation_data?.price_money?.amount || 0);
       if (o.type === "MODIFIER_LIST") modifierLists.set(o.id, o);
     }
+
+    /** Every Square category an item is in, plus their parents, so a plan
+     *  limited to a parent category also covers its subcategories. Square moved
+     *  items from a single category_id to a categories list; both are read. */
+    const squareCategoryIdsFor = (item: SquareObject): string[] => {
+      const ids = new Set<string>();
+      const direct = [
+        ...(item.item_data?.categories || []).map((c) => c.id),
+        item.item_data?.category_id,
+        item.item_data?.reporting_category?.id,
+      ];
+      for (const start of direct) {
+        // Stopping at an id already seen also stops a malformed parent cycle.
+        let id = start;
+        while (id && !ids.has(id)) {
+          ids.add(id);
+          id = parentCategories.get(id);
+        }
+      }
+      return [...ids];
+    };
 
     // ── Sync modifier lists and options ──────────────────────────────────────
     let modListsUpserted = 0;
@@ -220,6 +249,7 @@ serve(async (req) => {
     let updated = 0;
     let skippedNoVariation = 0;
     let withImages = 0;
+    let withCategories = 0;
     let lookupErrors = 0;
     let insertErrors = 0;
     let updateErrors = 0;
@@ -241,6 +271,11 @@ serve(async (req) => {
       const imageUrl = firstImageId ? (images.get(firstImageId) || null) : null;
       if (imageUrl) withImages += 1;
 
+      // Subscription plans are limited by these, so unlike the site's own
+      // display category they must track Square on every sync.
+      const squareCategoryIds = squareCategoryIdsFor(item);
+      if (squareCategoryIds.length) withCategories += 1;
+
       // Fields Square owns. These are safe to overwrite on every sync.
       const payload = {
         name: item.item_data?.name || "Untitled",
@@ -249,6 +284,7 @@ serve(async (req) => {
         base_price: (priceCents / 100).toFixed(2),
         square_item_id: item.id,
         square_modifier_list_ids: squareModifierListIds,
+        square_category_ids: squareCategoryIds,
         image_url: imageUrl,
       };
 
@@ -332,6 +368,38 @@ serve(async (req) => {
       }
     }
 
+    // ── Square categories, for limiting subscription plans ─────────────────
+    // Mirrors Square: renamed categories update and deleted ones go. A plan
+    // still pointing at a deleted category just matches no drinks, and the
+    // Plan Manager flags it so staff can uncheck it.
+    const syncedAt = new Date().toISOString();
+    const categoryRows = allObjects
+      .filter((o) => o.type === "CATEGORY")
+      .map((o) => ({
+        square_id: o.id,
+        name: o.category_data?.name || "Untitled category",
+        updated_at: syncedAt,
+      }));
+    let categoryErrors = 0;
+    if (categoryRows.length > 0) {
+      const { error: upsertErr } = await serviceClient
+        .from("square_categories")
+        .upsert(categoryRows, { onConflict: "square_id" });
+      if (upsertErr) {
+        categoryErrors += 1;
+        if (sampleErrors.length < 8) sampleErrors.push(`categories: ${upsertErr.message}`);
+      } else {
+        const { error: pruneErr } = await serviceClient
+          .from("square_categories")
+          .delete()
+          .not("square_id", "in", `(${categoryRows.map((c) => c.square_id).join(",")})`);
+        if (pruneErr) {
+          categoryErrors += 1;
+          if (sampleErrors.length < 8) sampleErrors.push(`prune categories: ${pruneErr.message}`);
+        }
+      }
+    }
+
     const diagnostics = {
       scannedSquareObjects: locationItems.length,
       totalSquareItems: items.length,
@@ -342,6 +410,9 @@ serve(async (req) => {
       skippedNoVariation,
       squareImages: images.size,
       withImages,
+      squareCategories: categoryRows.length,
+      withCategories,
+      categoryErrors,
       lookupErrors,
       insertErrors,
       updateErrors,

@@ -72,6 +72,7 @@
 
     /* ── Orders table ── */
     .orders-section-title { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--gray); margin-bottom: 0.75rem; }
+    .orders-hidden-note { font-size: 0.78rem; color: var(--light-gray); margin: -0.4rem 0 0.8rem; }
     .order-card { background: var(--card); border: 1px solid var(--border-dim); border-radius: 12px; padding: 1.1rem 1.25rem 1.1rem 1.5rem; margin-bottom: 0.6rem; display: grid; grid-template-columns: 1fr auto; gap: 1rem; align-items: center; transition: border-color 0.2s; position: relative; }
     .order-card:hover { border-color: var(--border); }
     .order-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; border-radius: 12px 0 0 12px; }
@@ -193,6 +194,14 @@
 
     <!-- Filter bar -->
     <div class="filter-bar">
+      <!-- Due window -->
+      <div class="filter-row">
+        <span class="filter-label" id="window-label">Show</span>
+        <div class="filter-pills" id="window-pills" role="group" aria-labelledby="window-label">
+          <button class="filter-pill active" data-val="soon" onclick="setWindowFilter('soon', this)" aria-pressed="true"><span aria-hidden="true">⏱️</span> Due Soon</button>
+          <button class="filter-pill" data-val="all" onclick="setWindowFilter('all', this)" aria-pressed="false"><span aria-hidden="true">📋</span> Whole Day</button>
+        </div>
+      </div>
       <!-- Sort by -->
       <div class="filter-row">
         <span class="filter-label" id="sort-label">Sort by</span>
@@ -262,11 +271,12 @@
       <div class="stat-chip"><div class="stat-chip-label">Showing</div><div class="stat-chip-value" id="stat-showing" aria-live="polite" aria-atomic="true">—</div></div>
       <div class="stat-chip"><div class="stat-chip-label">Active</div><div class="stat-chip-value" id="stat-active">—</div></div>
       <div class="stat-chip"><div class="stat-chip-label">Delivered</div><div class="stat-chip-value" id="stat-delivered">—</div></div>
-      <div class="stat-chip"><div class="stat-chip-label">Total Today</div><div class="stat-chip-value" id="stat-total-today">—</div></div>
+      <div class="stat-chip"><div class="stat-chip-label" id="stat-total-label">Total Today</div><div class="stat-chip-value" id="stat-total-today">—</div></div>
     </div>
 
     <!-- Orders list -->
     <div class="orders-section-title" id="orders-section-label">Orders</div>
+    <div class="orders-hidden-note" id="orders-hidden-note" style="display:none" aria-live="polite"></div>
     <div id="orders-container">
       <div class="empty-state"><div class="empty-state-icon" aria-hidden="true">☕</div><div class="empty-state-msg">Loading orders...</div></div>
     </div>
@@ -287,7 +297,13 @@
   let filterDate     = todayStr();  // 'YYYY-MM-DD' or null (all dates)
   let filterLocation = 'all';       // 'all' | 'birdhouse' | 'mathews'
   let filterType     = 'all';       // 'all' | 'menu' | 'stickers'
+  let filterWindow   = 'soon';      // 'soon' (nearly due only) | 'all'
   let pollTimer    = null;
+  let hiddenByWindow = 0;           // orders today held back by the due-soon window
+
+  // Staff only need to see what they should be making now; an order hours out
+  // is noise on the bar. Raise this to give the team more lead time.
+  const DUE_SOON_MINUTES = 10;
 
   // ── Audio alert ────────────────────────────────────────────────────────────
   let audioCtx = null;
@@ -335,8 +351,14 @@
     btn.setAttribute('aria-label', audioEnabled ? 'Audio alerts on — click to disable' : 'Audio alerts off — click to enable');
   }
 
+  function dateToStr(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
   function todayStr() {
-    return new Date().toISOString().split('T')[0];
+    // Local calendar date. toISOString() is UTC, which rolls over to tomorrow
+    // during evening hours here and would point the queue at the wrong day.
+    return dateToStr(new Date());
   }
 
   // ── Auth ───────────────────────────────────────────────────────────────────
@@ -488,6 +510,12 @@
     renderOrders();
   }
 
+  function setWindowFilter(val, btn) {
+    filterWindow = val;
+    _activatePill('window-pills', btn);
+    renderOrders();
+  }
+
   // ── Data loading ───────────────────────────────────────────────────────────
   async function loadOrders(manual = false) {
     if (manual) {
@@ -545,7 +573,6 @@
     }
 
     updateLastUpdated();
-    updateStats();
     renderOrders();
 
     if (manual) {
@@ -567,19 +594,51 @@
     document.getElementById('last-updated-label').textContent = `Updated ${t}`;
   }
 
+  // Counts follow the date the user has selected, not always today, so the
+  // strip always describes the day being looked at.
   function updateStats() {
-    const today = todayStr();
-    const todayOrders = allOrders.filter(o => (o.delivery_date === today) || (!o.delivery_date && dayNameForDate(today) === o.delivery_day));
-    const active = todayOrders.filter(o => o.status === 'pending' || o.status === 'paid').length;
-    const delivered = todayOrders.filter(o => o.status === 'delivered').length;
+    const scoped   = ordersForDate(filterDate);
+    const active    = scoped.filter(o => o.status === 'pending' || o.status === 'paid').length;
+    const delivered = scoped.filter(o => o.status === 'delivered').length;
     document.getElementById('stat-active').textContent = active;
     document.getElementById('stat-delivered').textContent = delivered;
-    document.getElementById('stat-total-today').textContent = todayOrders.length;
+    document.getElementById('stat-total-today').textContent = scoped.length;
+
+    let totalLabel;
+    if (!filterDate)                   totalLabel = 'Total (All Dates)';
+    else if (filterDate === todayStr()) totalLabel = 'Total Today';
+    else totalLabel = 'Total ' + new Date(filterDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    document.getElementById('stat-total-label').textContent = totalLabel;
   }
 
+  const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
   function dayNameForDate(dateStr) {
-    const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-    return days[new Date(dateStr + 'T12:00:00').getDay()];
+    return DAY_NAMES[new Date(dateStr + 'T12:00:00').getDay()];
+  }
+
+  // The day an order is actually for. Orders placed through the site carry
+  // delivery_date; rows written before that column existed carry only a
+  // weekday name, so their delivery is the first matching weekday on or after
+  // the order was placed. Matching on the bare weekday instead counted a
+  // March 'Wednesday' order toward every Wednesday since, which is what
+  // inflated the daily totals.
+  function deliveryDateFor(order) {
+    if (order.delivery_date) return order.delivery_date;
+    if (!order.delivery_day || !order.created_at) return null;
+    const target = DAY_NAMES.indexOf(order.delivery_day);
+    if (target < 0) return null;
+    const placed = new Date(order.created_at);
+    if (isNaN(placed.getTime())) return null;
+    const offset = (target - placed.getDay() + 7) % 7;
+    return dateToStr(new Date(placed.getFullYear(), placed.getMonth(), placed.getDate() + offset));
+  }
+
+  // Single source of truth for "which orders belong to this day" -- the list
+  // and the stats strip must never disagree about that.
+  function ordersForDate(dateStr) {
+    if (!dateStr) return allOrders;
+    return allOrders.filter(o => deliveryDateFor(o) === dateStr);
   }
 
   // ── Rendering ──────────────────────────────────────────────────────────────
@@ -591,16 +650,9 @@
   }
 
   function applyFilters() {
-    let orders = [...allOrders];
-
-    // Date filter
-    if (filterDate) {
-      const dayName = dayNameForDate(filterDate);
-      orders = orders.filter(o => {
-        if (o.delivery_date) return o.delivery_date === filterDate;
-        return o.delivery_day === dayName;
-      });
-    }
+    // Copy -- ordersForDate hands back allOrders itself when no date is
+    // selected, and the sort below must not reorder the source array.
+    let orders = [...ordersForDate(filterDate)];
 
     // Status filter
     if (filterStatus === 'active')       orders = orders.filter(o => o.status === 'pending' || o.status === 'paid');
@@ -615,6 +667,16 @@
     // Location filter
     if (filterLocation === 'mathews')        orders = orders.filter(o => isMathewsOrder(o));
     else if (filterLocation === 'birdhouse') orders = orders.filter(o => !isMathewsOrder(o));
+
+    // Due-soon window. Only meaningful while looking at today — on another
+    // date, or All Dates, nothing is "due soon" and hiding every card would
+    // just make the page look broken.
+    hiddenByWindow = 0;
+    if (filterWindow === 'soon' && filterDate === todayStr()) {
+      const before = orders.length;
+      orders = orders.filter(o => isDueSoon(o));
+      hiddenByWindow = before - orders.length;
+    }
 
     // Sort
     if (filterSort === 'scheduled') {
@@ -643,7 +705,24 @@
     return h * 60 + min;
   }
 
+  function nowMinutes() {
+    const n = new Date();
+    return n.getHours() * 60 + n.getMinutes();
+  }
+
+  // An order earns its spot on the queue once it is within DUE_SOON_MINUTES of
+  // its delivery time. Past-due orders keep that spot: one that slipped still
+  // has to be made, so it must never vanish before someone closes it out.
+  // Orders with no usable delivery time always show — there is nothing to
+  // schedule them against, and dropping them would lose the order silently.
+  function isDueSoon(order) {
+    const due = parseTime(order.delivery_time);
+    if (due === 9999) return true;
+    return due - nowMinutes() <= DUE_SOON_MINUTES;
+  }
+
   function renderOrders() {
+    updateStats();
     const filtered = applyFilters();
     const container = document.getElementById('orders-container');
     document.getElementById('stat-showing').textContent = filtered.length;
@@ -655,8 +734,19 @@
     const statusLabel = { active: 'Active', pending: 'Pending', paid: 'Paid', delivered: 'Delivered', cancelled: 'Cancelled', all: 'All' }[filterStatus] || '';
     document.getElementById('orders-section-label').textContent = `${statusLabel} Orders — ${dateLabel}`;
 
+    const note = document.getElementById('orders-hidden-note');
+    if (hiddenByWindow > 0) {
+      note.textContent = `⏱️ ${hiddenByWindow} later order${hiddenByWindow === 1 ? '' : 's'} today — each appears ${DUE_SOON_MINUTES} minutes before its delivery time.`;
+      note.style.display = '';
+    } else {
+      note.style.display = 'none';
+    }
+
     if (!filtered.length) {
-      container.innerHTML = `<div class="empty-state"><div class="empty-state-icon" aria-hidden="true">☕</div><div class="empty-state-msg">No orders match the current filters.</div></div>`;
+      const emptyMsg = hiddenByWindow > 0
+        ? `Nothing due in the next ${DUE_SOON_MINUTES} minutes.`
+        : 'No orders match the current filters.';
+      container.innerHTML = `<div class="empty-state"><div class="empty-state-icon" aria-hidden="true">☕</div><div class="empty-state-msg">${emptyMsg}</div></div>`;
       return;
     }
 
@@ -765,7 +855,6 @@
     if (error) { alert('Failed to update order.'); return; }
     const o = allOrders.find(x => x.id === id);
     if (o) o.status = 'delivered';
-    updateStats();
     renderOrders();
   }
 
@@ -775,7 +864,6 @@
     if (error) { alert('Failed to cancel order.'); return; }
     const o = allOrders.find(x => x.id === id);
     if (o) o.status = 'cancelled';
-    updateStats();
     renderOrders();
   }
 </script>
