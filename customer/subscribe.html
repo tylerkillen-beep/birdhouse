@@ -7,6 +7,7 @@
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
   <script src="/lib/supabase.js"></script>
+  <script src="/lib/delivery-slots.js"></script>
   <script src="https://web.squarecdn.com/v1/square.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -208,6 +209,11 @@
     .mod-option-name { flex:1; font-size:0.88rem; }
     .mod-option-price { font-size:0.78rem; color:var(--red-bright); font-weight:500; }
     .mod-free-badge { font-size:0.72rem; color:#4caf50; font-weight:500; }
+    .mod-limit-hint { font-size:0.8rem; color:var(--light-gray); margin:-1rem 0 0.5rem; }
+    .mod-limit-hint:empty { display:none; }
+    .mod-limit-hint.at-limit { color:#f5c842; }
+    .mod-option.locked { opacity:0.4; cursor:not-allowed; }
+    .mod-option.locked:hover { border-color:var(--border-dim); background:rgba(255,255,255,0.02); }
     .mod-total { display:flex; justify-content:space-between; align-items:center; padding:1rem 0 0; border-top:1px solid var(--border-dim); margin-top:1rem; font-size:0.92rem; }
     .mod-total-price { font-family:'Bebas Neue',sans-serif; font-size:1.5rem; color:var(--red-bright); }
     .mod-btn-row { display:flex; gap:0.75rem; margin-top:1.25rem; }
@@ -460,6 +466,7 @@
   <div class="mod-modal">
     <h2 class="mod-modal-title" id="mod-title">Customize</h2>
     <div class="mod-modal-price" id="mod-base-price"></div>
+    <div class="mod-limit-hint" id="mod-limit-hint" aria-live="polite"></div>
     <div id="mod-options-container"></div>
     <div class="mod-total">
       <span style="color:var(--light-gray);font-size:0.82rem">Item Total</span>
@@ -673,11 +680,12 @@
       const priceDisplay   = customerType === 'teacher'
         ? `<span style="text-decoration:line-through;font-size:0.9rem;color:var(--gray)">$${fullPrice}</span> $${discPrice}<span style="color:#f5c842;font-size:0.7rem;margin-left:0.3rem">25% off</span>`
         : `$${fullPrice}`;
-      const modLabel = p.free_modifier_count === -1
+      const freeMods = p.free_modifier_count ?? 0;
+      const modLabel = freeMods === -1
         ? 'All modifiers free'
-        : p.free_modifier_count === 1
-          ? '1 free modifier per drink'
-          : 'Standard pricing on modifiers';
+        : freeMods === 0
+          ? 'Modifiers not included'
+          : `${freeMods} free modifier${freeMods === 1 ? '' : 's'} per drink`;
       const drinksLabel = p.drinks_per_week === 2
         ? '2 drinks per week'
         : '1 drink per week';
@@ -709,6 +717,15 @@
     card.classList.add('selected');
     card.setAttribute('aria-pressed', 'true');
     document.getElementById('btn-to-step2').disabled = false;
+
+    // A drink customized under a bigger plan can carry more modifiers than
+    // this one includes, so have the student pick it again.
+    const freeMods = selectedPlan.free_modifier_count ?? 0;
+    if (freeMods !== -1) {
+      [1, 2].forEach(n => {
+        if (drinkSlots[n].drinkModifiers.length > freeMods) clearSlot(n);
+      });
+    }
   }
 
   // ── Menu ──────────────────────────────────────────────────────────────────
@@ -785,7 +802,7 @@
 
   function menuCard(item, temp, slotNum) {
     const price    = item.base_price ? `$${parseFloat(item.base_price).toFixed(2)}` : 'Price TBD';
-    const hasMods  = item.square_modifier_list_ids?.length > 0;
+    const hasMods  = item.square_modifier_list_ids?.length > 0 && (selectedPlan?.free_modifier_count ?? 0) !== 0;
     const btnLabel = hasMods ? '+ Customize & Select' : '+ Select';
     return `<div class="menu-card">
       <div class="menu-card-name">${item.name}</div>
@@ -804,7 +821,7 @@
     pendingSlot      = slotNum;
     pendingItemId    = itemId;
     pendingBaseCents = item.base_price_cents || Math.round((parseFloat(item.base_price) || 0) * 100);
-    pendingFreeModCount = selectedPlan?.free_modifier_count || 0; // 0, 1, or -1
+    pendingFreeModCount = selectedPlan?.free_modifier_count ?? 0; // free modifiers per drink; -1 = unlimited
 
     document.getElementById('mod-title').textContent      = item.name;
     document.getElementById('mod-base-price').textContent = `Base price: $${(pendingBaseCents / 100).toFixed(2)}`;
@@ -814,19 +831,19 @@
       attachedSquareIds.includes(ml.squareId)
     );
 
+    // Plans either include some free modifiers or none, and nothing past the
+    // plan's limit can be picked, so every option offered here is free.
     let optionsHtml = '';
     if (attachedLists.length === 0) {
       optionsHtml = '<p style="color:var(--gray);font-size:0.85rem">No customizations available.</p>';
+    } else if (pendingFreeModCount === 0) {
+      optionsHtml = '<p style="color:var(--gray);font-size:0.85rem">Your plan doesn\'t include modifiers.</p>';
     } else {
       for (const ml of attachedLists) {
         const groupHeadingId = `mod-list-heading-${ml.squareId || ml.name.replace(/\s+/g,'-')}`;
         optionsHtml += `<div class="mod-list-name" id="${groupHeadingId}">${ml.name}</div>`;
         optionsHtml += `<div role="group" aria-labelledby="${groupHeadingId}">`;
         for (const opt of ml.options) {
-          const isFree = pendingFreeModCount === -1 || pendingFreeModCount > 0;
-          const priceLabel = isFree
-            ? `<span class="mod-free-badge">FREE with your plan</span>`
-            : opt.price_cents > 0 ? `+$${(opt.price_cents / 100).toFixed(2)}` : 'Free';
           optionsHtml += `
             <div class="mod-option" id="mod-opt-wrap-${opt.id}"
               role="checkbox" aria-checked="false" tabindex="0"
@@ -834,13 +851,13 @@
               onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleModOption('${opt.id}')}">
               <input type="checkbox"
                 id="mod-opt-${opt.id}"
-                data-price="${isFree ? 0 : opt.price_cents}"
+                data-price="0"
                 data-square-id="${opt.square_id}"
                 data-name="${opt.name}"
                 tabindex="-1" aria-hidden="true"
               />
               <span class="mod-option-name">${opt.name}</span>
-              <span class="mod-option-price">${priceLabel}</span>
+              <span class="mod-option-price"><span class="mod-free-badge">FREE with your plan</span></span>
             </div>`;
         }
         optionsHtml += `</div>`;
@@ -849,6 +866,7 @@
 
     document.getElementById('mod-options-container').innerHTML = optionsHtml;
     updateModTotal();
+    refreshModLimit();
     _modOpener = document.activeElement;
     const modOverlay = document.getElementById('mod-overlay');
     modOverlay.classList.add('open');
@@ -861,23 +879,38 @@
     const cb   = document.getElementById(`mod-opt-${optId}`);
     const wrap = document.getElementById(`mod-opt-wrap-${optId}`);
 
-    // Enforce free modifier limit for Regular plan (1 free mod)
-    if (!cb.checked && pendingFreeModCount === 1) {
-      const checkedCount = document.querySelectorAll('#mod-options-container input[type=checkbox]:checked').length;
-      if (checkedCount >= 1) {
-        // Uncheck the previously checked one and check this one instead
-        document.querySelectorAll('#mod-options-container input[type=checkbox]:checked').forEach(c => {
-          c.checked = false;
-          const prevWrap = document.getElementById(`mod-opt-wrap-${c.id.replace('mod-opt-','')}`);
-          if (prevWrap) { prevWrap.classList.remove('selected'); prevWrap.setAttribute('aria-checked', 'false'); }
-        });
-      }
-    }
+    // Once the plan's free modifiers for this drink are used, block the rest.
+    if (!cb.checked && pendingFreeModCount > 0 && checkedModCount() >= pendingFreeModCount) return;
 
     cb.checked = !cb.checked;
     wrap.classList.toggle('selected', cb.checked);
     wrap.setAttribute('aria-checked', cb.checked ? 'true' : 'false');
     updateModTotal();
+    refreshModLimit();
+  }
+
+  function checkedModCount() {
+    return document.querySelectorAll('#mod-options-container input[type=checkbox]:checked').length;
+  }
+
+  /** Shows how many free modifiers are left and greys out the rest once the
+   *  plan's per-drink limit is reached. */
+  function refreshModLimit() {
+    const hint  = document.getElementById('mod-limit-hint');
+    const limit = pendingFreeModCount;
+    const used  = checkedModCount();
+    const atLimit = limit > 0 && used >= limit;
+
+    hint.textContent = limit <= 0 ? ''
+      : atLimit ? `You've used all ${limit} free modifier${limit === 1 ? '' : 's'} for this drink.`
+      : `Choose up to ${limit} free modifier${limit === 1 ? '' : 's'} (${used} of ${limit} used).`;
+    hint.classList.toggle('at-limit', atLimit);
+
+    document.querySelectorAll('#mod-options-container .mod-option').forEach(wrap => {
+      const locked = atLimit && !wrap.querySelector('input[type=checkbox]').checked;
+      wrap.classList.toggle('locked', locked);
+      wrap.setAttribute('aria-disabled', locked ? 'true' : 'false');
+    });
   }
 
   function updateModTotal() {
@@ -950,16 +983,41 @@
   }
 
   // ── Delivery Times ────────────────────────────────────────────────────────
+  let legacyDeliveryTimes = [], deliverySchedule = null;
+  const slotTimesRequestId = { 1: 0, 2: 0 };
+
   async function loadDeliveryTimes() {
     const { data, error } = await sb.from('store_config').select('value').eq('key', 'delivery_times').single();
     if (error && error.code !== 'PGRST116') {
       throw new Error(error.message || 'Unable to load delivery times.');
     }
-    const times = Array.isArray(data?.value) ? data.value : ['7:30 AM','8:00 AM','8:30 AM','9:00 AM','10:00 AM','11:00 AM','12:00 PM'];
-    ['slot-1-time','slot-2-time'].forEach(selId => {
-      const sel = document.getElementById(selId);
-      times.forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; sel.appendChild(o); });
+    legacyDeliveryTimes = Array.isArray(data?.value) ? data.value : ['7:30 AM','8:00 AM','8:30 AM','9:00 AM','10:00 AM','11:00 AM','12:00 PM'];
+    deliverySchedule = await loadDeliverySchedule(sb);
+    [1, 2].forEach(n => {
+      document.getElementById(`slot-${n}-day`).addEventListener('change', () => refreshSlotTimes(n));
+      refreshSlotTimes(n);
     });
+  }
+
+  /** High school subscribers pick from the bell schedule for their chosen day,
+   *  minus times that are full; Mathews keeps the flat list. */
+  async function refreshSlotTimes(slotNum) {
+    const sel = document.getElementById(`slot-${slotNum}-time`);
+    const day = document.getElementById(`slot-${slotNum}-day`).value;
+    const prevVal = sel.value;
+    const requestId = ++slotTimesRequestId[slotNum];
+
+    let times = legacyDeliveryTimes;
+    if (customerType !== 'mathews' && deliverySchedule) {
+      sel.innerHTML = '<option value="">Checking open times…</option>';
+      times = await openDeliveryTimesForWeekday(sb, deliverySchedule, day);
+      if (requestId !== slotTimesRequestId[slotNum]) return; // the day changed again meanwhile
+    }
+
+    sel.innerHTML = times.length
+      ? times.map(t => `<option value="${t}">${t}</option>`).join('')
+      : `<option value="">Every ${day} time is full — pick another day</option>`;
+    if (prevVal && times.includes(prevVal)) sel.value = prevVal;
   }
 
   // ── Payment Summary ───────────────────────────────────────────────────────
@@ -1130,9 +1188,13 @@ const res = await fetch(`${SUPABASE_URL}/functions/v1/save-card`, {
     if (step === 4) {
       const loc1 = document.getElementById('slot-1-location').value.trim();
       if (!loc1) { alert('Please enter a delivery location for slot 1.'); return; }
+      if (!document.getElementById('slot-1-time').value) { alert('Please pick a delivery time for slot 1.'); return; }
       const isEagle = selectedPlan?.drinks_per_week === 2;
       if (isEagle && !document.getElementById('slot-2-location').value.trim()) {
         alert('Please enter a delivery location for slot 2.'); return;
+      }
+      if (isEagle && !document.getElementById('slot-2-time').value) {
+        alert('Please pick a delivery time for slot 2.'); return;
       }
       renderPaySummary();
       if (!squareCard) await initSquare();

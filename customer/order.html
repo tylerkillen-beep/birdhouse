@@ -8,6 +8,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
   <script src="/lib/supabase.js"></script>
   <script src="/lib/locations.js"></script>
+  <script src="/lib/delivery-slots.js"></script>
   <script src="https://web.squarecdn.com/v1/square.js"></script>
   <link rel="stylesheet" href="/lib/flatpickr-themes/dark.css" />
   <script src="/lib/flatpickr.js"></script>
@@ -447,7 +448,9 @@
   let customerProfile = null; // { location, last_room }
   let customerType = 'student'; // 'student' | 'teacher' | 'mathews'
   let hasApprovedStaffHubAccount = false;
-  let allDeliveryTimes = [];
+  let allDeliveryTimes = [];     // flat list: pickups and Mathews
+  let deliverySchedule = null;   // bell schedule: high school deliveries
+  let timesRequestId = 0;
   let blockedDatesSet = new Set();
   let blockedReasonsMap = {};
   let deliveryDatePicker = null;
@@ -1085,6 +1088,10 @@
     const feeEl = document.getElementById('cart-fee-line');
     if (feeEl) feeEl.style.display = fee > 0 ? 'flex' : 'none';
     document.getElementById('cart-total-val').textContent = `$${(cartTotal() + fee).toFixed(2)}`;
+
+    // Pickup and delivery offer different times.
+    const pickedDate = deliveryDatePicker?.selectedDates[0];
+    if (pickedDate) updateAvailableTimes(pickedDate);
   }
 
   function chargeTotal() {
@@ -1171,10 +1178,10 @@
     return hours * 60 + minutes;
   }
 
-  function updateAvailableTimes(selectedDate) {
+  async function updateAvailableTimes(selectedDate) {
     const sel = document.getElementById('delivery-time');
     const prevVal = sel.value;
-    sel.innerHTML = '<option value="">Select a time…</option>';
+    const requestId = ++timesRequestId;
 
     const now = new Date();
     const isToday = selectedDate.toDateString() === now.toDateString();
@@ -1188,10 +1195,17 @@
       String(selectedDate.getMonth() + 1).padStart(2, '0'),
       String(selectedDate.getDate()).padStart(2, '0'),
     ].join('-');
-    const timesToShow = customerType === 'mathews'
-      ? (MATHEWS_MORNING_BLOCKED.has(selDateStr) ? ['12:00 PM'] : ['8:15 AM', '12:00 PM'])
-      : allDeliveryTimes;
+    let timesToShow = allDeliveryTimes;
+    if (customerType === 'mathews') {
+      timesToShow = MATHEWS_MORNING_BLOCKED.has(selDateStr) ? ['12:00 PM'] : ['8:15 AM', '12:00 PM'];
+    } else if (selectedDeliveryMethod === 'delivery' && deliverySchedule) {
+      // High school deliveries follow the bell schedule, minus full slots.
+      sel.innerHTML = '<option value="">Checking open times…</option>';
+      timesToShow = await openDeliveryTimesForDate(sb, deliverySchedule, selectedDate);
+      if (requestId !== timesRequestId) return; // the date or method changed meanwhile
+    }
 
+    sel.innerHTML = '<option value="">Select a time…</option>';
     let anyAdded = false;
     timesToShow.forEach(t => {
       if (isToday && parseTimeToMinutes(t) <= cutoffMinutes) return;
@@ -1218,6 +1232,7 @@
       '10:30 AM','10:45 AM','11:00 AM','11:15 AM','11:30 AM','11:45 AM',
       '12:00 PM','12:15 PM','12:30 PM','12:45 PM','1:00 PM','1:15 PM','1:30 PM',
     ];
+    deliverySchedule = await loadDeliverySchedule(sb);
 
     // Load blocked dates
     const { data: blockedData } = await sb.from('blocked_dates').select('date,reason');

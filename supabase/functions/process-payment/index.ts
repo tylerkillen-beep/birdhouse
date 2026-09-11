@@ -336,6 +336,34 @@ serve(async (req) => {
 
     const chargeAmountCents = orderTotalCents - creditUsedCents;
 
+    // ── Claim the delivery slot ────────────────────────────────────────────
+    // High school delivery times are capped per slot. The claim checks and
+    // reserves a spot under a lock, so two people paying at once cannot both
+    // take the last one. Pickups and Mathews are not capped.
+    const isMathewsCustomer = isTeacherEmail && profileLoyalty?.location === "mathews";
+    if (orderDeliveryMethod === "delivery" && !isMathewsCustomer) {
+      if (!customerInfo.deliveryDate || !customerInfo.deliveryTime) {
+        throw new Error("Please pick a delivery date and time");
+      }
+      const { data: claimed, error: claimError } = await supabase.rpc("claim_delivery_slot", {
+        p_date: customerInfo.deliveryDate,
+        p_time: customerInfo.deliveryTime,
+        p_user: user.id,
+      });
+      if (claimError) {
+        console.error("Delivery slot claim failed:", claimError);
+        // Exceptions raised by the claim itself (P0001) are written for the customer.
+        throw new Error(
+          claimError.code === "P0001"
+            ? claimError.message
+            : "We couldn't check delivery times. Please try again."
+        );
+      }
+      if (!claimed) {
+        throw new Error("That delivery time just filled up. Please go back and pick another time.");
+      }
+    }
+
     // ── Charge via Square (skip if fully covered by credit) ────────────────
     let squarePaymentId: string | null = null;
 
