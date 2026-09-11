@@ -375,6 +375,42 @@
     .upload-zone{border:2px dashed rgba(255,255,255,0.12);border-radius:14px;padding:2.5rem;text-align:center;cursor:pointer;transition:all 0.2s;margin-bottom:1.5rem;display:block}
     .upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:rgba(200,169,110,0.04)}
     .upload-zone input{display:none}
+    .usage-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0.6rem;margin-bottom:1.25rem}
+    .usage-stat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:0.8rem 1rem;text-align:left;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--text)}
+    .usage-stat:hover{border-color:var(--gray)}
+    .usage-stat .n{font-size:1.4rem;font-weight:600;line-height:1.2}
+    .usage-stat .l{font-size:0.68rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gray-mid);margin-top:0.15rem}
+    .usage-stat.todo .n{color:var(--warning,#e0a030)}
+    .usage-stat.done .n{color:var(--accent)}
+    .usage-toggle{display:flex;align-items:center;gap:0.4rem;font-size:0.78rem;color:var(--gray-mid);cursor:pointer}
+    .usage-help{font-size:0.8rem;color:var(--gray-mid);margin-bottom:1rem;max-width:75ch}
+    .usage-group-title{font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray-mid);font-weight:600;margin:1.25rem 0 0.6rem}
+    .usage-group-title span{text-transform:none;letter-spacing:0;font-weight:400}
+    .usage-row{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1.1rem;margin-bottom:0.5rem}
+    .usage-row-head{display:flex;justify-content:space-between;align-items:flex-start;gap:0.75rem;margin-bottom:0.5rem}
+    .usage-row-name{font-weight:600;font-size:0.92rem}
+    .usage-row-sub{font-size:0.74rem;color:var(--gray-mid);margin-top:0.15rem}
+    .usage-status{font-size:0.7rem;font-weight:600;white-space:nowrap;border-radius:10px;padding:0.15rem 0.55rem;border:1px solid}
+    .usage-status.ok{color:var(--accent);border-color:rgba(200,169,110,0.3)}
+    .usage-status.todo{color:var(--warning,#e0a030);border-color:rgba(224,160,48,0.35)}
+    .usage-muted{color:var(--gray-mid);font-size:0.78rem;font-weight:400}
+    .usage-chips{display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:0.5rem}
+    .usage-chip{display:inline-flex;align-items:center;gap:0.35rem;font-size:0.78rem;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:6px;padding:0.15rem 0.5rem;color:var(--text-muted);font-family:'DM Sans',sans-serif}
+    .usage-chip.warn{border-color:rgba(224,160,48,0.4);color:var(--warning,#e0a030);cursor:pointer}
+    .usage-chip-sub{color:var(--gray-mid);font-size:0.72rem}
+    .usage-chip-sub.warn{color:var(--warning,#e0a030)}
+    .usage-chip button{background:none;border:none;color:var(--gray-mid);cursor:pointer;font-size:0.78rem;padding:0 0 0 0.15rem}
+    .usage-chip button:hover{color:var(--danger)}
+    .usage-actions{display:flex;flex-wrap:wrap;gap:0.4rem;align-items:center}
+    .usage-recipe-pick{display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;font-size:0.78rem;color:var(--gray-mid)}
+    .usage-recipe-pick select{width:auto;max-width:320px;padding:0.35rem 0.6rem;font-size:0.8rem}
+    .usage-adder,.usage-conv{display:flex;flex-wrap:wrap;gap:0.4rem;align-items:center;width:100%}
+    .usage-adder select{flex:2 1 220px;width:auto;padding:0.4rem 0.6rem;font-size:0.8rem}
+    .usage-adder input,.usage-conv input{width:110px;padding:0.4rem 0.6rem;font-size:0.8rem}
+    .usage-adder-unit,.usage-conv-base{font-size:0.78rem;color:var(--gray-mid)}
+    .usage-adder-msg{flex-basis:100%;font-size:0.75rem;color:var(--danger)}
+    .usage-adder-msg:empty{display:none}
+    .usage-empty{color:var(--gray-mid);text-align:center;padding:2rem;background:var(--card);border:1px solid var(--border);border-radius:12px}
     .recipe-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.1rem 1.25rem;margin-bottom:0.6rem}
     .visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
     [hidden]{display:none!important}
@@ -454,6 +490,9 @@
       </button>
       <button type="button" class="nav-item" onclick="showSection('recipes')" id="nav-recipes">
         <span class="nav-icon" aria-hidden="true">📋</span><span class="nav-label"> Recipes</span>
+      </button>
+      <button type="button" class="nav-item" onclick="showSection('usage-setup')" id="nav-usage-setup">
+        <span class="nav-icon" aria-hidden="true">🔗</span><span class="nav-label"> Usage Setup</span>
       </button>
       <a class="nav-item" href="../student/recipe-sheet.html" target="_blank" rel="noopener">
         <span class="nav-icon" aria-hidden="true">🗒️</span><span class="nav-label"> Recipe Sheet</span>
@@ -1060,13 +1099,35 @@
   <div class="section-panel" id="section-recipes">
     <div class="page-header">
       <h1>Recipes</h1>
-      <p>Map each menu item to the inventory ingredients it consumes per serving. Used to calculate usage and variance.</p>
+      <p>How each drink is built, as the staff Recipe Sheet shows it. What each build step uses from inventory is linked once, under Usage Setup.</p>
     </div>
     <div class="section-header">
       <div></div>
       <button class="btn btn-primary btn-sm" onclick="openRecipeModal()">+ Add Recipe</button>
     </div>
     <div id="recipes-content"></div>
+  </div>
+
+  <!-- ── USAGE SETUP ── -->
+  <div class="section-panel" id="section-usage-setup">
+    <div class="page-header">
+      <h1>Usage Setup</h1>
+      <p>Tell the site what every sale uses up, so inventory can count itself down as orders come in. Nothing is deducted yet — this is the setup.</p>
+    </div>
+    <div class="usage-summary" id="usage-summary"></div>
+    <div class="section-header">
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap" role="group" aria-label="Usage setup view">
+        <button class="inv-cat-btn active" data-usage-tab="items" onclick="setUsageTab('items')" aria-pressed="true">Menu Items</button>
+        <button class="inv-cat-btn" data-usage-tab="options" onclick="setUsageTab('options')" aria-pressed="false">Recipe Options</button>
+        <button class="inv-cat-btn" data-usage-tab="addons" onclick="setUsageTab('addons')" aria-pressed="false">Add-ons</button>
+        <button class="inv-cat-btn" data-usage-tab="conversions" onclick="setUsageTab('conversions')" aria-pressed="false">Conversions</button>
+      </div>
+      <div style="display:flex;gap:1rem;flex-wrap:wrap">
+        <label class="usage-toggle"><input type="checkbox" id="usage-gaps-only" onchange="renderUsageSetup()"/> Only what needs setup</label>
+        <label class="usage-toggle"><input type="checkbox" id="usage-show-hidden" onchange="renderUsageSetup()"/> Include hidden menu items</label>
+      </div>
+    </div>
+    <div id="usage-content"></div>
   </div>
 
   <!-- ── MENU ── -->
@@ -1470,6 +1531,10 @@
       <div class="form-group">
         <label class="form-label" for="inv-item-pack-size">Pack Size <span style="color:var(--gray-mid);text-transform:none;font-weight:400">(recipe units per purchase)</span></label>
         <input class="form-input" id="inv-item-pack-size" type="number" min="0" step="any" placeholder="e.g. 144" />
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="form-label" for="inv-item-per-unit">Recipe Units per Counted Unit <span style="color:var(--gray-mid);text-transform:none;font-weight:400">(e.g. pumps in one bottle — lets sales count the stock down)</span></label>
+        <input class="form-input" id="inv-item-per-unit" type="number" min="0" step="any" placeholder="e.g. 32" />
       </div>
       <div class="form-group" style="grid-column:1/-1">
         <div id="inv-item-cost-note" style="font-size:0.75rem;color:var(--gray-mid)"></div>
@@ -1921,6 +1986,7 @@ function showSection(id) {
     inventory: loadInventory,
     purchases: loadPurchases,
     recipes: loadRecipes,
+    'usage-setup': loadUsageSetup,
     'sales-report': initSalesReport,
     'product-performance': initProductPerformance,
     'library-split': initLibrarySplit,
@@ -4443,6 +4509,7 @@ function openAddInvItemModal() {
 function renderInvItemCost(item) {
   document.getElementById('inv-item-base-unit').value = item?.base_unit || '';
   document.getElementById('inv-item-pack-size').value = item?.pack_size ?? '';
+  document.getElementById('inv-item-per-unit').value = item?.base_units_per_unit ?? '';
   const note = document.getElementById('inv-item-cost-note');
   if (item?.cost_per_base_unit_cents != null) {
     const when = item.cost_updated_at ? new Date(item.cost_updated_at).toLocaleDateString() : 'unknown date';
@@ -4488,6 +4555,12 @@ async function saveInvItemModal() {
   const packSize = Number.isFinite(packSizeVal) ? packSizeVal : null;
 
   const payload = { name, category, quantity: qty, unit, par_level: par, notes: notes || null, last_ordered_at: lastOrdered, expected_arrival: expectedArrival, base_unit: baseUnit, pack_size: packSize, updated_at: new Date().toISOString() };
+  // Only once 20260911_inventory_usage_setup.sql has added the column -- writing
+  // it before then would make every inventory save fail.
+  if (allInventory.some(i => 'base_units_per_unit' in i)) {
+    const perUnitVal = parseFloat(document.getElementById('inv-item-per-unit').value);
+    payload.base_units_per_unit = Number.isFinite(perUnitVal) && perUnitVal > 0 ? perUnitVal : null;
+  }
   const { error } = editingInvItemId
     ? await sb.from('inventory').update(payload).eq('id', editingInvItemId)
     : await sb.from('inventory').insert({ ...payload, created_by: currentUser.id });
@@ -6310,7 +6383,7 @@ function updateRecipeNameHint() {
   if (!typed) { el.innerHTML = ''; return; }
   const match = allMenuItems.find(item => normalizeName(item.name) === typed);
   if (!match) {
-    el.innerHTML = '<span style="color:var(--warning,#e0a030)">⚠ No menu item goes by this name. The recipe will save, but ingredient usage won\'t be counted for it.</span>';
+    el.innerHTML = '<span style="color:var(--warning,#e0a030)">⚠ No menu item goes by this name. The recipe will save — link it to its menu item under Usage Setup so its ingredients are counted.</span>';
     return;
   }
   const dupe = allRecipes.find(r => r.id !== editingRecipeId && normalizeName(r.name) === typed);
@@ -6359,6 +6432,480 @@ async function deleteRecipe(id, name) {
   await sb.from('recipe_ingredients').delete().eq('recipe_id', id);
   await sb.from('recipes').delete().eq('id', id);
   loadRecipes();
+}
+
+// ── USAGE SETUP ────────────────────────────────────────────────────────────
+// Says what each sale uses up: a recipe's build steps, a menu item's own
+// "always uses" list, and add-ons, each linked to inventory items once. The
+// per-item totals come from the menu_item_usage_preview view -- the same SQL
+// the automatic deduction will run -- rather than being re-derived here, so
+// the preview can't drift from what actually comes off the shelf.
+const USAGE_OPTION_TYPES = [
+  { type: 'cup',            label: 'Cup',                     per: 'per drink' },
+  { type: 'machine_drink',  label: 'Coffee Machine — Drink',  per: 'per drink' },
+  { type: 'machine_flavor', label: 'Coffee Machine — Flavor', per: 'per drink' },
+  { type: 'pour',           label: 'Beverage Pour',           per: 'per drink' },
+  { type: 'packet',         label: 'Packet Flavor',           per: 'per full packet' },
+  { type: 'syrup',          label: 'Flavor Syrup',            per: 'per pump' },
+  { type: 'boba',           label: 'Boba',                    per: 'per drink' },
+  { type: 'topping',        label: 'Topping',                 per: 'per drink' },
+];
+const USAGE_LINK_TABLES = { option: 'recipe_option_ingredients', item: 'menu_item_ingredients', addon: 'modifier_option_ingredients' };
+const USAGE_INV_CATEGORIES = { cold_drinks: 'Cold Drinks', hot_drinks: 'Hot Drinks', flavors: 'Flavors & Syrups', supplies: 'Supplies', baked_goods: 'Baked Goods' };
+
+let usageData = null;
+let usageTab = 'items';
+let usageAdder = null;   // the target whose "+ Link" form is open
+let usageTargets = [];   // rebuilt every render; inline handlers index into it
+
+const usageOptionKey = (type, key) => `${type}|${key}`;
+const usageInv = id => allInventory.find(i => i.id === id);
+const usageUnit = inv => inv?.base_unit || 'units';
+const usageEmpty = text => `<div class="usage-empty">${htmlEscape(text)}</div>`;
+
+// Two decimals for whole amounts, two significant figures below one, so a
+// pump off a 50-pump bottle reads 0.02 bottles rather than 0.
+function fmtUsageQty(n) {
+  n = Number(n);
+  if (!Number.isFinite(n)) return '?';
+  return String(Number(Math.abs(n) >= 1 ? n.toFixed(2) : n.toPrecision(2)));
+}
+
+// A sale can only come off the count once the item says how many recipe units
+// are in the thing students count -- 2 pumps mean nothing against "3 bottles".
+function usageNeedsConversion(invId) {
+  const inv = usageInv(invId);
+  return !inv?.base_unit || !(Number(inv.base_units_per_unit) > 0);
+}
+
+// Option names are free text, so they never go into an onclick attribute;
+// buttons carry an index into this list instead.
+function usageTarget(t) { return usageTargets.push(t) - 1; }
+
+async function loadUsageSetup() {
+  const el = document.getElementById('usage-content');
+  if (!usageData) el.innerHTML = '<p style="color:var(--gray-mid);padding:1rem 0">Loading…</p>';
+  const results = await Promise.all([
+    sb.from('inventory').select('*').order('category').order('name'),
+    sb.from('menu_items').select('*').order('sort_order'),
+    sb.from('recipes').select('id, name').order('name'),
+    sb.from('menu_item_recipe_links').select('*'),
+    sb.from('recipe_build_option_rows').select('*'),
+    sb.from('menu_item_usage_preview').select('*'),
+    sb.from('recipe_option_ingredients').select('*'),
+    sb.from('recipe_option_no_inventory').select('*'),
+    sb.from('menu_item_ingredients').select('*'),
+    sb.from('modifier_option_ingredients').select('*'),
+    sb.from('modifier_lists').select('*').order('name'),
+    sb.from('modifier_options').select('*').order('sort_order'),
+  ]);
+  const failed = results.find(r => r.error);
+  if (failed) {
+    el.innerHTML = `<div class="usage-empty" style="color:var(--danger);text-align:left">Couldn't load Usage Setup: ${htmlEscape(failed.error.message)}<br>If that mentions a missing table, view, or column, run <code>supabase/migrations/20260911_inventory_usage_setup.sql</code> in the Supabase SQL editor.</div>`;
+    return;
+  }
+  const [inventory, menuItems, recipes, recipeLinks, optionRows, preview, optionLinks, optionSkips,
+         itemLinks, addonLinks, modLists, modOptions] = results.map(r => r.data || []);
+  // Same queries the Inventory and Menu tabs run, so refreshing these is harmless.
+  allInventory = inventory;
+  allMenuItems = menuItems;
+  usageData = {
+    menuItems, recipes, optionRows, preview, optionLinks, optionSkips, itemLinks, addonLinks, modLists, modOptions,
+    recipeByItem: Object.fromEntries(recipeLinks.map(l => [l.menu_item_id, l])),
+  };
+  renderUsageSetup();
+}
+
+function setUsageTab(tab) {
+  usageTab = tab;
+  usageAdder = null;
+  document.querySelectorAll('[data-usage-tab]').forEach(b => {
+    const on = b.dataset.usageTab === tab;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  renderUsageSetup();
+}
+
+// Everything the four tabs and the summary need, worked out once per render.
+// "On the menu" means available right now; gaps only count against those, so
+// a retired special's unlinked syrup doesn't hold up the checklist.
+function usageContext() {
+  const d = usageData;
+  const linkedKeys = new Set(d.optionLinks.map(l => usageOptionKey(l.option_type, l.option_key)));
+  const skippedKeys = new Set(d.optionSkips.map(s => usageOptionKey(s.option_type, s.option_key)));
+  const optionDone = (type, key) => linkedKeys.has(usageOptionKey(type, key)) || skippedKeys.has(usageOptionKey(type, key));
+
+  const previewByItem = {};
+  d.preview.forEach(p => (previewByItem[p.menu_item_id] ||= []).push(p));
+
+  const items = d.menuItems.map(item => {
+    const recipeId = d.recipeByItem[item.id]?.recipe_id || null;
+    const uses = previewByItem[item.id] || [];
+    const unlinked = recipeId
+      ? d.optionRows.filter(o => o.recipe_id === recipeId && !optionDone(o.option_type, o.option_key))
+      : [];
+    const noConversion = uses.some(u => usageNeedsConversion(u.inventory_id));
+    const covered = uses.length > 0 || item.uses_no_inventory === true;
+    return { item, recipeId, uses, unlinked, ready: covered && !unlinked.length && !noConversion };
+  });
+
+  const onMenu = d.menuItems.filter(m => m.available === true);
+  const liveRecipeIds = new Set(onMenu.map(m => d.recipeByItem[m.id]?.recipe_id).filter(Boolean));
+  const optMap = new Map();
+  d.optionRows.forEach(o => {
+    const k = usageOptionKey(o.option_type, o.option_key);
+    if (!optMap.has(k)) optMap.set(k, { type: o.option_type, name: o.option_name, key: o.option_key, recipeIds: new Set() });
+    optMap.get(k).recipeIds.add(o.recipe_id);
+  });
+  const options = [...optMap.values()].map(o => {
+    const links = d.optionLinks.filter(l => l.option_type === o.type && l.option_key === o.key);
+    const skipped = skippedKeys.has(usageOptionKey(o.type, o.key));
+    return { ...o, links, skipped, done: links.length > 0 || skipped, live: [...o.recipeIds].some(id => liveRecipeIds.has(id)) };
+  });
+
+  const liveListIds = new Set(onMenu.flatMap(m => m.square_modifier_list_ids || []));
+  const addons = d.modOptions.map(opt => {
+    const list = d.modLists.find(l => l.id === opt.modifier_list_id);
+    const links = d.addonLinks.filter(l => l.modifier_option_id === opt.id);
+    return {
+      opt, list, links,
+      done: links.length > 0 || opt.uses_no_inventory === true,
+      live: !!list && liveListIds.has(list.square_id) && opt.available !== false,
+    };
+  });
+
+  const usedInvIds = new Set([...d.optionLinks, ...d.itemLinks, ...d.addonLinks, ...d.preview].map(l => l.inventory_id));
+  const conversions = allInventory.filter(i => usedInvIds.has(i.id)).map(inv => ({ inv, missing: usageNeedsConversion(inv.id) }));
+
+  return { items, options, addons, conversions };
+}
+
+function renderUsageSetup() {
+  if (!usageData) return;
+  usageTargets = [];
+  const ctx = usageContext();
+
+  const onMenuItems = ctx.items.filter(s => s.item.available === true);
+  const readyCount = onMenuItems.filter(s => s.ready).length;
+  const tiles = [
+    { tab: 'items',       n: `${readyCount}/${onMenuItems.length}`, label: 'Menu items ready', done: readyCount === onMenuItems.length },
+    { tab: 'options',     n: ctx.options.filter(o => o.live && !o.done).length, label: 'Recipe options to link' },
+    { tab: 'addons',      n: ctx.addons.filter(a => a.live && !a.done).length,  label: 'Add-ons to link' },
+    { tab: 'conversions', n: ctx.conversions.filter(c => c.missing).length,     label: 'Conversions missing' },
+  ];
+  document.getElementById('usage-summary').innerHTML = tiles.map(t => {
+    const done = t.done ?? t.n === 0;
+    return `<button type="button" class="usage-stat ${done ? 'done' : 'todo'}" onclick="setUsageTab('${t.tab}')">
+      <div class="n">${t.n}</div><div class="l">${t.label}</div>
+    </button>`;
+  }).join('');
+
+  const gapsOnly = document.getElementById('usage-gaps-only').checked;
+  const render = { items: renderUsageItems, options: renderUsageOptions, addons: renderUsageAddons, conversions: renderUsageConversions }[usageTab];
+  document.getElementById('usage-content').innerHTML = render(ctx, gapsOnly);
+}
+
+// ── Shared pieces ──
+function usageCountedHtml(inv, amount) {
+  const per = Number(inv?.base_units_per_unit);
+  if (!inv?.base_unit || !(per > 0)) return ' <span class="usage-chip-sub warn">no conversion</span>';
+  return ` <span class="usage-chip-sub">= ${fmtUsageQty(amount / per)} ${htmlEscape(inv.unit || '')}</span>`;
+}
+
+function usageRemoveBtn(kind, id, name) {
+  return `<button type="button" onclick="removeUsageLink('${kind}','${id}')" aria-label="Remove ${htmlEscape(name || 'link')}">✕</button>`;
+}
+
+function usageLinkChip(kind, link, perText) {
+  const inv = usageInv(link.inventory_id);
+  return `<span class="usage-chip">${fmtUsageQty(link.amount)} ${htmlEscape(usageUnit(inv))} · ${htmlEscape(inv?.name || 'Unknown item')} <span class="usage-chip-sub">${htmlEscape(perText)}</span>${usageRemoveBtn(kind, link.id, inv?.name)}</span>`;
+}
+
+function usageStatusHtml(done, doneLabel, todoLabel) {
+  return done ? `<span class="usage-status ok">${doneLabel}</span>` : `<span class="usage-status todo">${todoLabel}</span>`;
+}
+
+// Cost rides along for free: every link is already in the item's recipe unit,
+// which is what receipts price.
+function usageCostLabel(uses) {
+  if (!uses.length) return '';
+  let cents = 0, missing = 0;
+  uses.forEach(u => {
+    const c = usageInv(u.inventory_id)?.cost_per_base_unit_cents;
+    if (c == null) missing++; else cents += Number(c) * Number(u.amount);
+  });
+  const dollars = '$' + (cents / 100).toFixed(3);
+  return missing ? `Cost so far ${dollars} · ${missing} ingredient${missing === 1 ? '' : 's'} not costed yet` : `Costs ${dollars} per sale`;
+}
+
+function usageAdderHtml(target, buttonLabel, perText) {
+  const idx = usageTarget(target);
+  if (usageAdder?.key !== target.key) {
+    return `<button type="button" class="btn btn-ghost btn-sm" onclick="openUsageAdder(${idx})">+ ${htmlEscape(buttonLabel)}</button>`;
+  }
+  const groups = {};
+  allInventory.forEach(i => (groups[i.category || 'other'] ||= []).push(i));
+  const optionsHtml = Object.entries(groups).map(([cat, list]) =>
+    `<optgroup label="${htmlEscape(USAGE_INV_CATEGORIES[cat] || cat)}">${list.map(i => `<option value="${i.id}">${htmlEscape(i.name)}</option>`).join('')}</optgroup>`
+  ).join('');
+  return `<div class="usage-adder">
+    <label class="visually-hidden" for="usage-adder-inv">Inventory item</label>
+    <select class="form-input" id="usage-adder-inv" onchange="updateUsageAdderUnit()"><option value="">Pick an inventory item…</option>${optionsHtml}</select>
+    <label class="visually-hidden" for="usage-adder-amt">Amount</label>
+    <input class="form-input" id="usage-adder-amt" type="number" min="0" step="any" value="1"/>
+    <span class="usage-adder-unit" id="usage-adder-unit" data-per="${htmlEscape(perText)}">${htmlEscape(perText)}</span>
+    <button type="button" class="btn btn-primary btn-sm" onclick="saveUsageAdder()">Add</button>
+    <button type="button" class="btn btn-ghost btn-sm" onclick="closeUsageAdder()">Cancel</button>
+    <div class="usage-adder-msg" id="usage-adder-msg" role="alert"></div>
+  </div>`;
+}
+
+function openUsageAdder(idx) {
+  usageAdder = usageTargets[idx];
+  renderUsageSetup();
+  document.getElementById('usage-adder-inv')?.focus();
+}
+
+function closeUsageAdder() {
+  usageAdder = null;
+  renderUsageSetup();
+}
+
+function updateUsageAdderUnit() {
+  const inv = usageInv(document.getElementById('usage-adder-inv').value);
+  const el = document.getElementById('usage-adder-unit');
+  el.textContent = inv ? `${usageUnit(inv)} ${el.dataset.per}` : el.dataset.per;
+}
+
+async function saveUsageAdder() {
+  const t = usageAdder;
+  if (!t) return;
+  const msg = document.getElementById('usage-adder-msg');
+  const invId = document.getElementById('usage-adder-inv').value;
+  const amount = parseFloat(document.getElementById('usage-adder-amt').value);
+  if (!invId) { msg.textContent = 'Pick an inventory item.'; return; }
+  if (!(amount > 0)) { msg.textContent = 'The amount has to be more than 0.'; return; }
+  // Upserts, so linking an item that's already linked just updates its amount.
+  const base = { inventory_id: invId, amount, created_by: currentUser.id };
+  const { error } = t.kind === 'option'
+    ? await sb.from('recipe_option_ingredients').upsert({ ...base, option_type: t.type, option_name: t.name }, { onConflict: 'option_type,option_key,inventory_id' })
+    : t.kind === 'item'
+      ? await sb.from('menu_item_ingredients').upsert({ ...base, menu_item_id: t.id }, { onConflict: 'menu_item_id,inventory_id' })
+      : await sb.from('modifier_option_ingredients').upsert({ ...base, modifier_option_id: t.id }, { onConflict: 'modifier_option_id,inventory_id' });
+  if (error) { msg.textContent = 'Error: ' + error.message; return; }
+  usageAdder = null;
+  await loadUsageSetup();
+}
+
+async function removeUsageLink(kind, id) {
+  const { error } = await sb.from(USAGE_LINK_TABLES[kind]).delete().eq('id', id);
+  if (error) { alert(error.message); return; }
+  await loadUsageSetup();
+}
+
+async function setMenuItemRecipe(itemId, recipeId) {
+  const { error } = await sb.from('menu_items').update({ recipe_id: recipeId || null }).eq('id', itemId);
+  if (error) { alert(error.message); return; }
+  await loadUsageSetup();
+}
+
+async function setUsesNoInventory(kind, id, on) {
+  const table = kind === 'item' ? 'menu_items' : 'modifier_options';
+  const { error } = await sb.from(table).update({ uses_no_inventory: on }).eq('id', id);
+  if (error) { alert(error.message); return; }
+  await loadUsageSetup();
+}
+
+async function setOptionNoInventory(idx, on) {
+  const t = usageTargets[idx];
+  const { error } = on
+    ? await sb.from('recipe_option_no_inventory').upsert({ option_type: t.type, option_name: t.name, created_by: currentUser.id }, { onConflict: 'option_type,option_key' })
+    : await sb.from('recipe_option_no_inventory').delete().eq('option_type', t.type).eq('option_key', t.optKey);
+  if (error) { alert(error.message); return; }
+  await loadUsageSetup();
+}
+
+async function saveUsageConversion(invId) {
+  const inv = usageInv(invId);
+  const msg = document.getElementById(`usage-conv-msg-${invId}`);
+  const base = inv?.base_unit || document.getElementById(`usage-conv-base-${invId}`)?.value.trim();
+  const per = parseFloat(document.getElementById(`usage-conv-per-${invId}`).value);
+  if (!base) { msg.textContent = 'Say what recipes measure it in — pump, oz, each.'; return; }
+  if (!(per > 0)) { msg.textContent = 'Enter how many recipe units are in one counted unit.'; return; }
+  const { error } = await sb.from('inventory')
+    .update({ base_unit: base, base_units_per_unit: per, updated_at: new Date().toISOString() })
+    .eq('id', invId);
+  if (error) { msg.textContent = 'Error: ' + error.message; return; }
+  await loadUsageSetup();
+}
+
+// ── Menu Items tab ──
+function renderUsageItems(ctx, gapsOnly) {
+  const showHidden = document.getElementById('usage-show-hidden').checked;
+  const intro = '<p class="usage-help">What one sale of each item uses. Specials get this from their recipe; coffee and food list theirs under “Always uses”. Add-ons a customer picks are counted on top.</p>';
+  const rows = ctx.items.filter(s => (showHidden || s.item.available === true) && (!gapsOnly || !s.ready));
+  if (!rows.length) return intro + usageEmpty(gapsOnly ? 'Every menu item is set up.' : 'No menu items to show.');
+  const byCategory = new Map();
+  rows.forEach(s => {
+    const cat = s.item.category || 'Other';
+    if (!byCategory.has(cat)) byCategory.set(cat, []);
+    byCategory.get(cat).push(s);
+  });
+  return intro + [...byCategory].map(([cat, list]) =>
+    `<div class="usage-group-title">${htmlEscape(cat)}</div>` + list.map(renderUsageItemRow).join('')
+  ).join('');
+}
+
+function renderUsageItemRow(s) {
+  const { item, uses, unlinked } = s;
+  const link = usageData.recipeByItem[item.id];
+  const byName = !item.recipe_id && link?.recipe_id ? usageData.recipes.find(r => r.id === link.recipe_id)?.name : null;
+  const recipeOptions = [
+    `<option value="">${htmlEscape(byName ? `Same name — ${byName}` : 'No recipe')}</option>`,
+    ...usageData.recipes.map(r => `<option value="${r.id}"${item.recipe_id === r.id ? ' selected' : ''}>${htmlEscape(r.name)}</option>`),
+  ].join('');
+
+  const ownLinks = usageData.itemLinks.filter(l => l.menu_item_id === item.id);
+  const useChips = uses.map(u => {
+    const inv = usageInv(u.inventory_id);
+    const own = u.source === 'item' ? ownLinks.find(l => l.inventory_id === u.inventory_id) : null;
+    const title = u.source === 'item' ? 'Always uses' : (u.detail || 'Recipe');
+    return `<span class="usage-chip" title="${htmlEscape(title)}">${fmtUsageQty(u.amount)} ${htmlEscape(usageUnit(inv))} · ${htmlEscape(inv?.name || 'Unknown item')}${usageCountedHtml(inv, u.amount)}${own ? usageRemoveBtn('item', own.id, inv?.name) : ''}</span>`;
+  });
+  const gapChips = unlinked.map(o => {
+    const label = USAGE_OPTION_TYPES.find(x => x.type === o.option_type)?.label || o.option_type;
+    return `<button type="button" class="usage-chip warn" onclick="setUsageTab('options')" title="Link it under Recipe Options">${htmlEscape(label)}: ${htmlEscape(o.option_name)} — not linked</button>`;
+  });
+  const chips = [...useChips, ...gapChips];
+  const empty = `<span class="usage-muted">${item.uses_no_inventory ? 'Marked as using no stock.' : 'Uses nothing yet.'}</span>`;
+  const noStockBtn = uses.length ? '' :
+    `<button type="button" class="btn btn-ghost btn-sm" onclick="setUsesNoInventory('item','${item.id}',${!item.uses_no_inventory})">${item.uses_no_inventory ? 'Undo “uses no stock”' : 'Uses no stock'}</button>`;
+
+  return `<div class="usage-row">
+    <div class="usage-row-head">
+      <div>
+        <div class="usage-row-name">${htmlEscape(item.name)}${item.available === true ? '' : ' <span class="usage-muted">(hidden)</span>'}</div>
+        ${uses.length ? `<div class="usage-row-sub">${usageCostLabel(uses)}</div>` : ''}
+      </div>
+      ${usageStatusHtml(s.ready, '✓ Ready', 'Needs setup')}
+    </div>
+    <div class="usage-recipe-pick">
+      <label for="usage-recipe-${item.id}">Recipe</label>
+      <select class="form-input" id="usage-recipe-${item.id}" onchange="setMenuItemRecipe('${item.id}', this.value)">${recipeOptions}</select>
+    </div>
+    <div class="usage-chips">${chips.length ? chips.join('') : empty}</div>
+    <div class="usage-actions">${usageAdderHtml({ kind: 'item', key: 'item|' + item.id, id: item.id }, 'Always uses…', 'per sale')}${noStockBtn}</div>
+  </div>`;
+}
+
+// ── Recipe Options tab ──
+function renderUsageOptions(ctx, gapsOnly) {
+  const recipeNames = Object.fromEntries(usageData.recipes.map(r => [r.id, r.name]));
+  let html = '<p class="usage-help">Link each build step once and every recipe using it picks it up. Syrups are linked per pump and packets per full packet — each recipe\'s pump count or packet size is applied on top.</p>';
+  let shown = 0;
+  USAGE_OPTION_TYPES.forEach(typeInfo => {
+    const list = ctx.options
+      .filter(o => o.type === typeInfo.type && (!gapsOnly || (o.live && !o.done)))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    if (!list.length) return;
+    shown += list.length;
+    html += `<div class="usage-group-title">${htmlEscape(typeInfo.label)} <span>(${htmlEscape(typeInfo.per)})</span></div>`
+      + list.map(o => renderUsageOptionRow(o, typeInfo, recipeNames)).join('');
+  });
+  if (!shown) html += usageEmpty(gapsOnly ? 'Every recipe option on the menu is linked.' : 'No recipes have build steps yet.');
+  return html;
+}
+
+function renderUsageOptionRow(o, typeInfo, recipeNames) {
+  const users = [...o.recipeIds].map(id => recipeNames[id]).filter(Boolean).sort((a, b) => a.localeCompare(b));
+  const usersText = users.length > 4 ? `${users.slice(0, 4).join(', ')} and ${users.length - 4} more` : users.join(', ');
+  const target = { kind: 'option', key: 'option|' + usageOptionKey(o.type, o.key), type: o.type, name: o.name, optKey: o.key };
+  const chips = o.links.map(l => usageLinkChip('option', l, typeInfo.per)).join('');
+  const skipBtn = o.links.length ? '' :
+    `<button type="button" class="btn btn-ghost btn-sm" onclick="setOptionNoInventory(${usageTarget(target)}, ${!o.skipped})">${o.skipped ? 'Undo “uses no stock”' : 'Uses no stock'}</button>`;
+  return `<div class="usage-row">
+    <div class="usage-row-head">
+      <div>
+        <div class="usage-row-name">${htmlEscape(o.name)}${o.live ? '' : ' <span class="usage-muted">(not on the menu now)</span>'}</div>
+        <div class="usage-row-sub">Used by ${htmlEscape(usersText)}</div>
+      </div>
+      ${usageStatusHtml(o.done, o.links.length ? '✓ Linked' : 'Uses no stock', 'Not linked')}
+    </div>
+    ${chips ? `<div class="usage-chips">${chips}</div>` : ''}
+    <div class="usage-actions">${usageAdderHtml(target, 'Link inventory item', typeInfo.per)}${skipBtn}</div>
+  </div>`;
+}
+
+// ── Add-ons tab ──
+function renderUsageAddons(ctx, gapsOnly) {
+  let html = '<p class="usage-help">What each add-on uses every time a customer picks it — a pump of vanilla, an extra shot, boba. Custom coffees are counted almost entirely from these.</p>';
+  let shown = 0;
+  usageData.modLists.forEach(list => {
+    const rows = ctx.addons.filter(a => a.list?.id === list.id && (!gapsOnly || (a.live && !a.done)));
+    if (!rows.length) return;
+    shown += rows.length;
+    const itemCount = usageData.menuItems.filter(m => m.available === true && (m.square_modifier_list_ids || []).includes(list.square_id)).length;
+    html += `<div class="usage-group-title">${htmlEscape(list.name)} <span>(on ${itemCount} menu item${itemCount === 1 ? '' : 's'})</span></div>`
+      + rows.map(renderUsageAddonRow).join('');
+  });
+  if (!shown) html += usageEmpty(gapsOnly ? 'Every add-on on the menu is linked.' : 'No add-ons yet — sync the menu from Square to bring them in.');
+  return html;
+}
+
+function renderUsageAddonRow(a) {
+  const { opt } = a;
+  const perText = 'each time it’s picked';
+  const chips = a.links.map(l => usageLinkChip('addon', l, perText)).join('');
+  const notes = [opt.price_cents ? `+$${(opt.price_cents / 100).toFixed(2)}` : '', opt.available === false ? 'marked out of stock' : ''].filter(Boolean);
+  const noStockBtn = a.links.length ? '' :
+    `<button type="button" class="btn btn-ghost btn-sm" onclick="setUsesNoInventory('addon','${opt.id}',${!opt.uses_no_inventory})">${opt.uses_no_inventory ? 'Undo “uses no stock”' : 'Uses no stock'}</button>`;
+  return `<div class="usage-row">
+    <div class="usage-row-head">
+      <div>
+        <div class="usage-row-name">${htmlEscape(opt.name)}</div>
+        ${notes.length ? `<div class="usage-row-sub">${htmlEscape(notes.join(' · '))}</div>` : ''}
+      </div>
+      ${usageStatusHtml(a.done, a.links.length ? '✓ Linked' : 'Uses no stock', 'Not linked')}
+    </div>
+    ${chips ? `<div class="usage-chips">${chips}</div>` : ''}
+    <div class="usage-actions">${usageAdderHtml({ kind: 'addon', key: 'addon|' + opt.id, id: opt.id }, 'Link inventory item', perText)}${noStockBtn}</div>
+  </div>`;
+}
+
+// ── Conversions tab ──
+// The recipe unit is only editable here while it's blank: once set (often by a
+// receipt), it's what every amount and cost is written against, so changing it
+// belongs in the inventory item itself, not a quick inline edit.
+function renderUsageConversions(ctx, gapsOnly) {
+  const intro = '<p class="usage-help">Students count bottles, sleeves, and bags; recipes measure pumps, ounces, and each. Say how many recipe units are in one counted unit so a sale can come off the count. An item shows up here once something is linked to it.</p>';
+  const rows = ctx.conversions
+    .filter(c => !gapsOnly || c.missing)
+    .sort((a, b) => (b.missing - a.missing) || a.inv.name.localeCompare(b.inv.name));
+  if (!rows.length) return intro + usageEmpty(gapsOnly ? 'Every linked item has a conversion.' : 'Nothing is linked yet.');
+  return intro + rows.map(({ inv, missing }) => {
+    const unit = inv.unit || 'unit';
+    const baseField = inv.base_unit
+      ? `<span class="usage-conv-base">${htmlEscape(inv.base_unit)}</span>`
+      : `<label class="visually-hidden" for="usage-conv-base-${inv.id}">Recipe unit for ${htmlEscape(inv.name)}</label><input class="form-input" id="usage-conv-base-${inv.id}" placeholder="pump, oz, each"/>`;
+    return `<div class="usage-row">
+      <div class="usage-row-head">
+        <div>
+          <div class="usage-row-name">${htmlEscape(inv.name)}</div>
+          <div class="usage-row-sub">${htmlEscape(USAGE_INV_CATEGORIES[inv.category] || inv.category || '')}</div>
+        </div>
+        ${usageStatusHtml(!missing, '✓ Set', 'Missing')}
+      </div>
+      <div class="usage-conv">
+        <span class="usage-conv-base">1 ${htmlEscape(unit)} =</span>
+        <label class="visually-hidden" for="usage-conv-per-${inv.id}">Recipe units in one ${htmlEscape(unit)}</label>
+        <input class="form-input" type="number" min="0" step="any" id="usage-conv-per-${inv.id}" value="${inv.base_units_per_unit ?? ''}"/>
+        ${baseField}
+        <button type="button" class="btn btn-primary btn-sm" onclick="saveUsageConversion('${inv.id}')">Save</button>
+        <div class="usage-adder-msg" id="usage-conv-msg-${inv.id}" role="alert"></div>
+      </div>
+    </div>`;
+  }).join('');
 }
 </script>
 
