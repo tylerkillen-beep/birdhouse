@@ -5,9 +5,11 @@
 //   SQUARE_ACCESS_TOKEN  — access token from Square Developer Dashboard (matches environment)
 //   SQUARE_LOCATION_ID   — your Square location ID (matches environment)
 //
-// The function receives the Square card token from the frontend, charges the
-// card for the full cart total (minus any loyalty credit applied), records the
-// order in the `orders` table, and updates the customer's loyalty metadata.
+// The function receives the Square card token from the frontend, prices the
+// cart from the database (menu_items / sticker_sheets — never the prices the
+// browser sends), charges the card for the total (minus any loyalty credit
+// applied), records the order in the `orders` table, and updates the
+// customer's loyalty metadata.
 //
 // Loyalty system:
 //   - $25 spent on menu orders (non-subscription) earns a $3 credit
@@ -29,6 +31,11 @@ const JSON_HEADERS = { ...CORS, "Content-Type": "application/json" };
 const SPEND_THRESHOLD_CENTS = 2500; // $25.00
 const CREDIT_REWARD_CENTS   = 300;  // $3.00
 
+// Menu discounts. These mirror discountRate/saleRate/applyDiscount on the order
+// page (customer/order.html) — change both together.
+const EMPLOYEE_DISCOUNT = 0.25; // approved staff-hub accounts
+const TEACHER_DISCOUNT  = 0.25; // @nixaschools.net, except Mathews
+
 // Sticker sheet pricing.  The first uploaded image on each sheet is free;
 // repeating that image across slots costs nothing extra.  The extra-image
 // surcharge is a one-time design fee, so ordering ten copies of a design pays
@@ -43,6 +50,130 @@ const MAX_COPIES_PER_SHEET      = 50;
 function stickerDesignCents(uniqueImages: number, copies: number): number {
   const extraImages = Math.max(0, uniqueImages - 1);
   return copies * STICKER_SHEET_CENTS + extraImages * STICKER_EXTRA_IMAGE_CENTS;
+}
+
+/** What the browser sends for one menu cart line. Only the choices are
+ *  trusted (which item, temperature, add-ons, how many); prices are not. */
+interface ClientCartItem {
+  id?: unknown;
+  name?: unknown;
+  temp?: unknown;
+  price?: unknown;
+  priceCents?: unknown;
+  quantity?: unknown;
+  squareVariationId?: unknown;
+  selectedModifiers?: { catalogObjectId?: unknown }[];
+}
+
+interface MenuCartLine {
+  id: string;
+  name: string;
+  temp: "hot" | "iced" | "food";
+  price: number;
+  priceCents: number;
+  quantity: number;
+  squareVariationId?: string;
+  selectedModifiers: { catalogObjectId: string; name: string; priceCents: number }[];
+}
+
+/**
+ * Prices a menu cart from the database: each item's base price, its add-ons,
+ * and the better of its website sale or the customer's own discount.
+ *
+ * The browser's price is only used to catch a stale page. The card is never
+ * charged more than the customer was shown — if the real price is higher (a
+ * sale ended, a price went up) the order is refused so they can refresh. A
+ * lower real price is simply charged.
+ */
+async function priceMenuCart(
+  supabase: ReturnType<typeof createClient>,
+  cartItems: ClientCartItem[],
+  customerRate: number,
+): Promise<MenuCartLine[]> {
+  const itemIds = [...new Set(cartItems.map((c) => String(c?.id ?? "")))];
+  const optionIds = [...new Set(cartItems.flatMap((c) =>
+    Array.isArray(c?.selectedModifiers)
+      ? c.selectedModifiers.map((m) => String(m?.catalogObjectId ?? ""))
+      : []
+  ))];
+
+  const { data: rows, error: itemErr } = await supabase
+    .from("menu_items")
+    .select("id, name, available, base_price, base_price_cents, website_discount_pct, square_modifier_list_ids")
+    .in("id", itemIds);
+  if (itemErr) {
+    console.error("Menu price lookup failed:", itemErr);
+    throw new Error("We couldn't check menu prices. Please try again.");
+  }
+  const itemsById = new Map((rows || []).map((r) => [r.id, r]));
+
+  // Add-ons are identified by their Square id, the same way the order page sends them.
+  const optionsBySquareId = new Map();
+  const listSquareIdById = new Map();
+  if (optionIds.length) {
+    const [{ data: options, error: optErr }, { data: lists, error: listErr }] = await Promise.all([
+      supabase
+        .from("modifier_options")
+        .select("square_id, name, price_cents, available, modifier_list_id")
+        .in("square_id", optionIds),
+      supabase.from("modifier_lists").select("id, square_id"),
+    ]);
+    if (optErr || listErr) {
+      console.error("Add-on price lookup failed:", optErr || listErr);
+      throw new Error("We couldn't check add-on prices. Please try again.");
+    }
+    for (const o of options || []) optionsBySquareId.set(o.square_id, o);
+    for (const l of lists || []) listSquareIdById.set(l.id, l.square_id);
+  }
+
+  return cartItems.map((raw) => {
+    const row = itemsById.get(String(raw?.id ?? ""));
+    if (!row?.available) {
+      throw new Error(`${row?.name || raw?.name || "An item in your cart"} is no longer on the menu. Refresh the page and try again.`);
+    }
+
+    const quantity = Number(raw.quantity);
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      throw new Error(`Invalid quantity for ${row.name}`);
+    }
+
+    // Only add-ons the order page would offer for this item: in stock, and
+    // from a modifier set attached to it.
+    const attachedLists = new Set(row.square_modifier_list_ids || []);
+    const selectedModifiers = (Array.isArray(raw.selectedModifiers) ? raw.selectedModifiers : []).map((m) => {
+      const opt = optionsBySquareId.get(String(m?.catalogObjectId ?? ""));
+      if (!opt || opt.available === false || !attachedLists.has(listSquareIdById.get(opt.modifier_list_id))) {
+        throw new Error(`An add-on for ${row.name} is no longer available. Refresh the page and try again.`);
+      }
+      return { catalogObjectId: opt.square_id, name: opt.name, priceCents: opt.price_cents || 0 };
+    });
+
+    // Same arithmetic as the order page, so both round to the same cent.
+    const baseCents = row.base_price_cents || Math.round((parseFloat(row.base_price) || 0) * 100);
+    const fullCents = baseCents + selectedModifiers.reduce((s, m) => s + m.priceCents, 0);
+    const saleRate = Math.min(99, Math.max(0, Number(row.website_discount_pct) || 0)) / 100;
+    const rate = Math.max(customerRate, saleRate);
+    const priceCents = rate > 0 ? Math.round(fullCents * (1 - rate)) : fullCents;
+
+    const shownCents = raw.priceCents != null
+      ? Number(raw.priceCents)
+      : Math.round(Number(raw.price) * 100);
+    if (!(priceCents <= shownCents)) {
+      console.warn("Cart price is out of date:", { itemId: row.id, shownCents, priceCents });
+      throw new Error(`The price of ${row.name} has changed. Refresh the page to see the current price, then try again.`);
+    }
+
+    return {
+      id: row.id,
+      name: row.name,
+      temp: raw.temp === "iced" || raw.temp === "food" ? raw.temp : "hot",
+      price: priceCents / 100,
+      priceCents,
+      quantity,
+      ...(typeof raw.squareVariationId === "string" ? { squareVariationId: raw.squareVariationId } : {}),
+      selectedModifiers,
+    };
+  });
 }
 
 // The school runs on Central time; edge functions run on UTC.  Every date the
@@ -198,13 +329,32 @@ serve(async (req) => {
     const isStaff = ['student', 'manager', 'admin'].includes(staffRecord?.role);
     const deliveryFeeCents = (!isTeacherEmail && !isStaff && orderDeliveryMethod === 'delivery') ? 100 : 0;
 
+    // Read authoritative loyalty state and campus from the profiles table.
+    // user_metadata can be stale or absent for accounts that predate the
+    // loyalty system; profiles is the canonical source kept in sync by this
+    // function and backfilled from historical orders via migration.
+    const { data: profileLoyalty } = await supabase
+      .from("profiles")
+      .select("loyalty_spend_cents, loyalty_credit_cents, location")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    // The customer's own menu discount, as the order page works it out:
+    // staff-hub accounts and high-school teachers get 25%; Mathews gets none.
+    const customerRate = isStaff
+      ? EMPLOYEE_DISCOUNT
+      : (isTeacherEmail && profileLoyalty?.location !== "mathews" ? TEACHER_DISCOUNT : 0);
+
     // ── Calculate order total ──────────────────────────────────────────────
     interface CartItem {
       id: string;
       name: string;
-      temp?: "hot" | "iced";
+      temp?: "hot" | "iced" | "food";
       price: number;
+      priceCents?: number;
       quantity: number;
+      squareVariationId?: string;
+      selectedModifiers?: MenuCartLine["selectedModifiers"];
       type?: string;
       sheetId?: string;
       layoutPreset?: string;
@@ -303,10 +453,10 @@ serve(async (req) => {
         0
       );
     } else {
-      items = cartItems;
-      itemsTotalCents = Math.round(
-        items.reduce((sum, item) => sum + item.price * item.quantity, 0) * 100
-      );
+      // Price from menu_items, never from the client.
+      const lines = await priceMenuCart(supabase, cartItems, customerRate);
+      items = lines;
+      itemsTotalCents = lines.reduce((sum, line) => sum + line.priceCents * line.quantity, 0);
     }
 
     const orderTotalCents = itemsTotalCents + deliveryFeeCents;
@@ -314,16 +464,9 @@ serve(async (req) => {
     if (orderTotalCents <= 0) throw new Error("Order total must be greater than zero");
 
     // ── Validate and apply loyalty credit ─────────────────────────────────
-    // Read authoritative loyalty state from the profiles table.  user_metadata
-    // can be stale or absent for accounts that predate the loyalty system;
-    // profiles is the canonical source kept in sync by this function and
-    // backfilled from historical orders via migration.
+    // profileLoyalty (loaded above) is authoritative; user_metadata is only a
+    // fallback for accounts that predate the loyalty system.
     const meta = user.user_metadata || {};
-    const { data: profileLoyalty } = await supabase
-      .from("profiles")
-      .select("loyalty_spend_cents, loyalty_credit_cents, location")
-      .eq("id", user.id)
-      .maybeSingle();
 
     const availableCreditCents: number =
       profileLoyalty?.loyalty_credit_cents ?? meta.loyalty_credit_cents ?? 0;
