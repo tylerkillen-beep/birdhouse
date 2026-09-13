@@ -184,6 +184,8 @@
     .form-label { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gray); margin-bottom: 0.4rem; }
     .form-input { width: 100%; background: #0d0d0d; border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.9rem; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.84rem; outline: none; transition: border 0.15s; }
     .form-input:focus { border-color: var(--accent); }
+    input[type="date"].form-input { color-scheme: dark; cursor: pointer; }
+    input[type="date"].form-input::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.8; }
     .form-actions { display: flex; gap: 0.6rem; justify-content: flex-end; margin-top: 1.5rem; }
 
     /* ── Plan cards ── */
@@ -815,7 +817,7 @@
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem;max-width:640px">
         <div class="form-group">
           <label class="form-label" for="canvas-sync-week">Week (Monday date)</label>
-          <input class="form-input" id="canvas-sync-week" type="date" />
+          <input class="form-input" id="canvas-sync-week" type="date" onchange="snapCanvasWeekToMonday()" />
         </div>
         <div class="form-group">
           <label class="form-label" for="canvas-sync-type">Grade Type</label>
@@ -5739,6 +5741,25 @@ function renderCanvasAssignmentOptions() {
     onCanvasAssignmentChange(select);
   });
 }
+
+// Grades sync by week, so any day picked in the calendar moves to that week's Monday.
+function snapCanvasWeekToMonday() {
+  const input = document.getElementById('canvas-sync-week');
+  if (!input.value) return;
+  const date = new Date(input.value + 'T00:00:00');
+  const day = date.getDay();
+  date.setDate(date.getDate() - (day === 0 ? 6 : day - 1));
+  const pad = n => String(n).padStart(2, '0');
+  input.value = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+// Open the calendar when a date field is clicked anywhere, not just on its small icon.
+document.addEventListener('click', e => {
+  const input = e.target.closest('input[type="date"].form-input');
+  if (input && typeof input.showPicker === 'function') {
+    try { input.showPicker(); } catch (_) { /* picker already open or not allowed */ }
+  }
+});
 
 // Points Possible follows the Canvas assignment so grades scale to the right total.
 function onCanvasAssignmentChange(select) {
