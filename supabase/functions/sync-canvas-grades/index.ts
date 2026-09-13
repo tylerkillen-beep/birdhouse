@@ -19,6 +19,8 @@
 // Students are matched to Canvas users by email via sis_login_id.
 //
 // Request body: {
+//   action?: "sync"|"list_courses"|"list_assignments"   default "sync"
+//   course_id?: string           list_assignments only; defaults to the saved course
 //   week_start: string,          "YYYY-MM-DD" (Monday of the target week)
 //   type: "manager"|"peer"|"product"|"both"|"all",
 //   dry_run?: boolean            if true, compute grades but don't submit to Canvas
@@ -39,6 +41,44 @@ const JSON_HEADERS = { ...CORS, "Content-Type": "application/json" };
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS });
+}
+
+// Canvas tokens are printable ASCII. A token pasted into Supabase secrets can pick up
+// invisible characters (line breaks, zero-width spaces) that make fetch reject the
+// Authorization header, so strip anything outside that range.
+function cleanCanvasToken(raw: string): string {
+  return raw.replace(/^\s*Bearer\s+/i, "").replace(/[^\x21-\x7E]/g, "");
+}
+
+// Error messages can echo request headers; never send the token back to the browser.
+function redactToken(message: string): string {
+  return message.replace(/Bearer\s+[^\s"']+/gi, "Bearer [redacted]");
+}
+
+class CanvasApiError extends Error {
+  constructor(public status: number, body: string) {
+    super(
+      status === 401
+        ? "Canvas rejected the access token. Generate a new token in Canvas and update the CANVAS_ACCESS_TOKEN secret."
+        : `Canvas API ${status}: ${body.slice(0, 200)}`,
+    );
+  }
+}
+
+// GETs every page of a Canvas list endpoint by following the Link: rel="next" header.
+// deno-lint-ignore no-explicit-any
+async function canvasGetAll(url: string, headers: Record<string, string>): Promise<any[]> {
+  // deno-lint-ignore no-explicit-any
+  const items: any[] = [];
+  let next: string | null = url;
+  for (let page = 0; next && page < 20; page++) {
+    const resp: Response = await fetch(next, { headers });
+    if (!resp.ok) throw new CanvasApiError(resp.status, await resp.text());
+    items.push(...await resp.json());
+    const link = resp.headers.get("Link") || "";
+    next = link.match(/<([^>]+)>;\s*rel="next"/)?.[1] ?? null;
+  }
+  return items;
 }
 
 interface CanvasConfig {
@@ -127,8 +167,74 @@ serve(async (req) => {
     }
     if (!allowed) return json({ success: false, error: "Forbidden" }, 403);
 
-    // Parse request body
     const body = await req.json();
+    const action = (body.action ?? "sync") as "sync" | "list_courses" | "list_assignments";
+    if (!["sync", "list_courses", "list_assignments"].includes(action)) {
+      return json({ success: false, error: "action must be 'sync', 'list_courses', or 'list_assignments'" }, 400);
+    }
+
+    // Load Canvas config
+    const rawToken = Deno.env.get("CANVAS_ACCESS_TOKEN");
+    if (!rawToken) return json({ success: false, error: "Missing CANVAS_ACCESS_TOKEN secret" }, 500);
+    const canvasToken = cleanCanvasToken(rawToken);
+
+    const { data: configRow, error: configErr } = await serviceClient
+      .from("store_config")
+      .select("value")
+      .eq("key", "canvas_config")
+      .single();
+
+    if (configErr || !configRow) {
+      return json({ success: false, error: "Canvas config not found in store_config" }, 500);
+    }
+
+    const cfg = configRow.value as CanvasConfig;
+    if (!cfg.domain) {
+      return json({ success: false, error: "Canvas domain is not set. Enter it in Connection Settings and save." }, 400);
+    }
+
+    const canvasBase = `https://${cfg.domain}/api/v1`;
+    const canvasHeaders = {
+      "Authorization": `Bearer ${canvasToken}`,
+      "Content-Type": "application/json",
+    };
+
+    // ── Course / assignment lists for the admin pickers ─────────────────────────
+    if (action === "list_courses") {
+      const courses = await canvasGetAll(
+        `${canvasBase}/courses?enrollment_type=teacher&state[]=available&state[]=unpublished&include[]=term&per_page=100`,
+        canvasHeaders,
+      );
+      return json({
+        success: true,
+        courses: courses.map((c) => ({
+          id: String(c.id),
+          name: c.name,
+          term: c.term?.name ?? null,
+        })),
+      });
+    }
+
+    if (action === "list_assignments") {
+      const courseId = String(body.course_id || cfg.course_id || "");
+      if (!courseId) return json({ success: false, error: "Select a Canvas course first." }, 400);
+      const assignments = await canvasGetAll(
+        `${canvasBase}/courses/${encodeURIComponent(courseId)}/assignments?order_by=due_at&per_page=100`,
+        canvasHeaders,
+      );
+      return json({
+        success: true,
+        assignments: assignments.map((a) => ({
+          id: String(a.id),
+          name: a.name,
+          points_possible: a.points_possible ?? null,
+          due_at: a.due_at ?? null,
+          published: a.published !== false,
+        })),
+      });
+    }
+
+    // ── Grade sync ──────────────────────────────────────────────────────────────
     const { week_start, type, dry_run = false, team_scores = [] } = body as {
       week_start: string;
       type: "manager" | "peer" | "product" | "both" | "all";
@@ -151,39 +257,30 @@ serve(async (req) => {
       return json({ success: false, error: "team_scores is required when syncing product performance grades" }, 400);
     }
 
-    // Load Canvas config
-    const canvasToken = Deno.env.get("CANVAS_ACCESS_TOKEN");
-    if (!canvasToken) return json({ success: false, error: "Missing CANVAS_ACCESS_TOKEN secret" }, 500);
-
-    const { data: configRow, error: configErr } = await serviceClient
-      .from("store_config")
-      .select("value")
-      .eq("key", "canvas_config")
-      .single();
-
-    if (configErr || !configRow) {
-      return json({ success: false, error: "Canvas config not found in store_config" }, 500);
-    }
-
-    const cfg = configRow.value as CanvasConfig;
-    if (!cfg.domain || !cfg.course_id) {
-      return json({ success: false, error: "Canvas config is incomplete. Set domain and course_id in Canvas Settings." }, 400);
+    if (!cfg.course_id) {
+      return json({ success: false, error: "No Canvas course selected. Pick one in Connection Settings." }, 400);
     }
     if (includesManager && !cfg.manager_assignment_id) {
-      return json({ success: false, error: "manager_assignment_id is not configured in Canvas Settings." }, 400);
+      return json({ success: false, error: "Pick a Canvas assignment for manager scores." }, 400);
     }
     if (includesPeer && !cfg.peer_assignment_id) {
-      return json({ success: false, error: "peer_assignment_id is not configured in Canvas Settings." }, 400);
+      return json({ success: false, error: "Pick a Canvas assignment for peer evaluations." }, 400);
     }
     if (includesProduct && !cfg.product_assignment_id) {
-      return json({ success: false, error: "product_assignment_id is not configured in Canvas Settings." }, 400);
+      return json({ success: false, error: "Pick a Canvas assignment for product performance." }, 400);
     }
 
-    const canvasBase = `https://${cfg.domain}/api/v1`;
-    const canvasHeaders = {
-      "Authorization": `Bearer ${canvasToken}`,
-      "Content-Type": "application/json",
-    };
+    // PUTs one student's grade; returns an error message, or null on success.
+    async function submitGrade(assignmentId: string, email: string, grade: number): Promise<string | null> {
+      const canvasUrl = `${canvasBase}/courses/${cfg.course_id}/assignments/${assignmentId}/submissions/sis_login_id:${encodeURIComponent(email)}`;
+      const resp = await fetch(canvasUrl, {
+        method: "PUT",
+        headers: canvasHeaders,
+        body: JSON.stringify({ submission: { posted_grade: grade } }),
+      });
+      if (resp.ok) return null;
+      return new CanvasApiError(resp.status, await resp.text()).message;
+    }
 
     // Load active rubric (needed for manager + peer scoring)
     const { data: rubricData } = await serviceClient
@@ -247,16 +344,10 @@ serve(async (req) => {
         };
 
         if (!dry_run) {
-          const canvasUrl = `${canvasBase}/courses/${cfg.course_id}/assignments/${cfg.manager_assignment_id}/submissions/sis_login_id:${encodeURIComponent(student.email)}`;
-          const resp = await fetch(canvasUrl, {
-            method: "PUT",
-            headers: canvasHeaders,
-            body: JSON.stringify({ submission: { posted_grade: grade } }),
-          });
-          if (!resp.ok) {
-            const errText = await resp.text();
+          const err = await submitGrade(cfg.manager_assignment_id, student.email, grade);
+          if (err) {
             result.canvas_status = "error";
-            result.canvas_error = `Canvas API ${resp.status}: ${errText.slice(0, 200)}`;
+            result.canvas_error = err;
           }
         }
 
@@ -316,16 +407,10 @@ serve(async (req) => {
         };
 
         if (!dry_run) {
-          const canvasUrl = `${canvasBase}/courses/${cfg.course_id}/assignments/${cfg.peer_assignment_id}/submissions/sis_login_id:${encodeURIComponent(student.email)}`;
-          const resp = await fetch(canvasUrl, {
-            method: "PUT",
-            headers: canvasHeaders,
-            body: JSON.stringify({ submission: { posted_grade: grade } }),
-          });
-          if (!resp.ok) {
-            const errText = await resp.text();
+          const err = await submitGrade(cfg.peer_assignment_id, student.email, grade);
+          if (err) {
             result.canvas_status = "error";
-            result.canvas_error = `Canvas API ${resp.status}: ${errText.slice(0, 200)}`;
+            result.canvas_error = err;
           }
         }
 
@@ -370,16 +455,10 @@ serve(async (req) => {
         };
 
         if (!dry_run) {
-          const canvasUrl = `${canvasBase}/courses/${cfg.course_id}/assignments/${cfg.product_assignment_id}/submissions/sis_login_id:${encodeURIComponent(student.email)}`;
-          const resp = await fetch(canvasUrl, {
-            method: "PUT",
-            headers: canvasHeaders,
-            body: JSON.stringify({ submission: { posted_grade: grade } }),
-          });
-          if (!resp.ok) {
-            const errText = await resp.text();
+          const err = await submitGrade(cfg.product_assignment_id, student.email, grade);
+          if (err) {
             result.canvas_status = "error";
-            result.canvas_error = `Canvas API ${resp.status}: ${errText.slice(0, 200)}`;
+            result.canvas_error = err;
           }
         }
 
@@ -403,7 +482,11 @@ serve(async (req) => {
     });
 
   } catch (err) {
-    console.error("sync-canvas-grades error:", err);
-    return json({ success: false, error: String(err) }, 500);
+    if (err instanceof CanvasApiError) {
+      return json({ success: false, error: err.message }, 502);
+    }
+    const message = redactToken(String(err));
+    console.error("sync-canvas-grades error:", message);
+    return json({ success: false, error: message }, 500);
   }
 });
