@@ -745,9 +745,14 @@
         <div style="font-size:0.72rem;color:var(--gray);margin-top:0.3rem">Your Canvas instance domain — no https://</div>
       </div>
       <div class="form-group" style="margin-bottom:1rem">
-        <label class="form-label" for="canvas-course-id">Course ID</label>
-        <input class="form-input" id="canvas-course-id" placeholder="e.g. 12345" />
-        <div style="font-size:0.72rem;color:var(--gray);margin-top:0.3rem">Found in the Canvas course URL: /courses/<strong>12345</strong></div>
+        <label class="form-label" for="canvas-course-id">Course</label>
+        <div style="display:flex;gap:0.5rem">
+          <select class="form-input" id="canvas-course-id" style="background:#0d0d0d;flex:1" onchange="onCanvasCourseChange()">
+            <option value="">Save the domain, then load your courses</option>
+          </select>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="connectCanvas()">Load Courses</button>
+        </div>
+        <div id="canvas-course-status" style="font-size:0.72rem;color:var(--gray);margin-top:0.3rem">Lists the Canvas courses you teach</div>
       </div>
       <div style="font-size:0.75rem;color:var(--gray);margin-bottom:1rem;padding:0.75rem;background:rgba(255,255,255,0.03);border-radius:8px;line-height:1.6">
         The <strong style="color:var(--text)">CANVAS_ACCESS_TOKEN</strong> secret must be set via the Supabase dashboard under Edge Function secrets. Generate a token in Canvas → Account → Settings → New Access Token.
@@ -776,22 +781,26 @@
         </div>
       </div>
 
-      <!-- Per-type assignment ID + points fields (shown based on selected type) -->
+      <!-- Per-type assignment picker + points fields (shown based on selected type) -->
       <div style="max-width:640px;margin-bottom:1.25rem">
-        <div id="canvas-mgr-fields" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:0.75rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;font-size:0.75rem;color:var(--gray)">
+          <span id="canvas-assignments-status">Assignments are pulled from the selected Canvas course</span>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="loadCanvasAssignments()">Refresh Assignments</button>
+        </div>
+        <div id="canvas-mgr-fields" style="display:grid;grid-template-columns:2fr 1fr;gap:1rem;margin-bottom:0.75rem">
           <div class="form-group">
-            <label class="form-label" for="canvas-mgr-assignment">Manager Assignment ID</label>
-            <input class="form-input" id="canvas-mgr-assignment" placeholder="e.g. 67890" />
+            <label class="form-label" for="canvas-mgr-assignment">Manager Scores Assignment</label>
+            <select class="form-input canvas-assignment-select" id="canvas-mgr-assignment" data-points="canvas-mgr-points" style="background:#0d0d0d" onchange="onCanvasAssignmentChange(this)"></select>
           </div>
           <div class="form-group">
             <label class="form-label" for="canvas-mgr-points">Points Possible</label>
             <input class="form-input" id="canvas-mgr-points" type="number" placeholder="100" />
           </div>
         </div>
-        <div id="canvas-peer-fields" style="display:none;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:0.75rem">
+        <div id="canvas-peer-fields" style="display:none;grid-template-columns:2fr 1fr;gap:1rem;margin-bottom:0.75rem">
           <div class="form-group">
-            <label class="form-label" for="canvas-peer-assignment">Peer Eval Assignment ID</label>
-            <input class="form-input" id="canvas-peer-assignment" placeholder="e.g. 67891" />
+            <label class="form-label" for="canvas-peer-assignment">Peer Evaluation Assignment</label>
+            <select class="form-input canvas-assignment-select" id="canvas-peer-assignment" data-points="canvas-peer-points" style="background:#0d0d0d" onchange="onCanvasAssignmentChange(this)"></select>
           </div>
           <div class="form-group">
             <label class="form-label" for="canvas-peer-points">Points Possible</label>
@@ -799,10 +808,10 @@
           </div>
         </div>
         <div id="canvas-product-fields" style="display:none;gap:1rem;margin-bottom:0.75rem">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:0.75rem">
+          <div style="display:grid;grid-template-columns:2fr 1fr;gap:1rem;margin-bottom:0.75rem">
             <div class="form-group">
-              <label class="form-label" for="canvas-product-assignment">Product Performance Assignment ID</label>
-              <input class="form-input" id="canvas-product-assignment" placeholder="e.g. 67892" />
+              <label class="form-label" for="canvas-product-assignment">Product Performance Assignment</label>
+              <select class="form-input canvas-assignment-select" id="canvas-product-assignment" data-points="canvas-product-points" style="background:#0d0d0d" onchange="onCanvasAssignmentChange(this)"></select>
             </div>
             <div class="form-group">
               <label class="form-label" for="canvas-product-points">Points Possible</label>
@@ -5213,14 +5222,14 @@ async function deleteReview(reviewId, btn) {
 async function loadCanvasSettings() {
   const { data } = await sb.from('store_config').select('value').eq('key', 'canvas_config').single();
   const cfg = data?.value || {};
+  window._canvasCfg = cfg;
   document.getElementById('canvas-domain').value = cfg.domain || '';
-  document.getElementById('canvas-course-id').value = cfg.course_id || '';
-  document.getElementById('canvas-mgr-assignment').value = cfg.manager_assignment_id || '';
-  document.getElementById('canvas-peer-assignment').value = cfg.peer_assignment_id || '';
-  document.getElementById('canvas-product-assignment').value = cfg.product_assignment_id || '';
   document.getElementById('canvas-mgr-points').value = cfg.manager_points ?? 100;
   document.getElementById('canvas-peer-points').value = cfg.peer_points ?? 100;
   document.getElementById('canvas-product-points').value = cfg.product_points ?? 10;
+
+  renderCanvasCourseOptions(cfg.course_id);
+  renderCanvasAssignmentOptions();
 
   // Default sync week to last Monday
   if (!document.getElementById('canvas-sync-week').value) {
@@ -5232,9 +5241,147 @@ async function loadCanvasSettings() {
   }
 
   onCanvasSyncTypeChange();
+
+  // Pull the course + assignment lists from Canvas in the background (cached per page load)
+  if (cfg.domain) {
+    const coursesReady = window._canvasCourses ? Promise.resolve() : loadCanvasCourses();
+    coursesReady.then(() => {
+      if (!window._canvasAssignments) loadCanvasAssignments();
+    });
+  }
 }
 
-// Show/hide per-type assignment ID fields based on selected grade type.
+// Calls the sync-canvas-grades edge function with a fresh session token.
+async function callCanvasFunction(payload) {
+  let { data: { session } } = await sb.auth.getSession();
+  if (session?.expires_at && Date.now() / 1000 >= session.expires_at - 30) {
+    const { data: refreshed } = await sb.auth.refreshSession();
+    session = refreshed?.session ?? null;
+  }
+  if (!session) throw new Error('Session expired. Please sign in again.');
+  const resp = await fetch(`${sb.supabaseUrl}/functions/v1/sync-canvas-grades`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const result = await resp.json();
+  if (!result.success) throw new Error(result.error || `HTTP ${resp.status}`);
+  return result;
+}
+
+// Saves the domain, then pulls the course list from Canvas.
+async function connectCanvas() {
+  if (!document.getElementById('canvas-domain').value.trim()) {
+    alert('Enter your Canvas domain first.');
+    return;
+  }
+  await saveCanvasSettings();
+  await loadCanvasCourses();
+  await loadCanvasAssignments();
+}
+
+async function loadCanvasCourses() {
+  const status = document.getElementById('canvas-course-status');
+  status.style.color = 'var(--gray)';
+  status.textContent = 'Loading courses from Canvas…';
+  try {
+    const { courses } = await callCanvasFunction({ action: 'list_courses' });
+    window._canvasCourses = courses;
+    renderCanvasCourseOptions(document.getElementById('canvas-course-id').value || window._canvasCfg?.course_id);
+    status.textContent = `${courses.length} course${courses.length === 1 ? '' : 's'} found`;
+  } catch (err) {
+    status.style.color = '#e05a4a';
+    status.textContent = err.message;
+  }
+}
+
+function renderCanvasCourseOptions(selectedId) {
+  const select = document.getElementById('canvas-course-id');
+  const courses = window._canvasCourses;
+  if (!courses) {
+    select.innerHTML = selectedId
+      ? `<option value="${escHtml(selectedId)}">Course #${escHtml(selectedId)}</option>`
+      : '<option value="">Save the domain, then load your courses</option>';
+    return;
+  }
+  const opts = courses.map(c =>
+    `<option value="${escHtml(c.id)}">${escHtml(c.name)}${c.term ? ` (${escHtml(c.term)})` : ''}</option>`);
+  if (selectedId && !courses.some(c => c.id === selectedId)) {
+    opts.unshift(`<option value="${escHtml(selectedId)}">Course #${escHtml(selectedId)} (not in your course list)</option>`);
+  }
+  select.innerHTML = '<option value="">— Pick a course —</option>' + opts.join('');
+  select.value = selectedId || '';
+}
+
+function onCanvasCourseChange() {
+  document.querySelectorAll('.canvas-assignment-select').forEach(select => { select.innerHTML = ''; });
+  loadCanvasAssignments();
+}
+
+async function loadCanvasAssignments() {
+  const courseId = document.getElementById('canvas-course-id').value;
+  const status = document.getElementById('canvas-assignments-status');
+  status.style.color = 'var(--gray)';
+  window._canvasAssignments = null;
+  if (!courseId) {
+    status.textContent = 'Pick a Canvas course in Connection Settings to list its assignments';
+    renderCanvasAssignmentOptions();
+    return;
+  }
+  status.textContent = 'Loading assignments from Canvas…';
+  try {
+    const { assignments } = await callCanvasFunction({ action: 'list_assignments', course_id: courseId });
+    // Newest due date first; undated assignments at the bottom
+    assignments.sort((a, b) => (b.due_at || '').localeCompare(a.due_at || '') || a.name.localeCompare(b.name));
+    window._canvasAssignments = assignments;
+    status.textContent = `${assignments.length} assignment${assignments.length === 1 ? '' : 's'} in this course`;
+  } catch (err) {
+    status.style.color = '#e05a4a';
+    status.textContent = err.message;
+  }
+  renderCanvasAssignmentOptions();
+}
+
+// Fills every assignment dropdown, keeping the current (or last saved) selection.
+function renderCanvasAssignmentOptions() {
+  const cfg = window._canvasCfg || {};
+  const savedIds = {
+    'canvas-mgr-assignment': cfg.manager_assignment_id,
+    'canvas-peer-assignment': cfg.peer_assignment_id,
+    'canvas-product-assignment': cfg.product_assignment_id,
+  };
+  const assignments = window._canvasAssignments || [];
+  const fmtDue = iso => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+  // Saved picks belong to the saved course; a newly picked course starts blank
+  const sameCourse = document.getElementById('canvas-course-id').value === (cfg.course_id || '');
+
+  document.querySelectorAll('.canvas-assignment-select').forEach(select => {
+    const selectedId = select.value || (sameCourse ? savedIds[select.id] : '') || '';
+    const opts = assignments.map(a => {
+      const details = [
+        a.points_possible != null ? `${a.points_possible} pts` : null,
+        a.due_at ? `due ${fmtDue(a.due_at)}` : null,
+        a.published ? null : 'unpublished',
+      ].filter(Boolean).join(' · ');
+      return `<option value="${escHtml(a.id)}" data-points="${a.points_possible ?? ''}">${escHtml(a.name)}${details ? ` — ${details}` : ''}</option>`;
+    });
+    if (selectedId && !assignments.some(a => a.id === selectedId)) {
+      opts.unshift(`<option value="${escHtml(selectedId)}">Assignment #${escHtml(selectedId)}${window._canvasAssignments ? ' (not found in this course)' : ''}</option>`);
+    }
+    select.innerHTML = `<option value="">${window._canvasAssignments ? '— Pick an assignment —' : '— No assignments loaded —'}</option>` + opts.join('');
+    select.value = selectedId;
+    onCanvasAssignmentChange(select);
+  });
+}
+
+// Points Possible follows the Canvas assignment so grades scale to the right total.
+function onCanvasAssignmentChange(select) {
+  const points = select.selectedOptions[0]?.dataset.points;
+  if (points) document.getElementById(select.dataset.points).value = points;
+}
+
+// Show/hide per-type assignment pickers based on selected grade type.
 function onCanvasSyncTypeChange() {
   const type = document.getElementById('canvas-sync-type').value;
   const showMgr = type === 'manager' || type === 'both' || type === 'all';
@@ -5264,8 +5411,9 @@ async function saveCanvasSettings() {
   const cfg = {
     ...existingCfg,
     domain: document.getElementById('canvas-domain').value.trim().replace(/^https?:\/\//, ''),
-    course_id: document.getElementById('canvas-course-id').value.trim(),
+    course_id: document.getElementById('canvas-course-id').value,
   };
+  window._canvasCfg = cfg;
   const msg = document.getElementById('canvas-settings-msg');
   const { error } = await sb.from('store_config').upsert({ key: 'canvas_config', value: cfg }, { onConflict: 'key' });
   msg.style.display = 'block';
@@ -5279,17 +5427,19 @@ async function saveCanvasSettings() {
   }
 }
 
-// Saves the assignment IDs + points currently entered in the sync form to store_config.
+// Saves the course, assignment picks, and points in the sync form to store_config.
 async function saveCanvasSyncAssignmentIds() {
   const { data: existing } = await sb.from('store_config').select('value').eq('key', 'canvas_config').single();
   const cfg = existing?.value || {};
-  cfg.manager_assignment_id = document.getElementById('canvas-mgr-assignment').value.trim();
-  cfg.peer_assignment_id = document.getElementById('canvas-peer-assignment').value.trim();
-  cfg.product_assignment_id = document.getElementById('canvas-product-assignment').value.trim();
-  cfg.manager_points = parseInt(document.getElementById('canvas-mgr-points').value) || 100;
-  cfg.peer_points = parseInt(document.getElementById('canvas-peer-points').value) || 100;
-  cfg.product_points = parseInt(document.getElementById('canvas-product-points').value) || 10;
+  cfg.course_id = document.getElementById('canvas-course-id').value;
+  cfg.manager_assignment_id = document.getElementById('canvas-mgr-assignment').value;
+  cfg.peer_assignment_id = document.getElementById('canvas-peer-assignment').value;
+  cfg.product_assignment_id = document.getElementById('canvas-product-assignment').value;
+  cfg.manager_points = parseFloat(document.getElementById('canvas-mgr-points').value) || 100;
+  cfg.peer_points = parseFloat(document.getElementById('canvas-peer-points').value) || 100;
+  cfg.product_points = parseFloat(document.getElementById('canvas-product-points').value) || 10;
   await sb.from('store_config').upsert({ key: 'canvas_config', value: cfg }, { onConflict: 'key' });
+  window._canvasCfg = cfg;
 }
 
 // Called from the "Sync to Canvas" buttons on Manager Scores / Peer Evals sections.
@@ -5407,27 +5557,14 @@ async function syncCanvasGrades(dryRun) {
   // Save the assignment IDs entered in the form so they become the new defaults
   await saveCanvasSyncAssignmentIds();
 
-  const { data: { session } } = await sb.auth.getSession();
-  const token = session?.access_token;
-
   const payload = { week_start: weekStart, type, dry_run: dryRun };
   if (includesProduct) payload.team_scores = window._canvasProductTeamScores;
 
-  let resp, result;
+  let result;
   try {
-    resp = await fetch(`${sb.supabaseUrl}/functions/v1/sync-canvas-grades`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    result = await resp.json();
+    result = await callCanvasFunction(payload);
   } catch (e) {
-    resultsEl.innerHTML = `<div style="color:#e05a4a;font-size:0.85rem">Network error: ${e.message}</div>`;
-    return;
-  }
-
-  if (!result.success) {
-    resultsEl.innerHTML = `<div style="color:#e05a4a;font-size:0.85rem">Error: ${result.error}</div>`;
+    resultsEl.innerHTML = `<div style="color:#e05a4a;font-size:0.85rem">Error: ${escHtml(e.message)}</div>`;
     return;
   }
 
