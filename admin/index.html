@@ -2851,15 +2851,35 @@ async function loadAdminPeerEvals(offsetDelta) {
 // Subscriptions
 // ════════════════════════════════════
 async function loadSubscriptions() {
-  const { data } = await sb.from('subscriptions')
-    .select('*, subscription_plans(name,price_cents,drinks_per_week), students(first_name,last_name,email)')
+  // Subscribers are customers, so their name and email live in profiles.
+  // This used to embed students(...), but subscriptions has no relationship to
+  // the staff roster, so the whole query failed and the tab showed nothing.
+  const { data, error } = await sb.from('subscriptions')
+    .select('*, subscription_plans(name,price_cents,drinks_per_week)')
     .order('created_at', { ascending: false });
+  if (error) {
+    console.error('Failed loading subscriptions', error);
+    document.getElementById('sub-tbody').innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--danger,#ff6b6b);padding:2rem">Could not load subscriptions: ${escHtml(error.message)}</td></tr>`;
+    return;
+  }
   allSubscriptions = data || [];
+
+  const userIds = [...new Set(allSubscriptions.map(s => s.user_id).filter(Boolean))];
+  if (userIds.length) {
+    const { data: profiles, error: profilesError } = await sb.from('profiles').select('id,full_name,email').in('id', userIds);
+    if (profilesError) console.error('Failed loading subscriber profiles', profilesError);
+    const profileMap = Object.fromEntries((profiles || []).map(p => [p.id, p]));
+    allSubscriptions.forEach(s => { s.profile = profileMap[s.user_id] || null; });
+  }
 
   const active    = allSubscriptions.filter(s => s.status === 'active').length;
   const paused    = allSubscriptions.filter(s => s.status === 'paused').length;
   const cancelled = allSubscriptions.filter(s => s.status === 'cancelled').length;
-  const wrr = allSubscriptions.filter(s => s.status === 'active').reduce((sum, s) => sum + (s.subscription_plans?.price_cents || 0), 0);
+  // What active subscribers are actually charged each week, after any teacher discount.
+  const wrr = allSubscriptions.filter(s => s.status === 'active').reduce((sum, s) => {
+    const pct = Math.min(100, Math.max(0, Number(s.discount_pct) || 0));
+    return sum + Math.round((s.subscription_plans?.price_cents || 0) * (1 - pct / 100));
+  }, 0);
 
   document.getElementById('sub-stat-active').textContent    = active;
   document.getElementById('sub-stat-paused').textContent    = paused;
@@ -2878,7 +2898,7 @@ function filterSubscriptions() {
   const st = document.getElementById('sub-status-filter').value;
   const pl = document.getElementById('sub-plan-filter').value;
   let list = allSubscriptions;
-  if (q)  list = list.filter(s => (`${s.students?.first_name} ${s.students?.last_name} ${s.students?.email}`).toLowerCase().includes(q));
+  if (q)  list = list.filter(s => (`${s.profile?.full_name || ''} ${s.profile?.email || ''}`).toLowerCase().includes(q));
   if (st) list = list.filter(s => s.status === st);
   if (pl) list = list.filter(s => s.subscription_plans?.name === pl);
   renderSubscriptions(list);
@@ -2891,14 +2911,14 @@ function renderSubscriptions(list) {
     return;
   }
   tbody.innerHTML = list.map(s => {
-    const name  = s.students ? `${s.students.first_name} ${s.students.last_name}` : '—';
-    const email = s.students?.email || '—';
+    const email = s.profile?.email || '—';
+    const name  = getProfileDisplayName(s.profile) || (s.profile?.email ? s.profile.email.split('@')[0] : '—');
     const nextBilling = s.next_billing_date ? new Date(s.next_billing_date + 'T12:00:00').toLocaleDateString() : '—';
     const started     = s.created_at ? new Date(s.created_at).toLocaleDateString() : '—';
     return `<tr>
       <td>
-        <div style="font-weight:500">${name}</div>
-        <div style="font-size:0.75rem;color:var(--gray)">${email}</div>
+        <div style="font-weight:500">${escHtml(name)}</div>
+        <div style="font-size:0.75rem;color:var(--gray)">${escHtml(email)}</div>
       </td>
       <td>${s.subscription_plans?.name || '—'}</td>
       <td>${subStatusPill(s.status)}</td>
@@ -2906,7 +2926,7 @@ function renderSubscriptions(list) {
       <td style="text-align:center">${s.subscription_plans?.drinks_per_week ?? '—'}</td>
       <td style="color:var(--gray-mid);font-size:0.81rem">${started}</td>
       <td>
-        <button class="btn btn-ghost btn-sm" onclick="openSubActionModal('${s.id}', '${s.status}', '${name}')">Manage</button>
+        <button class="btn btn-ghost btn-sm" onclick="openSubActionModal('${s.id}', '${s.status}', ${escHtml(JSON.stringify(name))})">Manage</button>
       </td>
     </tr>`;
   }).join('');
