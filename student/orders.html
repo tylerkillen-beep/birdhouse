@@ -92,6 +92,11 @@
     .order-card.type-stickers:hover { border-color: rgba(170,110,255,0.45); }
     .order-card.type-stickers::before { background: #a86eff !important; }
     .badge-stickers { background: rgba(170,110,255,0.12); color: #b98cff; border: 1px solid rgba(170,110,255,0.25); }
+    /* Subscription drinks: teal, clear of the Mathews blue, sticker violet and
+       delivered green. Only the edge and badge change, so a Mathews subscriber
+       still reads as Mathews. */
+    .order-card.type-subscription::before { background: #2ec4b6 !important; }
+    .badge-subscription { background: rgba(46,196,182,0.1); color: #3fd6c8; border: 1px solid rgba(46,196,182,0.25); }
 
     .order-top { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.35rem; flex-wrap: wrap; }
     .order-customer { font-weight: 500; font-size: 0.95rem; }
@@ -217,6 +222,7 @@
           <button class="filter-pill active" data-val="all" onclick="setTypeFilter('all', this)" aria-pressed="true">All</button>
           <button class="filter-pill" data-val="menu" onclick="setTypeFilter('menu', this)" aria-pressed="false"><span aria-hidden="true">☕</span> Coffee</button>
           <button class="filter-pill" data-val="stickers" onclick="setTypeFilter('stickers', this)" aria-pressed="false"><span aria-hidden="true">🖼️</span> Stickers</button>
+          <button class="filter-pill" data-val="subscription" onclick="setTypeFilter('subscription', this)" aria-pressed="false"><span aria-hidden="true">🔁</span> Subscriptions</button>
         </div>
       </div>
       <!-- Delivery method -->
@@ -290,13 +296,16 @@
   );
 
   // ── State ──────────────────────────────────────────────────────────────────
-  let allOrders = [];
+  let allOrders = [];               // siteOrders + subscriptionDrinks
+  let siteOrders = [];              // rows from the orders table
+  let subscriptionDrinks = [];      // this range's subscription drinks, shaped like orders
+  let subscriptionRange = null;     // { from, to } that subscriptionDrinks covers
   let filterSort     = 'scheduled'; // 'scheduled' | 'placed'
   let filterMethod   = 'all';       // 'all' | 'delivery' | 'pickup'
   let filterStatus   = 'active';    // 'active' | 'pending' | 'paid' | 'delivered' | 'cancelled' | 'all'
   let filterDate     = todayStr();  // 'YYYY-MM-DD' or null (all dates)
   let filterLocation = 'all';       // 'all' | 'birdhouse' | 'mathews'
-  let filterType     = 'all';       // 'all' | 'menu' | 'stickers'
+  let filterType     = 'all';       // 'all' | 'menu' | 'stickers' | 'subscription'
   let filterWindow   = 'soon';      // 'soon' (nearly due only) | 'all'
   let pollTimer    = null;
   let hiddenByWindow = 0;           // orders today held back by the due-soon window
@@ -309,6 +318,7 @@
   let audioCtx = null;
   let audioEnabled = true;
   let knownOrderIds = null; // null on first load; Set<string> thereafter
+  let knownSubscriptionIds = null; // same, for subscribers
 
   // Unlock AudioContext on first user interaction (browser autoplay policy)
   document.addEventListener('click', function unlockAudio() {
@@ -359,6 +369,12 @@
     // Local calendar date. toISOString() is UTC, which rolls over to tomorrow
     // during evening hours here and would point the queue at the wrong day.
     return dateToStr(new Date());
+  }
+
+  function addDaysStr(dateStr, n) {
+    const d = new Date(dateStr + 'T12:00:00');
+    d.setDate(d.getDate() + n);
+    return dateToStr(d);
   }
 
   // ── Auth ───────────────────────────────────────────────────────────────────
@@ -454,6 +470,7 @@
     filterDate = val;
     setDateDisplay(val);
     renderOrders();
+    ensureSubscriptionRange();
   }
 
   function shiftDate(delta) {
@@ -462,12 +479,14 @@
     filterDate = base.toISOString().split('T')[0];
     setDateDisplay(filterDate);
     renderOrders();
+    ensureSubscriptionRange();
   }
 
   function setAllDates() {
     filterDate = null;
     setDateDisplay(null);
     renderOrders();
+    ensureSubscriptionRange();
   }
 
   // ── Filter setters ─────────────────────────────────────────────────────────
@@ -535,7 +554,9 @@
         .order('created_at', { ascending: false })
         .limit(500);
 
-      if (!error) {
+      if (error) {
+        console.error('Failed to fetch orders:', error);
+      } else {
         const newData = data || [];
 
         // Fetch profile locations for orders that lack customer_location so
@@ -566,11 +587,14 @@
           if (newOnes.length > 0) playNewOrderAlert();
         }
         knownOrderIds = new Set(ordersWithLocation.map(o => o.id));
-        allOrders = ordersWithLocation;
+        siteOrders = ordersWithLocation;
       }
     } catch (e) {
       console.error('Failed to fetch orders:', e);
     }
+
+    await loadSubscriptionDrinks();
+    allOrders = [...siteOrders, ...subscriptionDrinks];
 
     updateLastUpdated();
     renderOrders();
@@ -581,6 +605,81 @@
       btn.textContent = '↻ Refresh';
       btn.setAttribute('aria-label', 'Refresh orders');
     }
+  }
+
+  // Subscription drinks are standing weekly orders, not rows in the orders
+  // table, so they are asked for by date range. The range follows the date
+  // being looked at; stepping outside it fetches a new one.
+  const SUBSCRIPTION_RANGE_DAYS = 7;
+
+  function subscriptionRangeFor(dateStr) {
+    const base = dateStr || todayStr();
+    return { from: addDaysStr(base, -SUBSCRIPTION_RANGE_DAYS), to: addDaysStr(base, SUBSCRIPTION_RANGE_DAYS) };
+  }
+
+  async function loadSubscriptionDrinks() {
+    const range = subscriptionRangeFor(filterDate);
+    try {
+      const { data, error } = await sb.rpc('subscription_queue', { p_from: range.from, p_to: range.to });
+      if (error) {
+        console.error('Failed to fetch subscription drinks:', error);
+        return;
+      }
+      const drinks = (data || []).map(subscriptionDrinkToOrder);
+
+      // Chime for a new subscriber, not for every drink that slides into the
+      // range as the days go by.
+      const subIds = new Set(drinks.map(d => d.subscription_id));
+      const coversToday = range.from <= todayStr() && todayStr() <= range.to;
+      if (coversToday && knownSubscriptionIds !== null && [...subIds].some(id => !knownSubscriptionIds.has(id))) {
+        playNewOrderAlert();
+      }
+      knownSubscriptionIds = new Set([...(knownSubscriptionIds || []), ...subIds]);
+
+      subscriptionDrinks = drinks;
+      subscriptionRange = range;
+    } catch (e) {
+      console.error('Failed to fetch subscription drinks:', e);
+    }
+  }
+
+  // Shapes one subscription drink like an order so the filters, stats, due-soon
+  // window and cards treat it exactly the same.
+  function subscriptionDrinkToOrder(row) {
+    return {
+      id: `sub-${row.subscription_id}-${row.slot_number}-${row.delivery_date}`,
+      _subscription: true,
+      subscription_id: row.subscription_id,
+      slot_number: row.slot_number,
+      order_type: 'subscription',
+      status: row.status,
+      user_id: row.user_id,
+      customer_name: row.customer_name,
+      customer_location: row.customer_location,
+      delivery_method: 'delivery',
+      delivery_date: row.delivery_date,
+      delivery_day: row.delivery_day,
+      delivery_time: row.delivery_time,
+      room: row.delivery_location,
+      plan_name: row.plan_name,
+      cart_items: [{
+        type: 'subscription_drink',
+        name: row.drink_name || 'Unknown drink',
+        quantity: 1,
+        selectedModifiers: Array.isArray(row.drink_modifiers) ? row.drink_modifiers : [],
+      }],
+      // Only used to break ties when sorting; there is no single "placed" time.
+      created_at: row.delivery_date + 'T00:00:00',
+    };
+  }
+
+  // Refetch subscription drinks when the selected date leaves the loaded range.
+  async function ensureSubscriptionRange() {
+    const base = filterDate || todayStr();
+    if (subscriptionRange && base > subscriptionRange.from && base < subscriptionRange.to) return;
+    await loadSubscriptionDrinks();
+    allOrders = [...siteOrders, ...subscriptionDrinks];
+    renderOrders();
   }
 
   function startPolling() {
@@ -758,6 +857,8 @@
       const mathewsBadge = isMathews ? `<span class="method-badge badge-mathews">Mathews</span>` : '';
       const isStickers = order.order_type === 'stickers';
       const stickersBadge = isStickers ? `<span class="method-badge badge-stickers"><span aria-hidden="true">🖼️</span> Stickers</span>` : '';
+      const isSubscription = !!order._subscription;
+      const subscriptionBadge = isSubscription ? `<span class="method-badge badge-subscription"><span aria-hidden="true">🔁</span> Subscription</span>` : '';
 
       // Customer name
       const customerName = order.customer_name || 'Unknown';
@@ -773,6 +874,13 @@
             return `${copies} sheet${copies === 1 ? '' : 's'} × ${per} sticker${per === 1 ? '' : 's'}`;
           }
           if (item.type === 'sticker_extra_images') return '';
+          // Subscription drinks don't record hot or iced; don't guess.
+          if (item.type === 'subscription_drink') {
+            const subMods = item.selectedModifiers.length
+              ? `<span style="color:var(--gray);font-size:0.75rem"> — ${item.selectedModifiers.map(m => escHtml(m.name)).join(', ')}</span>`
+              : '';
+            return `${escHtml(item.name)}${subMods}`;
+          }
           const temp = item.temp === 'iced' ? 'Iced' : 'Hot';
           const qty = item.quantity > 1 ? ` ×${item.quantity}` : '';
           const mods = item.selectedModifiers && item.selectedModifiers.length > 0
@@ -789,6 +897,9 @@
       let deliveryInfo = '';
       if (order.delivery_method === 'pickup') {
         deliveryInfo = `Pick up at Birdhouse — ${order.delivery_time || ''}`;
+      } else if (isSubscription) {
+        // Subscribers type the whole location ("Room 204"), not just a number.
+        deliveryInfo = [order.room, order.delivery_time].filter(Boolean).join(' · ');
       } else {
         const room = order.room ? `Room ${order.room}` : '';
         deliveryInfo = [room, order.delivery_time].filter(Boolean).join(' · ');
@@ -803,8 +914,10 @@
         schedLabel = order.delivery_day;
       }
 
-      // Placed at
-      const placedAt = new Date(order.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+      // Placed at. A subscription drink recurs every week, so name the plan instead.
+      const placedText = isSubscription
+        ? `Weekly${order.plan_name ? ' · ' + escHtml(order.plan_name) : ''}`
+        : 'Placed ' + new Date(order.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
       // Total
       const total = order.total_amount ? `$${Number(order.total_amount).toFixed(2)}` : '';
@@ -814,17 +927,17 @@
       const canCancel  = order.status !== 'delivered' && order.status !== 'cancelled';
       const actionsHtml = canDeliver || canCancel ? `
         <div class="order-actions">
-          <div class="order-time-placed">Placed ${placedAt}</div>
+          <div class="order-time-placed">${placedText}</div>
           ${total ? `<div class="order-total">${total}</div>` : ''}
           ${canDeliver ? `<button class="btn-deliver" onclick="markDelivered('${order.id}')" aria-label="Mark delivered: ${escHtml(customerName)}">✓ Delivered</button>` : ''}
           ${canCancel  ? `<button class="btn-cancel-order" onclick="cancelOrder('${order.id}')" aria-label="Cancel order for ${escHtml(customerName)}">Cancel</button>` : ''}
         </div>` : `
         <div class="order-actions">
-          <div class="order-time-placed">Placed ${placedAt}</div>
+          <div class="order-time-placed">${placedText}</div>
           ${total ? `<div class="order-total">${total}</div>` : ''}
         </div>`;
 
-      return `<div class="order-card status-${order.status}${isMathews ? ' location-mathews' : ''}${isStickers ? ' type-stickers' : ''}" id="order-card-${order.id}">
+      return `<div class="order-card status-${order.status}${isMathews ? ' location-mathews' : ''}${isStickers ? ' type-stickers' : ''}${isSubscription ? ' type-subscription' : ''}" id="order-card-${order.id}">
         <div>
           <div class="order-top">
             <span class="order-customer">${escHtml(customerName)}</span>
@@ -832,6 +945,7 @@
             <span class="method-badge ${methodClass}">${methodLabel}</span>
             ${mathewsBadge}
             ${stickersBadge}
+            ${subscriptionBadge}
           </div>
           <div class="order-items">${itemsHtml}</div>
           <div class="order-detail-row" style="margin-top:0.4rem">
@@ -850,19 +964,38 @@
   }
 
   // ── Actions ────────────────────────────────────────────────────────────────
+  // Orders live in the orders table; subscription drinks are recorded per date
+  // through set_subscription_delivery_status().
+  async function setOrderStatus(id, status) {
+    const o = allOrders.find(x => x.id === id);
+    if (o && o._subscription) {
+      const { error } = await sb.rpc('set_subscription_delivery_status', {
+        p_subscription_id: o.subscription_id,
+        p_slot_number: o.slot_number,
+        p_delivery_date: o.delivery_date,
+        p_status: status,
+      });
+      if (error) console.error('Failed to update subscription drink:', error);
+      return !error;
+    }
+    const { error } = await sb.from('orders').update({ status }).eq('id', id);
+    return !error;
+  }
+
   async function markDelivered(id) {
-    const { error } = await sb.from('orders').update({ status: 'delivered' }).eq('id', id);
-    if (error) { alert('Failed to update order.'); return; }
+    if (!(await setOrderStatus(id, 'delivered'))) { alert('Failed to update order.'); return; }
     const o = allOrders.find(x => x.id === id);
     if (o) o.status = 'delivered';
     renderOrders();
   }
 
   async function cancelOrder(id) {
-    if (!confirm('Cancel this order?')) return;
-    const { error } = await sb.from('orders').update({ status: 'cancelled' }).eq('id', id);
-    if (error) { alert('Failed to cancel order.'); return; }
     const o = allOrders.find(x => x.id === id);
+    const question = o && o._subscription
+      ? 'Skip this subscription drink? Their subscription keeps going.'
+      : 'Cancel this order?';
+    if (!confirm(question)) return;
+    if (!(await setOrderStatus(id, 'cancelled'))) { alert('Failed to cancel order.'); return; }
     if (o) o.status = 'cancelled';
     renderOrders();
   }

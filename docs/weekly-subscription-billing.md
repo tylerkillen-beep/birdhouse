@@ -42,6 +42,21 @@ gets picked up the next morning instead of silently skipping someone's week.
 
 ---
 
+## Making the drinks
+
+Subscription drinks show in the **Order Queue** next to regular orders, with a
+teal edge and a 🔁 Subscription badge (Type → Subscriptions filters to them).
+They are not copied into `orders`, since that table is read as sales; the queue
+asks `subscription_queue()` for each day's drinks, worked out live from the
+drink slots. Delivered and Cancel are recorded in `subscription_deliveries`.
+
+A drink shows on a date when the subscription is `active`, the date is the
+slot's weekday, and the date is not a closed day or past the season end. Undone
+drinks are only listed for today onward; past days show what was closed out.
+Needs `20260914_subscription_drinks_in_order_queue.sql`.
+
+---
+
 ## School breaks
 
 **Nobody is charged for a week in which they receive nothing.**
