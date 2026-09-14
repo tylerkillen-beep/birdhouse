@@ -293,8 +293,14 @@ serve(async (req) => {
       // Fields the site owns: staff curate these in the admin page and Square has
       // no equivalent, so they are seeded on insert and never touched on update.
       // (Overwriting them here previously reset every item to Coffee/available.)
+      // Square moved items from category_id to a categories list, so newer
+      // items leave category_id empty; reading only it seeded them as Coffee.
+      const seedCategoryId = item.item_data?.reporting_category?.id
+        || item.item_data?.categories?.[0]?.id
+        || item.item_data?.category_id
+        || "";
       const localDefaults = {
-        category: categories.get(item.item_data?.category_id || "") || "Coffee",
+        category: categories.get(seedCategoryId) || "Coffee",
         available: true,
         is_hot: true,
         is_iced: false,
