@@ -1307,7 +1307,7 @@
       <div class="stat-card"><div class="stat-label">Total Revenue</div><div class="stat-value accent" id="report-revenue">—</div></div>
       <div class="stat-card"><div class="stat-label">Orders</div><div class="stat-value accent" id="report-orders">—</div></div>
       <div class="stat-card"><div class="stat-label">Avg Order Value</div><div class="stat-value" id="report-avg">—</div></div>
-      <div class="stat-card"><div class="stat-label">Total Discounts</div><div class="stat-value" id="report-discounts" style="color:#e57373">—</div></div>
+      <div class="stat-card"><div class="stat-label">Total Discounts</div><div class="stat-value" id="report-discounts" style="color:#e57373">—</div><div class="stat-sub" id="report-discounts-sub"></div></div>
       <div class="stat-card"><div class="stat-label">Sq. Processing Fees</div><div class="stat-value" id="report-fees" style="color:#e57373">—</div></div>
     </div>
 
@@ -1328,8 +1328,8 @@
     <div class="section-header"><div class="section-title">Top Items</div></div>
     <div class="table-wrap" style="max-height:420px;overflow-y:auto;">
       <table>
-        <thead style="position:sticky;top:0;z-index:1;"><tr><th scope="col">#</th><th scope="col">Item</th><th scope="col">Units Sold</th><th scope="col">Revenue</th><th scope="col">Discounts</th><th scope="col">Sq. Fees</th></tr></thead>
-        <tbody id="report-items-tbody"><tr class="loading-row"><td colspan="6" style="text-align:center;color:var(--text-muted)">Select a range to load report</td></tr></tbody>
+        <thead style="position:sticky;top:0;z-index:1;"><tr><th scope="col">#</th><th scope="col">Item</th><th scope="col">Units Sold</th><th scope="col">Revenue</th><th scope="col">Square Disc.</th><th scope="col">Site Disc.</th><th scope="col">Sq. Fees</th></tr></thead>
+        <tbody id="report-items-tbody"><tr class="loading-row"><td colspan="7" style="text-align:center;color:var(--text-muted)">Select a range to load report</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -5039,11 +5039,16 @@ async function runSalesReport() {
     document.getElementById('report-orders').textContent = '—';
     document.getElementById('report-avg').textContent = '—';
     document.getElementById('report-discounts').textContent = '—';
+    document.getElementById('report-discounts-sub').textContent = '';
     document.getElementById('report-fees').textContent = '—';
     document.getElementById('report-chart-legend').style.display = 'none';
     document.getElementById('report-chart-wrap').innerHTML = `<span style="color:#e57373;font-size:0.85rem;align-self:center;margin:auto">Error: ${err.message}</span>`;
-    document.getElementById('report-items-tbody').innerHTML = `<tr><td colspan="6" style="text-align:center;color:#e57373;padding:1.5rem">${err.message}</td></tr>`;
+    document.getElementById('report-items-tbody').innerHTML = `<tr><td colspan="7" style="text-align:center;color:#e57373;padding:1.5rem">${err.message}</td></tr>`;
   }
+}
+
+function reportDiscountCell(cents) {
+  return cents > 0 ? `-$${(cents / 100).toFixed(2)}` : '—';
 }
 
 function renderSalesReport(data) {
@@ -5051,6 +5056,8 @@ function renderSalesReport(data) {
   document.getElementById('report-orders').textContent = data.orderCount.toLocaleString();
   document.getElementById('report-avg').textContent = `$${parseFloat(data.avgOrderValue).toFixed(2)}`;
   document.getElementById('report-discounts').textContent = `-$${parseFloat(data.totalDiscount || '0').toFixed(2)}`;
+  document.getElementById('report-discounts-sub').textContent =
+    `Square $${((data.totalSquareDiscountCents || 0) / 100).toFixed(2)} · Site $${((data.totalSiteDiscountCents || 0) / 100).toFixed(2)}`;
   document.getElementById('report-fees').textContent = `-$${parseFloat(data.totalProcessingFee || '0').toFixed(2)}`;
 
   // Bar chart
@@ -5102,7 +5109,7 @@ function renderSalesReport(data) {
   // Top items table
   const tbody = document.getElementById('report-items-tbody');
   if (!data.topItems?.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:1.5rem">No items sold in this period</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:1.5rem">No items sold in this period</td></tr>';
   } else {
     tbody.innerHTML = data.topItems.map((item, i) => `
       <tr>
@@ -5110,7 +5117,8 @@ function renderSalesReport(data) {
         <td>${item.name}</td>
         <td>${item.quantity}</td>
         <td>$${(item.revenueCents / 100).toFixed(2)}</td>
-        <td style="color:#e57373">${item.discountCents > 0 ? `-$${(item.discountCents / 100).toFixed(2)}` : '—'}</td>
+        <td style="color:#e57373">${reportDiscountCell(item.squareDiscountCents ?? item.discountCents)}</td>
+        <td style="color:#e57373">${reportDiscountCell(item.siteDiscountCents)}</td>
         <td style="color:#e57373">-$${((item.processingFeeCents || 0) / 100).toFixed(2)}</td>
       </tr>`).join('');
   }
