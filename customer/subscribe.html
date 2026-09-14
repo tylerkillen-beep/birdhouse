@@ -600,6 +600,7 @@
       name: planRow.name,
       price_cents: planRow.price_cents,
       drinks_per_week: planRow.drinks_per_week,
+      cookies_per_week: planRow.cookies_per_week ?? 0,
       free_modifier_count: planRow.free_modifier_count,
       description: planRow.description,
       early_access: !!planRow.early_access,
@@ -697,6 +698,10 @@
       const drinksLabel = p.drinks_per_week === 2
         ? '2 drinks per week'
         : '1 drink per week';
+      const cookies = p.cookies_per_week;
+      const cookiesLabel = cookies > 0
+        ? `${cookies} cookie${cookies === 1 ? '' : 's'} per week`
+        : null;
       const earlyLabel = p.early_access ? 'Early access to seasonal items' : null;
       const categoryNames = p.allowed_square_category_ids.map(id => squareCategoryNames[id]).filter(Boolean);
       const choiceLabel = !p.allowed_square_category_ids.length
@@ -710,10 +715,10 @@
         <div class="plan-desc">${p.description || ''}</div>
         <ul class="plan-features">
           <li>${drinksLabel}</li>
+          ${cookiesLabel ? `<li>${cookiesLabel}</li>` : ''}
           ${choiceLabel ? `<li>${choiceLabel}</li>` : ''}
           <li>${modLabel}</li>
           <li>Choose your delivery day &amp; time</li>
-          <li>Change your drink anytime</li>
           ${earlyLabel ? `<li class="gold">${earlyLabel}</li>` : ''}
         </ul>
       </button>`;
