@@ -2866,10 +2866,20 @@ async function loadSubscriptions() {
 
   const userIds = [...new Set(allSubscriptions.map(s => s.user_id).filter(Boolean))];
   if (userIds.length) {
-    const { data: profiles, error: profilesError } = await sb.from('profiles').select('id,full_name,email').in('id', userIds);
+    // Names come from the sign-in account, the same way checkout names an
+    // order; profiles.full_name alone is often blank.
+    const [{ data: profiles, error: profilesError }, { data: names, error: namesError }] = await Promise.all([
+      sb.from('profiles').select('id,full_name,email').in('id', userIds),
+      sb.rpc('customer_display_names', { p_user_ids: userIds }),
+    ]);
     if (profilesError) console.error('Failed loading subscriber profiles', profilesError);
+    if (namesError) console.error('Failed loading subscriber names', namesError);
     const profileMap = Object.fromEntries((profiles || []).map(p => [p.id, p]));
-    allSubscriptions.forEach(s => { s.profile = profileMap[s.user_id] || null; });
+    const nameMap = Object.fromEntries((names || []).map(n => [n.user_id, n.display_name]));
+    allSubscriptions.forEach(s => {
+      s.profile = profileMap[s.user_id] || null;
+      s.displayName = nameMap[s.user_id] || getProfileDisplayName(s.profile);
+    });
   }
 
   const active    = allSubscriptions.filter(s => s.status === 'active').length;
@@ -2898,7 +2908,7 @@ function filterSubscriptions() {
   const st = document.getElementById('sub-status-filter').value;
   const pl = document.getElementById('sub-plan-filter').value;
   let list = allSubscriptions;
-  if (q)  list = list.filter(s => (`${s.profile?.full_name || ''} ${s.profile?.email || ''}`).toLowerCase().includes(q));
+  if (q)  list = list.filter(s => (`${s.displayName || ''} ${s.profile?.full_name || ''} ${s.profile?.email || ''}`).toLowerCase().includes(q));
   if (st) list = list.filter(s => s.status === st);
   if (pl) list = list.filter(s => s.subscription_plans?.name === pl);
   renderSubscriptions(list);
@@ -2912,7 +2922,7 @@ function renderSubscriptions(list) {
   }
   tbody.innerHTML = list.map(s => {
     const email = s.profile?.email || '—';
-    const name  = getProfileDisplayName(s.profile) || (s.profile?.email ? s.profile.email.split('@')[0] : '—');
+    const name  = s.displayName || (s.profile?.email ? s.profile.email.split('@')[0] : '—');
     const nextBilling = s.next_billing_date ? new Date(s.next_billing_date + 'T12:00:00').toLocaleDateString() : '—';
     const started     = s.created_at ? new Date(s.created_at).toLocaleDateString() : '—';
     return `<tr>
