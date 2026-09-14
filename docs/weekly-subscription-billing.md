@@ -53,7 +53,9 @@ drink slots. Delivered and Cancel are recorded in `subscription_deliveries`.
 A drink shows on a date when the subscription is `active`, the date is the
 slot's weekday, and the date is not a closed day or past the season end. Undone
 drinks are only listed for today onward; past days show what was closed out.
-Needs `20260914_subscription_drinks_in_order_queue.sql`.
+Needs `20260914_subscription_drinks_in_order_queue.sql`, then
+`20260914_subscriber_display_names.sql` (names cards from the sign-in account,
+the way checkout names an order).
 
 ---
 
