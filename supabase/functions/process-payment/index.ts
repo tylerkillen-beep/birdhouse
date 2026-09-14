@@ -76,6 +76,9 @@ interface MenuCartLine {
   temp: "hot" | "iced" | "food";
   price: number;
   priceCents: number;
+  /** Per-unit price before any website or customer discount — the sales
+   *  report reads the gap against priceCents as the site discount. */
+  fullPriceCents: number;
   quantity: number;
   squareVariationId?: string;
   selectedModifiers: { catalogObjectId: string; name: string; priceCents: number }[];
@@ -188,6 +191,7 @@ async function priceMenuCart(
       temp: raw.temp === "iced" || raw.temp === "food" ? raw.temp : "hot",
       price: priceCents / 100,
       priceCents,
+      fullPriceCents: fullCents,
       quantity,
       ...(typeof raw.squareVariationId === "string" ? { squareVariationId: raw.squareVariationId } : {}),
       selectedModifiers,

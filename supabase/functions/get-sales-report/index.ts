@@ -62,9 +62,14 @@ interface SquareOrder {
 }
 
 interface CartItem {
+  id?: string;
+  type?: string;
   name: string;
   quantity: number;
   price: number;
+  priceCents?: number;
+  fullPriceCents?: number;
+  selectedModifiers?: { priceCents?: number }[];
   temp?: string;
 }
 
@@ -246,7 +251,13 @@ serve(async (req) => {
     // ── Fetch item detail from Square Orders API (POS / Square Online only) ───
     const squareOrders = await fetchSquareOrders(squareBaseUrl, squareHeaders, locationId, startDate, endDate);
 
-    const itemMap: Record<string, { quantity: number; revenueCents: number; discountCents: number }> = {};
+    // Discounts are kept apart by where they were given: rung up in Square
+    // (POS / Square Online) or taken on the Birdhouse site (website sales,
+    // staff and teacher pricing).
+    type ItemTotals = { quantity: number; revenueCents: number; squareDiscountCents: number; siteDiscountCents: number };
+    const itemMap: Record<string, ItemTotals> = {};
+    const itemTotals = (name: string) =>
+      itemMap[name] ??= { quantity: 0, revenueCents: 0, squareDiscountCents: 0, siteDiscountCents: 0 };
 
     for (const order of squareOrders) {
       // Skip shadow orders auto-created by Square for Birdhouse App payments.
@@ -255,14 +266,10 @@ serve(async (req) => {
       if (matchedPaymentId && birdhousePaymentIds.has(matchedPaymentId)) continue;
 
       for (const lineItem of order.line_items || []) {
-        const name = lineItem.name || "Unknown Item";
-        const qty = parseInt(lineItem.quantity || "1", 10);
-        const rev = lineItem.total_money?.amount ?? 0;
-        const disc = lineItem.total_discount_money?.amount ?? 0;
-        if (!itemMap[name]) itemMap[name] = { quantity: 0, revenueCents: 0, discountCents: 0 };
-        itemMap[name].quantity += qty;
-        itemMap[name].revenueCents += rev;
-        itemMap[name].discountCents += disc;
+        const totals = itemTotals(lineItem.name || "Unknown Item");
+        totals.quantity += parseInt(lineItem.quantity || "1", 10);
+        totals.revenueCents += lineItem.total_money?.amount ?? 0;
+        totals.squareDiscountCents += lineItem.total_discount_money?.amount ?? 0;
       }
     }
 
@@ -314,16 +321,41 @@ serve(async (req) => {
     }
 
     // ── Aggregate item detail from Supabase cart_items (Birdhouse App orders) ─
-    for (const order of appOrders || []) {
-      const items: CartItem[] = Array.isArray(order.cart_items) ? order.cart_items : [];
-      for (const item of items) {
-        const name = item.name || "Unknown Item";
-        const qty = Number(item.quantity) || 1;
-        const rev = Math.round((item.price || 0) * qty * 100);
-        if (!itemMap[name]) itemMap[name] = { quantity: 0, revenueCents: 0, discountCents: 0 };
-        itemMap[name].quantity += qty;
-        itemMap[name].revenueCents += rev;
-        // In-app orders don't carry Square discount data; discountCents stays 0
+    const appCartItems: CartItem[] = (appOrders || []).flatMap(
+      (order: { cart_items: unknown }) => Array.isArray(order.cart_items) ? order.cart_items as CartItem[] : []
+    );
+
+    // Orders placed before cart lines recorded fullPriceCents are priced from
+    // the menu as it stands now, so a price change since then skews those.
+    const legacyMenuIds = [...new Set(appCartItems
+      .filter((item) => item.fullPriceCents == null && !item.type && item.id)
+      .map((item) => String(item.id)))];
+    const menuBaseCentsById: Record<string, number> = {};
+    if (legacyMenuIds.length) {
+      const { data: menuRows } = await serviceClient
+        .from("menu_items")
+        .select("id, base_price, base_price_cents")
+        .in("id", legacyMenuIds);
+      for (const row of menuRows || []) {
+        menuBaseCentsById[row.id] = row.base_price_cents || Math.round((parseFloat(row.base_price) || 0) * 100);
+      }
+    }
+
+    for (const item of appCartItems) {
+      const totals = itemTotals(item.name || "Unknown Item");
+      const qty = Number(item.quantity) || 1;
+      const unitCents = item.priceCents ?? Math.round((item.price || 0) * 100);
+      const rev = unitCents * qty;
+      totals.quantity += qty;
+      totals.revenueCents += rev;
+
+      let fullUnitCents = item.fullPriceCents;
+      if (fullUnitCents == null && item.id && menuBaseCentsById[item.id] != null) {
+        const modifierCents = (item.selectedModifiers || []).reduce((s, m) => s + (Number(m.priceCents) || 0), 0);
+        fullUnitCents = menuBaseCentsById[item.id] + modifierCents;
+      }
+      if (fullUnitCents != null) {
+        totals.siteDiscountCents += Math.max(0, fullUnitCents * qty - rev);
       }
     }
 
@@ -333,12 +365,22 @@ serve(async (req) => {
         const processingFeeCents = totalRevenueCents > 0
           ? Math.round(totalProcessingFeeCents * d.revenueCents / totalRevenueCents)
           : 0;
-        return { name, quantity: d.quantity, revenueCents: d.revenueCents, discountCents: d.discountCents, processingFeeCents };
+        return {
+          name,
+          quantity: d.quantity,
+          revenueCents: d.revenueCents,
+          discountCents: d.squareDiscountCents + d.siteDiscountCents,
+          squareDiscountCents: d.squareDiscountCents,
+          siteDiscountCents: d.siteDiscountCents,
+          processingFeeCents,
+        };
       })
       .sort((a, b) => b.quantity - a.quantity)
       .slice(0, 50);
 
-    const totalDiscountCents = Object.values(itemMap).reduce((s, d) => s + d.discountCents, 0);
+    const totalSquareDiscountCents = Object.values(itemMap).reduce((s, d) => s + d.squareDiscountCents, 0);
+    const totalSiteDiscountCents = Object.values(itemMap).reduce((s, d) => s + d.siteDiscountCents, 0);
+    const totalDiscountCents = totalSquareDiscountCents + totalSiteDiscountCents;
 
     const dailyBreakdown = Object.entries(dailyMap)
       .map(([date, d]) => {
@@ -369,6 +411,8 @@ serve(async (req) => {
       totalRevenue: (totalRevenueCents / 100).toFixed(2),
       totalDiscountCents,
       totalDiscount: (totalDiscountCents / 100).toFixed(2),
+      totalSquareDiscountCents,
+      totalSiteDiscountCents,
       totalProcessingFeeCents,
       totalProcessingFee: (totalProcessingFeeCents / 100).toFixed(2),
       avgOrderValueCents,
