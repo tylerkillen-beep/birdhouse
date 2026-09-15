@@ -218,13 +218,16 @@
         { label: 'Cold Foam',     match: (opt) => /cold foam/i.test(opt) },
         { label: 'Drizzle',       match: (opt) => /drizzle/i.test(opt) },
         { label: 'Iced',          match: (opt) => /^iced$/i.test(opt.trim()) },
-        { label: 'Boba',          match: (opt, list) => /boba/i.test(list) || /boba/i.test(opt) },
+        // Boba shows its highest price: the current boba flavors are $1.00, but
+        // older 75¢ boba options still in Square would otherwise drag it down.
+        { label: 'Boba',          match: (opt, list) => /boba/i.test(list) || /boba/i.test(opt), highest: true },
       ];
 
       /** [[priceCents, [labels…]], …], cheapest tier first. Only lists attached
        *  to an item on the board count, so old unused lists in Square (with
        *  their own prices) can't leak onto it. A group priced differently
-       *  across options shows its lowest price. */
+       *  across options shows its lowest price, or its highest if marked
+       *  `highest`. */
       function buildAddOnTiers(items, lists, options) {
         const onBoard = new Set(items.filter(i => getCategory(i)).flatMap(i => i.square_modifier_list_ids || []));
         const listNames = new Map(lists.filter(l => onBoard.has(l.square_id)).map(l => [l.id, l.name]));
@@ -232,7 +235,9 @@
         options.forEach(opt => {
           if (opt.available === false || !(opt.price_cents > 0) || !listNames.has(opt.modifier_list_id)) return;
           const group = ADD_ON_GROUPS.find(g => g.match(opt.name || '', listNames.get(opt.modifier_list_id)));
-          if (group) prices.set(group.label, Math.min(prices.get(group.label) ?? Infinity, opt.price_cents));
+          if (!group) return;
+          const pick = group.highest ? Math.max : Math.min;
+          prices.set(group.label, pick(prices.get(group.label) ?? (group.highest ? -Infinity : Infinity), opt.price_cents));
         });
         const tiers = new Map();
         ADD_ON_GROUPS.forEach(g => {
