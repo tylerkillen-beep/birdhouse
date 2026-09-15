@@ -212,7 +212,9 @@
       // order they appear on the board.
       const ADD_ON_GROUPS = [
         { label: 'Marshmallows',  match: (opt) => /marshmallow/i.test(opt) },
-        { label: 'Flavor Shot',   match: (opt, list) => /flavor/i.test(list) && !/whip/i.test(opt) },
+        // The boba flavors live in Square's "Flavor Shots" set, so keep them
+        // out of Flavor Shot and let them fall through to Boba.
+        { label: 'Flavor Shot',   match: (opt, list) => /flavor/i.test(list) && !/whip|boba/i.test(opt) },
         { label: 'Whipped Cream', match: (opt) => /whip/i.test(opt) },
         { label: 'Espresso Shot', match: (opt) => /espresso/i.test(opt) },
         { label: 'Cold Foam',     match: (opt) => /cold foam/i.test(opt) },
