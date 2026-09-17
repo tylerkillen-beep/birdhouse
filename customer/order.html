@@ -630,7 +630,7 @@
       badge.textContent = activeDiscount.replace('(', '— ').replace(')', ' off');
       document.getElementById('user-card').appendChild(badge);
     }
-    if (profile?.last_room) document.getElementById('delivery-room').value = profile.last_room;
+    if (profile?.last_room && !isBlockedDeliveryRoom(profile.last_room)) document.getElementById('delivery-room').value = profile.last_room;
 
     // Show pickup/delivery toggle for everyone.
     document.getElementById('delivery-method-group').style.display = '';
@@ -1700,6 +1700,12 @@
       roomError.style.display = 'none'; dateError.style.display = 'none'; timeError.style.display = 'none';
       if (selectedDeliveryMethod === 'delivery' && !room) {
         roomError.textContent = 'Please enter your room or delivery location.';
+        roomError.style.display = 'block';
+        document.getElementById('delivery-room').focus();
+        return;
+      }
+      if (selectedDeliveryMethod === 'delivery' && isBlockedDeliveryRoom(room)) {
+        roomError.textContent = BLOCKED_ROOM_MSG;
         roomError.style.display = 'block';
         document.getElementById('delivery-room').focus();
         return;
