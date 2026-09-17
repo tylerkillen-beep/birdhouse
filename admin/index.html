@@ -11,6 +11,7 @@
   <script src="/lib/flatpickr.js"></script>
   <script src="/lib/receiving.js"></script>
   <script src="/lib/subscription-exclusives.js"></script>
+  <script src="/lib/item-lookup.js"></script>
   <style>
     :root {
       --bg: #0a0a0a;
@@ -587,6 +588,9 @@
     <div class="nav-group-items">
       <button type="button" class="nav-item" onclick="showSection('sales-report')" id="nav-sales-report">
         <span class="nav-icon" aria-hidden="true">💰</span><span class="nav-label"> Sales Report</span>
+      </button>
+      <button type="button" class="nav-item" onclick="showSection('item-lookup')" id="nav-item-lookup">
+        <span class="nav-icon" aria-hidden="true">🔎</span><span class="nav-label"> Item Lookup</span>
       </button>
       <button type="button" class="nav-item" onclick="showSection('product-performance')" id="nav-product-performance">
         <span class="nav-icon" aria-hidden="true">📈</span><span class="nav-label"> Product Performance</span>
@@ -1334,6 +1338,15 @@
     </div>
   </div>
 
+  <!-- ── ITEM LOOKUP ── -->
+  <div class="section-panel" id="section-item-lookup">
+    <div class="page-header">
+      <h1>Item Lookup</h1>
+      <p>Every sale of one item — website, register, Square Online and subscriptions — as far back as the records go</p>
+    </div>
+    <div id="item-lookup-root"></div>
+  </div>
+
   <!-- ── PRODUCT PERFORMANCE ── -->
   <div class="section-panel" id="section-product-performance">
     <div class="page-header">
@@ -2059,6 +2072,7 @@ function showSection(id) {
     recipes: loadRecipes,
     'usage-setup': loadUsageSetup,
     'sales-report': initSalesReport,
+    'item-lookup': initItemLookup,
     'product-performance': initProductPerformance,
     'library-split': initLibrarySplit,
     'closed-days': loadClosedDays,
@@ -6834,6 +6848,28 @@ async function saveRecipe() {
   }
   closeModal('recipe-modal');
   loadRecipes();
+  itemLookup?.refreshRecipe();
+}
+
+// ── ITEM LOOKUP ────────────────────────────────────────────────────────────
+// The view itself lives in lib/item-lookup.js, shared with the Team Hub.
+let itemLookup = null;
+
+function initItemLookup() {
+  if (itemLookup) { itemLookup.refreshStatus(); return; }
+  itemLookup = ItemLookup.mount(document.getElementById('item-lookup-root'), {
+    sb,
+    anonKey: REPORT_ANON_KEY,
+    theme: { accent: 'var(--accent)', card: 'var(--card)', border: 'var(--border)', muted: 'var(--gray-mid)', text: 'var(--text)' },
+    async onEditRecipe(recipeId, itemName) {
+      await loadRecipes();
+      openRecipeModal(recipeId || undefined);
+      if (!recipeId) {
+        document.getElementById('recipe-name').value = itemName;
+        updateRecipeNameHint();
+      }
+    },
+  });
 }
 
 async function deleteRecipe(id, name) {
