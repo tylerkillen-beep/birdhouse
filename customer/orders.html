@@ -315,6 +315,17 @@
     return String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[ch]));
   }
 
+  // Menu orders refill the cart on the order page; sticker orders start over
+  // on the sticker page once they've arrived.
+  function reorderLinkHtml(order) {
+    if (order.order_type === 'stickers') {
+      return order.status === 'delivered' ? `<a class="btn-reorder" href="stickers.html">Order Again →</a>` : '';
+    }
+    if (order.status === 'pending') return '';
+    const href = order.cart_items?.length ? `order.html?reorder=${encodeURIComponent(order.id)}` : 'order.html';
+    return `<a class="btn-reorder" href="${href}" aria-label="Order ${escapeHtml(order.drink_name)} again">Order Again →</a>`;
+  }
+
   function renderOrders(filter) {
     let list = allOrders;
     if(filter==='active')    list = allOrders.filter(o=>o.status==='pending'||o.status==='paid');
@@ -394,7 +405,7 @@
           ${order.points_earned?`<div class="order-points">+${order.points_earned} pt${order.points_earned!==1?'s':''}</div>`:''}
           ${order.square_payment_id?`<button class="btn-secondary" data-receipt-btn="${order.id}" onclick="requestReceipt('${order.id}', this)" aria-label="Get receipt for ${escapeHtml(order.drink_name)} on ${date}">Get Receipt Link</button>`:''}
           <div class="receipt-msg" id="receipt-msg-${order.id}"></div>
-          ${isDelivered?`<a class="btn-reorder" href="${order.order_type==='stickers'?'stickers.html':'order.html'}">Order Again →</a>`:''}
+          ${reorderLinkHtml(order)}
         </div>
       </div>`;
     }).join('');
