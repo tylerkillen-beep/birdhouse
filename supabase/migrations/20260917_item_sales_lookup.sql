@@ -6,24 +6,27 @@
 -- against Square -- and walks back through the full history once.
 --
 -- item_sale_lines joins the three into one row per line sold, and the two
--- functions at the bottom are what the Team Hub's Item Lookup tab calls.
+-- functions at the bottom are what the Item Lookup tab on the Team Hub calls.
 --
 -- Safe to run more than once.
 
 -- ── Register + Square Online sales, copied from Square ───────────────────────
+-- catalog_object_id is the item variation sold. gross_cents is before
+-- discounts and net_cents is what the line brought in. modifiers holds
+-- objects with name, catalog_object_id and price_cents.
 create table if not exists public.square_sale_lines (
   square_order_id    text        not null,
   line_uid           text        not null,
   closed_at          timestamptz not null,
   channel            text        not null check (channel in ('register', 'square_online')),
-  catalog_object_id  text,        -- the item *variation* sold
+  catalog_object_id  text,
   item_name          text        not null,
   variation_name     text,
   quantity           numeric     not null,
-  gross_cents        integer     not null default 0,  -- before discounts
+  gross_cents        integer     not null default 0,
   discount_cents     integer     not null default 0,
-  net_cents          integer     not null default 0,  -- what the line brought in
-  modifiers          jsonb       not null default '[]'::jsonb,  -- [{name, catalog_object_id, price_cents}]
+  net_cents          integer     not null default 0,
+  modifiers          jsonb       not null default '[]'::jsonb,
   square_customer_id text,
   synced_at          timestamptz not null default now(),
   primary key (square_order_id, line_uid)
@@ -32,7 +35,7 @@ create table if not exists public.square_sale_lines (
 create index if not exists square_sale_lines_closed_at_idx on public.square_sale_lines (closed_at);
 create index if not exists square_sale_lines_catalog_idx   on public.square_sale_lines (catalog_object_id);
 
--- A register line names a variation; this remembers which item each belongs
+-- A register line names a variation, and this remembers which item each belongs
 -- to, so a sale still finds its menu item after the item is renamed.
 create table if not exists public.square_catalog_variations (
   variation_id   text primary key,
@@ -49,12 +52,14 @@ create table if not exists public.square_customer_names (
   fetched_at         timestamptz not null default now()
 );
 
--- One row: how far the sync has got.
+-- One row: how far the sync has got. New sales are copied up to
+-- synced_through. History is copied from backfill_before forward, and stops at
+-- backfill_floor, the day the Square location opened.
 create table if not exists public.square_sales_sync (
   id              boolean primary key default true check (id),
-  synced_through  timestamptz,  -- new sales are copied up to here
-  backfill_before timestamptz,  -- history is copied from here forward
-  backfill_floor  timestamptz,  -- when the Square location opened; history stops here
+  synced_through  timestamptz,
+  backfill_before timestamptz,
+  backfill_floor  timestamptz,
   backfill_done   boolean not null default false,
   last_run_at     timestamptz,
   last_error      text
@@ -107,7 +112,7 @@ grant execute on function public.square_customers_to_learn(integer)  to service_
 -- ── Every line sold, from every channel ──────────────────────────────────────
 -- revenue_cents is null for subscription drinks: the plan is billed weekly,
 -- not per drink. customer_key is never null -- sales with nobody attached
--- share one "anonymous" key per channel.
+-- share one anonymous key per channel.
 create or replace view public.item_sale_lines as
 with raw as (
   -- Website orders
@@ -200,8 +205,8 @@ with raw as (
            on sds.subscription_id = sd.subscription_id and sds.slot_number = sd.slot_number
    where sd.status = 'delivered'
 )
--- Which menu item each line is: the website's own id, then the Square item,
--- then the name, and for subscription drinks the slot's current drink.
+-- Which menu item each line is: the id the website saved, then the Square item,
+-- then the name, and for subscription drinks the drink the slot has now.
 select r.sold_at, r.channel, r.order_ref, r.item_name, r.quantity,
        r.revenue_cents, r.discount_cents, r.modifier_names,
        r.customer_key, r.customer_name,
@@ -273,7 +278,7 @@ begin
 end;
 $$;
 
--- ── One item's full history ──────────────────────────────────────────────────
+-- ── Full history of one item ──────────────────────────────────────────────────
 create or replace function public.item_sales_detail(p_item_key text)
 returns jsonb
 language plpgsql
