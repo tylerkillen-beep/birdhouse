@@ -57,6 +57,11 @@ verify_jwt = false
 [functions.charge-subscriptions]
 verify_jwt = false
 
+# Same as charge-subscriptions: pg_cron calls it with x-cron-secret. Staff can
+# also run it from the Team Hub, and it checks their token itself.
+[functions.sync-square-sales]
+verify_jwt = false
+
 [analytics]
 enabled = false
 port = 54327
