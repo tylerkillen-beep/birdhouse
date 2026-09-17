@@ -449,6 +449,7 @@
         <div class="stat-card"><div class="stat-label">Avg Order</div><div class="stat-value" id="srpt-avg">—</div></div>
         <div class="stat-card"><div class="stat-label">Discounts</div><div class="stat-value" id="srpt-discounts" style="color:#e57373">—</div><div id="srpt-discounts-sub" style="font-size:0.72rem;color:var(--gray);margin-top:0.3rem"></div></div>
         <div class="stat-card"><div class="stat-label">Sq. Fees</div><div class="stat-value" id="srpt-fees" style="color:#e57373">—</div></div>
+        <div class="stat-card"><div class="stat-label">Profit</div><div class="stat-value" id="srpt-profit">—</div><div id="srpt-profit-sub" style="font-size:0.72rem;color:var(--gray);margin-top:0.3rem"></div></div>
       </div>
 
       <!-- Bar chart -->
@@ -463,8 +464,8 @@
       <div class="section">
         <h2 class="section-title">Top Items</h2>
         <div class="table-wrap">
-          <table><thead><tr><th scope="col">#</th><th scope="col">Item</th><th scope="col">Units Sold</th><th scope="col">Revenue</th><th scope="col">Square Disc.</th><th scope="col">Site Disc.</th><th scope="col">Sq. Fees</th></tr></thead>
-          <tbody id="srpt-items"><tr><td colspan="7" style="text-align:center;color:var(--gray);padding:1.5rem">Loading…</td></tr></tbody></table>
+          <table><thead><tr><th scope="col">#</th><th scope="col">Item</th><th scope="col">Units Sold</th><th scope="col">Revenue</th><th scope="col">Square Disc.</th><th scope="col">Site Disc.</th><th scope="col">Sq. Fees</th><th scope="col">Profit</th><th scope="col">Margin</th></tr></thead>
+          <tbody id="srpt-items"><tr><td colspan="9" style="text-align:center;color:var(--gray);padding:1.5rem">Loading…</td></tr></tbody></table>
         </div>
       </div>
       </div>
@@ -1605,14 +1606,31 @@
     return cents > 0 ? `-$${(cents / 100).toFixed(2)}` : '—';
   }
 
+  function srptMoney(cents) {
+    return `${cents < 0 ? '-' : ''}$${(Math.abs(cents) / 100).toFixed(2)}`;
+  }
+
+  // Profit = revenue after discounts, minus Square fees and what the item costs
+  // to make. The cost is the team's product cost, or else a fully costed recipe.
+  function srptProfitCells(item) {
+    if (item.profitCents == null) {
+      return '<td style="color:var(--gray)" title="No cost set for this item — add it to the team\'s product or cost every recipe ingredient">—</td><td style="color:var(--gray)">—</td>';
+    }
+    const color = item.profitCents >= 0 ? '#4caf50' : '#e57373';
+    const source = item.costSource === 'team' ? "team's product cost" : 'recipe cost';
+    const title = `Costs $${(item.unitCostCents / 100).toFixed(2)} each (${source}) · $${(item.cogsCents / 100).toFixed(2)} total`;
+    return `<td style="color:${color}" title="${title}">${srptMoney(item.profitCents)}</td><td style="color:${color}">${item.marginPct != null ? item.marginPct.toFixed(1) + '%' : '—'}</td>`;
+  }
+
   async function runStudentSalesReport() {
     const range = getStudentReportDates();
     if (!range) return;
     document.getElementById('srng-label').textContent = range.label;
-    ['srpt-revenue','srpt-orders','srpt-avg','srpt-discounts','srpt-fees'].forEach(id => document.getElementById(id).textContent = '…');
+    ['srpt-revenue','srpt-orders','srpt-avg','srpt-discounts','srpt-fees','srpt-profit'].forEach(id => document.getElementById(id).textContent = '…');
     document.getElementById('srpt-discounts-sub').textContent = '';
+    document.getElementById('srpt-profit-sub').textContent = ''; document.getElementById('srpt-profit').style.color = '';
     document.getElementById('srpt-chart').innerHTML = '<span style="color:var(--gray);font-size:0.82rem;align-self:center;margin:auto">Loading…</span>';
-    document.getElementById('srpt-items').innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gray);padding:1.5rem">Loading…</td></tr>';
+    document.getElementById('srpt-items').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--gray);padding:1.5rem">Loading…</td></tr>';
     try {
       let { data: { session } } = await sb.auth.getSession();
       if (session?.expires_at && Date.now() / 1000 >= session.expires_at - 30) {
@@ -1650,16 +1668,28 @@
           return `<div class="bar-wrap" aria-label="${lbl}: ${x.orderCount} orders, ${rev}"><div class="bar" style="height:${Math.max(pct,2)}%" aria-hidden="true"></div><div class="bar-label" aria-hidden="true">${lbl}<br>${x.orderCount}</div></div>`;
         }).join('');
       }
+      // Profit: only items with a known cost count, so say how many that is.
+      const costedItems = (d.topItems || []).filter(item => item.profitCents != null);
+      const profitCents = costedItems.reduce((s, item) => s + item.profitCents, 0);
+      const costedRevenueCents = costedItems.reduce((s, item) => s + item.revenueCents, 0);
+      const profitEl = document.getElementById('srpt-profit');
+      profitEl.textContent = costedItems.length ? srptMoney(profitCents) : '—';
+      profitEl.style.color = !costedItems.length ? '' : profitCents >= 0 ? '#4caf50' : '#e57373';
+      document.getElementById('srpt-profit-sub').textContent = !d.topItems?.length ? ''
+        : costedItems.length
+          ? `${costedRevenueCents > 0 ? (profitCents / costedRevenueCents * 100).toFixed(1) + '% margin · ' : ''}${costedItems.length} of ${d.topItems.length} items have a cost`
+          : 'No items sold have a cost set yet';
       // Top items
       document.getElementById('srpt-items').innerHTML = d.topItems?.length
-        ? d.topItems.map((item,i) => `<tr><td style="color:var(--gray)">${i+1}</td><td>${item.name}</td><td>${item.quantity}</td><td>$${(item.revenueCents/100).toFixed(2)}</td><td style="color:#e57373">${srptDiscount(item.squareDiscountCents ?? item.discountCents)}</td><td style="color:#e57373">${srptDiscount(item.siteDiscountCents)}</td><td style="color:#e57373">-$${((item.processingFeeCents||0)/100).toFixed(2)}</td></tr>`).join('')
-        : '<tr><td colspan="7" style="text-align:center;color:var(--gray);padding:1.5rem">No items sold in this period</td></tr>';
+        ? d.topItems.map((item,i) => `<tr><td style="color:var(--gray)">${i+1}</td><td>${item.name}</td><td>${item.quantity}</td><td>$${(item.revenueCents/100).toFixed(2)}</td><td style="color:#e57373">${srptDiscount(item.squareDiscountCents ?? item.discountCents)}</td><td style="color:#e57373">${srptDiscount(item.siteDiscountCents)}</td><td style="color:#e57373">-$${((item.processingFeeCents||0)/100).toFixed(2)}</td>${srptProfitCells(item)}</tr>`).join('')
+        : '<tr><td colspan="9" style="text-align:center;color:var(--gray);padding:1.5rem">No items sold in this period</td></tr>';
     } catch(err) {
       console.error('Student sales report error:', err);
-      ['srpt-revenue','srpt-orders','srpt-avg','srpt-discounts','srpt-fees'].forEach(id => document.getElementById(id).textContent = '—');
+      ['srpt-revenue','srpt-orders','srpt-avg','srpt-discounts','srpt-fees','srpt-profit'].forEach(id => document.getElementById(id).textContent = '—');
       document.getElementById('srpt-discounts-sub').textContent = '';
+      document.getElementById('srpt-profit-sub').textContent = ''; document.getElementById('srpt-profit').style.color = '';
       document.getElementById('srpt-chart').innerHTML = `<span style="color:#e57373;font-size:0.82rem;align-self:center;margin:auto">Error: ${err.message}</span>`;
-      document.getElementById('srpt-items').innerHTML = `<tr><td colspan="7" style="text-align:center;color:#e57373;padding:1.5rem">${err.message}</td></tr>`;
+      document.getElementById('srpt-items').innerHTML = `<tr><td colspan="9" style="text-align:center;color:#e57373;padding:1.5rem">${err.message}</td></tr>`;
     }
   }
 
