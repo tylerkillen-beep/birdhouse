@@ -359,12 +359,37 @@ serve(async (req) => {
       }
     }
 
+    // ── What one unit of each item costs to make ─────────────────────────────
+    // A team's product uses the cost admin set on the team, the same number
+    // Product Performance and the Canvas product score use. Anything else uses
+    // its recipe's ingredient cost, but only when every ingredient is costed in
+    // matching units -- a partial cost would overstate profit. Read here with
+    // the service role because students can't read team costs themselves.
+    const [{ data: teamRows }, { data: recipeCostRows }] = await Promise.all([
+      serviceClient.from("teams").select("product_name, cost_cents").not("product_name", "is", null),
+      serviceClient.from("recipe_costs").select("recipe_name, cost_cents, ingredient_count, ingredients_missing_cost, ingredients_unit_mismatch"),
+    ]);
+    const unitCostByName = new Map<string, { cents: number; source: "team" | "recipe" }>();
+    for (const r of recipeCostRows || []) {
+      if (!Number(r.ingredient_count) || Number(r.ingredients_missing_cost) || Number(r.ingredients_unit_mismatch)) continue;
+      unitCostByName.set(String(r.recipe_name).trim().toLowerCase(), { cents: Number(r.cost_cents), source: "recipe" });
+    }
+    for (const t of teamRows || []) {
+      if (t.cost_cents == null || !String(t.product_name).trim()) continue;
+      unitCostByName.set(String(t.product_name).trim().toLowerCase(), { cents: Number(t.cost_cents), source: "team" });
+    }
+
     // Prorate processing fees to each item by its share of total revenue
     const topItems = Object.entries(itemMap)
       .map(([name, d]) => {
         const processingFeeCents = totalRevenueCents > 0
           ? Math.round(totalProcessingFeeCents * d.revenueCents / totalRevenueCents)
           : 0;
+        // Profit is revenue (already after discounts) minus fees and cost of
+        // goods, as Product Performance works it out. Null when no cost is known.
+        const unitCost = unitCostByName.get(name.trim().toLowerCase());
+        const cogsCents = unitCost ? Math.round(unitCost.cents * d.quantity) : null;
+        const profitCents = cogsCents == null ? null : d.revenueCents - processingFeeCents - cogsCents;
         return {
           name,
           quantity: d.quantity,
@@ -373,6 +398,11 @@ serve(async (req) => {
           squareDiscountCents: d.squareDiscountCents,
           siteDiscountCents: d.siteDiscountCents,
           processingFeeCents,
+          unitCostCents: unitCost ? unitCost.cents : null,
+          costSource: unitCost ? unitCost.source : null,
+          cogsCents,
+          profitCents,
+          marginPct: profitCents != null && d.revenueCents > 0 ? profitCents / d.revenueCents * 100 : null,
         };
       })
       .sort((a, b) => b.quantity - a.quantity)
