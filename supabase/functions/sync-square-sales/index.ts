@@ -37,7 +37,8 @@ const JSON_HEADERS = { ...CORS, "Content-Type": "application/json" };
 const SQUARE_VERSION = "2024-01-18";
 const OWNER_EMAIL = "tylerkillen@nixaschools.net";
 
-const TIME_BUDGET_MS = 45_000;          // stop starting new work after this
+const TIME_BUDGET_MS = 30_000;          // stop starting new work after this
+const REQUEST_TIMEOUT_MS = 20_000;      // give up on any one call to Square or the database
 const HISTORY_WINDOW_DAYS = 14;         // history is copied this many days per step
 const NEW_SALES_OVERLAP_MS = 2 * 60 * 60 * 1000;
 const CUSTOMER_LOOKUPS_PER_RUN = 150;   // names are fetched one at a time
@@ -73,6 +74,17 @@ interface SquareOrder {
   tenders?: { payment_id?: string; customer_id?: string }[];
 }
 
+// Every outside call gets a deadline. Without one, a call that never answers
+// holds the run open until Supabase stops it at 150 seconds, with no reply to
+// the caller and nothing in the logs.
+function timedFetch(input: Request | URL | string, init?: RequestInit) {
+  return fetch(input, { ...init, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+}
+
+function isTimeout(err: unknown) {
+  return err instanceof DOMException && (err.name === "TimeoutError" || err.name === "AbortError");
+}
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS });
 }
@@ -102,9 +114,18 @@ serve(async (req) => {
   const startedAt = Date.now();
   const outOfTime = () => Date.now() - startedAt > TIME_BUDGET_MS;
 
-  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
+    global: { fetch: timedFetch },
+    auth: { persistSession: false },
+  });
 
+  // Progress lines in the function's logs, so a slow or stuck run shows where.
+  const log = (step: string, detail: Record<string, unknown> = {}) =>
+    console.log(`[${((Date.now() - startedAt) / 1000).toFixed(1)}s] ${step}`, JSON.stringify(detail));
+
+  log("start");
   if (!(await isAllowed(req, supabase))) return json({ success: false, error: "Not authorized" }, 401);
+  log("authorized");
 
   const squareToken = Deno.env.get("SQUARE_ACCESS_TOKEN");
   const locationId = Deno.env.get("SQUARE_LOCATION_ID");
@@ -118,7 +139,14 @@ serve(async (req) => {
   };
 
   const square = async (path: string, init?: RequestInit) => {
-    const res = await fetch(`${base}${path}`, { ...init, headers });
+    let res: Response;
+    try {
+      res = await timedFetch(`${base}${path}`, { ...init, headers });
+    } catch (err) {
+      throw new Error(isTimeout(err)
+        ? `Square did not answer within ${REQUEST_TIMEOUT_MS / 1000} seconds (${path})`
+        : `Could not reach Square (${path}): ${err instanceof Error ? err.message : err}`);
+    }
     const body = await res.json().catch(() => ({}));
     return { ok: res.ok && !body?.errors?.length, status: res.status, body };
   };
@@ -128,7 +156,9 @@ serve(async (req) => {
   try {
     // ── Where the last run left off ───────────────────────────────────────
     const runStartIso = new Date(startedAt).toISOString();
-    let { data: state } = await supabase.from("square_sales_sync").select("*").eq("id", true).maybeSingle();
+    let { data: state, error: stateError } = await supabase.from("square_sales_sync").select("*").eq("id", true).maybeSingle();
+    if (stateError) throw new Error(`Could not read sync progress: ${stateError.message}`);
+    log("loaded progress", { state });
 
     if (!state) {
       // First run: new sales start now, history walks back from now.
@@ -143,6 +173,7 @@ serve(async (req) => {
       };
       const { error } = await supabase.from("square_sales_sync").insert(state);
       if (error) throw new Error(`Could not start the sync: ${error.message}`);
+      log("first run", { opened });
     }
 
     // ── Copy one window of completed orders ──────────────────────────────
@@ -170,7 +201,9 @@ serve(async (req) => {
           const e = body?.errors?.[0];
           throw new Error(`Square order search failed: ${e?.detail || e?.code || "unknown error"}`);
         }
-        copied += await saveOrders(body.orders || []);
+        const saved = await saveOrders(body.orders || []);
+        copied += saved;
+        log("orders page", { from: startIso, to: endIso, orders: (body.orders || []).length, linesSaved: saved, more: !!body.cursor });
         cursor = body.cursor || undefined;
       } while (cursor);
       return copied;
@@ -184,12 +217,15 @@ serve(async (req) => {
       // already record those sales.
       const paymentIds = [...new Set(withLines.flatMap((o) => (o.tenders || []).map((t) => t.payment_id).filter(Boolean)))] as string[];
       const sitePayments = new Set<string>();
-      for (let i = 0; i < paymentIds.length; i += 200) {
-        const chunk = paymentIds.slice(i, i + 200);
-        const [{ data: web }, { data: subs }] = await Promise.all([
+      for (let i = 0; i < paymentIds.length; i += 100) {
+        const chunk = paymentIds.slice(i, i + 100);
+        const [{ data: web, error: webError }, { data: subs, error: subsError }] = await Promise.all([
           supabase.from("orders").select("square_payment_id").in("square_payment_id", chunk),
           supabase.from("subscription_charges").select("square_payment_id").in("square_payment_id", chunk),
         ]);
+        // Guessing here could count a website sale twice, so stop instead.
+        const lookupError = webError || subsError;
+        if (lookupError) throw new Error(`Checking for website payments failed: ${lookupError.message}`);
         for (const r of [...(web || []), ...(subs || [])]) if (r.square_payment_id) sitePayments.add(r.square_payment_id);
       }
 
@@ -257,10 +293,12 @@ serve(async (req) => {
     }
 
     // ── Which item each variation belongs to ─────────────────────────────
+    log("sales copied", { ...stats, backfillBefore: before.toISOString(), done });
     if (!outOfTime()) stats.variationsLearned = await learnVariations(supabase, square);
 
     // ── Names of customers attached at the register ──────────────────────
     if (!outOfTime()) stats.customersLearned = await learnCustomers(supabase, square, outOfTime);
+    log("finished", stats);
 
     await supabase.from("square_sales_sync")
       .update({ last_run_at: new Date().toISOString(), last_error: null })
@@ -269,8 +307,10 @@ serve(async (req) => {
     const { data: finalState } = await supabase.from("square_sales_sync").select("*").eq("id", true).maybeSingle();
     return json({ success: true, ...stats, state: finalState });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unexpected error";
-    console.error("sync-square-sales error:", err);
+    const message = isTimeout(err)
+      ? `A database call did not answer within ${REQUEST_TIMEOUT_MS / 1000} seconds`
+      : err instanceof Error ? err.message : "Unexpected error";
+    console.error(`[${((Date.now() - startedAt) / 1000).toFixed(1)}s] sync-square-sales error:`, message, err);
     await supabase.from("square_sales_sync")
       .update({ last_run_at: new Date().toISOString(), last_error: message })
       .eq("id", true);
