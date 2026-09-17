@@ -675,7 +675,7 @@
     if (customerType === 'student' && !isStaffMember) {
       document.getElementById('delivery-method-group').style.display = '';
     }
-    if (profile?.last_room) document.getElementById('delivery-room').value = profile.last_room;
+    if (profile?.last_room && !isBlockedDeliveryRoom(profile.last_room)) document.getElementById('delivery-room').value = profile.last_room;
 
     await restoreDrafts();
     if (!sheets.length) sheets = [newSheet()];
@@ -1587,6 +1587,11 @@
 
       if (deliveryMethod === 'delivery' && !room) {
         showError('room-error', 'Please enter your room or delivery location.');
+        document.getElementById('delivery-room').focus();
+        return;
+      }
+      if (deliveryMethod === 'delivery' && isBlockedDeliveryRoom(room)) {
+        showError('room-error', BLOCKED_ROOM_MSG);
         document.getElementById('delivery-room').focus();
         return;
       }
