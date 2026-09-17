@@ -9,6 +9,7 @@
   <script src="/lib/supabase.js"></script>
   <link rel="stylesheet" href="/lib/flatpickr-themes/dark.css" />
   <script src="/lib/flatpickr.js"></script>
+  <script src="/lib/item-lookup.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -157,30 +158,6 @@
     .bar:hover { opacity: 1; }
     .bar-label { font-size: 0.65rem; color: var(--gray); text-align: center; padding-bottom: 0.5rem; }
 
-    /* Item Lookup */
-    .il-sync { display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap; font-size:0.78rem; color:var(--gray); background:var(--card); border:1px solid var(--border-dim); border-radius:10px; padding:0.6rem 0.9rem; margin-bottom:1rem; }
-    .il-sync.warn { color:#ff9800; border-color:rgba(255,152,0,0.3); }
-    .il-search-wrap { margin-bottom:1.5rem; }
-    .il-results { display:flex; flex-direction:column; gap:0.35rem; margin-top:0.6rem; }
-    .il-result { display:flex; align-items:center; gap:0.75rem; width:100%; text-align:left; background:var(--card); border:1px solid var(--border-dim); border-radius:9px; padding:0.65rem 0.9rem; color:var(--white); font-family:'DM Sans',sans-serif; font-size:0.86rem; cursor:pointer; transition:border-color 0.2s; }
-    .il-result:hover, .il-result.active { border-color:var(--border); background:rgba(204,0,0,0.06); }
-    .il-result-name { flex:1; }
-    .il-result-meta { font-size:0.74rem; color:var(--gray); white-space:nowrap; }
-    .il-badge { font-size:0.62rem; padding:0.12rem 0.45rem; border-radius:10px; border:1px solid var(--border-dim); color:var(--gray); margin-left:0.4rem; vertical-align:middle; }
-    .il-head { display:flex; align-items:baseline; justify-content:space-between; gap:1rem; flex-wrap:wrap; margin-bottom:0.25rem; }
-    .il-title { font-family:'Bebas Neue',sans-serif; font-size:2rem; letter-spacing:0.04em; }
-    .il-sub { font-size:0.78rem; color:var(--gray); margin-bottom:1.25rem; line-height:1.5; }
-    .il-stats { grid-template-columns:repeat(3,1fr); }
-    .il-stats .stat-card { padding:1.1rem 1.25rem; }
-    .il-stat-note { font-size:0.7rem; color:var(--gray); margin-top:0.3rem; }
-    .il-chips { display:flex; flex-wrap:wrap; gap:0.4rem; }
-    .il-chip { font-size:0.78rem; background:rgba(255,255,255,0.04); border:1px solid var(--border-dim); border-radius:6px; padding:0.2rem 0.6rem; color:var(--light-gray); }
-    .il-chip strong { color:var(--white); font-weight:500; margin-left:0.3rem; }
-    .il-anon td { color:var(--gray); font-style:italic; }
-    .il-table-scroll { overflow-x:auto; }
-    .il-table-scroll table { min-width:560px; }
-    .il-empty { color:var(--gray); text-align:center; padding:1.5rem; font-size:0.85rem; }
-
     /* Summary form */
     .summary-form { background: var(--card); border: 1px solid var(--border-dim); border-radius: 14px; padding: 2rem; }
     .form-group { margin-bottom: 1.15rem; }
@@ -261,7 +238,6 @@
       .stats-grid { grid-template-columns:1fr; }
       .schedule-grid { grid-template-columns:1fr 1fr; }
       .sched-periods-grid { grid-template-columns:1fr; }
-      .il-stats { grid-template-columns:1fr 1fr; }
     }
     .visually-hidden { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
   </style>
@@ -448,16 +424,7 @@
       <!-- Tab: Item Lookup -->
       <div id="sales-tab-item" role="tabpanel" aria-labelledby="tab-sales-item" style="display:none">
         <p style="color:var(--gray);font-size:0.88rem;margin-bottom:1rem;line-height:1.6">Every sale of one item — website, register, Square Online and subscriptions — as far back as the records go.</p>
-        <div class="il-sync" id="il-sync">
-          <span id="il-sync-text">Checking register sales…</span>
-          <button class="inv-cat-btn" id="il-sync-btn" onclick="syncRegisterSales()">Sync now</button>
-        </div>
-        <div class="il-search-wrap">
-          <label for="il-search" class="visually-hidden">Search menu items</label>
-          <input type="text" id="il-search" placeholder="Search for an item…" autocomplete="off" oninput="renderItemResults()" />
-          <div class="il-results" id="il-results" role="list" aria-label="Matching items"></div>
-        </div>
-        <div id="il-detail"></div>
+        <div id="item-lookup-root"></div>
       </div>
 
       <!-- Tab: Store Report -->
@@ -1537,10 +1504,7 @@
     }
     closeRecipeModal();
     loadRecipes();
-    if (document.getElementById('il-recipe')) {
-      const item = (ilCatalog || []).find(i => i.item_key === ilSelectedKey);
-      renderItemRecipe(item, item?.name || name);
-    }
+    itemLookup?.refreshRecipe();
   }
 
   async function deleteRecipe(id, name) {
@@ -1699,15 +1663,8 @@
     }
   }
 
-  // ── Item Lookup ───────────────────────────────────────────────────────────
-  // Sales come from item_sales_catalog / item_sales_detail, which combine
-  // website orders, subscription drinks and the register sales that
-  // sync-square-sales copies out of Square.
-  const SYNC_SALES_FN_URL = 'https://ljukrhneikqbabcmcpet.supabase.co/functions/v1/sync-square-sales';
-  const IL_CHANNELS = { website: 'Website', register: 'Register', square_online: 'Square Online', subscription: 'Subscription' };
-  let ilCatalog = null;
-  let ilSelectedKey = null;
-  let ilDetailRequest = 0;
+  // ── Item Lookup (lib/item-lookup.js) ──────────────────────────────────────
+  let itemLookup = null;
 
   function switchSalesTab(tab) {
     ['report', 'item'].forEach(t => {
@@ -1717,206 +1674,21 @@
       btn.classList.toggle('active', active);
       btn.setAttribute('aria-selected', active ? 'true' : 'false');
     });
-    if (tab === 'item') initItemLookup();
-  }
-
-  const ilMoney = cents => `$${(Number(cents || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  const ilUnits = n => Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 1 });
-  const ilDate = iso => iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
-  const ilMonth = ym => new Date(ym + '-15T12:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-
-  async function initItemLookup() {
-    loadRegisterSyncStatus();
-    if (ilCatalog) return;
-    document.getElementById('il-results').innerHTML = '<div class="il-empty">Loading items…</div>';
-    const { data, error } = await sb.rpc('item_sales_catalog');
-    if (error) {
-      document.getElementById('il-results').innerHTML = `<div class="il-empty" style="color:#e57373">Couldn't load items: ${htmlEscape(error.message)}</div>`;
-      return;
-    }
-    ilCatalog = data || [];
-    renderItemResults();
-  }
-
-  async function loadRegisterSyncStatus() {
-    const box = document.getElementById('il-sync');
-    const text = document.getElementById('il-sync-text');
-    const { data: s } = await sb.from('square_sales_sync').select('*').maybeSingle();
-    box.classList.remove('warn');
-    if (!s) {
-      text.textContent = 'Register sales haven\'t been copied from Square yet — only website and subscription sales are shown.';
-      box.classList.add('warn');
-      return;
-    }
-    const through = s.synced_through ? new Date(s.synced_through).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—';
-    const history = s.backfill_done
-      ? 'Full history imported.'
-      : `Importing history — back to ${ilDate(s.backfill_before)} so far.`;
-    text.textContent = `Register sales copied through ${through}. ${history}`;
-    if (s.last_error) {
-      text.textContent += ` Last sync failed: ${s.last_error}`;
-      box.classList.add('warn');
-    }
-  }
-
-  async function syncRegisterSales() {
-    const btn = document.getElementById('il-sync-btn');
-    btn.disabled = true;
-    btn.textContent = 'Syncing…';
-    try {
-      let { data: { session } } = await sb.auth.getSession();
-      if (session?.expires_at && Date.now() / 1000 >= session.expires_at - 30) {
-        const { data: refreshed } = await sb.auth.refreshSession();
-        session = refreshed?.session ?? null;
-      }
-      if (!session) throw new Error('Session expired. Please sign in again.');
-      const res = await fetch(SYNC_SALES_FN_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'apikey': SRPT_ANON_KEY, 'Authorization': `Bearer ${session.access_token}` },
-        body: '{}',
-      });
-      const d = await res.json().catch(() => ({}));
-      if (!res.ok || !d.success) throw new Error(d.error || 'Sync failed');
-      ilCatalog = null;
-      await initItemLookup();
-      if (ilSelectedKey) selectItem(ilSelectedKey);
-    } catch (err) {
-      const text = document.getElementById('il-sync-text');
-      text.textContent = `Sync failed: ${err.message}`;
-      document.getElementById('il-sync').classList.add('warn');
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'Sync now';
-    }
-  }
-
-  function renderItemResults() {
-    const el = document.getElementById('il-results');
-    if (!ilCatalog) return;
-    const q = normalizeName(document.getElementById('il-search').value);
-    const matches = ilCatalog.filter(i => !q || normalizeName(i.name).includes(q));
-    // Exact and starts-with matches first, then busiest.
-    if (q) matches.sort((a, b) => {
-      const rank = i => normalizeName(i.name) === q ? 0 : normalizeName(i.name).startsWith(q) ? 1 : 2;
-      return rank(a) - rank(b) || Number(b.units) - Number(a.units);
+    if (tab !== 'item') return;
+    if (itemLookup) { itemLookup.refreshStatus(); return; }
+    itemLookup = ItemLookup.mount(document.getElementById('item-lookup-root'), {
+      sb,
+      anonKey: SRPT_ANON_KEY,
+      theme: { accent: 'var(--red-bright)', card: 'var(--card)', border: 'var(--border-dim)', muted: 'var(--gray)', text: 'var(--white)' },
+      async onEditRecipe(recipeId, itemName) {
+        await loadRecipes();
+        await openRecipeModal(recipeId || undefined);
+        if (!recipeId) {
+          document.getElementById('recipe-name').value = itemName;
+          updateRecipeNameHint();
+        }
+      },
     });
-    const shown = matches.slice(0, q ? 12 : 8);
-    if (!shown.length) { el.innerHTML = '<div class="il-empty">No items match that search.</div>'; return; }
-    el.innerHTML = (q ? '' : '<div style="font-size:0.7rem;color:var(--gray);text-transform:uppercase;letter-spacing:0.1em">Best sellers</div>') +
-      shown.map(i => `<button class="il-result${i.item_key === ilSelectedKey ? ' active' : ''}" role="listitem" data-key="${htmlEscape(i.item_key)}" onclick="selectItem(this.dataset.key)">
-        <span class="il-result-name">${htmlEscape(i.name)}${i.retired ? '<span class="il-badge">Retired</span>' : ''}${!i.menu_item_id ? '<span class="il-badge">Not on menu</span>' : ''}</span>
-        <span class="il-result-meta">${Number(i.units) ? `${ilUnits(i.units)} sold · last ${ilDate(i.last_sold)}` : 'No sales yet'}</span>
-      </button>`).join('');
-  }
-
-  async function selectItem(key) {
-    ilSelectedKey = key;
-    renderItemResults();
-    const item = (ilCatalog || []).find(i => i.item_key === key);
-    const detail = document.getElementById('il-detail');
-    detail.innerHTML = '<div class="il-empty">Loading sales…</div>';
-    const requestId = ++ilDetailRequest;
-    const { data: d, error } = await sb.rpc('item_sales_detail', { p_item_key: key });
-    if (requestId !== ilDetailRequest) return; // another item was picked meanwhile
-    if (error) { detail.innerHTML = `<div class="il-empty" style="color:#e57373">Couldn't load sales: ${htmlEscape(error.message)}</div>`; return; }
-    renderItemDetail(item, d);
-    detail.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
-  function renderItemDetail(item, d) {
-    const t = d.totals || {};
-    const name = item?.name || (t.names_sold_as || [])[0] || 'Item';
-    const avgCents = Number(t.priced_units) ? Number(t.revenue_cents) / Number(t.priced_units) : 0;
-    const otherNames = (t.names_sold_as || []).filter(n => normalizeName(n) !== normalizeName(name));
-    const subscriptionUnits = (d.by_channel || []).find(c => c.channel === 'subscription')?.units || 0;
-    const anonUnits = (d.customers || []).filter(c => c.anonymous).reduce((s, c) => s + Number(c.units), 0);
-
-    const stats = `<div class="stats-grid il-stats">
-      <div class="stat-card"><div class="stat-label">Units Sold</div><div class="stat-value">${ilUnits(t.units)}</div><div class="il-stat-note">${ilUnits(t.orders)} order${Number(t.orders) === 1 ? '' : 's'}</div></div>
-      <div class="stat-card"><div class="stat-label">Revenue</div><div class="stat-value">${ilMoney(t.revenue_cents)}</div><div class="il-stat-note">${Number(t.discount_cents) ? `after ${ilMoney(t.discount_cents)} in discounts` : '&nbsp;'}${Number(subscriptionUnits) ? `<br>+ ${ilUnits(subscriptionUnits)} subscription drinks (billed by plan)` : ''}</div></div>
-      <div class="stat-card"><div class="stat-label">Avg Price Paid</div><div class="stat-value">${avgCents ? ilMoney(avgCents) : '—'}</div><div class="il-stat-note">per unit</div></div>
-      <div class="stat-card"><div class="stat-label">Named Customers</div><div class="stat-value">${ilUnits(t.customers)}</div><div class="il-stat-note">${anonUnits ? `+ ${ilUnits(anonUnits)} sold with no name attached` : '&nbsp;'}</div></div>
-      <div class="stat-card"><div class="stat-label">First Sold</div><div class="stat-value" style="font-size:1.3rem">${ilDate(t.first_sold)}</div></div>
-      <div class="stat-card"><div class="stat-label">Last Sold</div><div class="stat-value" style="font-size:1.3rem">${ilDate(t.last_sold)}</div></div>
-    </div>`;
-
-    if (!Number(t.units)) {
-      document.getElementById('il-detail').innerHTML = `
-        <div class="il-head"><div class="il-title">${htmlEscape(name)}</div></div>
-        <div class="il-sub">No sales recorded for this item yet.</div>
-        <div class="section"><h2 class="section-title">Recipe</h2><div id="il-recipe"><div class="il-empty">Loading recipe…</div></div></div>`;
-      renderItemRecipe(item, name);
-      return;
-    }
-
-    const months = d.by_month || [];
-    const maxUnits = Math.max(...months.map(m => Number(m.units)), 1);
-    const chart = `<div class="sales-chart" role="img" aria-label="Units sold per month for ${htmlEscape(name)}" style="gap:0.4rem;overflow-x:auto">
-      ${months.map(m => `<div class="bar-wrap" style="min-width:34px"><div class="bar" style="height:${Math.max(Math.round(Number(m.units) / maxUnits * 100), 2)}%" title="${ilMonth(m.month)}: ${ilUnits(m.units)} sold"></div><div class="bar-label">${ilMonth(m.month).replace(' ', '<br>')}<br>${ilUnits(m.units)}</div></div>`).join('')}
-    </div>`;
-    const channelCols = Object.keys(IL_CHANNELS).filter(c => months.some(m => Number(m[c + '_units'])));
-    const monthTable = `<div class="table-wrap il-table-scroll" style="margin-top:1rem"><table>
-      <thead><tr><th scope="col">Month</th><th scope="col">Units</th>${channelCols.map(c => `<th scope="col">${IL_CHANNELS[c]}</th>`).join('')}<th scope="col">Revenue</th></tr></thead>
-      <tbody>${months.slice().reverse().map(m => `<tr><td>${ilMonth(m.month)}</td><td>${ilUnits(m.units)}</td>${channelCols.map(c => `<td style="color:var(--light-gray)">${ilUnits(m[c + '_units'])}</td>`).join('')}<td>${ilMoney(m.revenue_cents)}</td></tr>`).join('')}</tbody>
-    </table></div>`;
-
-    const channels = `<div class="il-chips">${(d.by_channel || []).map(c =>
-      `<span class="il-chip">${IL_CHANNELS[c.channel] || c.channel}<strong>${ilUnits(c.units)} sold${c.channel === 'subscription' ? '' : ` · ${ilMoney(c.revenue_cents)}`}</strong></span>`).join('')}</div>`;
-
-    const customers = `<div class="table-wrap il-table-scroll"><table>
-      <thead><tr><th scope="col">#</th><th scope="col">Customer</th><th scope="col">Bought</th><th scope="col">Spent</th><th scope="col">Last Bought</th></tr></thead>
-      <tbody>${(() => { let rank = 0; return (d.customers || []).map(c => `<tr class="${c.anonymous ? 'il-anon' : ''}"><td style="color:var(--gray)">${c.anonymous ? '' : ++rank}</td><td>${htmlEscape(c.name)}</td><td>${ilUnits(c.units)}</td><td>${ilMoney(c.revenue_cents)}</td><td>${ilDate(c.last_bought)}</td></tr>`).join(''); })()}</tbody>
-    </table></div>`;
-
-    const modifiers = (d.modifiers || []).length
-      ? `<div class="il-chips">${d.modifiers.map(m => `<span class="il-chip">${htmlEscape(m.name)}<strong>${ilUnits(m.units)}</strong></span>`).join('')}</div>`
-      : '<div style="color:var(--gray);font-size:0.82rem">No add-ons recorded for this item.</div>';
-
-    document.getElementById('il-detail').innerHTML = `
-      <div class="il-head"><div class="il-title">${htmlEscape(name)}</div>${item?.category ? `<span class="il-badge">${htmlEscape(item.category)}</span>` : ''}</div>
-      <div class="il-sub">${otherNames.length ? `Also sold as: ${otherNames.map(htmlEscape).join(', ')}. ` : ''}Months use Central time. Subscription drinks count once delivered.</div>
-      ${stats}
-      <div class="section"><h2 class="section-title">By Month</h2>${chart}${monthTable}</div>
-      <div class="section"><h2 class="section-title">By Channel</h2>${channels}</div>
-      <div class="section"><h2 class="section-title">Top Customers</h2>${customers}
-        <div style="font-size:0.72rem;color:var(--gray);margin-top:0.5rem">Register sales only have a name when a customer was attached at checkout.</div></div>
-      <div class="section"><h2 class="section-title">Popular Add-ons</h2>${modifiers}</div>
-      <div class="section"><h2 class="section-title">Recipe</h2><div id="il-recipe"><div class="il-empty">Loading recipe…</div></div></div>`;
-    renderItemRecipe(item, name);
-  }
-
-  async function renderItemRecipe(item, name) {
-    const el = document.getElementById('il-recipe');
-    let recipeId = null;
-    if (item?.menu_item_id) {
-      const { data: link } = await sb.from('menu_item_recipe_links').select('recipe_id').eq('menu_item_id', item.menu_item_id).maybeSingle();
-      recipeId = link?.recipe_id || null;
-    }
-    const query = sb.from('recipes').select('*, recipe_ingredients(*, inventory:inventory_id(id,name,unit))');
-    const { data: recipes } = recipeId ? await query.eq('id', recipeId) : await query.ilike('name', name.replace(/[%_]/g, '\\$&'));
-    if (!document.body.contains(el)) return; // a different item is showing now
-    const recipe = (recipes || [])[0];
-    if (!recipe) {
-      el.innerHTML = `<div class="recipe-card" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap">
-        <span style="color:var(--gray);font-size:0.85rem">No recipe yet for this item.</span>
-        <button class="inv-edit-btn" onclick="openItemRecipe(null)"><span aria-hidden="true">＋</span> Add Recipe</button>
-      </div>`;
-      return;
-    }
-    el.innerHTML = recipeCardHtml(recipe, `<button class="inv-edit-btn" onclick="openItemRecipe('${recipe.id}')"><span aria-hidden="true">✏️</span> Edit</button>`);
-  }
-
-  // Opens the Recipes modal from Item Lookup; a new recipe starts with the item's name.
-  async function openItemRecipe(recipeId) {
-    await loadRecipes();
-    await openRecipeModal(recipeId || undefined);
-    if (!recipeId) {
-      const item = (ilCatalog || []).find(i => i.item_key === ilSelectedKey);
-      if (item) {
-        document.getElementById('recipe-name').value = item.name;
-        updateRecipeNameHint();
-      }
-    }
   }
 
   async function submitSummary() {

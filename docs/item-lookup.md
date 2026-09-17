@@ -1,6 +1,6 @@
 # Item Lookup
 
-Team Hub → Sales Data → **Item Lookup** shows every sale of one item: units,
+Team Hub → Sales Data → **Item Lookup** (also admin → Financials → **Item Lookup**) shows every sale of one item: units,
 revenue, month by month, by channel, top customers, popular add-ons, and the
 item's recipe. Students, managers and admins can all open it.
 
