@@ -180,6 +180,29 @@
     .pickup-note { padding:0.875rem 1rem; border:1px solid var(--border-dim); border-radius:8px; background:#0d0d0d; color:var(--light-gray); font-size:0.92rem; }
     .delivery-fee-line { display:flex; justify-content:space-between; padding:0.4rem 0; font-size:0.85rem; color:var(--light-gray); }
 
+    /* ── Reorder note, add-on suggestions, credit progress ── */
+    .reorder-note { background:rgba(245,200,66,0.07); border:1px solid rgba(245,200,66,0.25); border-radius:10px; padding:0.85rem 1.1rem; font-size:0.85rem; color:var(--white); line-height:1.55; margin-bottom:1.5rem; }
+    .reorder-note:empty { display:none; }
+    .reorder-note-sub { color:var(--light-gray); font-size:0.78rem; margin-top:0.25rem; }
+    .upsell { display:flex; flex-direction:column; gap:0.5rem; margin-bottom:1.5rem; }
+    .upsell:empty { display:none; }
+    .upsell-label { font-size:0.62rem; text-transform:uppercase; letter-spacing:0.15em; color:var(--red-bright); }
+    .upsell-card { display:flex; align-items:center; gap:0.85rem; background:rgba(204,0,0,0.05); border:1px dashed rgba(204,0,0,0.3); border-radius:10px; padding:0.75rem 1rem; }
+    .upsell-text { flex:1; font-size:0.86rem; line-height:1.4; }
+    .upsell-price { color:var(--red-bright); font-weight:600; white-space:nowrap; }
+    .upsell-add { background:var(--red); color:#fff; border:none; border-radius:7px; padding:0.5rem 1rem; font-family:'DM Sans',sans-serif; font-size:0.8rem; font-weight:500; cursor:pointer; transition:background 0.2s; white-space:nowrap; }
+    .upsell-add:hover { background:var(--red-bright); }
+    .upsell-skip { align-self:flex-start; background:none; border:none; color:var(--gray); font-family:'DM Sans',sans-serif; font-size:0.75rem; cursor:pointer; padding:0.15rem 0; text-decoration:underline; }
+    .upsell-skip:hover { color:var(--white); }
+    .loyalty-progress { background:rgba(245,200,66,0.06); border:1px solid rgba(245,200,66,0.2); border-radius:10px; padding:0.8rem 1rem; margin-bottom:1.5rem; }
+    .loyalty-progress:empty { display:none; }
+    .loyalty-progress-msg { font-size:0.85rem; color:#f5c842; }
+    .loyalty-progress-sub { font-size:0.72rem; color:var(--gray); margin-top:0.2rem; }
+    .loyalty-track { height:6px; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden; margin-top:0.55rem; }
+    .loyalty-fill { height:100%; background:#f5c842; border-radius:3px; transition:width 0.3s ease; }
+    #pay-loyalty-progress { margin:1rem 0 0; }
+    .cart-bar-loyalty { font-size:0.75rem; color:#f5c842; margin-left:0.6rem; }
+
     /* ── Mobile top bar ── */
     .mobile-topbar { display:none; position:fixed; top:0; left:0; right:0; height:54px; background:#0d0000; border-bottom:1px solid var(--border); z-index:300; align-items:center; justify-content:space-between; padding:0 1.25rem; }
     .mobile-topbar img { height:30px; filter:drop-shadow(0 0 6px rgba(204,0,0,0.5)); }
@@ -201,6 +224,7 @@
       .pay-layout { grid-template-columns:1fr; }
       .form-row { grid-template-columns:1fr; }
     }
+    @media(max-width:600px) { .cart-bar-loyalty{display:none} .upsell-card{flex-wrap:wrap} }
     @media(max-width:600px) { .menu-grid{grid-template-columns:repeat(2,1fr);gap:0.6rem} .menu-card{padding:1rem} .menu-card-name{font-size:0.88rem} .main{padding:1rem 1rem 5rem; padding-top:calc(1rem + 54px)} }
     @media(max-width:400px) { .menu-grid{grid-template-columns:1fr} }
 
@@ -281,6 +305,8 @@
       <li class="step" id="step-ind-3"><div class="step-num" aria-hidden="true">3</div> Payment</li>
     </ol>
 
+    <div class="reorder-note" id="reorder-note" role="status"></div>
+
     <!-- Step 1: Menu -->
     <div class="step-panel active" id="panel-1">
       <div id="menu-container"><div class="no-menu">Loading menu...</div></div>
@@ -292,7 +318,9 @@
     <!-- Step 2: Order Info -->
     <div class="step-panel" id="panel-2">
       <div class="cart-items-list" id="cart-review"></div>
+      <div class="upsell" id="upsell" aria-live="polite"></div>
       <div class="cart-total"><span>Total</span><span id="cart-total-val">$0.00</span></div>
+      <div class="loyalty-progress" id="loyalty-progress"></div>
       <div class="delivery-form">
         <!-- Pickup/Delivery toggle — students only -->
         <div class="form-group" id="delivery-method-group" style="display:none">
@@ -347,6 +375,7 @@
         <div class="order-summary-card">
           <div class="summary-label">Order Summary</div>
           <div id="pay-summary-lines"></div>
+          <div class="loyalty-progress" id="pay-loyalty-progress"></div>
         </div>
         <div class="card-form-wrap">
           <div class="card-form-title">Pay Securely</div>
@@ -375,7 +404,7 @@
         <h2 class="success-title" id="success-heading" tabindex="-1">Order Placed!</h2>
         <p class="success-sub" id="success-sub-msg">Payment confirmed. Our team will get your order ready and deliver it to your room.</p>
         <div>
-          <a class="btn-outline" href="order.html">Order Again</a>
+          <a class="btn-outline" id="success-order-again" href="order.html">Order Again</a>
           <a class="btn-outline" href="orders.html">View My Orders</a>
         </div>
       </div>
@@ -387,6 +416,7 @@
 <div class="cart-bar hidden" id="cart-bar">
   <div class="cart-summary" aria-live="polite" aria-atomic="true">
     <span aria-hidden="true">🛒</span> <strong id="cart-bar-count">0</strong> items · <strong id="cart-bar-total">$0.00</strong>
+    <span class="cart-bar-loyalty" id="cart-bar-loyalty" aria-hidden="true"></span>
   </div>
   <button class="btn-primary" style="padding:0.65rem 1.5rem;font-size:0.85rem" onclick="goToStep(2)">
     Review Cart →
@@ -458,6 +488,13 @@
   let availableCreditCents = 0; // current loyalty credit balance
   let applyLoyaltyCredit = false; // whether the credit checkbox is checked
   let selectedDeliveryMethod = 'delivery'; // 'delivery' | 'pickup' — students only
+  let loyaltySpendCents = 0; // lifetime spend that counts toward credits
+  let visibleMenuIds = new Set(); // items this customer's menu shows
+  let upsellDismissed = false;
+
+  // process-payment awards credit the same way — change both together.
+  const SPEND_THRESHOLD_CENTS = 2500; // $25.00 spent...
+  const CREDIT_REWARD_CENTS   = 300;  // ...earns $3.00
 
   // process-payment re-prices every order with these same rules (priceMenuCart
   // there) and refuses one whose real price is higher, so change both together.
@@ -570,6 +607,7 @@
     // Loyalty credit balance — prefer profiles (authoritative) over user_metadata
     availableCreditCents = profile?.loyalty_credit_cents ?? meta.loyalty_credit_cents ?? 0;
     const spendCents = profile?.loyalty_spend_cents ?? meta.loyalty_spend_cents ?? 0;
+    loyaltySpendCents = spendCents;
     const spendTowardNext = spendCents % 2500;
     const creditDollars = (availableCreditCents / 100).toFixed(2);
     const spendRemaining = ((2500 - spendTowardNext) / 100).toFixed(2);
@@ -598,6 +636,7 @@
     document.getElementById('delivery-method-group').style.display = '';
 
     await Promise.all([loadMenu(), setupDeliveryPicker()]);
+    await loadReorder();
   }
 
   // ── Square SDK ────────────────────────────────────────────────────────────
@@ -764,6 +803,7 @@
       const key = isMathews ? getMathewsSubCategory(item) : getDisplayCategory(item);
       bySection[key].push(item);
     });
+    visibleMenuIds = new Set(visibleItems.map(i => i.id));
 
     let html = '';
     sections.forEach(section => {
@@ -889,7 +929,7 @@
 
     pendingItemId    = itemId;
     pendingTemp      = temp;
-    pendingBaseCents = item.base_price_cents || Math.round((parseFloat(item.base_price) || 0) * 100);
+    pendingBaseCents = itemBaseCents(item);
 
     document.getElementById('mod-title').textContent      = item.name;
     document.getElementById('mod-base-price').textContent = `Base price: $${(pendingBaseCents / 100).toFixed(2)}`;
@@ -984,25 +1024,47 @@
       priceCents:      parseInt(cb.dataset.price || '0'),
     }));
 
-    const modsCents  = selectedModifiers.reduce((s, m) => s + m.priceCents, 0);
-    const rawCents   = pendingBaseCents + modsCents;
-    const totalCents = applyDiscount(item, rawCents);
-
-    addToCart(pendingItemId, pendingTemp, selectedModifiers, totalCents, rawCents);
+    addItemToCart(item, pendingTemp, selectedModifiers);
     closeModModal();
   }
 
   // ── Cart ──────────────────────────────────────────────────────────────────
-  function addToCart(itemId, temp, selectedModifiers, totalCents, originalCents) {
+  function itemBaseCents(item) {
+    return item.base_price_cents || Math.round((parseFloat(item.base_price) || 0) * 100);
+  }
+
+  /** Add-ons this item offers right now: in stock, from its attached sets. */
+  function offeredModifiers(item) {
+    const attached = item.square_modifier_list_ids || [];
+    return Object.values(modifierListsMap)
+      .filter(ml => attached.includes(ml.squareId))
+      .flatMap(ml => ml.options);
+  }
+
+  function cartLineKey(itemId, temp, selectedModifiers) {
+    return `${itemId}-${temp}-${selectedModifiers.map(m => m.catalogObjectId).sort().join('|')}`;
+  }
+
+  /** Price a line the way process-payment will: base plus add-ons, then the best discount. */
+  function linePricing(item, selectedModifiers) {
+    const rawCents = itemBaseCents(item) + selectedModifiers.reduce((s, m) => s + m.priceCents, 0);
+    return { totalCents: applyDiscount(item, rawCents), rawCents };
+  }
+
+  function addItemToCart(item, temp, selectedModifiers, quantity = 1) {
+    const { totalCents, rawCents } = linePricing(item, selectedModifiers);
+    addToCart(item.id, temp, selectedModifiers, totalCents, rawCents, quantity);
+  }
+
+  function addToCart(itemId, temp, selectedModifiers, totalCents, originalCents, quantity = 1) {
     const item = menuItems.find(i => i.id === itemId);
     if (!item) return;
 
-    const modKey   = selectedModifiers.map(m => m.catalogObjectId).sort().join('|');
-    const key      = `${itemId}-${temp}-${modKey}`;
+    const key      = cartLineKey(itemId, temp, selectedModifiers);
     const existing = cart.find(c => c.key === key);
 
     if (existing) {
-      existing.quantity++;
+      existing.quantity += quantity;
     } else {
       cart.push({
         key,
@@ -1014,12 +1076,186 @@
         originalCents:     originalCents || totalCents,
         // The sale beat the customer's own discount, so it's the one applied.
         onSale:            saleRate(item) > discountRate(),
-        quantity:          1,
+        quantity,
         squareVariationId: item.square_variation_id,
         selectedModifiers,
       });
     }
     updateCartUI();
+  }
+
+  // ── Order Again ───────────────────────────────────────────────────────────
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[ch]));
+  }
+
+  /** order.html?reorder=<order id> refills the cart from one of the customer's
+   *  past orders, priced and stocked as the menu is today. */
+  async function loadReorder() {
+    const orderId = new URLSearchParams(window.location.search).get('reorder');
+    if (!orderId || !currentUser) return;
+
+    const { data: order } = await sb.from('orders')
+      .select('created_at, cart_items, order_type, delivery_method, room')
+      .eq('id', orderId)
+      .eq('user_id', currentUser.id)
+      .maybeSingle();
+    const note = document.getElementById('reorder-note');
+    if (!order?.cart_items?.length || order.order_type === 'stickers') {
+      note.textContent = "We couldn't find that order to repeat. Pick your drinks below.";
+      return;
+    }
+
+    const leftOut = [];
+    for (const line of order.cart_items) {
+      if (line.type) continue; // sticker sheets aren't menu items
+      const item = menuItems.find(i => i.id === line.id);
+      if (!item || !visibleMenuIds.has(item.id)) { leftOut.push(line.name); continue; }
+
+      const offered = new Map(offeredModifiers(item).map(o => [o.square_id, o]));
+      const mods = [];
+      for (const m of line.selectedModifiers || []) {
+        const opt = offered.get(m.catalogObjectId);
+        if (opt) mods.push({ catalogObjectId: opt.square_id, name: opt.name, priceCents: opt.price_cents || 0 });
+        else leftOut.push(`${m.name} on ${item.name}`);
+      }
+      const temp = ['hot', 'iced', 'food'].includes(line.temp) ? line.temp : 'hot';
+      addItemToCart(item, temp, mods, Math.max(1, parseInt(line.quantity, 10) || 1));
+    }
+
+    const leftOutHtml = leftOut.length
+      ? `<div class="reorder-note-sub">${leftOut.map(escapeHtml).join(', ')} ${leftOut.length === 1 ? "isn't" : "aren't"} available right now, so we left ${leftOut.length === 1 ? 'it' : 'them'} out.</div>`
+      : '';
+    if (!cart.length) {
+      note.innerHTML = `Nothing from that order is on the menu right now. Pick something new below.${leftOutHtml}`;
+      return;
+    }
+
+    if (order.delivery_method === 'pickup') {
+      setDeliveryMethod('pickup');
+    } else if (order.room) {
+      document.getElementById('delivery-room').value = order.room;
+    }
+    const placed = new Date(order.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    note.innerHTML = `<strong>Your order from ${placed} is in the cart.</strong> Prices are today's. Pick a time and you're set.${leftOutHtml}`;
+    goToStep(2);
+  }
+
+  // ── Add-on suggestions ────────────────────────────────────────────────────
+  const BOBA = /boba/i;
+
+  function isFoodItem(item) {
+    const cat = String(item.category || '').toLowerCase();
+    return cat.includes('food') || cat.includes('pastry') || cat.includes('snack');
+  }
+
+  /** At most one boba upgrade for an iced drink and one snack, if the cart has none. */
+  function upsellSuggestions() {
+    if (upsellDismissed) return [];
+    const suggestions = [];
+
+    for (const line of cart) {
+      const item = menuItems.find(i => i.id === line.id);
+      if (!item || line.temp !== 'iced' || line.selectedModifiers.some(m => BOBA.test(m.name))) continue;
+      const option = offeredModifiers(item).find(o => BOBA.test(o.name) && o.price_cents > 0);
+      if (!option) continue;
+      const mod = { catalogObjectId: option.square_id, name: option.name, priceCents: option.price_cents };
+      const extraCents = linePricing(item, [...line.selectedModifiers, mod]).totalCents - line.priceCents;
+      suggestions.push({ kind: 'boba', key: line.key, mod, extraCents, item, quantity: line.quantity });
+      break;
+    }
+
+    const hasFood = cart.some(c => { const i = menuItems.find(m => m.id === c.id); return i && isFoodItem(i); });
+    if (!hasFood) {
+      const snack = menuItems
+        .filter(i => visibleMenuIds.has(i.id) && isFoodItem(i) && !(i.square_modifier_list_ids?.length))
+        .sort((a, b) => itemBaseCents(a) - itemBaseCents(b))[0];
+      if (snack) suggestions.push({ kind: 'snack', item: snack, extraCents: linePricing(snack, []).totalCents });
+    }
+    return suggestions;
+  }
+
+  function renderUpsell() {
+    const el = document.getElementById('upsell');
+    const suggestions = upsellSuggestions();
+    if (!suggestions.length) { el.innerHTML = ''; return; }
+
+    el.innerHTML = `<div class="upsell-label">Make it better</div>` + suggestions.map((s, idx) => {
+      const price = `+$${(s.extraCents * (s.quantity || 1) / 100).toFixed(2)}`;
+      const text = s.kind === 'boba'
+        ? `Add ${escapeHtml(s.mod.name)} to your ${escapeHtml(s.item.name)}${s.quantity > 1 ? ` (all ${s.quantity})` : ''}`
+        : `Add a ${escapeHtml(s.item.name)}`;
+      return `<div class="upsell-card">
+        <div class="upsell-text">${text} <span class="upsell-price">${price}</span></div>
+        <button class="upsell-add" onclick="takeUpsell(${idx})" aria-label="${text.replace(/"/g, '&quot;')} for ${price}">Add</button>
+      </div>`;
+    }).join('') + `<button class="upsell-skip" onclick="dismissUpsell()">No thanks</button>`;
+  }
+
+  function takeUpsell(idx) {
+    const s = upsellSuggestions()[idx];
+    if (!s) return;
+    if (s.kind === 'boba') {
+      const line = cart.find(c => c.key === s.key);
+      if (!line) return;
+      const mods = [...line.selectedModifiers, s.mod];
+      const { totalCents, rawCents } = linePricing(s.item, mods);
+      const key = cartLineKey(line.id, line.temp, mods);
+      const twin = cart.find(c => c.key === key);
+      if (twin) {
+        twin.quantity += line.quantity;
+        cart.splice(cart.indexOf(line), 1);
+      } else {
+        Object.assign(line, { key, selectedModifiers: mods, priceCents: totalCents, price: totalCents / 100, originalCents: rawCents });
+      }
+      updateCartUI();
+    } else {
+      const temp = s.item.is_iced === true && s.item.is_hot === false ? 'iced' : 'hot';
+      addItemToCart(s.item, temp, []);
+    }
+    renderCartReview();
+  }
+
+  function dismissUpsell() {
+    upsellDismissed = true;
+    renderUpsell();
+  }
+
+  // ── Credit progress ───────────────────────────────────────────────────────
+  function renderLoyaltyProgress() {
+    const barHint = document.getElementById('cart-bar-loyalty');
+    const panels = [document.getElementById('loyalty-progress'), document.getElementById('pay-loyalty-progress')];
+    if (!currentUser || !cart.length) {
+      barHint.textContent = '';
+      panels.forEach(p => { p.innerHTML = ''; });
+      return;
+    }
+
+    // Credit is earned on the order total before any credit is applied.
+    const orderCents = Math.round((cartTotal() + deliveryFeeDollars()) * 100);
+    const afterCents = loyaltySpendCents + orderCents;
+    const creditsEarned = Math.floor(afterCents / SPEND_THRESHOLD_CENTS) - Math.floor(loyaltySpendCents / SPEND_THRESHOLD_CENTS);
+    const towardCents = afterCents % SPEND_THRESHOLD_CENTS;
+    const reward = `$${(CREDIT_REWARD_CENTS / 100).toFixed(2)}`;
+    const toGo = `$${((SPEND_THRESHOLD_CENTS - towardCents) / 100).toFixed(2)}`;
+
+    let msg, sub, pct;
+    if (creditsEarned > 0) {
+      msg = `🎉 This order earns you $${(creditsEarned * CREDIT_REWARD_CENTS / 100).toFixed(2)} in Birdhouse Bucks!`;
+      sub = `Your credit is ready to use on your next order.`;
+      pct = 100;
+      barHint.textContent = `⭐ Earns ${reward} credit`;
+    } else {
+      msg = `⭐ You're ${toGo} away from a free ${reward} credit`;
+      sub = `With this order: $${(towardCents / 100).toFixed(2)} of $${(SPEND_THRESHOLD_CENTS / 100).toFixed(2)}`;
+      pct = Math.round(towardCents / SPEND_THRESHOLD_CENTS * 100);
+      barHint.textContent = `⭐ ${toGo} to your next ${reward} credit`;
+    }
+
+    const html = `<div class="loyalty-progress-msg">${msg}</div>
+      <div class="loyalty-track" role="progressbar" aria-label="Progress toward your next credit" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><div class="loyalty-fill" style="width:${pct}%"></div></div>
+      <div class="loyalty-progress-sub">${sub}</div>`;
+    panels.forEach(p => { p.innerHTML = html; });
   }
 
   function changeQty(key, delta) {
@@ -1044,6 +1280,7 @@
     document.getElementById('cart-bar-count').textContent = count;
     document.getElementById('cart-bar-total').textContent = `$${cartTotal().toFixed(2)}`;
     document.getElementById('btn-to-step2').disabled = count === 0;
+    renderLoyaltyProgress();
   }
 
   function renderCartReview() {
@@ -1070,6 +1307,7 @@
         <div class="cart-item-price">${priceDisplay}</div>
       </div>`;
     }).join('');
+    renderUpsell();
     const fee = deliveryFeeDollars();
     const totalEl = document.getElementById('cart-total-val');
     totalEl.textContent = `$${(cartTotal() + fee).toFixed(2)}`;
@@ -1116,6 +1354,7 @@
     const feeEl = document.getElementById('cart-fee-line');
     if (feeEl) feeEl.style.display = fee > 0 ? 'flex' : 'none';
     document.getElementById('cart-total-val').textContent = `$${(cartTotal() + fee).toFixed(2)}`;
+    renderLoyaltyProgress();
 
     // Pickup and delivery offer different times.
     const pickedDate = deliveryDatePicker?.selectedDates[0];
@@ -1405,7 +1644,13 @@
 
     if (data.loyaltyUpdate) {
       availableCreditCents = data.loyaltyUpdate.newCreditBalance;
+      loyaltySpendCents = data.loyaltyUpdate.newSpendCents;
       applyLoyaltyCredit = false;
+    }
+    const earnedCents = data.loyaltyUpdate?.newCreditsAwarded || 0;
+    const earnedMsg = earnedCents > 0 ? ` You also earned $${(earnedCents / 100).toFixed(2)} in Birdhouse Bucks!` : '';
+    if (data.orderId) {
+      document.getElementById('success-order-again').href = `order.html?reorder=${encodeURIComponent(data.orderId)}`;
     }
 
     if (!isPickup) {
@@ -1416,8 +1661,9 @@
     }
 
     document.getElementById('success-sub-msg').textContent = isPickup
-      ? 'Payment confirmed. Come pick up your order at the Birdhouse in the library!'
-      : 'Payment confirmed. Our team will get your order ready and deliver it to your room.';
+      ? 'Payment confirmed. Come pick up your order at the Birdhouse in the library!' + earnedMsg
+      : 'Payment confirmed. Our team will get your order ready and deliver it to your room.' + earnedMsg;
+    document.getElementById('reorder-note').innerHTML = '';
 
     document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
     document.getElementById('panel-success').classList.add('active');
