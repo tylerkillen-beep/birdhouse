@@ -6597,6 +6597,28 @@ function syncPacketAmountState() {
   if (!flavor) amountEl.value = PACKET_DEFAULT_AMOUNT;
 }
 
+// A drink can be poured half-and-half from two fountain drinks. One pour saves
+// as plain "Sprite Zero"; two save as "Sprite Zero (Half), Lemonade (Half)",
+// which reads right on the Recipe Sheet and tells the usage math each is half.
+function savedPours(raw) {
+  return splitSavedList(raw).map(v => parseQualifiedValue(v).name).slice(0, 2);
+}
+
+function pourTextFromForm() {
+  const first = document.getElementById('recipe-pour').value;
+  const second = document.getElementById('recipe-pour-2').value;
+  if (!first) return second || null;
+  if (!second || normalizeName(second) === normalizeName(first)) return first;
+  return `${first} (Half), ${second} (Half)`;
+}
+
+// The second pour only means anything once a first one is picked.
+function syncPourState() {
+  const hasFirst = !!document.getElementById('recipe-pour').value;
+  document.getElementById('recipe-pour-2-wrap').hidden = !hasFirst;
+  if (!hasFirst) document.getElementById('recipe-pour-2').value = '';
+}
+
 // The machine's flavor pumps are meaningless without a machine drink, so the
 // whole checklist stays hidden until one is picked -- and clears when the
 // drink is cleared, so a stray flavor can't be saved on its own.
@@ -6743,7 +6765,10 @@ function openRecipeModal(id) {
   // A saved value the curated list no longer offers stays selected rather
   // than silently reverting to "—" the first time someone opens the recipe.
   fillSelectOptions('recipe-machine', MACHINE_DRINK_OPTIONS, recipe?.coffee_machine_selection || '', '— None —');
-  fillSelectOptions('recipe-pour', BEVERAGE_POUR_OPTIONS, recipe?.beverage_pour || '', '— None —');
+  const [pour1 = '', pour2 = ''] = savedPours(recipe?.beverage_pour);
+  fillSelectOptions('recipe-pour', BEVERAGE_POUR_OPTIONS, pour1, '— None —');
+  fillSelectOptions('recipe-pour-2', BEVERAGE_POUR_OPTIONS, pour2, '— None (full pour) —');
+  syncPourState();
 
   // Only one packet per drink now; older recipes could list several, so take
   // the first and keep its amount.
@@ -6834,7 +6859,7 @@ async function saveRecipe() {
     coffee_machine_selection: machineDrink || null,
     coffee_machine_flavor: machineDrink ? (getCheckedValues('machineFlavor').join(', ') || null) : null,
     packet: packetFlavor ? `${packetFlavor} (${packetAmount})` : null,
-    beverage_pour: document.getElementById('recipe-pour').value || null,
+    beverage_pour: pourTextFromForm(),
     syrups: getCheckedSyrupEntries().join(', ') || null,
     boba: document.getElementById('recipe-boba').value || null,
     toppings: getCheckedValues('topping').join(', ') || null,
@@ -7455,7 +7480,11 @@ function renderUsageConversions(ctx, gapsOnly) {
       </div>
       <div class="form-group">
         <label class="form-label" for="recipe-pour">Beverage Pour</label>
-        <select class="form-input" id="recipe-pour"></select>
+        <select class="form-input" id="recipe-pour" onchange="syncPourState()"></select>
+      </div>
+      <div class="form-group" id="recipe-pour-2-wrap" hidden>
+        <label class="form-label" for="recipe-pour-2">Half &amp; Half With</label>
+        <select class="form-input" id="recipe-pour-2"></select>
       </div>
     </div>
 

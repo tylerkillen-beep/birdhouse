@@ -1227,6 +1227,29 @@
     if (!flavor) amountEl.value = PACKET_DEFAULT_AMOUNT;
   }
 
+  // A drink can be poured half-and-half from two fountain drinks. One pour
+  // saves as plain "Sprite Zero"; two save as "Sprite Zero (Half), Lemonade
+  // (Half)", which reads right on the Recipe Sheet and tells the usage math
+  // each is half.
+  function savedPours(raw) {
+    return splitSavedList(raw).map(v => parseQualifiedValue(v).name).slice(0, 2);
+  }
+
+  function pourTextFromForm() {
+    const first = document.getElementById('recipe-pour').value;
+    const second = document.getElementById('recipe-pour-2').value;
+    if (!first) return second || null;
+    if (!second || first.trim().toLowerCase() === second.trim().toLowerCase()) return first;
+    return `${first} (Half), ${second} (Half)`;
+  }
+
+  // The second pour only means anything once a first one is picked.
+  function syncPourState() {
+    const hasFirst = !!document.getElementById('recipe-pour').value;
+    document.getElementById('recipe-pour-2-wrap').hidden = !hasFirst;
+    if (!hasFirst) document.getElementById('recipe-pour-2').value = '';
+  }
+
   // The machine's flavor pumps are meaningless without a machine drink, so the
   // whole checklist stays hidden until one is picked -- and clears when the
   // drink is cleared, so a stray flavor can't be saved on its own.
@@ -1433,7 +1456,10 @@
     // A saved value the curated list no longer offers stays selected rather
     // than silently reverting to "—" the first time someone opens the recipe.
     fillSelectOptions('recipe-machine', MACHINE_DRINK_OPTIONS, recipe?.coffee_machine_selection || '', '— None —');
-    fillSelectOptions('recipe-pour', BEVERAGE_POUR_OPTIONS, recipe?.beverage_pour || '', '— None —');
+    const [pour1 = '', pour2 = ''] = savedPours(recipe?.beverage_pour);
+    fillSelectOptions('recipe-pour', BEVERAGE_POUR_OPTIONS, pour1, '— None —');
+    fillSelectOptions('recipe-pour-2', BEVERAGE_POUR_OPTIONS, pour2, '— None (full pour) —');
+    syncPourState();
 
     // Only one packet per drink now; older recipes could list several, so take
     // the first and keep its amount.
@@ -1492,7 +1518,7 @@
       coffee_machine_selection: machineDrink || null,
       coffee_machine_flavor: machineDrink ? (getCheckedValues('machineFlavor').join(', ') || null) : null,
       packet: packetFlavor ? `${packetFlavor} (${packetAmount})` : null,
-      beverage_pour: document.getElementById('recipe-pour').value || null,
+      beverage_pour: pourTextFromForm(),
       syrups: getCheckedSyrupEntries().join(', ') || null,
       boba: document.getElementById('recipe-boba').value || null,
       toppings: getCheckedValues('topping').join(', ') || null,
@@ -2649,7 +2675,9 @@
         <div id="recipe-machine-flavor-options" class="check-grid"></div>
       </div>
       <div style="margin-bottom:1rem"><label for="recipe-pour" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Beverage Pour</label>
-        <select id="recipe-pour" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"></select></div>
+        <select id="recipe-pour" onchange="syncPourState()" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"></select></div>
+      <div id="recipe-pour-2-wrap" hidden style="margin-bottom:1rem"><label for="recipe-pour-2" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Half &amp; Half With</label>
+        <select id="recipe-pour-2" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"></select></div>
       <div style="margin-bottom:1rem"><label for="recipe-packet" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Packet Flavor</label>
         <select id="recipe-packet" onchange="syncPacketAmountState()" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"></select></div>
       <div style="margin-bottom:1rem"><label for="recipe-packet-amount" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Packet — how much</label>
