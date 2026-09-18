@@ -6842,6 +6842,17 @@ async function saveRecipe() {
   if (editingRecipeId) {
     const { error } = await sb.from('recipes').update({ name, description: desc, ...buildSpec, updated_at: new Date().toISOString() }).eq('id', editingRecipeId);
     if (error) { msgEl.textContent = 'Error: ' + error.message; msgEl.className = 'msg error'; msgEl.style.display = 'block'; return; }
+    // The form loaded any legacy flavor-syrup ingredient rows into the syrup
+    // checklist, so what was just saved in recipes.syrups replaces them. Left
+    // in place they'd keep showing on the card (and in its cost) next to the
+    // new syrups.
+    const legacySyrupRowIds = (allRecipes.find(r => r.id === editingRecipeId)?.recipe_ingredients || [])
+      .filter(ri => isFlavorSyrupInventory(ri.inventory_id))
+      .map(ri => ri.id);
+    if (legacySyrupRowIds.length) {
+      const { error: cleanupError } = await sb.from('recipe_ingredients').delete().in('id', legacySyrupRowIds);
+      if (cleanupError) console.warn('Could not clear legacy syrup rows:', cleanupError.message);
+    }
   } else {
     const { error } = await sb.from('recipes').insert({ name, description: desc, ...buildSpec, created_by: currentUser.id });
     if (error) { msgEl.textContent = 'Error: ' + error.message; msgEl.className = 'msg error'; msgEl.style.display = 'block'; return; }
