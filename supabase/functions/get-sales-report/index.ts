@@ -451,6 +451,13 @@ serve(async (req) => {
       squareOrderCount: squareOrders.length,
       appOrderCount: (appOrders || []).length,
       dailyBreakdown,
+      // Every completed payment with its time, so a report can total sales
+      // made within particular hours (the Library Split uses class periods).
+      payments: allPayments.map((p) => ({
+        createdAt: p.created_at,
+        amountCents: p.amount_money?.amount ?? 0,
+        feeCents: (p.processing_fee || []).reduce((s, f) => s + (f.amount_money?.amount ?? 0), 0),
+      })),
     });
   } catch (e) {
     console.error("get-sales-report error:", e);

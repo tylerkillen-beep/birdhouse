@@ -1418,7 +1418,7 @@
 
     <!-- Schedule split reference card -->
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.25rem 1.5rem;margin-bottom:1.5rem">
-      <div style="font-size:0.62rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--gray);margin-bottom:1rem">Library Hours (Time Split Basis)</div>
+      <div style="font-size:0.62rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--gray);margin-bottom:1rem">Library Hours</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0.75rem 2rem">
         <div>
           <div style="font-size:0.72rem;color:var(--gray-mid);margin-bottom:0.4rem;text-transform:uppercase;letter-spacing:0.1em">Monday</div>
@@ -1450,7 +1450,7 @@
         </div>
       </div>
       <div style="margin-top:1rem;padding-top:0.75rem;border-top:1px solid var(--border-dim);font-size:0.78rem;color:var(--gray-mid)">
-        Library's share is calculated proportionally: Library minutes ÷ Total Birdhouse operating minutes per day. Monday excludes STAR (57.3%). Tuesday–Friday includes STAR (67.1%). Full week average: <strong style="color:var(--text)">65.0%</strong>.
+        Library Gross Sales is the actual sales rung up during these periods (Central time). Passing periods, lunch, and before/after school are not counted.
       </div>
     </div>
 
@@ -1490,7 +1490,7 @@
         <thead><tr>
           <th scope="col">Date</th>
           <th scope="col">Day</th>
-          <th scope="col">Lib %</th>
+          <th scope="col">Lib Share</th>
           <th scope="col">Total Gross</th>
           <th scope="col">Library Gross</th>
           <th scope="col">Sq. Fees</th>
@@ -5320,11 +5320,24 @@ async function runProductPerformance() {
 // ════════════════════════════════════
 // Library Profit Split
 // ════════════════════════════════════
-// Schedule-based time proportions (from Bell Schedule)
-// Monday    : Library 243 min / Total 424 min = 57.31%
-// Tue–Fri   : Library 265 min / Total 395 min = 67.09%
-const LIB_MINS_MON = 243, TOTAL_MINS_MON = 424;
-const LIB_MINS_TUEFRI = 265, TOTAL_MINS_TUEFRI = 395;
+// Library periods (from the Bell Schedule), as [start, end) minutes after
+// midnight Central time. Only payments made inside one of these count.
+const hm = (h, m) => h * 60 + m;
+const LIB_PERIODS_MON = [
+  [hm(8,54),  hm(9,43)],  // 2nd
+  [hm(9,48),  hm(10,37)], // 3rd
+  [hm(10,42), hm(11,31)], // 4th
+  [hm(12,54), hm(13,42)], // 7th
+  [hm(13,47), hm(14,35)], // 8th
+];
+const LIB_PERIODS_TUEFRI = [
+  [hm(8,23),  hm(9,11)],  // 2nd
+  [hm(9,16),  hm(10,4)],  // 3rd
+  [hm(10,9),  hm(10,57)], // 4th
+  [hm(11,7),  hm(11,32)], // STAR
+  [hm(12,54), hm(13,42)], // 7th
+  [hm(13,47), hm(14,35)], // 8th
+];
 const COGS_RATE = 0.65; // 35% profit margin → 65% COGS
 
 let currentLibRange = 'today';
@@ -5397,11 +5410,21 @@ function getSchoolDaysInRange(startISO, endISO) {
   return days;
 }
 
-// Library proportion for a given day-of-week
-function libPropForDay(isMonday) {
-  return isMonday
-    ? LIB_MINS_MON / TOTAL_MINS_MON
-    : LIB_MINS_TUEFRI / TOTAL_MINS_TUEFRI;
+// Central-time date, weekday and minute of day for a Square timestamp
+const libTzFmt = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/Chicago', year: 'numeric', month: '2-digit', day: '2-digit',
+  weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+});
+function libLocalParts(iso) {
+  const p = Object.fromEntries(libTzFmt.formatToParts(new Date(iso)).map(x => [x.type, x.value]));
+  return { iso: `${p.year}-${p.month}-${p.day}`, weekday: p.weekday, minute: Number(p.hour) * 60 + Number(p.minute) };
+}
+
+function isLibraryTime(weekday, minute) {
+  const periods = weekday === 'Mon' ? LIB_PERIODS_MON
+    : ['Tue','Wed','Thu','Fri'].includes(weekday) ? LIB_PERIODS_TUEFRI
+    : [];
+  return periods.some(([start, end]) => minute >= start && minute < end);
 }
 
 async function runLibrarySplit() {
@@ -5448,88 +5471,72 @@ async function runLibrarySplit() {
 }
 
 function renderLibrarySplit(data, range) {
-  const totalGrossCents = Math.round(parseFloat(data.totalRevenue) * 100);
-  const totalFeeCents   = Math.round(parseFloat(data.totalProcessingFee || '0') * 100);
-
-  // Build per-day breakdown using the daily revenue breakdown from Square
-  const schoolDays = getSchoolDaysInRange(range.startISO, range.endISO);
-
-  // Build a map from date ISO → revenue cents from the report's daily breakdown
-  const dailyRevMap = {};
-  const dailyFeeRate = totalGrossCents > 0 ? totalFeeCents / totalGrossCents : 0;
-  for (const d of (data.dailyBreakdown || [])) {
-    dailyRevMap[d.date] = d.revenueCents || 0;
+  const fmt = c => `$${(c / 100).toFixed(2)}`;
+  if (!Array.isArray(data.payments)) {
+    ['lib-total-gross','lib-gross','lib-fees','lib-cogs','lib-net'].forEach(id => {
+      document.getElementById(id).textContent = '—';
+    });
+    document.getElementById('lib-tbody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:#e57373;padding:1.5rem">The get-sales-report function needs to be redeployed before library-hour sales can be shown.</td></tr>';
+    return;
   }
 
-  // For days not in dailyBreakdown (no sales), revenue = 0
-  let libGrossCents = 0, libFeeCents = 0;
-
-  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const rows = schoolDays.map(day => {
-    const dayRevCents = dailyRevMap[day.iso] || 0;
-    const prop = libPropForDay(day.isMonday);
-    const propPct = (prop * 100).toFixed(1) + '%';
-    const dayLibGross = Math.round(dayRevCents * prop);
-    const dayLibFee   = Math.round(dayRevCents * dailyFeeRate * prop);
-    const dayLibCogs  = Math.round(dayLibGross * COGS_RATE);
-    const dayLibNet   = dayLibGross - dayLibFee - dayLibCogs;
-
-    libGrossCents += dayLibGross;
-    libFeeCents   += dayLibFee;
-
-    const fmt = c => `$${(c / 100).toFixed(2)}`;
-    const netColor = dayLibNet >= 0 ? 'color:#27ae60' : 'color:#e57373';
-    return `<tr>
-      <td style="color:var(--gray-mid);font-size:0.8rem">${day.iso}</td>
-      <td>${dayNames[day.dow]}</td>
-      <td style="color:var(--accent)">${propPct}</td>
-      <td>${fmt(dayRevCents)}</td>
-      <td><strong>${fmt(dayLibGross)}</strong></td>
-      <td style="color:#e57373">${dayLibFee > 0 ? '-' + fmt(dayLibFee) : '—'}</td>
-      <td style="color:#e57373">-${fmt(dayLibCogs)}</td>
-      <td style="${netColor}">${fmt(dayLibNet)}</td>
-    </tr>`;
-  });
+  // Total every payment by its Central-time day, and separately the ones
+  // made during a library period.
+  const byDay = {};
+  const emptyDay = () => ({ totalCents: 0, libCents: 0, libFeeCents: 0, libCount: 0 });
+  let totalGrossCents = 0, libGrossCents = 0, libFeeCents = 0, libCount = 0;
+  for (const p of data.payments) {
+    const t = libLocalParts(p.createdAt);
+    const d = byDay[t.iso] ??= emptyDay();
+    d.totalCents += p.amountCents;
+    totalGrossCents += p.amountCents;
+    if (isLibraryTime(t.weekday, t.minute)) {
+      d.libCents += p.amountCents;
+      d.libFeeCents += p.feeCents;
+      d.libCount += 1;
+      libGrossCents += p.amountCents;
+      libFeeCents += p.feeCents;
+      libCount += 1;
+    }
+  }
 
   const libCogsCents = Math.round(libGrossCents * COGS_RATE);
   const libNetCents  = libGrossCents - libFeeCents - libCogsCents;
-  const fmt = c => `$${(c / 100).toFixed(2)}`;
-
-  // If there are no school days in range (e.g. weekend), show proportional fallback
-  if (!schoolDays.length) {
-    // Non-school-day range: use weekly average proportion (65%)
-    const fallbackProp = (LIB_MINS_MON + LIB_MINS_TUEFRI * 4) / (TOTAL_MINS_MON + TOTAL_MINS_TUEFRI * 4);
-    const fb = Math.round(totalGrossCents * fallbackProp);
-    const fbFee = Math.round(totalFeeCents * fallbackProp);
-    const fbCogs = Math.round(fb * COGS_RATE);
-    const fbNet = fb - fbFee - fbCogs;
-    document.getElementById('lib-total-gross').textContent = fmt(totalGrossCents);
-    document.getElementById('lib-gross').textContent = fmt(fb);
-    document.getElementById('lib-gross-sub').textContent = `${(fallbackProp*100).toFixed(1)}% of total (weekly avg)`;
-    document.getElementById('lib-fees').textContent = '-' + fmt(fbFee);
-    document.getElementById('lib-cogs').textContent = '-' + fmt(fbCogs);
-    document.getElementById('lib-net').textContent = fmt(fbNet);
-    document.getElementById('lib-net-sub').textContent = fbNet >= 0 ? 'Profit' : 'Loss';
-    document.getElementById('lib-tbody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--gray-mid);padding:1.5rem">No school days (Mon–Fri) in selected range. Showing weekly average split.</td></tr>';
-    return;
-  }
+  const pctOf = (part, whole) => whole > 0 ? (part / whole * 100).toFixed(1) + '%' : '—';
 
   // Stats row
   document.getElementById('lib-total-gross').textContent = fmt(totalGrossCents);
   document.getElementById('lib-gross').textContent = fmt(libGrossCents);
-  document.getElementById('lib-gross-sub').textContent = `${((libGrossCents/Math.max(totalGrossCents,1))*100).toFixed(1)}% of total gross`;
+  document.getElementById('lib-gross-sub').textContent = `${libCount} sale${libCount === 1 ? '' : 's'} during library hours · ${pctOf(libGrossCents, totalGrossCents)} of total`;
   document.getElementById('lib-fees').textContent = '-' + fmt(libFeeCents);
-  document.getElementById('lib-fees-sub').textContent = 'Prorated from total Square fees';
+  document.getElementById('lib-fees-sub').textContent = 'Square fees on those sales';
   document.getElementById('lib-cogs').textContent = '-' + fmt(libCogsCents);
   document.getElementById('lib-net').textContent = fmt(libNetCents);
-  const netColor = libNetCents >= 0 ? 'color:#27ae60' : 'color:#e57373';
   document.getElementById('lib-net').style.color = libNetCents >= 0 ? 'var(--accent)' : '#e57373';
   document.getElementById('lib-net-sub').textContent = libNetCents >= 0 ? 'Net profit for Library' : 'Net loss for Library';
 
-  // Add totals row
+  // One row per school day in the range, plus any other day that had sales
+  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const days = new Set([...getSchoolDaysInRange(range.startISO, range.endISO).map(d => d.iso), ...Object.keys(byDay)]);
+  const rows = [...days].sort().map(iso => {
+    const d = byDay[iso] || emptyDay();
+    const cogs = Math.round(d.libCents * COGS_RATE);
+    const net = d.libCents - d.libFeeCents - cogs;
+    return `<tr>
+      <td style="color:var(--gray-mid);font-size:0.8rem">${iso}</td>
+      <td>${dayNames[new Date(iso + 'T12:00:00').getDay()]}</td>
+      <td style="color:var(--accent)">${pctOf(d.libCents, d.totalCents)}</td>
+      <td>${fmt(d.totalCents)}</td>
+      <td><strong>${fmt(d.libCents)}</strong>${d.libCount ? ` <span style="color:var(--gray-mid);font-size:0.75rem">(${d.libCount})</span>` : ''}</td>
+      <td style="color:#e57373">${d.libFeeCents > 0 ? '-' + fmt(d.libFeeCents) : '—'}</td>
+      <td style="color:#e57373">${cogs > 0 ? '-' + fmt(cogs) : '—'}</td>
+      <td style="${net >= 0 ? 'color:#27ae60' : 'color:#e57373'}">${fmt(net)}</td>
+    </tr>`;
+  });
+
   const totalsRow = `<tr style="border-top:2px solid var(--border);font-weight:600;background:rgba(200,169,110,0.04)">
     <td colspan="2" style="color:var(--accent)">Totals</td>
-    <td style="color:var(--accent)">${((libGrossCents/Math.max(totalGrossCents,1))*100).toFixed(1)}%</td>
+    <td style="color:var(--accent)">${pctOf(libGrossCents, totalGrossCents)}</td>
     <td>${fmt(totalGrossCents)}</td>
     <td><strong>${fmt(libGrossCents)}</strong></td>
     <td style="color:#e57373">-${fmt(libFeeCents)}</td>
