@@ -9,6 +9,7 @@
   <script src="/lib/supabase.js"></script>
   <script src="/lib/locations.js"></script>
   <script src="/lib/delivery-slots.js"></script>
+  <script src="/lib/mathews.js"></script>
   <script src="https://web.squarecdn.com/v1/square.js"></script>
   <link rel="stylesheet" href="/lib/flatpickr-themes/dark.css" />
   <script src="/lib/flatpickr.js"></script>
@@ -491,7 +492,7 @@
   let activeSheet = 0;
   let selectedSlot = 0;
   let squareCard = null;
-  let allDeliveryTimes = [];             // flat list: pickups and Mathews
+  let allDeliveryTimes = [];             // flat list: pickups
   let deliverySchedule = null;           // bell schedule: high school deliveries
   let timesRequestId = 0;
   let blockedDatesSet = new Set(), blockedReasonsMap = {};
@@ -1351,13 +1352,19 @@
 
   function isWeekend(d) { return d.getDay() === 0 || d.getDay() === 6; }
 
-  /** Tomorrow at the earliest, skipping weekends and closed days. */
+  /** A day this customer can get a delivery: a weekday, and for Mathews only
+   *  Mon/Wed/Fri. Closed days are checked separately. */
+  function isDeliveryDay(d) {
+    return customerType === 'mathews' ? isMathewsDeliveryDay(d) : !isWeekend(d);
+  }
+
+  /** Tomorrow at the earliest, skipping non-delivery days and closed days. */
   function nextSchoolDay() {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
     d.setDate(d.getDate() + 1);
     for (let i = 0; i < 30; i++) {
-      if (!isWeekend(d) && !blockedDatesSet.has(toDateStr(d))) return d;
+      if (isDeliveryDay(d) && !blockedDatesSet.has(toDateStr(d))) return d;
       d.setDate(d.getDate() + 1);
     }
     return d;
@@ -1387,7 +1394,7 @@
       maxDate,
       defaultDate: minDate,
       disable: [
-        d => isWeekend(d),
+        d => !isDeliveryDay(d),
         ...Array.from(blockedDatesSet),
       ],
       dateFormat: 'M j, Y',
@@ -1410,9 +1417,9 @@
   }
 
   /** Fills the time list for the picked date: the bell schedule's open slots
-   *  for high school delivery, the flat list for pickup and Mathews. The
-   *  earliest date is already a full day out, so there's no same-day cutoff to
-   *  apply the way the coffee order page does. */
+   *  for high school delivery, Mathews' two fixed times, the flat list for
+   *  pickup. The earliest date is already a full day out, so there's no
+   *  same-day cutoff to apply the way the coffee order page does. */
   async function updateStickerTimes() {
     const sel = document.getElementById('delivery-time');
     const picked = deliveryDatePicker?.selectedDates[0];
@@ -1421,7 +1428,9 @@
     const requestId = ++timesRequestId;
 
     let times = allDeliveryTimes;
-    if (deliveryMethod === 'delivery' && customerType !== 'mathews' && deliverySchedule) {
+    if (customerType === 'mathews') {
+      times = MATHEWS_DELIVERY_TIMES;
+    } else if (deliveryMethod === 'delivery' && deliverySchedule) {
       sel.innerHTML = '<option value="">Checking open times…</option>';
       times = await openDeliveryTimesForDate(sb, deliverySchedule, picked);
       if (requestId !== timesRequestId) return; // the date or method changed meanwhile

@@ -40,6 +40,17 @@ const CHARGE_FIRST_WEEK_IMMEDIATELY = true;
 
 const BILLING_INTERVAL_DAYS = 7;
 
+// High school teachers (@nixaschools.net, campus not Mathews) get this much off
+// every week. Worked out here from the account, never taken from the request.
+const TEACHER_DISCOUNT_PCT = 25;
+
+// Mathews rules, the same as lib/mathews.js, which this function can't import.
+// Mathews subscribers pick from the Teacher Menu only (and nobody else can),
+// with deliveries Mon/Wed/Fri at one of two fixed times.
+const MATHEWS_MENU_CATEGORY_NAMES = ["teacher menu"];
+const MATHEWS_DELIVERY_DAY_NAMES  = ["Monday", "Wednesday", "Friday"];
+const MATHEWS_DELIVERY_TIMES      = ["8:00 AM", "12:00 PM"];
+
 // The school runs on Central time; edge functions run on UTC. Every date the
 // customer sees is a local calendar date, so normalize through this zone.
 const SCHOOL_TIME_ZONE = "America/Chicago";
@@ -129,7 +140,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { sourceId, planId, discountPct, customerInfo, drinkSlots } = await req.json();
+    const { sourceId, planId, customerInfo, drinkSlots } = await req.json();
 
     const userId = user.id;
     if (!sourceId) throw new Error("Missing payment token");
@@ -160,6 +171,29 @@ serve(async (req) => {
     if (planError || !plan) throw new Error("Invalid plan");
     if (!plan.active) throw new Error("That plan is no longer available");
 
+    // Campus and discount come from the account, the same way process-payment
+    // works them out for coffee orders.
+    const isTeacherEmail = (user.email || "").toLowerCase().endsWith("@nixaschools.net");
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("location")
+      .eq("id", userId)
+      .maybeSingle();
+    if (profileError) throw new Error("Could not check your account: " + profileError.message);
+    const isMathewsCustomer = isTeacherEmail && profile?.location === "mathews";
+    const resolvedDiscountPct = isTeacherEmail && !isMathewsCustomer ? TEACHER_DISCOUNT_PCT : 0;
+
+    if (isMathewsCustomer) {
+      for (const slot of drinkSlots) {
+        if (!MATHEWS_DELIVERY_DAY_NAMES.includes(slot.deliveryDay)) {
+          throw new Error("Mathews deliveries are Monday, Wednesday, and Friday. Please pick another day.");
+        }
+        if (!MATHEWS_DELIVERY_TIMES.includes(slot.deliveryTime)) {
+          throw new Error(`Mathews deliveries are at ${MATHEWS_DELIVERY_TIMES.join(" or ")}. Please pick one of those times.`);
+        }
+      }
+    }
+
     // A plan may be limited to drinks from chosen Square categories (empty
     // means every drink). subscribe.html only offers eligible drinks, but the
     // request body is the student's to edit, so this is the check that holds.
@@ -173,10 +207,22 @@ serve(async (req) => {
       .in("id", drinkIds);
     if (drinksError) throw new Error("Could not check your drinks: " + drinksError.message);
 
+    const { data: categories, error: categoriesError } = await supabase
+      .from("square_categories")
+      .select("square_id, name");
+    if (categoriesError) throw new Error("Could not check your drinks: " + categoriesError.message);
+    const mathewsIds = new Set((categories || [])
+      .filter((c) => MATHEWS_MENU_CATEGORY_NAMES.includes(String(c.name || "").trim().toLowerCase()))
+      .map((c) => c.square_id));
+
     for (const drinkId of drinkIds) {
       const drink = drinks?.find((d) => d.id === drinkId);
       if (!drink?.available) {
         throw new Error("One of your drinks is no longer on the menu. Please pick another.");
+      }
+      const onMathewsMenu = (drink.square_category_ids || []).some((id: string) => mathewsIds.has(id));
+      if (onMathewsMenu !== isMathewsCustomer) {
+        throw new Error(`${drink.name} isn't on your campus menu. Please pick another drink.`);
       }
       const inPlan = !allowedCategoryIds.length ||
         (drink.square_category_ids || []).some((id: string) => allowedCategoryIds.includes(id));
@@ -201,7 +247,6 @@ serve(async (req) => {
       }
     }
 
-    const resolvedDiscountPct = Number(discountPct) || 0;
     const amountCents = amountForPlan(plan.price_cents, resolvedDiscountPct);
 
     // ── 2. Reuse this student's Square customer if they have one ──────────

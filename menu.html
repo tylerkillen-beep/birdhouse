@@ -8,6 +8,7 @@
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
   <script src="/lib/subscription-exclusives.js"></script>
+  <script src="/lib/mathews.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -137,7 +138,6 @@
       const COFFEE_CATEGORY_RE = /coffee|espresso|brew|latte|mocha|americano|cappuccino/;
       function getCategory(item) {
         const n = String(item.category || '').trim().toLowerCase();
-        if (n.includes('mathews')) return null;
         if (n.includes('special')) return 'specials';
         if (n.includes('food') || n.includes('pastry') || n.includes('snack') || n.includes('bak') || n.includes('cookie')) return 'food';
         if (COFFEE_CATEGORY_RE.test(n)) return 'coffee';
@@ -165,9 +165,13 @@
             fetch(`${SUPABASE_URL}/rest/v1/square_categories?select=square_id,name`, { headers }).catch(() => null),
           ]);
           if (!res.ok) throw new Error('Failed to load menu');
-          // Subscription exclusives are for subscribers only, never the public menu.
-          const exclusiveIds = subscriptionExclusiveCategoryIds(catRes?.ok ? await catRes.json() : []);
-          const items = (await res.json()).filter(item => !isSubscriptionExclusive(item, exclusiveIds));
+          // Subscription exclusives are for subscribers only, and the Teacher Menu
+          // is Mathews only; neither goes on the public menu.
+          const squareCategories = catRes?.ok ? await catRes.json() : [];
+          const exclusiveIds = subscriptionExclusiveCategoryIds(squareCategories);
+          const mathewsIds = mathewsMenuCategoryIds(squareCategories);
+          const items = (await res.json()).filter(item =>
+            !isSubscriptionExclusive(item, exclusiveIds) && !isMathewsMenuItem(item, mathewsIds));
 
           const groups = {};
           CATEGORIES.forEach(c => { groups[c.key] = []; });

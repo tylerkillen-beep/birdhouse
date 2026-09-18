@@ -8,6 +8,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
   <script src="/lib/supabase.js"></script>
   <script src="/lib/delivery-slots.js"></script>
+  <script src="/lib/mathews.js"></script>
   <script src="https://web.squarecdn.com/v1/square.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -478,7 +479,7 @@
 
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   let currentUser = null, sessionToken = null;
-  let plans = [], menuItems = [], modifierListsMap = {}, squareCategoryNames = {};
+  let plans = [], menuItems = [], modifierListsMap = {}, squareCategoryNames = {}, mathewsIds = new Set();
   let selectedPlan = null, squareCard = null;
   let customerProfile = null;
   let customerType = 'student'; // 'student' | 'teacher' | 'mathews'
@@ -494,7 +495,9 @@
     return 'student';
   }
   function isTeacher() {
-    // Subscription discount applies to all @nixaschools.net accounts only.
+    // Any @nixaschools.net account. The 25% discount is narrower -- high school
+    // teachers only (customerType === 'teacher'), never Mathews -- and save-card
+    // works it out on the server.
     return customerType === 'teacher' || customerType === 'mathews';
   }
   function discountedCents(cents) { return Math.round(cents * (1 - TEACHER_DISCOUNT)); }
@@ -753,13 +756,16 @@
 
   // ── Menu ──────────────────────────────────────────────────────────────────
   async function loadMenu() {
-    const [{ data: items, error: itemsError }, { data: modLists, error: modListsError }, { data: modOptions, error: modOptionsError }] = await Promise.all([
+    const [{ data: items, error: itemsError }, { data: modLists, error: modListsError }, { data: modOptions, error: modOptionsError }, { data: squareCategories, error: categoriesError }] = await Promise.all([
       sb.from('menu_items').select('*').eq('available', true).order('sort_order'),
       sb.from('modifier_lists').select('*'),
       sb.from('modifier_options').select('*').order('sort_order'),
+      sb.from('square_categories').select('square_id, name'),
     ]);
 
-    const firstError = itemsError || modListsError || modOptionsError;
+    // Which drinks are on the Mathews (Teacher Menu) side decides who sees them,
+    // so the menu can't load without it.
+    const firstError = itemsError || modListsError || modOptionsError || categoriesError;
     if (firstError) {
       throw new Error(firstError.message || 'Unable to load menu configuration.');
     }
@@ -776,6 +782,7 @@
     });
 
     menuItems = items || [];
+    mathewsIds = mathewsMenuCategoryIds(squareCategories);
   }
 
   function renderMenuForSlot(slotNum) {
@@ -786,14 +793,11 @@
       return;
     }
 
-    // Filter by campus: Mathews teachers only see Mathews items; others see non-Mathews items.
+    // Filter by campus: Mathews teachers only see the Teacher Menu; others see everything but it.
     // Then by plan: a plan limited to Square categories only offers drinks from them.
     const isMathews = customerType === 'mathews';
-    const filtered  = menuItems.filter(i => {
-      const cat = String(i.category || '').toLowerCase();
-      const campusMatch = isMathews ? cat.includes('mathews') : !cat.includes('mathews');
-      return campusMatch && planAllowsItem(selectedPlan, i);
-    });
+    const filtered  = menuItems.filter(i =>
+      isMathewsMenuItem(i, mathewsIds) === isMathews && planAllowsItem(selectedPlan, i));
 
     if (!filtered.length) {
       container.innerHTML = '<div style="color:var(--gray);padding:1rem">No drinks on this plan are available for your campus. Go back and try a different plan.</div>';
@@ -1009,13 +1013,18 @@
     legacyDeliveryTimes = Array.isArray(data?.value) ? data.value : ['7:30 AM','8:00 AM','8:30 AM','9:00 AM','10:00 AM','11:00 AM','12:00 PM'];
     deliverySchedule = await loadDeliverySchedule(sb);
     [1, 2].forEach(n => {
-      document.getElementById(`slot-${n}-day`).addEventListener('change', () => refreshSlotTimes(n));
+      const daySel = document.getElementById(`slot-${n}-day`);
+      // Mathews only gets deliveries on its own days.
+      if (customerType === 'mathews') {
+        [...daySel.options].forEach(o => { if (!MATHEWS_DELIVERY_DAY_NAMES.includes(o.value)) o.remove(); });
+      }
+      daySel.addEventListener('change', () => refreshSlotTimes(n));
       refreshSlotTimes(n);
     });
   }
 
   /** High school subscribers pick from the bell schedule for their chosen day,
-   *  minus times that are full; Mathews keeps the flat list. */
+   *  minus times that are full; Mathews has its two fixed times. */
   async function refreshSlotTimes(slotNum) {
     const sel = document.getElementById(`slot-${slotNum}-time`);
     const day = document.getElementById(`slot-${slotNum}-day`).value;
@@ -1023,7 +1032,9 @@
     const requestId = ++slotTimesRequestId[slotNum];
 
     let times = legacyDeliveryTimes;
-    if (customerType !== 'mathews' && deliverySchedule) {
+    if (customerType === 'mathews') {
+      times = MATHEWS_DELIVERY_TIMES;
+    } else if (deliverySchedule) {
       sel.innerHTML = '<option value="">Checking open times…</option>';
       times = await openDeliveryTimesForWeekday(sb, deliverySchedule, day);
       if (requestId !== slotTimesRequestId[slotNum]) return; // the day changed again meanwhile
@@ -1145,7 +1156,6 @@ const res = await fetch(`${SUPABASE_URL}/functions/v1/save-card`, {
           sourceId:     result.token,
           userId:       currentUser.id,
           planId:       selectedPlan.id,
-          discountPct:  customerType === 'teacher' ? 25 : 0,
           customerInfo: {
             firstName,
             lastName,
@@ -1157,11 +1167,6 @@ const res = await fetch(`${SUPABASE_URL}/functions/v1/save-card`, {
 
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Subscription failed');
-
-      // Write discount_pct to the subscription record if teacher
-      if (customerType === 'teacher' && data.subscriptionId) {
-        await sb.from('subscriptions').update({ discount_pct: 25 }).eq('id', data.subscriptionId);
-      }
 
       // Show success
       const nextDay = document.getElementById('slot-1-day').value;

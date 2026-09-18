@@ -41,6 +41,16 @@ const TEACHER_DISCOUNT  = 0.25; // @nixaschools.net, except Mathews
 // which this function can't import.
 const SUBSCRIPTION_EXCLUSIVE_CATEGORY_NAMES = ["birdhouse roost exclusive", "birdhouse eyrie exclusive"];
 
+// Mathews rules, the same as lib/mathews.js, which this function can't import.
+// The Mathews menu is Square's Teacher Menu category: Mathews customers can
+// order only from it, and nobody else can order from it. Mathews is delivery
+// only, Mon/Wed/Fri, at one of two fixed times.
+const MATHEWS_MENU_CATEGORY_NAMES = ["teacher menu"];
+const MATHEWS_DELIVERY_WEEKDAYS   = [1, 3, 5]; // getUTCDay() of the date: Mon, Wed, Fri
+const MATHEWS_DELIVERY_TIMES      = ["8:00 AM", "12:00 PM"];
+// Same lead time the order page gives: a time drops off 15 minutes before it.
+const SAME_DAY_CUTOFF_MINUTES     = 15;
+
 // Sticker sheet pricing.  The first uploaded image on each sheet is free;
 // repeating that image across slots costs nothing extra.  The extra-image
 // surcharge is a one-time design fee, so ordering ten copies of a design pays
@@ -97,6 +107,7 @@ async function priceMenuCart(
   supabase: ReturnType<typeof createClient>,
   cartItems: ClientCartItem[],
   customerRate: number,
+  isMathewsCustomer: boolean,
 ): Promise<MenuCartLine[]> {
   const itemIds = [...new Set(cartItems.map((c) => String(c?.id ?? "")))];
   const optionIds = [...new Set(cartItems.flatMap((c) =>
@@ -125,6 +136,9 @@ async function priceMenuCart(
   const exclusiveIds = new Set((categories || [])
     .filter((c) => SUBSCRIPTION_EXCLUSIVE_CATEGORY_NAMES.includes(String(c.name || "").trim().toLowerCase()))
     .map((c) => c.square_id));
+  const mathewsIds = new Set((categories || [])
+    .filter((c) => MATHEWS_MENU_CATEGORY_NAMES.includes(String(c.name || "").trim().toLowerCase()))
+    .map((c) => c.square_id));
 
   // Add-ons are identified by their Square id, the same way the order page sends them.
   const optionsBySquareId = new Map();
@@ -152,6 +166,10 @@ async function priceMenuCart(
     }
     if ((row.square_category_ids || []).some((id: string) => exclusiveIds.has(id))) {
       throw new Error(`${row.name} is only available with a subscription.`);
+    }
+    const onMathewsMenu = (row.square_category_ids || []).some((id: string) => mathewsIds.has(id));
+    if (onMathewsMenu !== isMathewsCustomer) {
+      throw new Error(`${row.name} isn't on your menu. Refresh the page and try again.`);
     }
 
     const quantity = Number(raw.quantity);
@@ -213,6 +231,32 @@ function localToday(): string {
   }).format(new Date());
 }
 
+/** Minutes past midnight right now at the school. */
+function localNowMinutes(): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: SCHOOL_TIME_ZONE,
+    hour: "numeric",
+    minute: "numeric",
+    hourCycle: "h23",
+  }).formatToParts(new Date());
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value || 0);
+  return get("hour") * 60 + get("minute");
+}
+
+/** "8:00 AM" -> minutes past midnight. */
+function timeToMinutes(time: string): number {
+  const [clock, period] = time.split(" ");
+  let [hours, minutes] = clock.split(":").map(Number);
+  if (period === "PM" && hours !== 12) hours += 12;
+  if (period === "AM" && hours === 12) hours = 0;
+  return hours * 60 + minutes;
+}
+
+function weekdayOf(dateStr: string): number {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+
 function addDays(dateStr: string, n: number): string {
   const [y, m, d] = dateStr.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d));
@@ -221,8 +265,7 @@ function addDays(dateStr: string, n: number): string {
 }
 
 function isWeekend(dateStr: string): boolean {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  const day = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  const day = weekdayOf(dateStr);
   return day === 0 || day === 6;
 }
 
@@ -368,6 +411,38 @@ serve(async (req) => {
       ? EMPLOYEE_DISCOUNT
       : (isTeacherEmail && profileLoyalty?.location !== "mathews" ? TEACHER_DISCOUNT : 0);
 
+    // ── Mathews delivery rules ─────────────────────────────────────────────
+    // The order and sticker pages only offer these choices; re-check so a
+    // crafted request can't book a day or time Mathews doesn't deliver.
+    const isMathewsCustomer = isTeacherEmail && profileLoyalty?.location === "mathews";
+    if (isMathewsCustomer) {
+      if (orderDeliveryMethod !== "delivery") {
+        throw new Error("Mathews orders are delivered — pickup isn't available.");
+      }
+      const date = String(customerInfo.deliveryDate || "");
+      const time = String(customerInfo.deliveryTime || "");
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !time) {
+        throw new Error("Please pick a delivery date and time");
+      }
+      if (!MATHEWS_DELIVERY_WEEKDAYS.includes(weekdayOf(date))) {
+        throw new Error("Mathews deliveries are Monday, Wednesday, and Friday. Please pick another day.");
+      }
+      if (!MATHEWS_DELIVERY_TIMES.includes(time)) {
+        throw new Error(`Mathews deliveries are at ${MATHEWS_DELIVERY_TIMES.join(" or ")}. Please pick one of those times.`);
+      }
+      const today = localToday();
+      if (date < today || (date === today && timeToMinutes(time) <= localNowMinutes() + SAME_DAY_CUTOFF_MINUTES)) {
+        throw new Error("That delivery time has passed. Please pick a later time.");
+      }
+      const { data: closed, error: closedError } = await supabase
+        .from("blocked_dates")
+        .select("date")
+        .eq("date", date)
+        .limit(1);
+      if (closedError) throw new Error("We couldn't check the delivery calendar. Please try again.");
+      if (closed?.length) throw new Error("We are closed on that date — please pick another day.");
+    }
+
     // ── Calculate order total ──────────────────────────────────────────────
     interface CartItem {
       id: string;
@@ -477,7 +552,7 @@ serve(async (req) => {
       );
     } else {
       // Price from menu_items, never from the client.
-      const lines = await priceMenuCart(supabase, cartItems, customerRate);
+      const lines = await priceMenuCart(supabase, cartItems, customerRate, isMathewsCustomer);
       items = lines;
       itemsTotalCents = lines.reduce((sum, line) => sum + line.priceCents * line.quantity, 0);
     }
@@ -506,7 +581,6 @@ serve(async (req) => {
     // High school delivery times are capped per slot. The claim checks and
     // reserves a spot under a lock, so two people paying at once cannot both
     // take the last one. Pickups and Mathews are not capped.
-    const isMathewsCustomer = isTeacherEmail && profileLoyalty?.location === "mathews";
     if (orderDeliveryMethod === "delivery" && !isMathewsCustomer) {
       if (!customerInfo.deliveryDate || !customerInfo.deliveryTime) {
         throw new Error("Please pick a delivery date and time");

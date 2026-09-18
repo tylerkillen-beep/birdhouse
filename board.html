@@ -9,6 +9,7 @@
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <script src="/lib/subscription-exclusives.js"></script>
+  <script src="/lib/mathews.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -151,7 +152,6 @@
       const COFFEE_CATEGORY_RE = /coffee|espresso|brew|latte|mocha|americano|cappuccino/;
       function getCategory(item) {
         const n = String(item.category || '').trim().toLowerCase();
-        if (n.includes('mathews')) return null;
         if (n.includes('special')) return 'specials';
         if (n.includes('food') || n.includes('pastry') || n.includes('snack') || n.includes('bak') || n.includes('cookie')) return 'food';
         if (COFFEE_CATEGORY_RE.test(n)) return 'coffee';
@@ -330,14 +330,15 @@
 
       // The add-ons are extra: if they fail to load, the rest of the board
       // still shows, just without them.
-      // Subscription exclusives never go on the board. If the categories fail to
-      // load, nothing is filtered -- process-payment still refuses to sell them.
-      async function loadExclusiveCategoryIds() {
+      // Subscription exclusives and the Mathews Teacher Menu never go on the
+      // board. If the categories fail to load, nothing is filtered --
+      // process-payment still refuses to sell them to the wrong customer.
+      async function loadSquareCategories() {
         try {
           const res = await rest('square_categories?select=square_id,name');
-          return subscriptionExclusiveCategoryIds(res.ok ? await res.json() : []);
+          return res.ok ? await res.json() : [];
         } catch {
-          return new Set();
+          return [];
         }
       }
 
@@ -353,13 +354,16 @@
       async function loadBoard() {
         const status = document.getElementById('board-status');
         try {
-          const [res, addOnData, exclusiveIds] = await Promise.all([
+          const [res, addOnData, squareCategories] = await Promise.all([
             rest('menu_items?select=name,description,category,base_price_cents,base_price,sort_order,image_url,square_modifier_list_ids,square_category_ids&available=eq.true&order=category.asc,sort_order.asc'),
             loadAddOnOptions().catch(() => null),
-            loadExclusiveCategoryIds(),
+            loadSquareCategories(),
           ]);
           if (!res.ok) throw new Error('Failed to load menu');
-          const items = (await res.json()).filter(item => !isSubscriptionExclusive(item, exclusiveIds));
+          const exclusiveIds = subscriptionExclusiveCategoryIds(squareCategories);
+          const mathewsIds = mathewsMenuCategoryIds(squareCategories);
+          const items = (await res.json()).filter(item =>
+            !isSubscriptionExclusive(item, exclusiveIds) && !isMathewsMenuItem(item, mathewsIds));
 
           const specials = [];
           const groups = {};

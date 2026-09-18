@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="/lib/flatpickr-themes/dark.css" />
   <script src="/lib/flatpickr.js"></script>
   <script src="/lib/item-lookup.js"></script>
+  <script src="/lib/mathews.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -1759,12 +1760,16 @@
   }
 
   async function loadMenuAvailability() {
-    const {data: rows} = await sb.from('menu_items').select('*').order('sort_order');
+    const [{data: rows}, {data: squareCategories}] = await Promise.all([
+      sb.from('menu_items').select('*').order('sort_order'),
+      sb.from('square_categories').select('square_id, name'),
+    ]);
     if(!rows) return;
     // Retired items (deleted from Square, or retired in admin) are kept for
     // reference in admin only.
     const data = rows.filter(i => i.in_square !== false && i.retired !== true);
-    const isMathewsItem = i => String(i.category || '').toLowerCase().includes('mathews');
+    const mathewsIds = mathewsMenuCategoryIds(squareCategories);
+    const isMathewsItem = i => isMathewsMenuItem(i, mathewsIds);
     const hotItems     = data.filter(i => !isMathewsItem(i) && i.is_hot !== false && i.is_iced !== true);
     const icedItems    = data.filter(i => !isMathewsItem(i) && i.is_iced === true);
     const mathewsItems = data.filter(i => isMathewsItem(i));
