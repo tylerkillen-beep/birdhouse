@@ -10,6 +10,7 @@
   <script src="/lib/locations.js"></script>
   <script src="/lib/delivery-slots.js"></script>
   <script src="/lib/subscription-exclusives.js"></script>
+  <script src="/lib/mathews.js"></script>
   <script src="https://web.squarecdn.com/v1/square.js"></script>
   <link rel="stylesheet" href="/lib/flatpickr-themes/dark.css" />
   <script src="/lib/flatpickr.js"></script>
@@ -479,7 +480,7 @@
   let customerProfile = null; // { location, last_room }
   let customerType = 'student'; // 'student' | 'teacher' | 'mathews'
   let hasApprovedStaffHubAccount = false;
-  let allDeliveryTimes = [];     // flat list: pickups and Mathews
+  let allDeliveryTimes = [];     // flat list: pickups
   let deliverySchedule = null;   // bell schedule: high school deliveries
   let timesRequestId = 0;
   let blockedDatesSet = new Set();
@@ -632,8 +633,8 @@
     }
     if (profile?.last_room && !isBlockedDeliveryRoom(profile.last_room)) document.getElementById('delivery-room').value = profile.last_room;
 
-    // Show pickup/delivery toggle for everyone.
-    document.getElementById('delivery-method-group').style.display = '';
+    // Pickup is at the Birdhouse, so Mathews is delivery only and gets no toggle.
+    if (customerType !== 'mathews') document.getElementById('delivery-method-group').style.display = '';
 
     await Promise.all([loadMenu(), setupDeliveryPicker()]);
     await loadReorder();
@@ -720,6 +721,7 @@
     // Subscription exclusives are sold only through a subscription.
     const exclusiveIds = subscriptionExclusiveCategoryIds(squareCategories);
     const items = (allItems || []).filter(item => !isSubscriptionExclusive(item, exclusiveIds));
+    const mathewsIds = mathewsMenuCategoryIds(squareCategories);
 
     // Aggregate review stats per menu item
     menuRatings = {};
@@ -764,19 +766,15 @@
     // menu after the 2026-08-28 Square sync reset it all to 'Coffee'.
     function getDisplayCategory(item) {
       const normalized = normalizeCategory(item.category);
-      if (normalized.includes('mathews')) return 'mathews';
       if (normalized.includes('special')) return 'specials';
       if (normalized.includes('food') || normalized.includes('pastry') || normalized.includes('snack')) return 'food';
       if (/coffee|espresso|brew|latte|mocha|americano|cappuccino/.test(normalized)) return 'coffee';
       return 'soda_tea';
     }
 
-    // Mathews teachers only see Mathews items; everyone else sees non-Mathews items.
+    // Mathews teachers only see the Teacher Menu; everyone else sees everything but it.
     const isMathews = customerType === 'mathews';
-    const visibleItems = items.filter(i => isMathews
-      ? getDisplayCategory(i) === 'mathews'
-      : getDisplayCategory(i) !== 'mathews'
-    );
+    const visibleItems = items.filter(i => isMathewsMenuItem(i, mathewsIds) === isMathews);
 
     const regularSections = [
       { key: 'specials', title: 'Specials', icon: '✨' },
@@ -1131,7 +1129,7 @@
       return;
     }
 
-    if (order.delivery_method === 'pickup') {
+    if (order.delivery_method === 'pickup' && customerType !== 'mathews') {
       setDeliveryMethod('pickup');
     } else if (order.room) {
       document.getElementById('delivery-room').value = order.room;
@@ -1458,17 +1456,9 @@
     const isToday = selectedDate.toDateString() === now.toDateString();
     const cutoffMinutes = now.getHours() * 60 + now.getMinutes() + 15;
 
-    const MATHEWS_MORNING_BLOCKED = new Set([
-      '2026-04-17', '2026-04-24', '2026-04-29', '2026-05-01',
-    ]);
-    const selDateStr = [
-      selectedDate.getFullYear(),
-      String(selectedDate.getMonth() + 1).padStart(2, '0'),
-      String(selectedDate.getDate()).padStart(2, '0'),
-    ].join('-');
     let timesToShow = allDeliveryTimes;
     if (customerType === 'mathews') {
-      timesToShow = MATHEWS_MORNING_BLOCKED.has(selDateStr) ? ['12:00 PM'] : ['8:15 AM', '12:00 PM'];
+      timesToShow = MATHEWS_DELIVERY_TIMES;
     } else if (selectedDeliveryMethod === 'delivery' && deliverySchedule) {
       // High school deliveries follow the bell schedule, minus full slots.
       sel.innerHTML = '<option value="">Checking open times…</option>';
@@ -1515,12 +1505,13 @@
     const maxDate = new Date();
     maxDate.setDate(maxDate.getDate() + 7);
 
-    // Disable functions array: weekends always; Tue+Thu for Mathews
+    // Weekends are always off; Mathews delivers Mon/Wed/Fri only. Closed dates
+    // (blocked_dates) are added below for everyone, Mathews included.
     const disableFns = [
       function(date) { return date.getDay() === 0 || date.getDay() === 6; }, // weekends
     ];
     if (isMathewsUser) {
-      disableFns.push(function(date) { return date.getDay() === 2 || date.getDay() === 4; });
+      disableFns.push(function(date) { return !isMathewsDeliveryDay(date); });
     }
 
     deliveryDatePicker = flatpickr('#delivery-date', {

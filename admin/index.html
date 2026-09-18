@@ -11,6 +11,7 @@
   <script src="/lib/flatpickr.js"></script>
   <script src="/lib/receiving.js"></script>
   <script src="/lib/subscription-exclusives.js"></script>
+  <script src="/lib/mathews.js"></script>
   <script src="/lib/item-lookup.js"></script>
   <style>
     :root {
@@ -1196,7 +1197,7 @@
     <!-- Mathews campus items. Fully live, just kept out of the main list. -->
     <details id="mathews-menu-details" style="margin-top:1rem" hidden>
       <summary class="section-title" style="cursor:pointer">Mathews Menu (<span id="mathews-menu-count">0</span>)</summary>
-      <p style="font-size:0.8rem;color:var(--gray);margin:0.5rem 0 0.75rem">Items in the Teacher Menu category in Square, plus any whose category says Mathews.</p>
+      <p style="font-size:0.8rem;color:var(--gray);margin:0.5rem 0 0.75rem">Items in the Teacher Menu category in Square. Only Mathews customers see these.</p>
       <div class="table-wrap">
         <table>
           <thead>
@@ -1859,7 +1860,8 @@ const MENU_CATEGORY_CONFIG = [
   { key:'coffee', label:'Coffee', keywords:['coffee', 'espresso', 'latte', 'mocha', 'americano', 'cappuccino'] },
   { key:'soda_tea', label:'Soda & Tea', keywords:['soda', 'tea', 'energy', 'refresher'] },
   { key:'food', label:'Food', keywords:['food', 'pastry', 'snack', 'cookie', 'muffin'] },
-  { key:'mathews', label:'Mathews', keywords:['mathews'] },
+  // No Mathews category here: the Mathews menu is Square's Teacher Menu
+  // category (lib/mathews.js), not a site category.
 ];
 
 function normalizeMenuCategory(value) {
@@ -2255,7 +2257,7 @@ function buildOrderDetailHtml(o) {
   pricingHtml += `<hr class="order-detail-divider"><div class="order-detail-line" style="font-weight:500"><span>Total charged</span><span>$${(totalCents/100).toFixed(2)}</span></div>`;
 
   // ── Delivery / metadata column ──
-  const typeMap = { student: 'Student', teacher: 'Teacher (25% off)', mathews: 'Mathews Teacher (25% off)' };
+  const typeMap = { student: 'Student', teacher: 'Teacher (25% off)', mathews: 'Mathews Teacher' };
   const typeLabel = typeMap[o.customer_location] || o.customer_location || null;
 
   const deliveryDate = o.delivery_date
@@ -3339,15 +3341,9 @@ async function loadMenuItems() {
     return;
   }
   const exclusiveIds = subscriptionExclusiveCategoryIds(squareCategories);
-  // Mathews items come over from Square in the Teacher Menu category. Older
-  // ones may instead say "Mathews" in the site's own category -- matched on
-  // the raw text rather than getMenuCategoryKey, which checks Coffee first and
-  // so would call "Mathews Coffee" coffee.
-  const mathewsCategoryIds = new Set((squareCategories || [])
-    .filter(c => MATHEWS_SQUARE_CATEGORY_NAMES.includes(normalizeMenuCategory(c.name)))
-    .map(c => c.square_id));
-  const isMathews = item => normalizeMenuCategory(item.category).includes('mathews')
-    || (item.square_category_ids || []).some(id => mathewsCategoryIds.has(id));
+  // Mathews items are the ones Square files under Teacher Menu (lib/mathews.js).
+  const mathewsIds = mathewsMenuCategoryIds(squareCategories);
+  const isMathews = item => isMathewsMenuItem(item, mathewsIds);
   const categoryFilter = document.getElementById('menu-category-filter')?.value || '';
   const categorySortOrder = [...MENU_CATEGORY_CONFIG.map(c => c.key)];
   const list = [...allMenuItems]
@@ -3384,9 +3380,6 @@ async function loadMenuItems() {
 }
 
 const isRetiredMenuItem = item => item.in_square === false || item.retired === true;
-
-// Square categories that hold the Mathews campus menu.
-const MATHEWS_SQUARE_CATEGORY_NAMES = ['teacher menu'];
 
 // The collapsed lists under Live Menu Items ('exclusive', 'mathews',
 // 'retired'). Each only appears when it has something in it.
