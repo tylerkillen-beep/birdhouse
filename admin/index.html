@@ -325,7 +325,6 @@
       table.ps-table th { font-size: 7pt; text-transform: uppercase; letter-spacing: 0.06em; background: #ececec !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       table.ps-table col.ps-col-name { width: 20%; }
       tr.ps-team-row td { background: #f4f4f4 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-size: 8pt; font-weight: 600; break-after: avoid; }
-      tr.ps-team-row .ps-team-role { font-weight: 400; color: #444; }
       tr.ps-student-row { break-inside: avoid; }
       .ps-name { font-weight: 600; }
       .ps-off { color: #888; }
@@ -754,7 +753,7 @@
     </div>
     <div style="margin-top:1.1rem;display:flex;align-items:center;gap:0.9rem;flex-wrap:wrap">
       <button class="btn btn-primary btn-sm" onclick="schedPrintWeek()"><span aria-hidden="true">🖨️</span> PDF Schedule</button>
-      <span style="font-size:0.76rem;color:var(--gray)">Prints the week shown above &mdash; every student on an assigned team, with their role for each day. Pick &ldquo;Save as PDF&rdquo; in the print dialog to keep a copy.</span>
+      <span style="font-size:0.76rem;color:var(--gray)">Prints the week shown above &mdash; everyone working the shop, with their role for each day. Pick &ldquo;Save as PDF&rdquo; in the print dialog to keep a copy.</span>
     </div>
   </div>
 
@@ -4520,27 +4519,23 @@ function schedShowMsg(text, type) {
 // ══════════════════════════════════
 // Printable weekly schedule
 // ══════════════════════════════════
-// The sheet that gets taped up in the room: students down the left, one column
-// per weekday. It prints whatever week the board above is showing, off the data
-// already loaded, so nothing is re-fetched and the paper matches the screen.
+// The sheet that gets taped up in the shop: students down the left, one column
+// per weekday. It covers the teams on the Birdhouse itself -- Mathews, Menu
+// Prep and In Class teams aren't working the shop, so they stay off the paper.
+// It prints whatever week the board above is showing, off the data already
+// loaded, so nothing is re-fetched and the paper matches the screen.
 
-const SCHED_ROLE_BY_KEY = Object.fromEntries(SCHED_ROLES.map(r => [r.key, r]));
+const SCHED_PRINT_ROLE = 'birdhouse';
 
-// What one student is doing on one day.
-//  - Menu Prep and In Class teams are in the classroom all week.
-//  - Mathews only runs M/W/F; the other two days that team is in class.
-//  - 6th Hour Birdhouse holds a position per lunch wave, so the cell splits
-//    into three lines only when the job actually changes between waves --
-//    otherwise it is one word plus which wave the student eats.
-function schedPrintCell(team, roleKey, row, dateStr) {
-  const classroom = { menu: 'Menu Prep', inclass: 'In Class' }[roleKey];
-  if (classroom) return `<span class="ps-off">${classroom}</span>`;
-  if (!schedRoleActiveOnDate(roleKey, dateStr)) return '<span class="ps-off">In Class</span>';
+// What one student is doing on one day. 6th Hour holds a position per lunch
+// wave, so the cell splits into three lines only when the job actually changes
+// between waves -- otherwise it is one job plus which wave that student eats.
+function schedPrintCell(team, row) {
   const tbd = '<span class="ps-off">TBD</span>';
   if (!row) return tbd;
 
   const lunchNote = row.lunchWave ? `<span class="ps-lunch-note">lunch ${row.lunchWave}</span>` : '';
-  if (teamUsesLunchWaves(team, roleKey)) {
+  if (teamUsesLunchWaves(team, SCHED_PRINT_ROLE)) {
     const parts = LUNCH_WAVES.map(w => row.lunchWave === w ? 'Lunch' : (row.positionByWave?.[w] || null));
     const jobs = [...new Set(parts.filter(p => p && p !== 'Lunch'))];
     // Three lines are only worth the room when the waves differ, so a student
@@ -4555,11 +4550,9 @@ function schedPrintCell(team, roleKey, row, dateStr) {
 
 // A team's banner row plus one row per student, sorted by last name so the
 // sheet reads like a roster.
-function schedPrintTeamRows(team, roleKey) {
-  const role = SCHED_ROLE_BY_KEY[roleKey];
+function schedPrintTeamRows(team) {
   const span = schedWeekDays.length + 1;
-  const header = `<tr class="ps-team-row"><td colspan="${span}">${escHtml(team.name)}` +
-    `<span class="ps-team-role"> — ${role ? `${escHtml(role.label)} · ${escHtml(role.days)}` : escHtml(roleKey)}</span></td></tr>`;
+  const header = `<tr class="ps-team-row"><td colspan="${span}">${escHtml(team.name)}</td></tr>`;
 
   const students = (team.students || []).slice().sort((a, b) =>
     `${a.last_name || ''} ${a.first_name || ''}`.trim()
@@ -4573,10 +4566,16 @@ function schedPrintTeamRows(team, roleKey) {
     const name = `${student.first_name || ''} ${student.last_name || ''}`.trim() || 'Student';
     const cells = schedWeekDays.map(day => {
       const row = (byDate[day.dateStr] || []).find(r => r.studentId === student.id);
-      return `<td>${schedPrintCell(team, roleKey, row, day.dateStr)}</td>`;
+      return `<td>${schedPrintCell(team, row)}</td>`;
     }).join('');
     return `<tr class="ps-student-row"><td class="ps-name">${escHtml(name)}</td>${cells}</tr>`;
   }).join('');
+}
+
+function schedOnFloorTeams(period) {
+  return schedTeams
+    .filter(t => t.period === period && schedGetTeamRole(t.id) === SCHED_PRINT_ROLE)
+    .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
 }
 
 function schedBuildPrintSheet() {
@@ -4587,38 +4586,29 @@ function schedBuildPrintSheet() {
   const published = assignments.length > 0 && assignments.every(a => a.confirmed);
 
   const periods = ['1st Hour','6th Hour'].map(period => {
-    const teams = schedTeams
-      .filter(t => t.period === period && schedGetTeamRole(t.id))
-      .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+    const teams = schedOnFloorTeams(period);
     if (!teams.length) return '';
-    const usesWaves = teams.some(t => teamUsesLunchWaves(t, schedGetTeamRole(t.id)));
+    const usesWaves = teams.some(t => teamUsesLunchWaves(t, SCHED_PRINT_ROLE));
     return `<section class="ps-period">
       <div class="ps-period-name">${escHtml(period)}</div>
       <table class="ps-table">
         <colgroup><col class="ps-col-name" />${schedWeekDays.map(() => '<col />').join('')}</colgroup>
         <thead><tr><th scope="col">Student</th>${schedWeekDays.map(d => `<th scope="col">${escHtml(d.short)}</th>`).join('')}</tr></thead>
-        <tbody>${teams.map(t => schedPrintTeamRows(t, schedGetTeamRole(t.id))).join('')}</tbody>
+        <tbody>${teams.map(schedPrintTeamRows).join('')}</tbody>
       </table>
       ${usesWaves ? '<div class="ps-note">6th Hour positions are set per lunch wave. A single job means the student holds it all period, and &ldquo;lunch 2&rdquo; marks the wave they are off the floor; 1 / 2 / 3 lines appear only when the job changes between waves.</div>' : ''}
     </section>`;
   }).join('');
 
-  // Every team is accounted for: the ones with no role this week are named at
-  // the foot rather than quietly left off the sheet.
-  const unassigned = schedTeams.filter(t => !schedGetTeamRole(t.id));
-  const unassignedNote = unassigned.length
-    ? `<div class="ps-note">Not assigned this week, so not listed above: ${unassigned.map(t => escHtml(t.name)).join(', ')}.</div>`
-    : '';
-
   return `<div class="ps-title">The Birdhouse — Weekly Schedule</div>
     <div class="ps-sub">Week of ${escHtml(weekLabel)} · ${published ? 'Published' : 'Draft — not published yet'}</div>
     <div class="ps-stamp">Printed ${escHtml(new Date().toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'}))}</div>
-    ${periods}${unassignedNote}`;
+    ${periods}`;
 }
 
 function schedPrintWeek() {
-  if (!Object.keys(schedAssignments).length) {
-    schedShowMsg('Nothing to print yet — no teams are assigned to this week.', 'error');
+  if (!['1st Hour','6th Hour'].some(p => schedOnFloorTeams(p).length)) {
+    schedShowMsg('Nothing to print yet — no team is on the Birdhouse this week.', 'error');
     return;
   }
   document.getElementById('sched-print-sheet').innerHTML = schedBuildPrintSheet();
