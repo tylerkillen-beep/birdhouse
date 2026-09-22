@@ -9,6 +9,7 @@
   <script src="/lib/supabase.js"></script>
   <script src="/lib/delivery-slots.js"></script>
   <script src="/lib/mathews.js"></script>
+  <script src="/lib/locations.js"></script>
   <script src="https://web.squarecdn.com/v1/square.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -156,6 +157,18 @@
     input[type=text], select { width:100%; padding:0.875rem 1rem; border:1px solid var(--border-dim); border-radius:8px; background:#0d0d0d; font-family:'DM Sans',sans-serif; font-size:0.92rem; color:var(--white); outline:none; transition:border-color 0.2s; }
     input:focus, select:focus { border-color:var(--red); box-shadow:0 0 0 3px rgba(204,0,0,0.5); }
     input::placeholder { color:#3a3a3a; }
+
+    /* Room autocomplete — same widget and styling as the order page, so the
+       room field behaves identically whether you are ordering once or
+       subscribing. Markup and behaviour come from /lib/locations.js. */
+    .autocomplete-wrapper { position:relative; }
+    .autocomplete-dropdown { position:absolute; top:100%; left:0; right:0; background:#141414; border:1px solid rgba(204,0,0,0.3); border-radius:8px; margin-top:3px; max-height:230px; overflow-y:auto; z-index:50; display:none; box-shadow:0 8px 24px rgba(0,0,0,0.55); }
+    .autocomplete-dropdown.open { display:block; }
+    .autocomplete-item { padding:0.6rem 1rem; font-size:0.86rem; cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.05); display:flex; justify-content:space-between; align-items:center; gap:0.75rem; }
+    .autocomplete-item:last-child { border-bottom:none; }
+    .autocomplete-item:hover, .autocomplete-item.kbd-active { background:rgba(204,0,0,0.12); color:var(--white); }
+    .autocomplete-item-name { flex:1; color:var(--light-gray); }
+    .autocomplete-item-room { font-size:0.78rem; color:var(--red-bright); font-weight:600; flex-shrink:0; }
     select option { background:#1a1a1a; }
 
     /* Payment */
@@ -378,7 +391,12 @@
           </div>
           <div class="form-group">
             <label for="slot-1-location">Room / Location</label>
-            <input type="text" id="slot-1-location" placeholder="e.g. Room 204" required />
+            <div class="autocomplete-wrapper">
+              <input type="text" id="slot-1-location" placeholder="e.g. Room 204" required autocomplete="off"
+                role="combobox" aria-autocomplete="list" aria-haspopup="listbox"
+                aria-expanded="false" aria-controls="ac-slot-1-location" />
+              <div class="autocomplete-dropdown" id="ac-slot-1-location" role="listbox" aria-label="Delivery location suggestions"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -407,7 +425,12 @@
           </div>
           <div class="form-group">
             <label for="slot-2-location">Room / Location</label>
-            <input type="text" id="slot-2-location" placeholder="e.g. Room 204" />
+            <div class="autocomplete-wrapper">
+              <input type="text" id="slot-2-location" placeholder="e.g. Room 204" autocomplete="off"
+                role="combobox" aria-autocomplete="list" aria-haspopup="listbox"
+                aria-expanded="false" aria-controls="ac-slot-2-location" />
+              <div class="autocomplete-dropdown" id="ac-slot-2-location" role="listbox" aria-label="Second drink location suggestions"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -502,6 +525,13 @@
   }
   function discountedCents(cents) { return Math.round(cents * (1 - TEACHER_DISCOUNT)); }
 
+  // Which set of plans this customer is offered. Students and high school
+  // teachers share one menu and one set of tiers, differing only by the 25%
+  // taken off, so they are one campus. Mathews has its own menu, its own
+  // delivery days and prices that are already net, so it gets its own.
+  // The delivery rules themselves live in /lib/mathews.js.
+  function campus() { return customerType === 'mathews' ? 'mathews' : 'birdhouse'; }
+
 
   function resolveCustomerName(user, profile) {
     const meta = user.user_metadata || {};
@@ -580,7 +610,7 @@
     }
 
     // Prefill location from last_room
-    if (profile?.last_room) {
+    if (profile?.last_room && !isBlockedDeliveryRoom(profile.last_room)) {
       const locInputs = ['slot-1-location', 'slot-2-location'];
       locInputs.forEach(id => {
         const el = document.getElementById(id);
@@ -610,7 +640,17 @@
       allowed_square_category_ids: planRow.allowed_square_category_ids || [],
       sort_order: planRow.sort_order,
       active: planRow.active,
+      // Plans created before the campus column existed, and anything from the
+      // legacy plans table, are high school plans.
+      campus: planRow.campus || 'birdhouse',
     };
+  }
+
+  // Filtered here rather than in the query so a database that has not had
+  // 20260922_subscription_plan_campus.sql applied yet still loads its plans
+  // instead of erroring on an unknown column.
+  function plansForThisCampus(rows) {
+    return rows.filter(p => p.campus === campus());
   }
 
   function renderPlansLoadError(message, hint) {
@@ -630,7 +670,7 @@
         .order('sort_order');
 
       if (!error && data) {
-        plans = data.map(normalizePlanRecord);
+        plans = plansForThisCampus(data.map(normalizePlanRecord));
         await loadSquareCategoryNames();
         renderPlans();
         return;
@@ -655,7 +695,7 @@
         return;
       }
 
-      plans = (legacyData || []).map(normalizePlanRecord);
+      plans = plansForThisCampus((legacyData || []).map(normalizePlanRecord));
       renderPlans();
     } catch (err) {
       console.error('Unexpected loadPlans failure', err);
@@ -682,7 +722,9 @@
   function renderPlans() {
     const grid = document.getElementById('plans-grid');
     if (!plans.length) {
-      grid.innerHTML = '<div style="color:var(--gray)">No plans available.</div>';
+      grid.innerHTML = customerType === 'mathews'
+        ? '<div style="color:var(--gray)">No Mathews subscription plans are set up yet. Check back soon.</div>'
+        : '<div style="color:var(--gray)">No plans available.</div>';
       return;
     }
     grid.innerHTML = plans.map((p, i) => {
@@ -721,7 +763,7 @@
           ${cookiesLabel ? `<li>${cookiesLabel}</li>` : ''}
           ${choiceLabel ? `<li>${choiceLabel}</li>` : ''}
           <li>${modLabel}</li>
-          <li>Choose your delivery day &amp; time</li>
+          <li>${customerType === 'mathews' ? MATHEWS_DELIVERY_DAY_NAMES.join(', ').replace(/, ([^,]*)$/, ' or $1') + ' delivery' : 'Choose your delivery day &amp; time'}</li>
           ${earlyLabel ? `<li class="gold">${earlyLabel}</li>` : ''}
         </ul>
       </button>`;
@@ -1208,11 +1250,16 @@ const res = await fetch(`${SUPABASE_URL}/functions/v1/save-card`, {
     if (step === 4) {
       const loc1 = document.getElementById('slot-1-location').value.trim();
       if (!loc1) { alert('Please enter a delivery location for slot 1.'); return; }
+      // A COC room is worse on a subscription than on a one-off order: it is a
+      // delivery the crew cannot make, repeating every week.
+      if (isBlockedDeliveryRoom(loc1)) { alert(BLOCKED_ROOM_MSG); return; }
       if (!document.getElementById('slot-1-time').value) { alert('Please pick a delivery time for slot 1.'); return; }
       const isEagle = selectedPlan?.drinks_per_week === 2;
-      if (isEagle && !document.getElementById('slot-2-location').value.trim()) {
+      const loc2 = document.getElementById('slot-2-location').value.trim();
+      if (isEagle && !loc2) {
         alert('Please enter a delivery location for slot 2.'); return;
       }
+      if (isEagle && isBlockedDeliveryRoom(loc2)) { alert(BLOCKED_ROOM_MSG); return; }
       if (isEagle && !document.getElementById('slot-2-time').value) {
         alert('Please pick a delivery time for slot 2.'); return;
       }
@@ -1275,6 +1322,17 @@ const res = await fetch(`${SUPABASE_URL}/functions/v1/save-card`, {
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeNav(); });
 
   async function signOut() { await sb.auth.signOut(); window.location.href = 'index.html'; }
+
+  // ── Location Autocomplete ─────────────────────────────────────────────────
+  // Same widget and room lists the order page uses, from /lib/locations.js.
+  // customerType is resolved inside init(), after this runs, so pass a getter
+  // rather than a fixed list.
+  function currentLocationList() {
+    return customerType === 'mathews' ? MATHEWS_LOCATIONS : NHS_LOCATIONS;
+  }
+  initLocationAutocomplete('slot-1-location', currentLocationList);
+  initLocationAutocomplete('slot-2-location', currentLocationList);
+
   init();
 </script>
 </body>

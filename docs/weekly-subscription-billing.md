@@ -59,6 +59,39 @@ the way checkout names an order).
 
 ---
 
+## Two campuses
+
+Birdhouse and Mathews keep **separate plans**. A plan belongs to one campus
+(`subscription_plans.campus`), and a customer is only ever offered the plans for
+theirs — Mathews teachers never see the high school tiers, and vice versa.
+Manage both in **Admin → Plan Manager**, which has a Birdhouse / Mathews tab at
+the top; **Admin → Subscriptions** has a matching campus filter.
+
+Only the plans are split here. Everything else about being a Mathews customer —
+the Teacher Menu, Monday/Wednesday/Friday delivery, the two delivery times — is
+the campus rule set in `lib/mathews.js`, applied identically to one-off orders,
+sticker sheets and subscriptions, and enforced again in `process-payment` and
+`save-card`. A subscription does not get its own copy of any of it.
+
+Billing is shared too. One engine charges both, breaks and the season end apply
+to both, and subscription drinks for both land in the same Order Queue — a
+Mathews one reads as Mathews there, because the queue takes the campus from
+`profiles.location`, not from the plan.
+
+**Pricing is the thing to get right.** Mathews prices in Square are already net,
+so no discount comes off: enter a Mathews plan's price as what the teacher
+actually pays. A high school plan is entered at full price and teachers are
+billed 25% less. `save-card` works the rate out from the account rather than
+trusting the browser, so a wrong price on the plan is the only way to charge the
+wrong amount. The Plan Manager says this under the campus field, on the theory
+that the reminder is worth more next to the box than in this file.
+
+Needs `20260922_subscription_plan_campus.sql`. Until it runs, every plan is a
+Birdhouse plan — which is exactly what the database already assumed — so the
+site keeps working and Mathews simply has no plans to offer yet.
+
+---
+
 ## School breaks
 
 **Nobody is charged for a week in which they receive nothing.**
