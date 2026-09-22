@@ -168,6 +168,14 @@
 
     /* ── Search/filter bar ── */
     .filter-bar { display: flex; gap: 0.6rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+    /* Campus tabs — Birdhouse and Mathews keep separate subscription plans,
+       so the Plan Manager shows one campus at a time rather than one long
+       mixed list. */
+    .campus-tabs { display: flex; gap: 0.4rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+    .campus-tab { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 1rem; font-family: 'DM Sans', sans-serif; font-size: 0.82rem; color: var(--gray-mid); cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+    .campus-tab:hover { border-color: var(--gray); color: var(--text); }
+    .campus-tab.active { border-color: var(--accent); color: var(--accent); background: rgba(200,169,110,0.07); }
+    .campus-tab .count { color: var(--gray); margin-left: 0.35rem; font-size: 0.76rem; }
     .filter-input { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 0.9rem; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.83rem; outline: none; transition: border 0.15s; }
     .filter-input:focus { border-color: var(--accent); }
     .filter-select { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 0.9rem; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.83rem; outline: none; cursor: pointer; }
@@ -966,6 +974,11 @@
       <select class="filter-select" id="sub-plan-filter" onchange="filterSubscriptions()" aria-label="Filter subscriptions by plan">
         <option value="">All Plans</option>
       </select>
+      <select class="filter-select" id="sub-campus-filter" onchange="filterSubscriptions()" aria-label="Filter subscriptions by campus">
+        <option value="">All Campuses</option>
+        <option value="birdhouse">Birdhouse</option>
+        <option value="mathews">Mathews</option>
+      </select>
     </div>
     <div class="table-wrap">
       <table>
@@ -1077,8 +1090,17 @@
   <!-- ── PLAN MANAGER ── -->
   <div class="section-panel" id="section-plans">
     <div class="page-header"><h1>Plan Manager</h1><p>Edit subscription tiers, pricing, and drink allowances</p></div>
+    <div class="campus-tabs" role="tablist" aria-label="Campus">
+      <button type="button" class="campus-tab active" id="campus-tab-birdhouse" role="tab" aria-selected="true" onclick="setPlanCampus('birdhouse')">
+        ☕ Birdhouse<span class="count" id="campus-count-birdhouse"></span>
+      </button>
+      <button type="button" class="campus-tab" id="campus-tab-mathews" role="tab" aria-selected="false" onclick="setPlanCampus('mathews')">
+        🏫 Mathews<span class="count" id="campus-count-mathews"></span>
+      </button>
+    </div>
+    <p id="campus-hint" style="font-size:0.8rem;color:var(--gray-mid);margin:-0.5rem 0 1.25rem;line-height:1.55"></p>
     <div class="section-header">
-      <div class="section-title">Subscription Plans</div>
+      <div class="section-title" id="plans-section-title">Subscription Plans</div>
       <button class="btn btn-primary btn-sm" onclick="openAddPlanModal()">+ New Plan</button>
     </div>
     <div class="plan-cards-grid" id="plan-cards-grid">
@@ -1089,7 +1111,7 @@
       <table>
         <thead>
           <tr>
-            <th scope="col">Name</th><th scope="col">Price / Mo</th><th scope="col">Drinks / Wk</th><th scope="col">Cookies / Wk</th><th scope="col">Free Modifiers</th><th scope="col">Early Access</th><th scope="col">Active</th><th scope="col">Subscribers</th><th scope="col">Actions</th>
+            <th scope="col">Name</th><th scope="col">Price / Wk</th><th scope="col">Drinks / Wk</th><th scope="col">Cookies / Wk</th><th scope="col">Free Modifiers</th><th scope="col">Early Access</th><th scope="col">Active</th><th scope="col">Subscribers</th><th scope="col">Actions</th>
           </tr>
         </thead>
         <tbody id="plans-tbody"><tr class="loading-row"><td colspan="9">Loading…</td></tr></tbody>
@@ -1707,7 +1729,15 @@
         <label class="form-label" for="plan-sort">Sort Order</label>
         <input class="form-input" id="plan-sort" type="number" placeholder="1" />
       </div>
+      <div class="form-group">
+        <label class="form-label" for="plan-campus">Campus</label>
+        <select class="form-input" id="plan-campus">
+          <option value="birdhouse">Birdhouse (high school)</option>
+          <option value="mathews">Mathews</option>
+        </select>
+      </div>
     </div>
+    <div style="font-size:0.78rem;color:var(--gray-mid);margin:-0.4rem 0 1rem;line-height:1.5" id="plan-campus-note"></div>
     <div class="form-group">
       <label class="form-label" for="plan-desc">Description</label>
       <textarea class="form-input" id="plan-desc" rows="2" placeholder="Short description shown to students…" style="resize:vertical"></textarea>
@@ -1883,6 +1913,10 @@ let allStaff = [];
 let staffTeams = [];
 let allSubscriptions = [];
 let allPlans = [];
+// Which campus the Plan Manager is showing. Birdhouse and Mathews keep
+// separate plans; a customer is only ever offered the ones for their campus.
+let planCampus = 'birdhouse';
+let planSubscriberCounts = {};
 let allSquareCategories = [];
 let squareCategoryItemCounts = {};
 let allRubric = [];
@@ -2911,9 +2945,19 @@ async function loadSubscriptions() {
   // Subscribers are customers, so their name and email live in profiles.
   // This used to embed students(...), but subscriptions has no relationship to
   // the staff roster, so the whole query failed and the tab showed nothing.
-  const { data, error } = await sb.from('subscriptions')
-    .select('*, subscription_plans(name,price_cents,drinks_per_week)')
+  let { data, error } = await sb.from('subscriptions')
+    .select('*, subscription_plans(name,price_cents,drinks_per_week,campus)')
     .order('created_at', { ascending: false });
+
+  // Until 20260922_subscription_plan_campus.sql is applied there is no campus
+  // column, and asking for one fails the whole query. Losing the campus tag is
+  // a much smaller thing than the tab showing nothing at all.
+  if (error && /campus/i.test(error.message || '')) {
+    ({ data, error } = await sb.from('subscriptions')
+      .select('*, subscription_plans(name,price_cents,drinks_per_week)')
+      .order('created_at', { ascending: false }));
+  }
+
   if (error) {
     console.error('Failed loading subscriptions', error);
     document.getElementById('sub-tbody').innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--danger,#ff6b6b);padding:2rem">Could not load subscriptions: ${escHtml(error.message)}</td></tr>`;
@@ -2964,12 +3008,18 @@ function filterSubscriptions() {
   const q  = document.getElementById('sub-search').value.toLowerCase();
   const st = document.getElementById('sub-status-filter').value;
   const pl = document.getElementById('sub-plan-filter').value;
+  const cm = document.getElementById('sub-campus-filter').value;
   let list = allSubscriptions;
   if (q)  list = list.filter(s => (`${s.displayName || ''} ${s.profile?.full_name || ''} ${s.profile?.email || ''}`).toLowerCase().includes(q));
   if (st) list = list.filter(s => s.status === st);
   if (pl) list = list.filter(s => s.subscription_plans?.name === pl);
+  if (cm) list = list.filter(s => subscriptionCampus(s) === cm);
   renderSubscriptions(list);
 }
+
+// A subscription is on whichever campus its plan is; nothing on the
+// subscription itself records it, so the two can never disagree.
+function subscriptionCampus(s) { return s.subscription_plans?.campus || 'birdhouse'; }
 
 function renderSubscriptions(list) {
   const tbody = document.getElementById('sub-tbody');
@@ -2987,7 +3037,10 @@ function renderSubscriptions(list) {
         <div style="font-weight:500">${escHtml(name)}</div>
         <div style="font-size:0.75rem;color:var(--gray)">${escHtml(email)}</div>
       </td>
-      <td>${s.subscription_plans?.name || '—'}</td>
+      <td>
+        ${s.subscription_plans?.name || '—'}
+        ${subscriptionCampus(s) === 'mathews' ? '<div style="font-size:0.7rem;color:#6699ff;margin-top:0.15rem">🏫 Mathews</div>' : ''}
+      </td>
       <td>${subStatusPill(s.status)}</td>
       <td style="color:var(--gray-mid)">${nextBilling}</td>
       <td style="text-align:center">${s.subscription_plans?.drinks_per_week ?? '—'}</td>
@@ -3090,8 +3143,42 @@ async function loadPlans() {
   }
   const countByPlan = {};
   (subCounts||[]).forEach(s => { countByPlan[s.plan_id] = (countByPlan[s.plan_id]||0) + 1; });
-  renderPlanCards(allPlans, countByPlan);
-  renderPlansTable(allPlans, countByPlan);
+  planSubscriberCounts = countByPlan;
+  renderPlansForCampus();
+}
+
+// A plan saved before the campus column existed belongs to the high school.
+function planCampusOf(plan) { return plan.campus || 'birdhouse'; }
+
+function setPlanCampus(campus) {
+  planCampus = campus;
+  ['birdhouse', 'mathews'].forEach(c => {
+    const tab = document.getElementById('campus-tab-' + c);
+    if (!tab) return;
+    tab.classList.toggle('active', c === campus);
+    tab.setAttribute('aria-selected', c === campus ? 'true' : 'false');
+  });
+  renderPlansForCampus();
+}
+
+// Both lists and the tab counts always describe the selected campus, so there
+// is never a mixed view to misread.
+function renderPlansForCampus() {
+  const forCampus = allPlans.filter(p => planCampusOf(p) === planCampus);
+  ['birdhouse', 'mathews'].forEach(c => {
+    const el = document.getElementById('campus-count-' + c);
+    if (el) el.textContent = `(${allPlans.filter(p => planCampusOf(p) === c).length})`;
+  });
+  const title = document.getElementById('plans-section-title');
+  if (title) title.textContent = planCampus === 'mathews' ? 'Mathews Plans' : 'Birdhouse Plans';
+  const hint = document.getElementById('campus-hint');
+  if (hint) {
+    hint.textContent = planCampus === 'mathews'
+      ? 'Only Mathews teachers see these plans, and only Mathews drinks can be picked on them. Mathews prices in Square are already net, so enter the price they actually pay — no teacher discount is applied on top.'
+      : 'High school students and teachers see these plans. Teachers are billed 25% less than the price shown.';
+  }
+  renderPlanCards(forCampus, planSubscriberCounts);
+  renderPlansTable(forCampus, planSubscriberCounts);
 }
 
 // Square categories a plan can be limited to, filled in by sync-catalog. A
@@ -3163,7 +3250,8 @@ function renderPlansLoadError(error) {
 function renderPlanCards(plans, countByPlan) {
   const grid = document.getElementById('plan-cards-grid');
   if (!plans.length) {
-    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">💎</div>No plans yet. Add your first plan.</div>';
+    const what = planCampus === 'mathews' ? 'Mathews plan' : 'plan';
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">💎</div>No ${what}s yet. Add your first ${what}.</div>`;
     return;
   }
   grid.innerHTML = plans.map(p => {
@@ -3189,7 +3277,7 @@ function renderPlanCards(plans, countByPlan) {
 
 function renderPlansTable(plans, countByPlan) {
   const tbody = document.getElementById('plans-tbody');
-  if (!plans.length) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--gray);padding:2rem">No plans yet.</td></tr>'; return; }
+  if (!plans.length) { tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--gray);padding:2rem">No ${planCampus === 'mathews' ? 'Mathews ' : ''}plans yet.</td></tr>`; return; }
   tbody.innerHTML = plans.map(p => {
     const freeModsLabel = p.free_modifier_count === -1 ? 'Unlimited' : String(p.free_modifier_count || 0);
     return `<tr>
@@ -3215,10 +3303,26 @@ function openAddPlanModal() {
   ['plan-name','plan-price','plan-drinks','plan-desc','plan-cookies'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('plan-free-mods').value = '0';
   document.getElementById('plan-early-access').checked = false;
-  document.getElementById('plan-sort').value = allPlans.length + 1;
+  // Sort order is per campus, so a new Mathews plan starts after the Mathews
+  // plans rather than after every plan in the database.
+  document.getElementById('plan-sort').value = allPlans.filter(p => planCampusOf(p) === planCampus).length + 1;
   document.getElementById('plan-active').checked = true;
+  setPlanCampusField(planCampus);
   renderPlanCategoryOptions([]);
   openModal('plan-modal');
+}
+
+// The note under the field is where the pricing difference between the two
+// campuses is spelled out, since that is the easy thing to get wrong.
+function setPlanCampusField(campus) {
+  const sel = document.getElementById('plan-campus');
+  if (sel) sel.value = campus;
+  const note = document.getElementById('plan-campus-note');
+  if (note) {
+    note.textContent = campus === 'mathews'
+      ? 'Mathews teachers see this plan instead of the high school ones, and pick from the Mathews menu. Enter the price they actually pay — Mathews prices are already net, so no discount comes off.'
+      : 'High school students and teachers see this plan. Teachers are charged 25% less than the price entered.';
+  }
 }
 
 function openEditPlanModal(id) {
@@ -3235,6 +3339,7 @@ function openEditPlanModal(id) {
   document.getElementById('plan-cookies').value = String(p.cookies_per_week ?? 0);
   document.getElementById('plan-early-access').checked = !!p.early_access;
   document.getElementById('plan-active').checked = p.active;
+  setPlanCampusField(planCampusOf(p));
   renderPlanCategoryOptions(p.allowed_square_category_ids || []);
   openModal('plan-modal');
 }
@@ -3249,6 +3354,7 @@ async function savePlan() {
   const freeMods = parseInt(document.getElementById('plan-free-mods').value, 10);
   const earlyAccess = document.getElementById('plan-early-access').checked;
   const active = document.getElementById('plan-active').checked;
+  const campus = document.getElementById('plan-campus').value;
   if (!name) { alert('Plan name is required.'); return; }
   if (isNaN(price) || price < 0) { alert('Enter a valid price.'); return; }
   if (isNaN(drinks) || drinks < 1) { alert('Enter a valid drinks per week.'); return; }
@@ -3258,7 +3364,7 @@ async function savePlan() {
   if (active && allowedCategoryIds.length && !allowedCategoryIds.some(id => squareCategoryItemCounts[id])) {
     if (!confirm('None of the checked categories has any available items, so subscribers on this plan would have nothing to pick. Save anyway?')) return;
   }
-  const payload = { name, price_cents: Math.round(price * 100), drinks_per_week: drinks, sort_order: sort, description: desc, cookies_per_week: cookies, free_modifier_count: freeMods, early_access: earlyAccess, allowed_square_category_ids: allowedCategoryIds, active };
+  const payload = { name, price_cents: Math.round(price * 100), drinks_per_week: drinks, sort_order: sort, description: desc, cookies_per_week: cookies, free_modifier_count: freeMods, early_access: earlyAccess, allowed_square_category_ids: allowedCategoryIds, active, campus };
   const btn = document.getElementById('plan-save-btn');
   btn.disabled = true; btn.textContent = 'Saving…';
   let error;
@@ -3266,6 +3372,20 @@ async function savePlan() {
     ({ error } = await sb.from('subscription_plans').update(payload).eq('id', editingPlanId));
   } else {
     ({ error } = await sb.from('subscription_plans').insert(payload));
+  }
+
+  // Without 20260922_subscription_plan_campus.sql every plan is a high school
+  // plan, which is what the database already assumes -- so save the rest
+  // rather than losing the edit, and say why the campus did not stick.
+  if (error && /campus/i.test(error.message || '')) {
+    const fallback = { ...payload };
+    delete fallback.campus;
+    if (editingPlanId) {
+      ({ error } = await sb.from('subscription_plans').update(fallback).eq('id', editingPlanId));
+    } else {
+      ({ error } = await sb.from('subscription_plans').insert(fallback));
+    }
+    if (!error) alert('Saved, but the campus was not set because the campus column is missing in subscription_plans. Run migration 20260922_subscription_plan_campus.sql, then set it again.');
   }
 
   if (error && /cookies_per_week/i.test(error.message || '')) {
@@ -3284,6 +3404,8 @@ async function savePlan() {
 
   closeModal('plan-modal');
   await loadPlans();
+  // Follow the plan if its campus was changed, so it does not look deleted.
+  setPlanCampus(campus);
 }
 
 async function deletePlan(id) {
