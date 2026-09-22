@@ -136,9 +136,11 @@
       const SUPABASE_URL = 'https://ljukrhneikqbabcmcpet.supabase.co';
       const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqdWtyaG5laWtxYmFiY21jcGV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyODg1MjEsImV4cCI6MjA4Nzg2NDUyMX0.UbtB_-syG9a9vLcJp04w_k2F3XP2tMScYtB4sez3j78';
 
-      // The count is the only genuinely live figure, so it polls often. Reviews
-      // and plans change a few times a term at most.
-      const COUNT_REFRESH_MS   = 45 * 1000;
+      // The count is the only genuinely live figure, so it polls the most
+      // often -- but this runs on a wall all day, so 90s rather than 45s. A
+      // number arriving a minute later is invisible across a room and halves
+      // the requests. Reviews and plans change a few times a term at most.
+      const COUNT_REFRESH_MS   = 90 * 1000;
       const CONTENT_REFRESH_MS = 15 * 60 * 1000;
       // Deliberately not equal, so the two panels don't flip in lockstep.
       const REVIEW_ROTATE_MS = 9000;
