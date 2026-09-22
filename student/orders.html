@@ -465,28 +465,39 @@
     document.getElementById('date-picker-input').click();
   }
 
+  /** Move the queue to a date (null for All Dates).
+   *
+   *  Orders are fetched for the selected date now, so this has to go back to
+   *  the server -- rendering what is already in memory would show the previous
+   *  day's rows.
+   *
+   *  The baseline for the new-order chime is dropped on the way. It holds the
+   *  ids that were on screen, and every id on a different day is missing from
+   *  it, so keeping it would sound the alert for a whole day of old orders
+   *  every time someone stepped through the calendar. Clearing it re-baselines
+   *  silently on the next load, exactly as it does on the first one. */
+  function selectDate(dateStr) {
+    filterDate = dateStr;
+    knownOrderIds = null;
+    setDateDisplay(dateStr);
+    renderOrders();
+    loadOrders();
+    ensureSubscriptionRange();
+  }
+
   function onDatePickerChange(val) {
     if (!val) return;
-    filterDate = val;
-    setDateDisplay(val);
-    renderOrders();
-    ensureSubscriptionRange();
+    selectDate(val);
   }
 
   function shiftDate(delta) {
-    const base = filterDate ? new Date(filterDate + 'T12:00:00') : new Date();
-    base.setDate(base.getDate() + delta);
-    filterDate = base.toISOString().split('T')[0];
-    setDateDisplay(filterDate);
-    renderOrders();
-    ensureSubscriptionRange();
+    // Built from the calendar date, not toISOString(), which is UTC and rolls
+    // over during the evening -- the same trap todayStr() documents.
+    selectDate(addDaysStr(filterDate || todayStr(), delta));
   }
 
   function setAllDates() {
-    filterDate = null;
-    setDateDisplay(null);
-    renderOrders();
-    ensureSubscriptionRange();
+    selectDate(null);
   }
 
   // ── Filter setters ─────────────────────────────────────────────────────────
@@ -548,9 +559,26 @@
       // Sticker orders share this table and this delivery run, so they belong
       // in the queue — the Type filter and card colour keep them distinct.
       // Reviewing and printing them happens on student/stickers.html.
-      const { data, error } = await sb
-        .from('orders')
-        .select('*')
+      // Ask for the day being looked at, not the last 500 orders of all time.
+      // The queue shows one date and threw the rest away, so every poll was
+      // pulling months of history to render an afternoon.
+      //
+      // Rows written before the delivery_date column existed carry only a
+      // weekday name, and deliveryDateFor() resolves those against created_at
+      // to the first matching weekday on or after they were placed -- always
+      // within the following week. They cannot be matched on delivery_date in
+      // SQL, so they are pulled in by that created_at window instead and
+      // ordersForDate() sorts them out exactly as before. Fetching a few extra
+      // rows is the right way to be wrong here; dropping a real order from the
+      // queue is not.
+      let query = sb.from('orders').select('*');
+      if (filterDate) {
+        query = query.or([
+          `delivery_date.eq.${filterDate}`,
+          `and(delivery_date.is.null,created_at.gte.${addDaysStr(filterDate, -7)},created_at.lte.${addDaysStr(filterDate, 1)})`,
+        ].join(','));
+      }
+      const { data, error } = await query
         .order('created_at', { ascending: false })
         .limit(500);
 
@@ -682,10 +710,30 @@
     renderOrders();
   }
 
+  // The queue lives open on a screen all day, so it used to keep polling every
+  // 30 seconds through nights, weekends and school breaks -- hours when there
+  // is nothing to see and nobody looking. Polling now runs only while the tab
+  // is actually visible, and a tab coming back to the front refetches at once
+  // so the first thing anyone sees is current rather than stale.
   function startPolling() {
     clearInterval(pollTimer);
+    if (document.hidden) return;
     pollTimer = setInterval(() => loadOrders(), 30000);
   }
+
+  function stopPolling() {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      stopPolling();
+    } else {
+      loadOrders();
+      startPolling();
+    }
+  });
 
   function updateLastUpdated() {
     const now = new Date();
