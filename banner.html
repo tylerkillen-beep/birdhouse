@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Birdhouse — Lobby Banner</title>
+  <meta name="description" content="The Birdhouse lobby banner — today's order count, customer reviews, and subscription plans." />
+  <meta name="robots" content="noindex" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --black: #0a0a0a; --red: #cc0000; --red-bright: #ff1a1a;
+      --gray: #888; --light-gray: #aaa; --white: #f0f0f0;
+      --card: #161616; --border: rgba(204,0,0,0.2);
+      --star: #f0a92b;
+    }
+    html, body { width: 100%; height: 100%; background: #000; overflow: hidden; }
+    body { font-family: 'DM Sans', sans-serif; color: var(--white); display: flex; align-items: center; justify-content: center; }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+    }
+
+    /* The banner is authored at exactly the ScreenCloud zone size and then
+       scaled to whatever viewport it lands in, so every size below can be a
+       plain pixel value and a desktop browser preview still looks right. */
+    .stage { width: 1416px; height: 162px; flex-shrink: 0; transform-origin: center center; }
+
+    .banner {
+      position: relative; width: 100%; height: 100%; display: flex; align-items: stretch;
+      background: linear-gradient(135deg, #101010 0%, #0a0a0a 55%, #140909 100%);
+      border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
+    }
+    /* Same faint grid as the menu board, so the two screens read as a set. */
+    .banner::after {
+      content: ''; position: absolute; inset: 0; pointer-events: none;
+      background-image: linear-gradient(rgba(204,0,0,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(204,0,0,0.035) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+    .banner::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; z-index: 2;
+      background: linear-gradient(90deg, var(--red) 0%, var(--red-bright) 45%, var(--red) 100%);
+    }
+
+    .zone { position: relative; z-index: 1; display: flex; flex-direction: column; justify-content: center; padding: 16px 24px; }
+    .divider { position: relative; z-index: 1; width: 1px; flex-shrink: 0; margin: 24px 0; background: linear-gradient(180deg, transparent, var(--border) 20%, var(--border) 80%, transparent); }
+
+    .zone-label {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--gray); margin-bottom: 9px;
+    }
+
+    /* Left: live order count */
+    .zone-count { width: 264px; flex-shrink: 0; align-items: flex-start; }
+    .count-value {
+      font-family: 'Bebas Neue', sans-serif; font-size: 76px; line-height: 0.82;
+      letter-spacing: 0.01em; color: var(--red-bright);
+      text-shadow: 0 0 24px rgba(255,26,26,0.35);
+      transition: transform 0.45s ease, text-shadow 0.45s ease;
+    }
+    .count-value.bumped { transform: scale(1.09); text-shadow: 0 0 40px rgba(255,26,26,0.7); }
+    .count-caption {
+      font-family: 'Bebas Neue', sans-serif; font-size: 23px; letter-spacing: 0.13em;
+      text-transform: uppercase; color: var(--white); margin-top: 8px;
+    }
+    .count-live { display: flex; align-items: center; gap: 6px; margin-top: 5px; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gray); }
+    .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--red-bright); animation: pulse 2.4s ease-in-out infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+    /* Middle: reviews */
+    .zone-reviews { flex: 1; min-width: 0; }
+
+    /* Slides stack on top of each other and cross-fade, so the panel never
+       reflows mid-swap and the zone height stays nailed to the banner. */
+    .slides { position: relative; flex: 1; min-height: 0; }
+    .slide {
+      position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center;
+      opacity: 0; transform: translateY(7px); transition: opacity 0.65s ease, transform 0.65s ease;
+    }
+    .slide.is-active { opacity: 1; transform: none; }
+
+    .review-stars { font-size: 15px; letter-spacing: 0.12em; line-height: 1; color: var(--star); margin-bottom: 8px; }
+    .review-stars .off { color: rgba(255,255,255,0.16); }
+    .review-text {
+      font-size: 20px; font-weight: 400; line-height: 1.32; color: var(--white);
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .review-meta { margin-top: 7px; font-size: 12.5px; color: var(--gray); }
+    .review-item { color: var(--light-gray); }
+
+    /* Right: subscriptions */
+    .zone-subs { width: 404px; flex-shrink: 0; }
+    .sub-title-row { display: flex; align-items: baseline; gap: 10px; }
+    .sub-name { font-family: 'Bebas Neue', sans-serif; font-size: 34px; line-height: 1; letter-spacing: 0.05em; color: var(--white); }
+    .sub-price { font-family: 'Bebas Neue', sans-serif; font-size: 25px; line-height: 1; letter-spacing: 0.04em; color: var(--red-bright); }
+    .sub-price small { font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 500; letter-spacing: 0.06em; color: var(--gray); }
+    .sub-perks { margin-top: 9px; font-size: 13px; line-height: 1.4; color: var(--light-gray); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .sub-perks .sep { color: var(--border); margin: 0 7px; }
+    .feature-head { font-family: 'Bebas Neue', sans-serif; font-size: 30px; line-height: 1.05; letter-spacing: 0.05em; color: var(--red-bright); }
+    .feature-body { margin-top: 8px; font-size: 13.5px; line-height: 1.4; color: var(--light-gray); }
+
+    .empty { font-size: 14px; color: var(--gray); }
+  </style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <div class="banner">
+      <section class="zone zone-count">
+        <div class="count-value" id="count-value">&mdash;</div>
+        <div class="count-caption">Orders Today</div>
+        <div class="count-live"><span class="live-dot" aria-hidden="true"></span> Live</div>
+      </section>
+
+      <div class="divider" aria-hidden="true"></div>
+
+      <section class="zone zone-reviews">
+        <div class="zone-label">What People Are Saying</div>
+        <div class="slides" id="review-slides"></div>
+      </section>
+
+      <div class="divider" aria-hidden="true"></div>
+
+      <section class="zone zone-subs">
+        <div class="zone-label">Weekly Subscriptions</div>
+        <div class="slides" id="sub-slides"></div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      const SUPABASE_URL = 'https://ljukrhneikqbabcmcpet.supabase.co';
+      const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqdWtyaG5laWtxYmFiY21jcGV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyODg1MjEsImV4cCI6MjA4Nzg2NDUyMX0.UbtB_-syG9a9vLcJp04w_k2F3XP2tMScYtB4sez3j78';
+
+      // The count is the only genuinely live figure, so it polls often. Reviews
+      // and plans change a few times a term at most.
+      const COUNT_REFRESH_MS   = 45 * 1000;
+      const CONTENT_REFRESH_MS = 15 * 60 * 1000;
+      // Deliberately not equal, so the two panels don't flip in lockstep.
+      const REVIEW_ROTATE_MS = 9000;
+      const SUB_ROTATE_MS    = 8000;
+
+      // Only 4- and 5-star reviews with something written in them reach the
+      // wall. Anything longer than this gets cut off by the two-line clamp
+      // mid-sentence, which reads worse than not showing it at all.
+      const MIN_RATING = 4;
+      const MAX_REVIEW_CHARS = 155;
+      const MIN_REVIEW_WORDS = 4;
+      // Reviews typed on a phone are full of :sob:-style shortcodes that the
+      // app never renders, so they'd reach the wall as literal colon-words.
+      const SHORTCODE = /:[a-z_]+:/i;
+
+      const STAGE_W = 1416, STAGE_H = 162;
+
+      function escHtml(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+          return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+      }
+
+      function rest(path) {
+        return fetch(SUPABASE_URL + '/rest/v1/' + path, {
+          headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY },
+        });
+      }
+
+      function rpc(fn) {
+        return fetch(SUPABASE_URL + '/rest/v1/rpc/' + fn, {
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': 'Bearer ' + SUPABASE_KEY,
+            'Content-Type': 'application/json',
+          },
+          body: '{}',
+        });
+      }
+
+      // Renders every slide once and cross-fades between them. Reloading data
+      // rebuilds the slides but keeps the position in the cycle, so a
+      // background refresh never snaps the panel back to the first card.
+      function makeRotator(el, intervalMs) {
+        let index = 0, timer = null;
+
+        function show(i) {
+          const slides = el.children;
+          if (!slides.length) return;
+          index = ((i % slides.length) + slides.length) % slides.length;
+          for (let n = 0; n < slides.length; n++) {
+            slides[n].classList.toggle('is-active', n === index);
+          }
+        }
+
+        return {
+          setSlides(html) {
+            const keep = index;
+            el.innerHTML = html.map(h => '<div class="slide">' + h + '</div>').join('');
+            clearInterval(timer);
+            timer = null;
+            if (!el.children.length) return;
+            show(keep);
+            // One card has nothing to rotate to; leave it up rather than
+            // fading it out and back in every few seconds.
+            if (el.children.length > 1) {
+              timer = setInterval(() => show(index + 1), intervalMs);
+            }
+          },
+        };
+      }
+
+      const reviewRotator = makeRotator(document.getElementById('review-slides'), REVIEW_ROTATE_MS);
+      const subRotator    = makeRotator(document.getElementById('sub-slides'), SUB_ROTATE_MS);
+
+      // Order count
+      let lastCount = null;
+
+      async function loadCount() {
+        try {
+          const res = await rpc('orders_today_count');
+          if (!res.ok) return;                 // keep the last good number up
+          const value = Number(await res.json());
+          if (!Number.isFinite(value)) return;
+
+          const el = document.getElementById('count-value');
+          el.textContent = value;
+          // Flash only on a real change, so the first paint doesn't pulse.
+          if (lastCount !== null && value !== lastCount) {
+            el.classList.add('bumped');
+            setTimeout(() => el.classList.remove('bumped'), 450);
+          }
+          lastCount = value;
+        } catch (err) { /* offline for a beat; the next poll picks it up */ }
+      }
+
+      // Reviews
+      function stars(rating) {
+        const n = Math.max(0, Math.min(5, Math.round(rating)));
+        return '★'.repeat(n) + '<span class="off">' + '★'.repeat(5 - n) + '</span>';
+      }
+
+      // Reviewers are students and this hangs in a hallway, so the banner shows
+      // a first name and a last initial. The in-app review list still shows the
+      // full name to signed-in customers.
+      function shortName(name) {
+        const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+        if (!parts.length) return 'A Birdhouse regular';
+        if (parts.length === 1) return parts[0];
+        return parts[0] + ' ' + parts[parts.length - 1][0] + '.';
+      }
+
+      function renderReview(r) {
+        // menu_items is embedded through the review's foreign key. The anon key
+        // only returns items still marked available, so a review of a retired
+        // drink comes back with a null item -- drop the line rather than
+        // printing "on null".
+        const item = r.menu_items && r.menu_items.name;
+        return '<div class="review-stars" aria-hidden="true">' + stars(r.rating) + '</div>'
+          + '<div class="review-text">&ldquo;' + escHtml(r.review_text.trim()) + '&rdquo;</div>'
+          + '<div class="review-meta">' + escHtml(shortName(r.reviewer_name))
+          + (item ? ' <span class="review-item">&middot; on ' + escHtml(item) + '</span>' : '')
+          + '</div>';
+      }
+
+      async function loadReviews() {
+        const res = await rest(
+          'reviews?select=rating,review_text,reviewer_name,created_at,menu_items(name)'
+          + '&review_text=not.is.null&rating=gte.' + MIN_RATING
+          + '&order=created_at.desc&limit=40');
+        if (!res.ok) throw new Error('reviews');
+
+        const usable = (await res.json()).filter(function (r) {
+          const text = (r.review_text || '').trim();
+          // A bare "ok" is technically a five-star review and says nothing,
+          // and neither does an order shorthand like "diet dp #5". Four words
+          // is the line that separates a sentence from a scrap here; it costs
+          // the odd good two-word review, which is a fair trade on a wall.
+          if (text.length < 8 || text.length > MAX_REVIEW_CHARS) return false;
+          if (SHORTCODE.test(text)) return false;
+          return text.split(/\s+/).length >= MIN_REVIEW_WORDS;
+        });
+
+        if (!usable.length) {
+          reviewRotator.setSlides(['<div class="empty">Reviews coming soon.</div>']);
+          return;
+        }
+        reviewRotator.setSlides(usable.map(renderReview));
+      }
+
+      // Subscriptions
+      function money(cents) {
+        return '$' + (Number(cents || 0) / 100).toFixed(2);
+      }
+
+      function plural(n, word) {
+        return n + ' ' + word + (n === 1 ? '' : 's');
+      }
+
+      function renderPlan(p) {
+        const perks = [];
+        if (p.drinks_per_week > 0)      perks.push(plural(p.drinks_per_week, 'drink') + ' a week');
+        if (p.cookies_per_week > 0)     perks.push(plural(p.cookies_per_week, 'cookie') + ' a week');
+        if (p.free_modifier_count > 0)  perks.push(plural(p.free_modifier_count, 'free add-on') + ' per drink');
+        if (p.early_access)             perks.push('early access to new drinks');
+
+        const per = p.billing_interval === 'week' ? '/wk'
+                  : p.billing_interval ? '/' + p.billing_interval : '';
+
+        return '<div class="sub-title-row">'
+          + '<span class="sub-name">' + escHtml(p.name) + '</span>'
+          + '<span class="sub-price">' + money(p.price_cents) + '<small>' + escHtml(per) + '</small></span>'
+          + '</div>'
+          + '<div class="sub-perks">' + perks.map(escHtml).join('<span class="sep">|</span>') + '</div>';
+      }
+
+      function feature(head, body) {
+        return '<div class="feature-head">' + escHtml(head) + '</div>'
+          + '<div class="feature-body">' + escHtml(body) + '</div>';
+      }
+
+      async function loadPlans() {
+        const res = await rest(
+          'subscription_plans?select=name,description,price_cents,drinks_per_week,cookies_per_week,'
+          + 'free_modifier_count,early_access,billing_interval,sort_order'
+          + '&active=eq.true&order=sort_order.asc');
+        if (!res.ok) throw new Error('plans');
+
+        const plans = await res.json();
+        if (!plans.length) {
+          subRotator.setSlides(['<div class="empty">Ask about our weekly plans.</div>']);
+          return;
+        }
+
+        // Every plan card, then the two perks that apply to all of them. Both
+        // feature lines come straight out of the plan descriptions, so they
+        // can't drift away from what a subscription actually includes.
+        subRotator.setSlides(plans.map(renderPlan).concat([
+          feature('Pick your day & time', 'Schedule when your order arrives each week.'),
+          feature('Delivered to you', 'We bring it straight to your room.'),
+        ]));
+      }
+
+      async function loadContent() {
+        // Independent panels: one failing shouldn't blank the other.
+        await Promise.allSettled([loadReviews(), loadPlans()]);
+      }
+
+      // ScreenCloud hands this zone 1416x162, but the same URL gets opened in a
+      // browser to check on it. Scale the fixed stage to whatever it lands in.
+      function fitStage() {
+        const scale = Math.min(window.innerWidth / STAGE_W, window.innerHeight / STAGE_H);
+        document.getElementById('stage').style.transform = 'scale(' + scale + ')';
+      }
+
+      fitStage();
+      window.addEventListener('resize', fitStage);
+      // Webfont metrics land after first paint; the stage size is fixed, so
+      // only the scale needs another pass.
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitStage);
+
+      loadCount();
+      loadContent();
+      setInterval(loadCount, COUNT_REFRESH_MS);
+      setInterval(loadContent, CONTENT_REFRESH_MS);
+    })();
+  </script>
+</body>
+</html>
