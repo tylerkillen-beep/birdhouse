@@ -1731,7 +1731,7 @@
       </div>
       <div class="form-group">
         <label class="form-label" for="plan-campus">Campus</label>
-        <select class="form-input" id="plan-campus">
+        <select class="form-input" id="plan-campus" onchange="onPlanCampusChange()">
           <option value="birdhouse">Birdhouse (high school)</option>
           <option value="mathews">Mathews</option>
         </select>
@@ -1919,6 +1919,7 @@ let planCampus = 'birdhouse';
 let planSubscriberCounts = {};
 let allSquareCategories = [];
 let squareCategoryItemCounts = {};
+let squareCategoryCampusCounts = { birdhouse: {}, mathews: {} };
 let allRubric = [];
 let allMenuItems = [];
 let allMenuSubmissions = [];
@@ -3191,10 +3192,31 @@ async function loadSquareCategories() {
   ]);
   if (catsError) console.warn('square_categories unavailable', catsError);
   allSquareCategories = cats || [];
+  // Counted per campus, because that is how a subscriber sees them. The
+  // subscribe page offers a drink only when it is on the customer's campus AND
+  // in one of the plan's categories, so a Mathews plan limited to Coffee
+  // offers nothing -- Coffee has plenty of items, just none on the Teacher
+  // Menu. A single global count cannot tell you that.
+  const mathewsIds = mathewsMenuCategoryIds(cats);
   squareCategoryItemCounts = {};
-  (items || []).forEach(i => (i.square_category_ids || []).forEach(id => {
-    squareCategoryItemCounts[id] = (squareCategoryItemCounts[id] || 0) + 1;
-  }));
+  squareCategoryCampusCounts = { birdhouse: {}, mathews: {} };
+  (items || []).forEach(i => {
+    const bucket = squareCategoryCampusCounts[isMathewsMenuItem(i, mathewsIds) ? 'mathews' : 'birdhouse'];
+    (i.square_category_ids || []).forEach(id => {
+      squareCategoryItemCounts[id] = (squareCategoryItemCounts[id] || 0) + 1;
+      bucket[id] = (bucket[id] || 0) + 1;
+    });
+  });
+}
+
+/** Available items in a category that a subscriber on this campus could pick. */
+function campusCategoryItemCount(id, campus) {
+  return (squareCategoryCampusCounts[campus] || {})[id] || 0;
+}
+
+/** The campus the open plan modal is set to. */
+function modalPlanCampus() {
+  return document.getElementById('plan-campus')?.value || 'birdhouse';
 }
 
 function squareCategoryName(id) {
@@ -3220,16 +3242,30 @@ function renderPlanCategoryOptions(selectedIds) {
     wrap.innerHTML = '<div style="font-size:0.8rem;color:var(--gray-mid);grid-column:1/-1">No Square categories yet. Run <strong>Sync Square Catalog</strong> on the menu page, then reopen this plan.</div>';
     return;
   }
+  // The count is what a subscriber on THIS plan's campus could actually pick,
+  // so a category that is empty for them reads as 0 while you are choosing,
+  // rather than only failing later on the subscribe page.
+  const campus = modalPlanCampus();
   wrap.innerHTML = options.map(c => {
     const checked = selected.has(c.square_id);
-    return `<div class="check-pill${checked ? ' checked' : ''}">
+    const count   = campusCategoryItemCount(c.square_id, campus);
+    return `<div class="check-pill${checked ? ' checked' : ''}"${count ? '' : ` title="No ${campus === 'mathews' ? 'Mathews' : 'Birdhouse'} drinks are in this category"`}>
       <label>
         <input type="checkbox" value="${escHtml(c.square_id)}"${checked ? ' checked' : ''} onchange="this.closest('.check-pill').classList.toggle('checked', this.checked)"/>
         ${escHtml(c.name)}
       </label>
-      <span style="font-size:0.7rem;color:var(--gray)">${squareCategoryItemCounts[c.square_id] || 0}</span>
+      <span style="font-size:0.7rem;color:${count ? 'var(--gray)' : 'var(--warning,#e0a030)'}">${count}</span>
     </div>`;
   }).join('');
+}
+
+/** Switching campus in the modal changes which categories have anything in
+ *  them, so the counts and the note are redrawn against the new campus while
+ *  whatever is already ticked stays ticked. */
+function onPlanCampusChange() {
+  const checked = Array.from(document.querySelectorAll('#plan-category-options input:checked')).map(cb => cb.value);
+  setPlanCampusField(document.getElementById('plan-campus').value);
+  renderPlanCategoryOptions(checked);
 }
 
 function renderPlansLoadError(error) {
@@ -3361,8 +3397,16 @@ async function savePlan() {
   if (isNaN(cookies) || cookies < 0) { alert('Enter a valid cookies per week value.'); return; }
   if (!(freeMods === -1 || (freeMods >= 0 && freeMods <= 8))) { alert('Free modifiers must be between 0 and 8, or unlimited.'); return; }
   const allowedCategoryIds = Array.from(document.querySelectorAll('#plan-category-options input:checked')).map(cb => cb.value);
-  if (active && allowedCategoryIds.length && !allowedCategoryIds.some(id => squareCategoryItemCounts[id])) {
-    if (!confirm('None of the checked categories has any available items, so subscribers on this plan would have nothing to pick. Save anyway?')) return;
+  // Checked against this plan's own campus. A Mathews plan limited to Coffee
+  // used to save without complaint and then offer its subscribers nothing,
+  // because the subscribe page wants a drink to be on their campus AND in one
+  // of these categories.
+  if (active && allowedCategoryIds.length && !allowedCategoryIds.some(id => campusCategoryItemCount(id, campus))) {
+    const who = campus === 'mathews' ? 'Mathews subscribers' : 'subscribers';
+    const why = campus === 'mathews'
+      ? 'None of the checked categories has any Mathews drinks in it (the Mathews menu is Square\'s Teacher Menu category).'
+      : 'None of the checked categories has any available items.';
+    if (!confirm(`${why}\n\n${who} on this plan would have nothing to pick. Save anyway?`)) return;
   }
   const payload = { name, price_cents: Math.round(price * 100), drinks_per_week: drinks, sort_order: sort, description: desc, cookies_per_week: cookies, free_modifier_count: freeMods, early_access: earlyAccess, allowed_square_category_ids: allowedCategoryIds, active, campus };
   const btn = document.getElementById('plan-save-btn');
