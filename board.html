@@ -88,7 +88,7 @@
     @media (max-width: 700px) { .lists-col { grid-template-columns: 1fr; align-self: start; } }
     .lists-column { display: flex; flex-direction: column; gap: 1.2rem; }
     .list-heading {
-      display: flex; align-items: center; gap: 0.6rem;
+      display: flex; align-items: center; justify-content: center; gap: 0.6rem;
       font-family: 'Bebas Neue', sans-serif; font-size: 2rem; letter-spacing: 0.08em; text-transform: uppercase;
       color: var(--red-bright); -webkit-text-stroke: 0.7px var(--red-bright);
       border-bottom: 2px solid var(--border); padding-bottom: 0.5rem; margin-bottom: 0.6rem;
@@ -100,13 +100,12 @@
     .list-row:last-child { border-bottom: none; }
     /* The board is fitted to the screen height by fitBoard(), so these sizes are
        ratios, not absolutes: growing a name shortens the fitted root size a
-       little but still nets a bigger name, because row padding and the
-       description do not grow with it. Names and prices carry the board from
-       across the room, so they run well
-       ahead of the descriptions rather than a notch above them. */
-    .list-row-name { font-size: 1.5rem; color: var(--white); font-weight: 600; }
-    .list-row-desc { font-size: 0.68rem; color: var(--gray); font-weight: 300; margin-top: 0.1rem; }
-    .list-row-price { font-size: 1.5rem; color: var(--red-bright); font-weight: 600; white-space: nowrap; flex-shrink: 0; }
+       little but still nets a bigger name. The spotlight only ever fits one
+       category at a time now, so there's headroom to size the description
+       much closer to the name instead of leaving it as a small afterthought. */
+    .list-row-name { font-size: 1.85rem; color: var(--white); font-weight: 600; }
+    .list-row-desc { font-size: 1.05rem; color: var(--gray); font-weight: 300; margin-top: 0.15rem; }
+    .list-row-price { font-size: 1.85rem; color: var(--red-bright); font-weight: 600; white-space: nowrap; flex-shrink: 0; }
 
     /* One dot per stocked category, lit up to show which one is spotlighted
        -- otherwise the swap to the next category could read as the board
