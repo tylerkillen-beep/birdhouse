@@ -328,6 +328,27 @@
         return heading + cols + dots;
       }
 
+      /** Fixed vertical room for the spotlight so Add-Ons always lands in the
+       *  same spot beneath it, instead of sliding up whenever a shorter
+       *  category (Tasty Treats, usually) is showing. Measured against
+       *  whichever category renders tallest, in rem so the reserved space
+       *  keeps scaling with fitBoard(). Runs synchronously, so the
+       *  in-between categories it renders into the page never actually
+       *  paint. */
+      function fitSpotlightMinHeight() {
+        const listsEl = document.getElementById('board-lists');
+        const savedIndex = spotlightIndex;
+        let maxPx = 0;
+        CATEGORIES.forEach((c, idx) => {
+          spotlightIndex = idx;
+          listsEl.innerHTML = renderListsHtml();
+          maxPx = Math.max(maxPx, listsEl.scrollHeight);
+        });
+        spotlightIndex = savedIndex;
+        const rootPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+        listsEl.style.minHeight = (maxPx / rootPx) + 'rem';
+      }
+
       // Scale the whole board so it exactly fills the TV: binary-search the root
       // font-size for the largest value that still fits without scrolling. Every
       // size on the page is in rem, so this grows text and spacing together.
@@ -430,6 +451,7 @@
           // (falling forward only if it just went empty), rather than
           // visibly resetting to Cold Drinks every 5 minutes.
           spotlightIndex = pickSpotlight(spotlightIndex);
+          fitSpotlightMinHeight();
 
           const specialsHtml = renderSpecials(specials);
           const addOnsHtml = addOnData ? renderAddOns(buildAddOnTiers(items, addOnData.lists, addOnData.options)) : '';
