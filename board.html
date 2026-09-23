@@ -40,8 +40,10 @@
     .board-grid { display: grid; grid-template-columns: minmax(280px, 1fr) 2fr; gap: 2.5rem; align-items: start; }
     @media (max-width: 900px) { .board-grid { grid-template-columns: 1fr; } }
     .board-col-left { display: flex; flex-direction: column; }
+    .board-col-right { display: flex; flex-direction: column; }
 
-    /* Specials column */
+    /* Specials column. It's the only thing on the left now that Add-Ons
+       moved to the right, so it gets the whole column's height to itself. */
     .specials-col { display: flex; flex-direction: column; gap: 1rem; }
     /* Bebas Neue ships a single weight, so font-weight does nothing. Thicken the
        strokes with text-stroke instead — these are read from across the room. */
@@ -51,41 +53,23 @@
       border-bottom: 2px solid var(--border); padding-bottom: 0.5rem; margin-bottom: 0.25rem;
     }
     .special-card {
-      display: flex; gap: 0.9rem; background: var(--card); border: 1px solid var(--border);
-      border-radius: 14px; padding: 0.9rem; align-items: center;
+      display: flex; gap: 1.1rem; background: var(--card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 1.1rem; align-items: center;
     }
     /* rem, not px, so fitBoard() scales the photos along with the text. */
-    .special-photo { width: 4.5rem; height: 4.5rem; border-radius: 10px; object-fit: cover; flex-shrink: 0; background: #000; }
+    .special-photo { width: 5.5rem; height: 5.5rem; border-radius: 10px; object-fit: cover; flex-shrink: 0; background: #000; }
     .special-photo-placeholder {
-      width: 4.5rem; height: 4.5rem; border-radius: 10px; flex-shrink: 0; background: rgba(204,0,0,0.1);
-      display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
+      width: 5.5rem; height: 5.5rem; border-radius: 10px; flex-shrink: 0; background: rgba(204,0,0,0.1);
+      display: flex; align-items: center; justify-content: center; font-size: 1.8rem;
     }
     .special-name-row { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
-    .special-name { font-size: 1.6rem; font-weight: 600; color: var(--white); }
-    .special-price { font-size: 1.6rem; color: var(--red-bright); font-weight: 600; white-space: nowrap; }
-    .special-desc { font-size: 0.8rem; color: var(--light-gray); line-height: 1.4; margin-top: 0.2rem; font-weight: 300; }
+    .special-name { font-size: 2rem; font-weight: 600; color: var(--white); }
+    .special-price { font-size: 2rem; color: var(--red-bright); font-weight: 600; white-space: nowrap; }
+    .special-desc { font-size: 1.1rem; color: var(--light-gray); line-height: 1.35; margin-top: 0.25rem; font-weight: 300; }
 
-    /* Add-ons under the specials. Deliberately no card or heading row: the
-       board is fitted to its tallest column, so anything much taller than the
-       gap under the specials shrinks every item on the board. */
-    .addons {
-      margin-top: 0.9rem; padding-top: 0.55rem; border-top: 2px solid var(--border);
-      display: grid; grid-template-columns: auto 1fr; column-gap: 0.9rem; align-items: baseline;
-    }
-    .addons-label {
-      font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; letter-spacing: 0.1em; text-transform: uppercase;
-      color: var(--red-bright); -webkit-text-stroke: 0.5px var(--red-bright); line-height: 1.15;
-    }
-    .addon-tier { grid-column: 2; display: flex; align-items: baseline; gap: 0.7rem; padding: 0.12rem 0; }
-    .addon-price { font-size: 1.15rem; font-weight: 600; color: var(--red-bright); min-width: 2.6rem; white-space: nowrap; }
-    .addon-names { font-size: 1.05rem; font-weight: 500; color: var(--white); }
-
-    /* Category lists column. A short category (Tasty Treats is usually just a
-       few items) would otherwise sit pinned to the top with dead air below it
-       whenever Specials is the taller of the two -- center it in the row
-       instead so it reads as intentional, not cut off. */
-    .lists-col { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start; align-self: center; }
-    @media (max-width: 700px) { .lists-col { grid-template-columns: 1fr; align-self: start; } }
+    /* Category lists column. */
+    .lists-col { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start; }
+    @media (max-width: 700px) { .lists-col { grid-template-columns: 1fr; } }
     .lists-column { display: flex; flex-direction: column; gap: 1.2rem; }
     .list-heading {
       display: flex; align-items: center; justify-content: center; gap: 0.6rem;
@@ -114,6 +98,22 @@
     .spotlight-dot { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--border); }
     .spotlight-dot.active { background: var(--red-bright); }
 
+    /* Add-ons, permanently under the spotlighted category rather than
+       rotating with it. Four columns because there are usually 3-5 price
+       tiers -- almost always one row -- which is the point: say everything
+       in the least vertical space so it stops eating into the font size. */
+    .addons-section { margin-top: 1.25rem; padding-top: 0.75rem; border-top: 2px solid var(--border); }
+    .addons-heading {
+      font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--red-bright); -webkit-text-stroke: 0.5px var(--red-bright); text-align: center; margin-bottom: 0.6rem;
+    }
+    .addons-grid { display: grid; grid-template-columns: repeat(4, 1fr); column-gap: 1.5rem; row-gap: 0.3rem; }
+    @media (max-width: 1100px) { .addons-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 700px) { .addons-grid { grid-template-columns: 1fr; } }
+    .addon-tier { display: flex; align-items: baseline; gap: 0.6rem; }
+    .addon-price { font-size: 1.15rem; font-weight: 600; color: var(--red-bright); min-width: 2.6rem; white-space: nowrap; }
+    .addon-names { font-size: 1.05rem; font-weight: 500; color: var(--white); }
+
     .board-footer { margin-top: 1rem; text-align: center; font-size: 0.68rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--gray); }
   </style>
 </head>
@@ -129,9 +129,11 @@
         </div>
         <div class="board-updated" id="board-updated"></div>
         <div id="board-specials"></div>
+      </div>
+      <div class="board-col-right">
+        <div class="lists-col" id="board-lists"></div>
         <div id="board-addons"></div>
       </div>
-      <div class="lists-col" id="board-lists"></div>
     </div>
     <div id="board-status"><p class="board-loading">Loading menu&hellip;</p></div>
     <div class="board-footer">Nixa Eagles &middot; Serving Since 2014</div>
@@ -281,13 +283,13 @@
       function renderAddOns(tiers) {
         if (!tiers.length) return '';
         const price = cents => cents < 100 ? cents + '¢' : '$' + (cents / 100).toFixed(2);
-        const rows = tiers.map(([cents, labels]) => `
+        const tiles = tiers.map(([cents, labels]) => `
           <div class="addon-tier">
             <span class="addon-price">${price(cents)}</span>
             <span class="addon-names">${labels.map(escHtml).join(' · ')}</span>
           </div>
         `).join('');
-        return `<div class="addons"><div class="addons-label" style="grid-row:1 / span ${tiers.length}">Add-Ons</div>${rows}</div>`;
+        return `<div class="addons-section"><div class="addons-heading">Add-Ons</div><div class="addons-grid">${tiles}</div></div>`;
       }
 
       function renderRows(items) {
