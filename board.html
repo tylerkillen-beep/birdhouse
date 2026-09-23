@@ -40,7 +40,11 @@
     .board-grid { display: grid; grid-template-columns: minmax(280px, 1fr) 2fr; gap: 2.5rem; align-items: start; }
     @media (max-width: 900px) { .board-grid { grid-template-columns: 1fr; } }
     .board-col-left { display: flex; flex-direction: column; }
-    .board-col-right { display: flex; flex-direction: column; }
+    /* Stretched to the row's full height (Specials, when it's the taller
+       side) and space-between'd so Add-Ons sits at the very bottom of that
+       space instead of right after a short category -- without reserving
+       room for the tallest category up front, which only shrank the font. */
+    .board-col-right { display: flex; flex-direction: column; align-self: stretch; justify-content: space-between; }
 
     /* Specials column. It's the only thing on the left now that Add-Ons
        moved to the right, so it gets the whole column's height to itself. */
@@ -328,27 +332,6 @@
         return heading + cols + dots;
       }
 
-      /** Fixed vertical room for the spotlight so Add-Ons always lands in the
-       *  same spot beneath it, instead of sliding up whenever a shorter
-       *  category (Tasty Treats, usually) is showing. Measured against
-       *  whichever category renders tallest, in rem so the reserved space
-       *  keeps scaling with fitBoard(). Runs synchronously, so the
-       *  in-between categories it renders into the page never actually
-       *  paint. */
-      function fitSpotlightMinHeight() {
-        const listsEl = document.getElementById('board-lists');
-        const savedIndex = spotlightIndex;
-        let maxPx = 0;
-        CATEGORIES.forEach((c, idx) => {
-          spotlightIndex = idx;
-          listsEl.innerHTML = renderListsHtml();
-          maxPx = Math.max(maxPx, listsEl.scrollHeight);
-        });
-        spotlightIndex = savedIndex;
-        const rootPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-        listsEl.style.minHeight = (maxPx / rootPx) + 'rem';
-      }
-
       // Scale the whole board so it exactly fills the TV: binary-search the root
       // font-size for the largest value that still fits without scrolling. Every
       // size on the page is in rem, so this grows text and spacing together.
@@ -451,7 +434,6 @@
           // (falling forward only if it just went empty), rather than
           // visibly resetting to Cold Drinks every 5 minutes.
           spotlightIndex = pickSpotlight(spotlightIndex);
-          fitSpotlightMinHeight();
 
           const specialsHtml = renderSpecials(specials);
           const addOnsHtml = addOnData ? renderAddOns(buildAddOnTiers(items, addOnData.lists, addOnData.options)) : '';
