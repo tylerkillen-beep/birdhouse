@@ -80,11 +80,13 @@
     .addon-price { font-size: 1.15rem; font-weight: 600; color: var(--red-bright); min-width: 2.6rem; white-space: nowrap; }
     .addon-names { font-size: 1.05rem; font-weight: 500; color: var(--white); }
 
-    /* Category lists column */
-    .lists-col { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start; }
-    @media (max-width: 700px) { .lists-col { grid-template-columns: 1fr; } }
+    /* Category lists column. A short category (Tasty Treats is usually just a
+       few items) would otherwise sit pinned to the top with dead air below it
+       whenever Specials is the taller of the two -- center it in the row
+       instead so it reads as intentional, not cut off. */
+    .lists-col { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start; align-self: center; }
+    @media (max-width: 700px) { .lists-col { grid-template-columns: 1fr; align-self: start; } }
     .lists-column { display: flex; flex-direction: column; gap: 1.2rem; }
-    .list-group { margin-bottom: 0; }
     .list-heading {
       display: flex; align-items: center; gap: 0.6rem;
       font-family: 'Bebas Neue', sans-serif; font-size: 2rem; letter-spacing: 0.08em; text-transform: uppercase;
@@ -105,6 +107,13 @@
     .list-row-name { font-size: 1.5rem; color: var(--white); font-weight: 600; }
     .list-row-desc { font-size: 0.68rem; color: var(--gray); font-weight: 300; margin-top: 0.1rem; }
     .list-row-price { font-size: 1.5rem; color: var(--red-bright); font-weight: 600; white-space: nowrap; flex-shrink: 0; }
+
+    /* One dot per stocked category, lit up to show which one is spotlighted
+       -- otherwise the swap to the next category could read as the board
+       having lost items rather than having more to show. */
+    .spotlight-dots { display: flex; justify-content: center; gap: 0.5rem; margin-top: 0.75rem; }
+    .spotlight-dot { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--border); }
+    .spotlight-dot.active { background: var(--red-bright); }
 
     .board-footer { margin-top: 1rem; text-align: center; font-size: 0.68rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--gray); }
   </style>
@@ -134,24 +143,23 @@
       const SUPABASE_URL = 'https://ljukrhneikqbabcmcpet.supabase.co';
       const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqdWtyaG5laWtxYmFiY21jcGV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyODg1MjEsImV4cCI6MjA4Nzg2NDUyMX0.UbtB_-syG9a9vLcJp04w_k2F3XP2tMScYtB4sez3j78';
       const REFRESH_MS = 5 * 60 * 1000; // kiosk display — refresh every 5 minutes
-      // Cold Drinks and Birdie Brews cycle through a few items at a time
-      // instead of listing every item at once -- that's what was capping the
-      // fitted font size. Specials and Tasty Treats always show in full.
-      const CYCLE_MS = 8000; // how long each page stays up
-      const CYCLE_PAGE_SIZE = 4; // items shown at once per cycling category
+      // The right two-thirds spotlights one whole category at a time --
+      // Cold Drinks, then Birdie Brews, then Tasty Treats -- so it gets the
+      // full width and height instead of being squeezed into half of it.
+      // Specials always shows in full and never rotates.
+      const SPOTLIGHT_MS = 12000; // how long each category stays up
       const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-      // Same category grouping as menu.html, kept in sync intentionally.
-      // column 0 is the middle of the board, column 1 the right-hand edge, and
-      // the order here is the order they stack within a column.
+      // Same category grouping as menu.html, kept in sync intentionally. The
+      // order here is the order they spotlight in.
       const CATEGORIES = [
-        { key: 'soda_tea', title: 'Cold Drinks',  icon: '🥤', column: 0, cycle: true },
-        { key: 'coffee',   title: 'Birdie Brews', icon: '☕', column: 1, cycle: true },
-        { key: 'food',     title: 'Tasty Treats', icon: '🍪', column: 1, cycle: false },
+        { key: 'soda_tea', title: 'Cold Drinks',  icon: '🥤' },
+        { key: 'coffee',   title: 'Birdie Brews', icon: '☕' },
+        { key: 'food',     title: 'Tasty Treats', icon: '🍪' },
       ];
 
       let latestGroups = null; // key -> this load's items, set by loadBoard
-      const cyclers = {}; // key -> { pages: [[items]…], index } for cycling categories
+      let spotlightIndex = 0; // which CATEGORIES entry the right side shows
 
       // Coffee is the coffee menu and nothing else, so it has to be matched
       // explicitly and everything left over falls to cold drinks. This used to
@@ -192,15 +200,15 @@
         return pa - pb;
       };
 
-      /** Chop a cycling category's items into fixed-size pages, cheapest first.
-       *  An empty category still gets one (empty) page so callers don't have
-       *  to special-case it. */
-      function buildPages(items) {
-        const sorted = items.slice().sort(byPriceAsc);
-        if (!sorted.length) return [[]];
-        const pages = [];
-        for (let i = 0; i < sorted.length; i += CYCLE_PAGE_SIZE) pages.push(sorted.slice(i, i + CYCLE_PAGE_SIZE));
-        return pages;
+      /** The CATEGORIES index to spotlight starting at startIndex: the first
+       *  one (going forward, wrapping) that actually has items. Falls back to
+       *  startIndex itself if every category is empty. */
+      function pickSpotlight(startIndex) {
+        for (let i = 0; i < CATEGORIES.length; i++) {
+          const idx = (startIndex + i) % CATEGORIES.length;
+          if ((latestGroups[CATEGORIES[idx].key] || []).length) return idx;
+        }
+        return startIndex;
       }
 
       function renderSpecials(items) {
@@ -283,9 +291,8 @@
         return `<div class="addons"><div class="addons-label" style="grid-row:1 / span ${tiers.length}">Add-Ons</div>${rows}</div>`;
       }
 
-      function renderList(cat, items) {
-        if (!items.length) return '';
-        const rows = items.slice().sort(byPriceAsc).map(item => `
+      function renderRows(items) {
+        return items.map(item => `
           <div class="list-row">
             <div>
               <div class="list-row-name">${escHtml(item.name)}</div>
@@ -294,23 +301,30 @@
             ${formatPrice(item) ? `<div class="list-row-price">${formatPrice(item)}</div>` : ''}
           </div>
         `).join('');
-        return `<div class="list-group"><div class="list-heading"><span aria-hidden="true">${cat.icon}</span> ${cat.title}</div>${rows}</div>`;
       }
 
-      // Render into fixed columns so each category lands on the side it
-      // belongs to, rather than wherever the row counts happen to push it. A
-      // cycling category renders only its current page; reused by both the
-      // initial paint and the cycle ticker.
+      // The spotlighted category's items span both grid tracks of #board-lists:
+      // the heading across the top, then the items split into two even halves
+      // (cheapest first) so a single category gets the full two-thirds width
+      // instead of sharing it with another category. Reused by both the
+      // initial paint and the spotlight ticker.
       function renderListsHtml() {
-        const columns = [0, 1].map(col =>
-          CATEGORIES.filter(c => c.column === col).map(c => {
-            const items = c.cycle ? cyclers[c.key].pages[cyclers[c.key].index] : latestGroups[c.key];
-            return renderList(c, items);
-          }).join('')
-        );
-        return columns.some(Boolean)
-          ? columns.map(html => `<div class="lists-column">${html}</div>`).join('')
+        if (!latestGroups) return '';
+        const cat = CATEGORIES[spotlightIndex];
+        const items = (latestGroups[cat.key] || []).slice().sort(byPriceAsc);
+        if (!items.length) return '';
+        const half = Math.ceil(items.length / 2);
+        const heading = `<div class="list-heading" style="grid-column:1 / -1"><span aria-hidden="true">${cat.icon}</span> ${cat.title}</div>`;
+        const cols = [items.slice(0, half), items.slice(half)]
+          .map(colItems => `<div class="lists-column">${renderRows(colItems)}</div>`)
+          .join('');
+        const dots = CATEGORIES.filter(c => (latestGroups[c.key] || []).length).length > 1
+          ? `<div class="spotlight-dots" style="grid-column:1 / -1">${CATEGORIES
+              .filter(c => (latestGroups[c.key] || []).length)
+              .map(c => `<span class="spotlight-dot${c.key === cat.key ? ' active' : ''}"></span>`)
+              .join('')}</div>`
           : '';
+        return heading + cols + dots;
       }
 
       // Scale the whole board so it exactly fills the TV: binary-search the root
@@ -411,15 +425,10 @@
           });
 
           latestGroups = groups;
-          // Re-page each cycling category, keeping its current page index if
-          // the page count hasn't changed so a routine reload doesn't visibly
-          // reset it back to page one.
-          CATEGORIES.forEach(c => {
-            if (!c.cycle) return;
-            const pages = buildPages(groups[c.key]);
-            const prevIndex = cyclers[c.key] ? cyclers[c.key].index : 0;
-            cyclers[c.key] = { pages, index: prevIndex % pages.length };
-          });
+          // Keep spotlighting the same category across a routine reload
+          // (falling forward only if it just went empty), rather than
+          // visibly resetting to Cold Drinks every 5 minutes.
+          spotlightIndex = pickSpotlight(spotlightIndex);
 
           const specialsHtml = renderSpecials(specials);
           const addOnsHtml = addOnData ? renderAddOns(buildAddOnTiers(items, addOnData.lists, addOnData.options)) : '';
@@ -445,24 +454,21 @@
         }
       }
 
-      // Advance every cycling category with more than one page and repaint
-      // just the lists column. A category with few enough items to fit on
-      // one page never moves, same as Specials and Tasty Treats.
+      // Advance the spotlight to the next non-empty category and repaint just
+      // the lists column. With one or zero categories stocked there's nowhere
+      // to advance to, so it holds -- same as Specials, which never moves.
       function tick() {
         if (!latestGroups || reducedMotion) return;
-        const moved = CATEGORIES.filter(c => c.cycle && cyclers[c.key].pages.length > 1);
-        if (!moved.length) return;
-        moved.forEach(c => {
-          const cyc = cyclers[c.key];
-          cyc.index = (cyc.index + 1) % cyc.pages.length;
-        });
+        const stocked = CATEGORIES.filter(c => (latestGroups[c.key] || []).length).length;
+        if (stocked <= 1) return;
+        spotlightIndex = pickSpotlight(spotlightIndex + 1);
         document.getElementById('board-lists').innerHTML = renderListsHtml();
         fitBoard();
       }
 
       loadBoard();
       setInterval(loadBoard, REFRESH_MS);
-      setInterval(tick, CYCLE_MS);
+      setInterval(tick, SPOTLIGHT_MS);
       // Re-fit on resize, and once more after webfonts land (they change metrics).
       let fitTimer;
       window.addEventListener('resize', () => {
