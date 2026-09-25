@@ -48,7 +48,10 @@ const TEACHER_DISCOUNT_PCT = 25;
 // Mathews subscribers pick from the Teacher Menu only (and nobody else can),
 // with deliveries Mon/Wed/Fri at one of two fixed times.
 const MATHEWS_MENU_CATEGORY_NAMES = ["teacher menu"];
-const MATHEWS_DELIVERY_DAY_NAMES  = ["Monday", "Wednesday", "Friday"];
+// A Mathews soda needs one pick from this modifier list as its base; the pick
+// doesn't use up any of the plan's free modifiers.
+const MATHEWS_BASE_MODIFIER_LIST_NAMES = ["teacher soda"];
+const MATHEWS_DELIVERY_DAY_NAMES = ["Monday", "Wednesday", "Friday"];
 const MATHEWS_DELIVERY_TIMES      = ["8:00 AM", "12:00 PM"];
 
 // The school runs on Central time; edge functions run on UTC. Every date the
@@ -203,7 +206,7 @@ serve(async (req) => {
 
     const { data: drinks, error: drinksError } = await supabase
       .from("menu_items")
-      .select("id, name, available, square_category_ids")
+      .select("id, name, available, square_category_ids, square_modifier_list_ids")
       .in("id", drinkIds);
     if (drinksError) throw new Error("Could not check your drinks: " + drinksError.message);
 
@@ -234,16 +237,46 @@ serve(async (req) => {
     // Each plan includes a set number of free modifiers per drink (-1 means
     // unlimited). The weekly price is flat, so anything past that would be a
     // giveaway. subscribe.html blocks it; this catches a stale or crafted page.
+    // A Mathews soda's required base pick is the exception: it isn't counted.
+    const baseListSquareIds = new Set<string>();
+    const baseOptionSquareIds = new Set<string>();
+    if (isMathewsCustomer) {
+      const { data: modLists, error: modListsError } = await supabase
+        .from("modifier_lists")
+        .select("id, square_id, name");
+      if (modListsError) throw new Error("Could not check your drinks: " + modListsError.message);
+      const baseLists = (modLists || []).filter((l) =>
+        MATHEWS_BASE_MODIFIER_LIST_NAMES.includes(String(l.name || "").trim().toLowerCase()));
+      baseLists.forEach((l) => baseListSquareIds.add(l.square_id));
+
+      if (baseLists.length) {
+        const { data: baseOptions, error: baseOptionsError } = await supabase
+          .from("modifier_options")
+          .select("square_id")
+          .in("modifier_list_id", baseLists.map((l) => l.id));
+        if (baseOptionsError) throw new Error("Could not check your drinks: " + baseOptionsError.message);
+        (baseOptions || []).forEach((o) => baseOptionSquareIds.add(o.square_id));
+      }
+    }
+
     const freeModifierCount: number = plan.free_modifier_count ?? 0;
-    if (freeModifierCount !== -1) {
-      for (const slot of drinkSlots) {
-        if ((slot.drinkModifiers?.length ?? 0) > freeModifierCount) {
-          throw new Error(
-            freeModifierCount === 0
-              ? `The ${plan.name} plan doesn't include modifiers. Remove them and try again.`
-              : `The ${plan.name} plan includes up to ${freeModifierCount} modifiers per drink.`
-          );
-        }
+    for (const slot of drinkSlots) {
+      const mods: Array<{ catalogObjectId?: string }> = slot.drinkModifiers || [];
+      const baseMods = mods.filter((m) => m.catalogObjectId && baseOptionSquareIds.has(m.catalogObjectId));
+      const drink = drinks?.find((d) => d.id === slot.drinkItemId);
+      const needsBase = (drink?.square_modifier_list_ids || []).some((id: string) => baseListSquareIds.has(id));
+      if (needsBase && baseMods.length !== 1) {
+        throw new Error(`${drink?.name ?? "Your drink"} needs one Teacher Soda. Please pick one and try again.`);
+      }
+      if (!needsBase && baseMods.length) {
+        throw new Error(`${drink?.name ?? "Your drink"} doesn't take a Teacher Soda. Remove it and try again.`);
+      }
+      if (freeModifierCount !== -1 && mods.length - baseMods.length > freeModifierCount) {
+        throw new Error(
+          freeModifierCount === 0
+            ? `The ${plan.name} plan doesn't include modifiers. Remove them and try again.`
+            : `The ${plan.name} plan includes up to ${freeModifierCount} modifiers per drink.`
+        );
       }
     }
 
