@@ -13,7 +13,7 @@ deduct once you switch it on.**
 | 2. App orders | Paid app orders deduct stock; cancelled ones put it back | Built — run the migration, then flip the switch |
 | 3a. Register | In-person and Square Online sales deduct too | Built — run the migration, then flip the switch |
 | 3b. Subscriptions | Subscription drinks deduct when delivered | Built — run the migration, then flip the switch |
-| 4. Forecasting | Days of stock left, "order by" dates, a Needs Ordering list | Planned |
+| 4. Forecasting | Days of stock left, "order by" dates, a Needs Ordering list | Built — run the migration, then set up products |
 
 ---
 
@@ -269,6 +269,61 @@ moved by a closure keeps its cookie.
 
 The manager Inventory cards' **Used** numbers now add app orders, register sales
 and subscription drinks (`inventory_usage_history`).
+
+---
+
+## Needs Ordering
+
+Run `supabase/migrations/20260926_needs_ordering.sql` (after the usage ones).
+Then open **Admin → Needs Ordering**.
+
+For every inventory item the site works out:
+
+- **Uses per open day** from the last 28 days of recorded sales usage (app orders,
+  register and subscriptions together). Weekends and days you've closed under
+  Closed Days don't count.
+- **Days left** = (on hand + already on order) ÷ uses per day, counted in open days,
+  which gives a **run-out date**.
+- **Order by** = run-out date minus the lead time. Lead times are open days:
+  Walmart 2, Amazon 3, other 3 by default. Change them under **Lead times**, or per
+  item under Edit product.
+- **Order now** when the order-by date is today or past, **Order soon** within 3
+  days. An item with no usage recorded falls back to its par level (at or below
+  par = order now). **Can't be forecast yet** counts items with neither, so you
+  know where the list is blind: finish Usage Setup for those.
+- **How much**: enough for the lead time plus 7 open days after it arrives (also
+  editable), rounded up to whole purchases.
+
+**Setting up products.** Each item needs to know what it's usually bought as:
+vendor, product name and link, and how many counted units one purchase adds (a
+500-cup case = 10 sleeves). **Fill products from past receipts** adds the vendor,
+name and pack size from the last receipt each item appeared on; add the links by
+hand, since receipts don't carry them. Until an item has a pack size, it can't be
+put on an order — arriving would add the wrong amount.
+
+**Placing an order.** Tick what you're ordering (items that need ordering now start
+ticked), adjust the quantities, then use **Copy shopping list** or the product links
+to order from Amazon or Walmart. Press **I placed this order** and the site records
+it as on its way: the forecast counts it as on order (so it stops nagging), and
+managers confirm it arriving under Deliveries, which adds the stock.
+
+**The receipt is optional for stock.** Upload it later for the cost; in the receipt
+review, pick the order you placed under "This receipt is for" so it fills in that
+order instead of making a second one.
+
+**Fix count.** With no regular counts, the numbers drift (waste, comps, a missed
+delivery). On any row, type what's really on the shelf and press Fix count; the
+forecast recalculates. It's logged like any other count change.
+
+The **Needs Ordering** badge in the sidebar shows how many items are order-now.
+
+```sql
+-- Raw material for the forecast, from the SQL editor (the forecast itself needs a
+-- signed-in admin): what each item used over the last 28 days, in counted units.
+select h.inventory_id, i.name, sum(h.base_amount / nullif(i.base_units_per_unit, 0)) as used_28_days
+from public.inventory_usage_history h join public.inventory i on i.id = h.inventory_id
+where h.sold_at > now() - interval '28 days' group by 1, 2 order by 3 desc nulls last;
+```
 
 ---
 

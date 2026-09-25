@@ -556,6 +556,10 @@
         <span class="nav-icon" aria-hidden="true">📦</span><span class="nav-label"> Inventory</span>
         <span class="nav-badge" id="badge-inventory" style="display:none"></span>
       </button>
+      <button type="button" class="nav-item" onclick="showSection('needs-ordering')" id="nav-needs-ordering">
+        <span class="nav-icon" aria-hidden="true">📝</span><span class="nav-label"> Needs Ordering</span>
+        <span class="nav-badge" id="badge-needs-ordering" style="display:none"></span>
+      </button>
       <button type="button" class="nav-item" onclick="showSection('purchases')" id="nav-purchases">
         <span class="nav-icon" aria-hidden="true">🛒</span><span class="nav-label"> Purchases</span>
         <span class="nav-badge" id="badge-purchases" style="display:none"></span>
@@ -1172,6 +1176,35 @@
         <div id="inv-log-body" style="max-height:320px;overflow-y:auto"></div>
       </div>
     </div>
+  </div>
+
+  <!-- ── NEEDS ORDERING ── -->
+  <div class="section-panel" id="section-needs-ordering">
+    <div class="page-header">
+      <h1>Needs Ordering</h1>
+      <p>What to order, how much, and by when — worked out from what your sales have used. Place the order with Amazon or Walmart, tap “I placed this order”, and managers confirm it arriving.</p>
+    </div>
+    <div class="section-header">
+      <label class="usage-toggle"><input type="checkbox" id="no-show-all" onchange="renderNeedsOrdering()"/> Show every item</label>
+      <div class="usage-actions">
+        <button type="button" class="btn btn-ghost btn-sm" id="no-seed-btn" onclick="seedNeedsOrderingProducts()">Fill products from past receipts</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="toggleNoSettings()">Lead times</button>
+        <span class="usage-muted" id="no-seed-msg" role="status"></span>
+      </div>
+    </div>
+    <div class="usage-deduct" id="no-settings" hidden>
+      <div class="usage-actions">
+        <span class="usage-muted">Lead time (open days to arrive)</span>
+        <label class="usage-muted" for="no-s-walmart">Walmart</label><input class="form-input" type="number" min="0" id="no-s-walmart" style="width:70px;padding:0.35rem 0.5rem;font-size:0.8rem"/>
+        <label class="usage-muted" for="no-s-amazon">Amazon</label><input class="form-input" type="number" min="0" id="no-s-amazon" style="width:70px;padding:0.35rem 0.5rem;font-size:0.8rem"/>
+        <label class="usage-muted" for="no-s-other">Other</label><input class="form-input" type="number" min="0" id="no-s-other" style="width:70px;padding:0.35rem 0.5rem;font-size:0.8rem"/>
+        <label class="usage-muted" for="no-s-cover">Order enough for</label><input class="form-input" type="number" min="0" id="no-s-cover" style="width:70px;padding:0.35rem 0.5rem;font-size:0.8rem"/><span class="usage-muted">open days after it arrives</span>
+        <label class="usage-muted" for="no-s-lookback">Look back</label><input class="form-input" type="number" min="7" id="no-s-lookback" style="width:70px;padding:0.35rem 0.5rem;font-size:0.8rem"/><span class="usage-muted">days</span>
+        <button type="button" class="btn btn-primary btn-sm" onclick="saveNoSettings()">Save</button>
+        <span class="usage-muted" id="no-settings-msg" role="status"></span>
+      </div>
+    </div>
+    <div id="needs-ordering-content"></div>
   </div>
 
   <!-- ── PURCHASES ── -->
@@ -2027,6 +2060,7 @@ async function init() {
     loadPendingBadge();
     loadOrdersBadge();
     loadPurchasesBadge();
+    loadNeedsOrderingBadge();
   } catch (e) {
     await sb.auth.signOut();
     window.location.href = 'login.html';
@@ -2161,6 +2195,7 @@ function showSection(id) {
     dashboard: loadDashboard,
     schedule: schedInit,
     inventory: loadInventory,
+    'needs-ordering': loadNeedsOrdering,
     purchases: loadPurchases,
     recipes: loadRecipes,
     'usage-setup': loadUsageSetup,
@@ -6543,16 +6578,26 @@ function openReceiptModal(parsed) {
 
   // A delivery a manager already reported can take this receipt instead of a
   // second order being created -- and since it's here, receive it next.
-  const flagged = allPurchaseOrders.filter(p => p.status === 'needs_receipt');
+  // An order placed from Needs Ordering can take it too, while nothing has
+  // arrived: the receipt's lines replace the ones recorded when it was placed.
+  const isPlacedOpen = p => p.status === 'pending' && p.source === 'needs_ordering'
+    && !(p.purchase_order_items || []).some(i => Number(i.received_quantity) > 0);
+  const flagged = allPurchaseOrders.filter(p => p.status === 'needs_receipt' || isPlacedOpen(p));
   const attachSel = document.getElementById('po-attach');
   attachSel.innerHTML = '<option value="">A new order</option>' + flagged.map(p => {
+    if (p.status !== 'needs_receipt') {
+      const placed = p.order_date ? new Date(p.order_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'recently';
+      return `<option value="${p.id}">${escHtml(RECEIVING_VENDORS[p.vendor] || p.vendor)} order you placed ${placed} from Needs Ordering${p.order_number ? ' — ' + escHtml(p.order_number) : ''}</option>`;
+    }
     const when = p.arrived_at ? new Date(p.arrived_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'recently';
     return `<option value="${p.id}">${escHtml(RECEIVING_VENDORS[p.vendor] || p.vendor)} delivery that arrived ${when}${p.notes ? ' — ' + escHtml(p.notes) : ''}</option>`;
   }).join('');
   attachSel.value = flagged.some(p => p.id === receiptAttachPoId) ? receiptAttachPoId : '';
   receiptAttachPoId = null;
   document.getElementById('po-attach-wrap').hidden = !flagged.length;
-  document.getElementById('po-arrived').checked = !!attachSel.value;
+  // Ticking "already here" is only right for a delivery a manager reported; an
+  // order placed from the list is still on its way.
+  document.getElementById('po-arrived').checked = !!attachSel.value && allPurchaseOrders.find(p => p.id === attachSel.value)?.status === 'needs_receipt';
 
   renderPOItemsForReview(parsed.items || []);
   openModal('receipt-modal');
@@ -6734,6 +6779,9 @@ async function savePurchaseOrder() {
     ? await sb.from('purchase_orders').update({ ...poFields, status: 'pending', ...(notes ? { notes } : {}) }).eq('id', attachId).select().single()
     : await sb.from('purchase_orders').insert({ ...poFields, notes, created_by: currentUser.id }).select().single();
   if (poErr) { msgEl.textContent = 'Error: ' + poErr.message; msgEl.className = 'msg error'; msgEl.style.display = 'block'; return; }
+  // A placed order already holds the lines it was placed with; the receipt's
+  // lines replace them (nothing has arrived yet, so nothing is lost).
+  if (attachId) await sb.from('purchase_order_items').delete().eq('purchase_order_id', attachId);
   if (items.length) {
     const { error: itemErr } = await sb.from('purchase_order_items').insert(items.map(({ _costCalc, ...it }) => ({
       ...it, purchase_order_id: po.id, inventory_id: it.inventory_id || null
@@ -6761,6 +6809,311 @@ async function deletePO(id) {
   await sb.from('purchase_order_items').delete().eq('purchase_order_id', id);
   await sb.from('purchase_orders').delete().eq('id', id);
   loadPurchases();
+}
+
+// ── NEEDS ORDERING ─────────────────────────────────────────────────────────
+// What to order, how much, and by when: inventory_forecast() (see
+// supabase/migrations/20260926_needs_ordering.sql) works it out from recorded
+// sales usage over open school days. Here you review it, fix a product, and
+// record the order you placed, which managers then confirm arriving.
+const NO_VENDORS = { walmart: 'Walmart', amazon: 'Amazon', other: 'Other' };
+let noRows = [];        // inventory_forecast() rows
+let noSettings = null;  // inventory_settings row
+let noPicks = {};       // inventory_id -> { on, packs } as edited on screen
+let noProfileId = null; // item whose product form is open
+let noOrderVendor = null;
+
+const noFmt = (n, d = 1) => {
+  n = Number(n);
+  if (!Number.isFinite(n)) return '—';
+  return String(Number(Math.abs(n) >= 10 ? n.toFixed(0) : n.toFixed(d)));
+};
+const noDate = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+
+async function loadNeedsOrdering() {
+  const el = document.getElementById('needs-ordering-content');
+  if (!noRows.length) el.innerHTML = '<p style="color:var(--gray-mid);padding:1rem 0">Working out what you need…</p>';
+  const [forecast, settings] = await Promise.all([
+    sb.rpc('inventory_forecast'),
+    sb.from('inventory_settings').select('*').maybeSingle(),
+  ]);
+  if (forecast.error) {
+    el.innerHTML = `<div class="usage-empty" style="color:var(--danger);text-align:left">Couldn’t work out the forecast: ${escHtml(forecast.error.message)}<br>If that mentions a missing function, run <code>supabase/migrations/20260926_needs_ordering.sql</code> in the Supabase SQL editor.</div>`;
+    return;
+  }
+  noRows = forecast.data || [];
+  noSettings = settings.data || null;
+  setNeedsOrderingBadge(noRows.filter(r => r.status === 'order_now').length);
+  renderNeedsOrdering();
+}
+
+async function loadNeedsOrderingBadge() {
+  const { data, error } = await sb.rpc('inventory_forecast');
+  if (!error) setNeedsOrderingBadge((data || []).filter(r => r.status === 'order_now').length);
+}
+
+function setNeedsOrderingBadge(n) {
+  const badge = document.getElementById('badge-needs-ordering');
+  if (!badge) return;
+  if (n > 0) {
+    badge.textContent = n;
+    badge.setAttribute('aria-label', `${n} ${n === 1 ? 'item needs' : 'items need'} ordering now`);
+    badge.style.display = 'inline-block';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+const noPick = r => noPicks[r.inventory_id] ||= { on: r.status === 'order_now', packs: Math.max(Number(r.suggested_packs) || 0, 1) };
+
+function renderNeedsOrdering() {
+  const el = document.getElementById('needs-ordering-content');
+  const showAll = document.getElementById('no-show-all')?.checked;
+  const now = noRows.filter(r => r.status === 'order_now');
+  const soon = noRows.filter(r => r.status === 'soon');
+  const blind = noRows.filter(r => !(Number(r.avg_daily) > 0) && !(Number(r.par_level) > 0));
+  const s = noSettings;
+
+  const chips = [
+    { n: now.length, label: 'Order now', todo: now.length > 0 },
+    { n: soon.length, label: 'Order soon', todo: false },
+    { n: blind.length, label: 'Can’t be forecast yet', todo: false },
+  ].map(c => `<div class="usage-stat ${c.todo ? 'todo' : 'done'}" style="cursor:default"><div class="n">${c.n}</div><div class="l">${c.label}</div></div>`).join('');
+
+  const listed = noRows.filter(r => showAll ? true : (r.status === 'order_now' || r.status === 'soon'));
+  const groups = { walmart: [], amazon: [], other: [] };
+  listed.forEach(r => (groups[r.vendor] || groups.other).push(r));
+
+  const body = Object.entries(groups).filter(([, rows]) => rows.length).map(([vendor, rows]) => {
+    const picked = rows.filter(r => noPick(r).on);
+    return `<div class="usage-group-title">${NO_VENDORS[vendor]} <span>(${rows.length} item${rows.length === 1 ? '' : 's'})</span></div>
+      ${rows.map(renderNeedsOrderingRow).join('')}
+      <div class="usage-actions" style="margin:0.4rem 0 1rem">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="copyNeedsOrderingList('${vendor}')" ${picked.length ? '' : 'disabled'}>Copy shopping list</button>
+        <button type="button" class="btn btn-primary btn-sm" onclick="openPlaceOrder('${vendor}')" ${picked.length ? '' : 'disabled'}>I placed this order (${picked.length})…</button>
+        <span class="usage-muted" id="no-msg-${vendor}" role="status"></span>
+      </div>`;
+  }).join('') || `<div class="usage-empty">${showAll ? 'No inventory items yet.' : 'Nothing needs ordering right now.'}</div>`;
+
+  el.innerHTML = `<div class="usage-summary">${chips}</div>
+    <p class="usage-help">Worked out from what sales have used over the last ${s?.reorder_lookback_days || 28} days of open school days, against what’s on hand and on order. Items with no usage recorded yet fall back to their par level, or can’t be forecast at all — finish Usage Setup for those.</p>
+    ${body}`;
+}
+
+function renderNeedsOrderingRow(r) {
+  const pick = noPick(r);
+  const unit = r.unit || 'units';
+  const cpp = Number(r.counted_per_purchase) > 0 ? Number(r.counted_per_purchase) : null;
+  const facts = [
+    `${noFmt(r.quantity)} ${unit} on hand`,
+    Number(r.on_order) > 0 ? `${noFmt(r.on_order)} on order` : '',
+    Number(r.avg_daily) > 0 ? `uses ${noFmt(r.avg_daily, 2)} a day` : (r.needs_conversion ? 'needs a conversion in Usage Setup' : 'no usage recorded'),
+    r.days_left != null ? `${noFmt(r.days_left)} open days left` : '',
+    r.order_by_date ? `order by ${noDate(r.order_by_date)}` : '',
+  ].filter(Boolean).join(' · ');
+  const statusClass = r.status === 'order_now' ? 'todo' : 'ok';
+  const statusText = r.status === 'order_now' ? (r.reason || 'Order now') : r.status === 'soon' ? (r.reason || 'Soon') : 'OK';
+  const product = r.product_url
+    ? `<a href="${escHtml(r.product_url)}" target="_blank" rel="noopener noreferrer">${escHtml(r.product_name || 'Open product')} ↗</a>`
+    : `<span class="usage-muted">${escHtml(r.product_name || 'No product set up')}</span>`;
+  const id = r.inventory_id;
+  return `<div class="usage-row">
+    <div class="usage-row-head">
+      <div style="display:flex;gap:0.6rem;align-items:flex-start">
+        <input type="checkbox" id="no-on-${id}" ${pick.on ? 'checked' : ''} onchange="noSetPick('${id}', this.checked)" aria-label="Include ${escHtml(r.name)} in the order" style="margin-top:0.25rem"/>
+        <div>
+          <div class="usage-row-name">${escHtml(r.name)}</div>
+          <div class="usage-row-sub">${escHtml(facts)}</div>
+        </div>
+      </div>
+      <span class="usage-status ${statusClass}">${escHtml(statusText)}</span>
+    </div>
+    <div class="usage-actions">
+      <label class="usage-muted" for="no-packs-${id}">Order</label>
+      <input class="form-input" type="number" min="0" step="1" id="no-packs-${id}" value="${pick.packs}" style="width:80px;padding:0.35rem 0.5rem;font-size:0.8rem" onchange="noSetPacks('${id}', this.value)"/>
+      <span class="usage-muted">${cpp ? (cpp === 1 ? escHtml(unit) : `packs · each adds ${noFmt(cpp)} ${escHtml(unit)}`) : `<span style="color:var(--warning,#e0a030)">set how many ${escHtml(unit)} one purchase adds</span>`}</span>
+      <span style="margin-left:auto;font-size:0.78rem">${product}</span>
+    </div>
+    <div class="usage-actions" style="margin-top:0.4rem">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="openNoProfile('${id}')">${r.has_profile ? 'Edit product' : 'Set up product'}</button>
+      <label class="usage-muted" for="no-count-${id}">Actually have</label>
+      <input class="form-input" type="number" min="0" step="any" id="no-count-${id}" value="${Number(r.quantity)}" style="width:90px;padding:0.35rem 0.5rem;font-size:0.8rem"/>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="noSaveCount('${id}')">Fix count</button>
+      <span class="usage-adder-msg" id="no-count-msg-${id}" role="alert"></span>
+    </div>
+  </div>`;
+}
+
+function noSetPick(id, on) { (noPicks[id] ||= { on, packs: 1 }).on = on; renderNeedsOrdering(); }
+function noSetPacks(id, v) { (noPicks[id] ||= { on: true, packs: 1 }).packs = Math.max(parseFloat(v) || 0, 0); }
+
+// The count drifts (waste, comps, a missed receipt), so let whoever is looking
+// at the list put in what is really on the shelf.
+async function noSaveCount(id) {
+  const r = noRows.find(x => x.inventory_id === id);
+  const msg = document.getElementById('no-count-msg-' + id);
+  const qty = parseFloat(document.getElementById('no-count-' + id).value);
+  if (!(qty >= 0)) { msg.textContent = 'Enter what’s on the shelf.'; return; }
+  const name = document.getElementById('admin-name').textContent || 'Admin';
+  const { error } = await sb.from('inventory').update({ quantity: qty, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) { msg.textContent = 'Error: ' + error.message; return; }
+  await sb.from('inventory_log').insert({
+    inventory_id: id, item_name: r.name, previous_quantity: r.quantity, new_quantity: qty,
+    change_amount: qty - Number(r.quantity), change_type: 'count', changed_by_id: currentUser.id, changed_by_name: name,
+  });
+  allInventory = [];
+  noPicks = {};
+  await loadNeedsOrdering();
+}
+
+function noOrderLines(vendor) {
+  return noRows.filter(r => (r.vendor || 'other') === vendor && noPick(r).on && noPick(r).packs > 0)
+    .map(r => ({ r, packs: noPick(r).packs }));
+}
+
+async function copyNeedsOrderingList(vendor) {
+  const lines = noOrderLines(vendor);
+  const text = lines.map(({ r, packs }) => `${packs} × ${r.product_name || r.name}${r.product_url ? '\n   ' + r.product_url : ''}`).join('\n');
+  const msg = document.getElementById('no-msg-' + vendor);
+  try { await navigator.clipboard.writeText(text); msg.textContent = 'Copied.'; } catch { msg.textContent = 'Couldn’t copy — your browser blocked it.'; }
+}
+
+// ── The product an item is usually bought as ──
+function openNoProfile(id) {
+  const r = noRows.find(x => x.inventory_id === id);
+  noProfileId = id;
+  document.getElementById('no-profile-title').textContent = r.name;
+  document.getElementById('no-p-vendor').value = r.vendor || 'other';
+  document.getElementById('no-p-name').value = r.product_name || '';
+  document.getElementById('no-p-url').value = r.product_url || '';
+  document.getElementById('no-p-cpp').value = r.counted_per_purchase ?? '';
+  document.getElementById('no-p-cpp-unit').textContent = r.unit || 'units';
+  document.getElementById('no-p-lead').value = '';
+  document.getElementById('no-p-cover').value = '';
+  const msg = document.getElementById('no-profile-msg');
+  msg.style.display = 'none';
+  openModal('no-profile-modal');
+  // Overrides aren't in the forecast rows, so read them for this item.
+  sb.from('inventory_reorder').select('lead_days, cover_days, notes').eq('inventory_id', id).maybeSingle().then(({ data }) => {
+    if (noProfileId !== id || !data) return;
+    document.getElementById('no-p-lead').value = data.lead_days ?? '';
+    document.getElementById('no-p-cover').value = data.cover_days ?? '';
+  });
+}
+
+async function saveNoProfile() {
+  const msg = document.getElementById('no-profile-msg');
+  const num = id => { const v = parseFloat(document.getElementById(id).value); return Number.isFinite(v) ? v : null; };
+  const url = document.getElementById('no-p-url').value.trim();
+  if (url && !/^https?:\/\//i.test(url)) { msg.textContent = 'The product link should start with https://'; msg.className = 'msg error'; msg.style.display = 'block'; return; }
+  const cpp = num('no-p-cpp');
+  if (cpp !== null && cpp <= 0) { msg.textContent = 'How many one purchase adds has to be more than 0.'; msg.className = 'msg error'; msg.style.display = 'block'; return; }
+  const row = {
+    inventory_id: noProfileId,
+    vendor: document.getElementById('no-p-vendor').value,
+    product_name: document.getElementById('no-p-name').value.trim() || null,
+    product_url: url || null,
+    counted_per_purchase: cpp,
+    lead_days: num('no-p-lead'),
+    cover_days: num('no-p-cover'),
+    updated_by: currentUser.id,
+    updated_at: new Date().toISOString(),
+  };
+  const { error } = await sb.from('inventory_reorder').upsert(row, { onConflict: 'inventory_id' });
+  if (error) { msg.textContent = 'Error: ' + error.message; msg.className = 'msg error'; msg.style.display = 'block'; return; }
+  closeModal('no-profile-modal');
+  noPicks = {};
+  await loadNeedsOrdering();
+}
+
+async function seedNeedsOrderingProducts() {
+  const btn = document.getElementById('no-seed-btn');
+  const msg = document.getElementById('no-seed-msg');
+  btn.disabled = true;
+  const { data, error } = await sb.rpc('seed_reorder_profiles');
+  btn.disabled = false;
+  const text = error ? 'Error: ' + error.message : `Added ${data} product${data === 1 ? '' : 's'} from past receipts. Add the links to finish them.`;
+  if (!error) { noPicks = {}; await loadNeedsOrdering(); }
+  msg.textContent = text;
+}
+
+// ── Lead times and cover ──
+function toggleNoSettings() {
+  const box = document.getElementById('no-settings');
+  box.hidden = !box.hidden;
+  if (!box.hidden && noSettings) {
+    document.getElementById('no-s-walmart').value = noSettings.reorder_lead_days_walmart;
+    document.getElementById('no-s-amazon').value = noSettings.reorder_lead_days_amazon;
+    document.getElementById('no-s-other').value = noSettings.reorder_lead_days_other;
+    document.getElementById('no-s-cover').value = noSettings.reorder_cover_days;
+    document.getElementById('no-s-lookback').value = noSettings.reorder_lookback_days;
+  }
+}
+
+async function saveNoSettings() {
+  const int = id => Math.max(parseInt(document.getElementById(id).value, 10) || 0, 0);
+  const msg = document.getElementById('no-settings-msg');
+  const { error } = await sb.from('inventory_settings').update({
+    reorder_lead_days_walmart: int('no-s-walmart'),
+    reorder_lead_days_amazon: int('no-s-amazon'),
+    reorder_lead_days_other: int('no-s-other'),
+    reorder_cover_days: int('no-s-cover'),
+    reorder_lookback_days: Math.max(int('no-s-lookback'), 7),
+    updated_by: currentUser.id,
+    updated_at: new Date().toISOString(),
+  }).eq('id', true);
+  if (error) { msg.textContent = 'Error: ' + error.message; return; }
+  msg.textContent = 'Saved.';
+  await loadNeedsOrdering();
+}
+
+// ── Recording the order you placed ──
+function openPlaceOrder(vendor) {
+  const lines = noOrderLines(vendor);
+  if (!lines.length) return;
+  noOrderVendor = vendor;
+  const msg = document.getElementById('no-order-msg');
+  msg.style.display = 'none';
+  document.getElementById('no-order-title').textContent = `${NO_VENDORS[vendor]} order`;
+  document.getElementById('no-order-number').value = '';
+  // Default arrival: the longest lead time on the order, counting weekdays only.
+  const lead = Math.max(...lines.map(({ r }) => Number(r.lead_days) || 0), 0);
+  const d = new Date();
+  for (let left = lead; left > 0;) { d.setDate(d.getDate() + 1); if (d.getDay() !== 0 && d.getDay() !== 6) left--; }
+  document.getElementById('no-order-arrival').value = [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
+  document.getElementById('no-order-lines').innerHTML = lines.map(({ r, packs }) => {
+    const cpp = Number(r.counted_per_purchase) > 0 ? Number(r.counted_per_purchase) : null;
+    return `<div class="usage-row-sub" style="display:flex;justify-content:space-between;gap:1rem;padding:0.2rem 0">
+      <span>${packs} × ${escHtml(r.product_name || r.name)}</span>
+      <span>${cpp ? '+' + noFmt(packs * cpp) + ' ' + escHtml(r.unit || '') : '<span style="color:var(--warning,#e0a030)">set what one purchase adds</span>'}</span>
+    </div>`;
+  }).join('');
+  openModal('no-order-modal');
+}
+
+async function saveNoOrder() {
+  const msg = document.getElementById('no-order-msg');
+  const lines = noOrderLines(noOrderVendor);
+  const missing = lines.filter(({ r }) => !(Number(r.counted_per_purchase) > 0));
+  if (missing.length) {
+    msg.textContent = `Set how many one purchase adds for ${missing.map(({ r }) => r.name).join(', ')} first (Set up product) — otherwise arriving would add the wrong amount.`;
+    msg.className = 'msg error'; msg.style.display = 'block'; return;
+  }
+  const { error } = await sb.rpc('place_reorder', {
+    p_vendor: noOrderVendor,
+    p_lines: lines.map(({ r, packs }) => ({ inventory_id: r.inventory_id, raw_name: r.product_name || r.name, quantity: packs, counted_per_purchase: Number(r.counted_per_purchase) })),
+    p_order_number: document.getElementById('no-order-number').value.trim() || null,
+    p_expected: document.getElementById('no-order-arrival').value || null,
+    p_notes: null,
+  });
+  if (error) { msg.textContent = 'Error: ' + error.message; msg.className = 'msg error'; msg.style.display = 'block'; return; }
+  closeModal('no-order-modal');
+  const vendor = noOrderVendor;
+  noPicks = {};
+  await loadNeedsOrdering();
+  const done = document.getElementById('no-msg-' + vendor);
+  if (done) done.textContent = 'Recorded — managers confirm it under Deliveries. Upload the receipt later and pick this order.';
+  loadPurchasesBadge();
 }
 
 // ── RECIPES ────────────────────────────────────────────────────────────────
@@ -7947,6 +8300,59 @@ function renderUsageConversions(ctx, gapsOnly) {
 }
 </script>
 
+<!-- Needs Ordering: an item's usual product -->
+<div class="modal-overlay" id="no-profile-modal" role="dialog" aria-modal="true" aria-labelledby="no-profile-title">
+  <div class="modal" style="max-width:520px">
+    <button class="modal-close" onclick="closeModal('no-profile-modal')" aria-label="Close">✕</button>
+    <h2 class="modal-title" id="no-profile-title" style="font-weight:normal">Product</h2>
+    <p class="usage-help">What this item is usually bought as, so the list can say what to order and how much one purchase adds.</p>
+    <div class="form-group">
+      <label class="form-label" for="no-p-vendor">Bought from</label>
+      <select class="form-input" id="no-p-vendor"><option value="walmart">Walmart</option><option value="amazon">Amazon</option><option value="other">Other</option></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="no-p-name">Product</label>
+      <input class="form-input" id="no-p-name" placeholder="As the store names it, e.g. Fit Meal Prep 500 pack 16 oz cups"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="no-p-url">Product link</label>
+      <input class="form-input" id="no-p-url" type="url" placeholder="https://…"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="no-p-cpp">One purchase adds</label>
+      <div style="display:flex;align-items:center;gap:0.5rem"><input class="form-input" id="no-p-cpp" type="number" min="0" step="any" style="width:120px"/><span class="usage-muted" id="no-p-cpp-unit">units</span></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
+      <div class="form-group"><label class="form-label" for="no-p-lead">Lead time override (open days)</label><input class="form-input" id="no-p-lead" type="number" min="0" placeholder="default"/></div>
+      <div class="form-group"><label class="form-label" for="no-p-cover">Cover override (open days)</label><input class="form-input" id="no-p-cover" type="number" min="0" placeholder="default"/></div>
+    </div>
+    <div id="no-profile-msg" style="display:none" class="msg"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('no-profile-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveNoProfile()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Needs Ordering: record the order you placed -->
+<div class="modal-overlay" id="no-order-modal" role="dialog" aria-modal="true" aria-labelledby="no-order-title">
+  <div class="modal" style="max-width:520px">
+    <button class="modal-close" onclick="closeModal('no-order-modal')" aria-label="Close">✕</button>
+    <h2 class="modal-title" id="no-order-title" style="font-weight:normal">Order</h2>
+    <p class="usage-help">Record what you just ordered. It counts as on its way, and managers confirm it arriving under Deliveries. Upload the receipt later and choose this order so it isn’t counted twice.</p>
+    <div id="no-order-lines" style="margin-bottom:1rem"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
+      <div class="form-group"><label class="form-label" for="no-order-number">Order number (optional)</label><input class="form-input" id="no-order-number" placeholder="123-456-789"/></div>
+      <div class="form-group"><label class="form-label" for="no-order-arrival">Expected arrival</label><input class="form-input" id="no-order-arrival" type="date"/></div>
+    </div>
+    <div id="no-order-msg" style="display:none" class="msg"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('no-order-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveNoOrder()">Record order</button>
+    </div>
+  </div>
+</div>
+
 <!-- Receipt Review Modal -->
 <div class="modal-overlay" id="receipt-modal" role="dialog" aria-modal="true" aria-labelledby="receipt-modal-title">
   <div class="modal" style="max-width:680px">
@@ -7983,7 +8389,7 @@ function renderUsageConversions(ctx, gapsOnly) {
       </div>
     </div>
     <div class="po-arrival-opts">
-      <span id="po-attach-wrap" hidden><label for="po-attach">This receipt is for</label><select class="form-input" id="po-attach" onchange="if (this.value) document.getElementById('po-arrived').checked = true"></select></span>
+      <span id="po-attach-wrap" hidden><label for="po-attach">This receipt is for</label><select class="form-input" id="po-attach" onchange="document.getElementById('po-arrived').checked = !!this.value && allPurchaseOrders.find(p => p.id === this.value)?.status === 'needs_receipt'"></select></span>
       <label><input type="checkbox" id="po-arrived"/> It's already here — confirm the delivery next</label>
     </div>
     <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray-mid);margin-bottom:0.6rem;font-weight:600">Line Items — check each match and what one purchase counts as</div>
