@@ -554,7 +554,7 @@
   };
 
   // Modal state
-  let pendingSlot = null, pendingItemId = null, pendingBaseCents = 0, pendingFreeModCount = 0;
+  let pendingSlot = null, pendingItemId = null, pendingBaseCents = 0, pendingFreeModCount = 0, pendingNeedsBase = false;
   let _modOpener = null;
 
   function trapModFocus(e) {
@@ -791,7 +791,7 @@
     const freeMods = selectedPlan.free_modifier_count ?? 0;
     if (freeMods !== -1) {
       [1, 2].forEach(n => {
-        if (drinkSlots[n].drinkModifiers.length > freeMods) clearSlot(n);
+        if (drinkSlots[n].drinkModifiers.filter(m => !m.isBase).length > freeMods) clearSlot(n);
       });
     }
   }
@@ -874,7 +874,8 @@
 
   function menuCard(item, temp, slotNum) {
     // No price shown: the weekly plan price covers the drink.
-    const hasMods  = item.square_modifier_list_ids?.length > 0 && (selectedPlan?.free_modifier_count ?? 0) !== 0;
+    const hasMods  = item.square_modifier_list_ids?.length > 0 &&
+      ((selectedPlan?.free_modifier_count ?? 0) !== 0 || itemBaseLists(item).length > 0);
     const btnLabel = hasMods ? '+ Customize & Select' : '+ Select';
     return `<div class="menu-card">
       <div class="menu-card-name">${item.name}</div>
@@ -885,6 +886,16 @@
 
 
   // ── Modifier Modal ────────────────────────────────────────────────────────
+  /** Modifier lists attached to a drink that are a required base pick (Mathews
+   *  sodas: one "Teacher Soda"). The base is required and never counts against
+   *  the plan's free modifiers. */
+  function itemBaseLists(item) {
+    if (customerType !== 'mathews') return [];
+    const attachedSquareIds = item.square_modifier_list_ids || [];
+    return Object.values(modifierListsMap).filter(ml =>
+      attachedSquareIds.includes(ml.squareId) && isMathewsBaseList(ml));
+  }
+
   function openModModal(itemId, temp, slotNum) {
     const item = menuItems.find(i => i.id === itemId);
     if (!item) return;
@@ -897,26 +908,35 @@
     document.getElementById('mod-title').textContent      = item.name;
 
     const attachedSquareIds = item.square_modifier_list_ids || [];
-    const attachedLists = Object.values(modifierListsMap).filter(ml =>
-      attachedSquareIds.includes(ml.squareId)
-    );
+    const baseLists = itemBaseLists(item);
+    // The required base goes first so it's the first thing picked.
+    const attachedLists = Object.values(modifierListsMap)
+      .filter(ml => attachedSquareIds.includes(ml.squareId))
+      .sort((a, b) => baseLists.includes(b) - baseLists.includes(a));
+    pendingNeedsBase = baseLists.length > 0;
 
     // Plans either include some free modifiers or none, and nothing past the
-    // plan's limit can be picked, so every option offered here is free.
+    // plan's limit can be picked, so every option offered here is free. The
+    // base pick is required on top of that and never counts against the limit.
+    const shownLists = pendingFreeModCount === 0 ? baseLists : attachedLists;
     let optionsHtml = '';
     if (attachedLists.length === 0) {
       optionsHtml = '<p style="color:var(--gray);font-size:0.85rem">No customizations available.</p>';
-    } else if (pendingFreeModCount === 0) {
+    } else if (shownLists.length === 0) {
       optionsHtml = '<p style="color:var(--gray);font-size:0.85rem">Your plan doesn\'t include modifiers.</p>';
     } else {
-      for (const ml of attachedLists) {
+      for (const ml of shownLists) {
+        const isBase = baseLists.includes(ml);
         const groupHeadingId = `mod-list-heading-${ml.squareId || ml.name.replace(/\s+/g,'-')}`;
-        optionsHtml += `<div class="mod-list-name" id="${groupHeadingId}">${ml.name}</div>`;
-        optionsHtml += `<div role="group" aria-labelledby="${groupHeadingId}">`;
+        optionsHtml += `<div class="mod-list-name" id="${groupHeadingId}">${ml.name}${isBase ? ' &mdash; pick one (required)' : ''}</div>`;
+        optionsHtml += `<div role="${isBase ? 'radiogroup' : 'group'}" aria-labelledby="${groupHeadingId}">`;
+        if (isBase && ml.options.length === 0) {
+          optionsHtml += '<p style="color:var(--gray);font-size:0.85rem">Nothing is available right now. Please pick another drink.</p>';
+        }
         for (const opt of ml.options) {
           optionsHtml += `
             <div class="mod-option" id="mod-opt-wrap-${opt.id}"
-              role="checkbox" aria-checked="false" tabindex="0"
+              role="${isBase ? 'radio' : 'checkbox'}" aria-checked="false" tabindex="0"
               onclick="toggleModOption('${opt.id}')"
               onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleModOption('${opt.id}')}">
               <input type="checkbox"
@@ -924,10 +944,11 @@
                 data-price="0"
                 data-square-id="${opt.square_id}"
                 data-name="${opt.name}"
+                ${isBase ? 'data-base="1"' : ''}
                 tabindex="-1" aria-hidden="true"
               />
               <span class="mod-option-name">${opt.name}</span>
-              <span class="mod-option-price"><span class="mod-free-badge">FREE with your plan</span></span>
+              <span class="mod-option-price"><span class="mod-free-badge">${isBase ? 'Included' : 'FREE with your plan'}</span></span>
             </div>`;
         }
         optionsHtml += `</div>`;
@@ -948,17 +969,33 @@
     const cb   = document.getElementById(`mod-opt-${optId}`);
     const wrap = document.getElementById(`mod-opt-wrap-${optId}`);
 
+    const setChecked = (input, on) => {
+      input.checked = on;
+      const w = input.closest('.mod-option');
+      w.classList.toggle('selected', on);
+      w.setAttribute('aria-checked', on ? 'true' : 'false');
+    };
+
+    // The base is a pick-one: choosing another swaps it, and it doesn't count
+    // against the plan's free modifiers.
+    if (cb.dataset.base) {
+      if (!cb.checked) {
+        document.querySelectorAll('#mod-options-container input[data-base]').forEach(o => setChecked(o, false));
+        setChecked(cb, true);
+      }
+      refreshModLimit();
+      return;
+    }
+
     // Once the plan's free modifiers for this drink are used, block the rest.
     if (!cb.checked && pendingFreeModCount > 0 && checkedModCount() >= pendingFreeModCount) return;
 
-    cb.checked = !cb.checked;
-    wrap.classList.toggle('selected', cb.checked);
-    wrap.setAttribute('aria-checked', cb.checked ? 'true' : 'false');
+    setChecked(cb, !cb.checked);
     refreshModLimit();
   }
 
   function checkedModCount() {
-    return document.querySelectorAll('#mod-options-container input[type=checkbox]:checked').length;
+    return document.querySelectorAll('#mod-options-container input[type=checkbox]:checked:not([data-base])').length;
   }
 
   /** Shows how many free modifiers are left and greys out the rest once the
@@ -975,10 +1012,14 @@
     hint.classList.toggle('at-limit', atLimit);
 
     document.querySelectorAll('#mod-options-container .mod-option').forEach(wrap => {
-      const locked = atLimit && !wrap.querySelector('input[type=checkbox]').checked;
+      const input = wrap.querySelector('input[type=checkbox]');
+      const locked = atLimit && !input.dataset.base && !input.checked;
       wrap.classList.toggle('locked', locked);
       wrap.setAttribute('aria-disabled', locked ? 'true' : 'false');
     });
+
+    const baseChosen = !!document.querySelector('#mod-options-container input[data-base]:checked');
+    document.getElementById('mod-confirm-btn').disabled = pendingNeedsBase && !baseChosen;
   }
 
   function closeModModal() {
@@ -988,6 +1029,7 @@
     if (_modOpener) { _modOpener.focus(); _modOpener = null; }
     pendingSlot = pendingItemId = null;
     pendingBaseCents = pendingFreeModCount = 0;
+    pendingNeedsBase = false;
   }
 
   function confirmDrinkSelection() {
@@ -996,10 +1038,12 @@
     if (!item) return;
 
     const checkboxes = document.querySelectorAll('#mod-options-container input[type=checkbox]:checked');
+    if (pendingNeedsBase && !document.querySelector('#mod-options-container input[data-base]:checked')) return;
     const selectedModifiers = Array.from(checkboxes).map(cb => ({
       catalogObjectId: cb.dataset.squareId,
       name:            cb.dataset.name,
       priceCents:      parseInt(cb.dataset.price || '0'),
+      ...(cb.dataset.base ? { isBase: true } : {}),
     }));
 
     drinkSlots[pendingSlot] = {
