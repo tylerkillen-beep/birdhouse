@@ -339,28 +339,8 @@
 
     <!-- Step 2: Drink Selection -->
     <div class="step-panel" id="panel-2">
-      <!-- Slot 1 always shown -->
-      <div id="slot-1-section">
-        <div class="slot-header">
-          <span style="font-size:1.3rem" aria-hidden="true">☕</span>
-          <h3 class="slot-title">Your Weekly Drink</h3>
-          <span class="slot-badge" id="slot-1-badge">Slot 1</span>
-        </div>
-        <div id="slot-1-selected" class="no-drink-selected">No drink selected yet — pick one from the menu below.</div>
-        <div id="menu-container-1"></div>
-      </div>
-
-      <!-- Slot 2 only for Eagle -->
-      <div id="slot-2-section" style="display:none">
-        <div class="divider"></div>
-        <div class="slot-header">
-          <span style="font-size:1.3rem" aria-hidden="true">☕</span>
-          <h3 class="slot-title">Your Second Weekly Drink</h3>
-          <span class="slot-badge" id="slot-2-badge">Slot 2</span>
-        </div>
-        <div id="slot-2-selected" class="no-drink-selected">No drink selected yet — pick one from the menu below.</div>
-        <div id="menu-container-2"></div>
-      </div>
+      <!-- One section per weekly drink in the plan, built by syncSlotPanels() -->
+      <div id="drink-slots"></div>
 
       <div class="btn-row">
         <button class="btn-ghost" onclick="goToStep(1)">← Back</button>
@@ -370,74 +350,8 @@
 
     <!-- Step 3: Delivery Details -->
     <div class="step-panel" id="panel-3">
-      <!-- Slot 1 delivery -->
-      <div id="delivery-slot-1">
-        <div class="slot-header">
-          <span style="font-size:1.2rem" aria-hidden="true">📍</span>
-          <h3 class="slot-title" id="delivery-slot-1-title">Delivery Details</h3>
-        </div>
-        <div class="drink-selected-card delivery-drink" id="delivery-slot-1-drink"></div>
-        <div class="delivery-grid">
-          <div class="form-group">
-            <label for="slot-1-day">Delivery Day</label>
-            <select id="slot-1-day" required>
-              <option value="Monday">Monday</option>
-              <option value="Tuesday">Tuesday</option>
-              <option value="Wednesday" selected>Wednesday</option>
-              <option value="Thursday">Thursday</option>
-              <option value="Friday">Friday</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="slot-1-time">Preferred Time</label>
-            <select id="slot-1-time" required></select>
-          </div>
-          <div class="form-group">
-            <label for="slot-1-location">Room / Location</label>
-            <div class="autocomplete-wrapper">
-              <input type="text" id="slot-1-location" placeholder="e.g. Room 204" required autocomplete="off"
-                role="combobox" aria-autocomplete="list" aria-haspopup="listbox"
-                aria-expanded="false" aria-controls="ac-slot-1-location" />
-              <div class="autocomplete-dropdown" id="ac-slot-1-location" role="listbox" aria-label="Delivery location suggestions"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Slot 2 delivery (Eagle only) -->
-      <div id="delivery-slot-2" style="display:none">
-        <div class="divider"></div>
-        <div class="slot-header">
-          <span style="font-size:1.2rem" aria-hidden="true">📍</span>
-          <h3 class="slot-title">Second Drink Delivery</h3>
-        </div>
-        <div class="drink-selected-card delivery-drink" id="delivery-slot-2-drink"></div>
-        <div class="delivery-grid">
-          <div class="form-group">
-            <label for="slot-2-day">Delivery Day</label>
-            <select id="slot-2-day">
-              <option value="Monday">Monday</option>
-              <option value="Tuesday">Tuesday</option>
-              <option value="Wednesday" selected>Wednesday</option>
-              <option value="Thursday">Thursday</option>
-              <option value="Friday">Friday</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="slot-2-time">Preferred Time</label>
-            <select id="slot-2-time"></select>
-          </div>
-          <div class="form-group">
-            <label for="slot-2-location">Room / Location</label>
-            <div class="autocomplete-wrapper">
-              <input type="text" id="slot-2-location" placeholder="e.g. Room 204" autocomplete="off"
-                role="combobox" aria-autocomplete="list" aria-haspopup="listbox"
-                aria-expanded="false" aria-controls="ac-slot-2-location" />
-              <div class="autocomplete-dropdown" id="ac-slot-2-location" role="listbox" aria-label="Second drink location suggestions"></div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <!-- One delivery block per weekly drink in the plan, built by syncSlotPanels() -->
+      <div id="delivery-slots"></div>
 
       <div class="btn-row">
         <button class="btn-ghost" onclick="goToStep(2)">← Back</button>
@@ -551,11 +465,112 @@
     return { firstName: 'Eagle', lastName: '' };
   }
 
-  // Drink slots state — slot 1 always exists, slot 2 only for Eagle
-  let drinkSlots = {
-    1: { drinkItemId: null, drinkName: null, drinkModifiers: [], baseCents: 0 },
-    2: { drinkItemId: null, drinkName: null, drinkModifiers: [], baseCents: 0 },
-  };
+  // One weekly drink per slot, numbered 1..N where N is the plan's
+  // drinks_per_week. syncSlotPanels() creates and removes them as the plan changes.
+  const emptySlot = () => ({ drinkItemId: null, drinkName: null, drinkModifiers: [], baseCents: 0 });
+  let drinkSlots = {};
+  let locationPlaceholder = 'e.g. Room 204';
+  let deliveryTimesReady = false;
+
+  const SLOT_ORDINALS = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth'];
+  const DELIVERY_WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+  function slotCount()   { return Math.max(1, selectedPlan?.drinks_per_week || 1); }
+  function slotNumbers() { return Array.from({ length: slotCount() }, (_, i) => i + 1); }
+  function slotOrdinal(n) { return SLOT_ORDINALS[n - 1] || `Drink ${n}`; }
+
+  /** A one-drink plan keeps the plain wording; bigger plans name each drink. */
+  function slotLabels(n) {
+    const many = slotCount() > 1;
+    const ord  = slotOrdinal(n);
+    return {
+      pick:     many ? `Your ${ord} Weekly Drink` : 'Your Weekly Drink',
+      delivery: many ? `${ord} Drink Delivery`    : 'Delivery Details',
+      drink:    many ? `${ord} drink`             : 'Your drink',
+      // Used in messages and the review summary.
+      short:    many ? `${ord.toLowerCase()} drink` : 'drink',
+    };
+  }
+
+  function drinkSectionHtml(n) {
+    return `<div id="slot-${n}-section">
+      ${n > 1 ? '<div class="divider"></div>' : ''}
+      <div class="slot-header">
+        <span style="font-size:1.3rem" aria-hidden="true">☕</span>
+        <h3 class="slot-title" id="slot-${n}-title"></h3>
+        <span class="slot-badge" id="slot-${n}-badge">Slot ${n}</span>
+      </div>
+      <div id="slot-${n}-selected" class="no-drink-selected">No drink selected yet — pick one from the menu below.</div>
+      <div id="menu-container-${n}"></div>
+    </div>`;
+  }
+
+  function deliverySectionHtml(n) {
+    // Mathews only gets deliveries on its own days.
+    const days = customerType === 'mathews'
+      ? DELIVERY_WEEKDAYS.filter(d => MATHEWS_DELIVERY_DAY_NAMES.includes(d))
+      : DELIVERY_WEEKDAYS;
+    const dayOptions = days.map(d => `<option value="${d}"${d === 'Wednesday' ? ' selected' : ''}>${d}</option>`).join('');
+    return `<div id="delivery-slot-${n}">
+      ${n > 1 ? '<div class="divider"></div>' : ''}
+      <div class="slot-header">
+        <span style="font-size:1.2rem" aria-hidden="true">📍</span>
+        <h3 class="slot-title" id="delivery-slot-${n}-title"></h3>
+      </div>
+      <div class="drink-selected-card delivery-drink" id="delivery-slot-${n}-drink"></div>
+      <div class="delivery-grid">
+        <div class="form-group">
+          <label for="slot-${n}-day">Delivery Day</label>
+          <select id="slot-${n}-day" required>${dayOptions}</select>
+        </div>
+        <div class="form-group">
+          <label for="slot-${n}-time">Preferred Time</label>
+          <select id="slot-${n}-time" required></select>
+        </div>
+        <div class="form-group">
+          <label for="slot-${n}-location">Room / Location</label>
+          <div class="autocomplete-wrapper">
+            <input type="text" id="slot-${n}-location" required autocomplete="off"
+              role="combobox" aria-autocomplete="list" aria-haspopup="listbox"
+              aria-expanded="false" aria-controls="ac-slot-${n}-location" />
+            <div class="autocomplete-dropdown" id="ac-slot-${n}-location" role="listbox" aria-label="Delivery location suggestions"></div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function wireDeliverySlot(n) {
+    const loc = document.getElementById(`slot-${n}-location`);
+    loc.placeholder = locationPlaceholder;
+    initLocationAutocomplete(`slot-${n}-location`, currentLocationList);
+    document.getElementById(`slot-${n}-day`).addEventListener('change', () => refreshSlotTimes(n));
+    if (deliveryTimesReady) refreshSlotTimes(n);
+  }
+
+  /** Makes the drink and delivery sections match the selected plan: one of each
+   *  per weekly drink. Sections that already exist are kept, so what the
+   *  student has typed survives switching between plans of the same size. */
+  function syncSlotPanels() {
+    const count = slotCount();
+    Object.keys(drinkSlots).map(Number).filter(n => n > count).forEach(n => {
+      delete drinkSlots[n];
+      document.getElementById(`slot-${n}-section`)?.remove();
+      document.getElementById(`delivery-slot-${n}`)?.remove();
+    });
+    for (let n = 1; n <= count; n++) {
+      if (drinkSlots[n]) continue;
+      drinkSlots[n] = emptySlot();
+      document.getElementById('drink-slots').insertAdjacentHTML('beforeend', drinkSectionHtml(n));
+      document.getElementById('delivery-slots').insertAdjacentHTML('beforeend', deliverySectionHtml(n));
+      wireDeliverySlot(n);
+    }
+    for (let n = 1; n <= count; n++) {
+      const labels = slotLabels(n);
+      document.getElementById(`slot-${n}-title`).textContent = labels.pick;
+      document.getElementById(`delivery-slot-${n}-title`).textContent = labels.delivery;
+    }
+  }
 
   // Modal state
   let pendingSlot = null, pendingItemId = null, pendingBaseCents = 0, pendingFreeModCount = 0, pendingNeedsBase = false;
@@ -615,11 +630,7 @@
 
     // Prefill location from last_room
     if (profile?.last_room && !isBlockedDeliveryRoom(profile.last_room)) {
-      const locInputs = ['slot-1-location', 'slot-2-location'];
-      locInputs.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.placeholder = profile.last_room;
-      });
+      locationPlaceholder = profile.last_room;
     }
 
     const results = await Promise.allSettled([loadPlans(), loadMenu(), loadDeliveryTimes()]);
@@ -744,9 +755,8 @@
         : freeMods === 0
           ? 'Modifiers not included'
           : `${freeMods} free modifier${freeMods === 1 ? '' : 's'} per drink`;
-      const drinksLabel = p.drinks_per_week === 2
-        ? '2 drinks per week'
-        : '1 drink per week';
+      const drinkCount = Math.max(1, p.drinks_per_week || 1);
+      const drinksLabel = `${drinkCount} drink${drinkCount === 1 ? '' : 's'} per week`;
       const cookies = p.cookies_per_week;
       const cookiesLabel = cookies > 0
         ? `${cookies} cookie${cookies === 1 ? '' : 's'} per week`
@@ -776,8 +786,9 @@
 
   function selectPlan(planId) {
     selectedPlan = plans.find(p => p.id === planId);
+    syncSlotPanels();
     // A drink picked under a broader plan must not carry over to one that excludes it.
-    [1, 2].forEach(n => {
+    slotNumbers().forEach(n => {
       const item = menuItems.find(i => i.id === drinkSlots[n].drinkItemId);
       if (drinkSlots[n].drinkItemId && !(item && planAllowsItem(selectedPlan, item))) clearSlot(n);
     });
@@ -794,7 +805,7 @@
     // this one includes, so have the student pick it again.
     const freeMods = selectedPlan.free_modifier_count ?? 0;
     if (freeMods !== -1) {
-      [1, 2].forEach(n => {
+      slotNumbers().forEach(n => {
         if (drinkSlots[n].drinkModifiers.filter(m => !m.isBase).length > freeMods) clearSlot(n);
       });
     }
@@ -1094,15 +1105,12 @@
   }
 
   function checkDrinkStepComplete() {
-    const isEagle   = selectedPlan?.drinks_per_week === 2;
-    const slot1Done = !!drinkSlots[1].drinkItemId;
-    const slot2Done = !isEagle || !!drinkSlots[2].drinkItemId;
-    document.getElementById('btn-to-step3').disabled = !(slot1Done && slot2Done);
+    document.getElementById('btn-to-step3').disabled = !slotNumbers().every(n => !!drinkSlots[n]?.drinkItemId);
   }
 
   // ── Delivery Times ────────────────────────────────────────────────────────
   let legacyDeliveryTimes = [], deliverySchedule = null;
-  const slotTimesRequestId = { 1: 0, 2: 0 };
+  const slotTimesRequestId = {};
 
   async function loadDeliveryTimes() {
     const { data, error } = await sb.from('store_config').select('value').eq('key', 'delivery_times').single();
@@ -1111,24 +1119,20 @@
     }
     legacyDeliveryTimes = Array.isArray(data?.value) ? data.value : ['7:30 AM','8:00 AM','8:30 AM','9:00 AM','10:00 AM','11:00 AM','12:00 PM'];
     deliverySchedule = await loadDeliverySchedule(sb);
-    [1, 2].forEach(n => {
-      const daySel = document.getElementById(`slot-${n}-day`);
-      // Mathews only gets deliveries on its own days.
-      if (customerType === 'mathews') {
-        [...daySel.options].forEach(o => { if (!MATHEWS_DELIVERY_DAY_NAMES.includes(o.value)) o.remove(); });
-      }
-      daySel.addEventListener('change', () => refreshSlotTimes(n));
-      refreshSlotTimes(n);
-    });
+    // A plan picked before this finished has its sections already; ones built
+    // later fill their own times as they're created.
+    deliveryTimesReady = true;
+    Object.keys(drinkSlots).forEach(n => refreshSlotTimes(Number(n)));
   }
 
   /** High school subscribers pick from the bell schedule for their chosen day,
    *  minus times that are full; Mathews has its two fixed times. */
   async function refreshSlotTimes(slotNum) {
     const sel = document.getElementById(`slot-${slotNum}-time`);
+    if (!sel) return;
     const day = document.getElementById(`slot-${slotNum}-day`).value;
     const prevVal = sel.value;
-    const requestId = ++slotTimesRequestId[slotNum];
+    const requestId = slotTimesRequestId[slotNum] = (slotTimesRequestId[slotNum] || 0) + 1;
 
     let times = legacyDeliveryTimes;
     if (customerType === 'mathews') {
@@ -1136,7 +1140,8 @@
     } else if (deliverySchedule) {
       sel.innerHTML = '<option value="">Checking open times…</option>';
       times = await openDeliveryTimesForWeekday(sb, deliverySchedule, day);
-      if (requestId !== slotTimesRequestId[slotNum]) return; // the day changed again meanwhile
+      // The day changed again meanwhile, or the plan shrank and dropped this slot.
+      if (requestId !== slotTimesRequestId[slotNum] || !sel.isConnected) return;
     }
 
     sel.innerHTML = times.length
@@ -1147,27 +1152,20 @@
 
   // ── Payment Summary ───────────────────────────────────────────────────────
   function renderPaySummary() {
-    const isEagle = selectedPlan?.drinks_per_week === 2;
     const price   = (selectedPlan.price_cents / 100).toFixed(2);
+    const cap     = s => s.charAt(0).toUpperCase() + s.slice(1);
 
-    let lines = `
-      <div class="summary-line"><span class="summary-key">Plan</span><span class="summary-val">${selectedPlan.name}</span></div>
-      <div class="summary-line"><span class="summary-key">Slot 1 drink</span><span class="summary-val">${drinkSlots[1].drinkName || '—'}</span></div>`;
+    let lines = `<div class="summary-line"><span class="summary-key">Plan</span><span class="summary-val">${selectedPlan.name}</span></div>`;
 
-    if (drinkSlots[1].drinkModifiers?.length) {
-      lines += `<div class="summary-line"><span class="summary-key" style="padding-left:0.75rem">↳ Mods</span><span class="summary-val">${drinkSlots[1].drinkModifiers.map(m=>m.name).join(', ')}</span></div>`;
-    }
-
-    lines += `<div class="summary-line"><span class="summary-key">Delivery 1</span><span class="summary-val">${document.getElementById('slot-1-day').value} · ${document.getElementById('slot-1-time').value}</span></div>`;
-    lines += `<div class="summary-line"><span class="summary-key">Location 1</span><span class="summary-val">${document.getElementById('slot-1-location').value || '—'}</span></div>`;
-
-    if (isEagle) {
-      lines += `<div class="summary-line"><span class="summary-key">Slot 2 drink</span><span class="summary-val">${drinkSlots[2].drinkName || '—'}</span></div>`;
-      if (drinkSlots[2].drinkModifiers?.length) {
-        lines += `<div class="summary-line"><span class="summary-key" style="padding-left:0.75rem">↳ Mods</span><span class="summary-val">${drinkSlots[2].drinkModifiers.map(m=>m.name).join(', ')}</span></div>`;
+    for (const n of slotNumbers()) {
+      const slot  = drinkSlots[n];
+      const short = slotLabels(n).short;
+      lines += `<div class="summary-line"><span class="summary-key">${cap(short)}</span><span class="summary-val">${slot.drinkName || '—'}</span></div>`;
+      if (slot.drinkModifiers?.length) {
+        lines += `<div class="summary-line"><span class="summary-key" style="padding-left:0.75rem">↳ Mods</span><span class="summary-val">${slot.drinkModifiers.map(m=>m.name).join(', ')}</span></div>`;
       }
-      lines += `<div class="summary-line"><span class="summary-key">Delivery 2</span><span class="summary-val">${document.getElementById('slot-2-day').value} · ${document.getElementById('slot-2-time').value}</span></div>`;
-      lines += `<div class="summary-line"><span class="summary-key">Location 2</span><span class="summary-val">${document.getElementById('slot-2-location').value || '—'}</span></div>`;
+      lines += `<div class="summary-line"><span class="summary-key" style="padding-left:0.75rem">↳ Delivery</span><span class="summary-val">${document.getElementById(`slot-${n}-day`).value} · ${document.getElementById(`slot-${n}-time`).value}</span></div>`;
+      lines += `<div class="summary-line"><span class="summary-key" style="padding-left:0.75rem">↳ Location</span><span class="summary-val">${document.getElementById(`slot-${n}-location`).value || '—'}</span></div>`;
     }
 
     const finalPrice = customerType === 'teacher'
@@ -1216,29 +1214,15 @@
 
       const meta     = currentUser.user_metadata || {};
       const { firstName, lastName } = resolveCustomerName(currentUser, customerProfile);
-      const isEagle  = selectedPlan?.drinks_per_week === 2;
 
-      const slots = [
-        {
-          slotNumber:       1,
-          drinkItemId:      drinkSlots[1].drinkItemId,
-          drinkModifiers:   drinkSlots[1].drinkModifiers,
-          deliveryDay:      document.getElementById('slot-1-day').value,
-          deliveryTime:     document.getElementById('slot-1-time').value,
-          deliveryLocation: document.getElementById('slot-1-location').value,
-        },
-      ];
-
-      if (isEagle) {
-        slots.push({
-          slotNumber:       2,
-          drinkItemId:      drinkSlots[2].drinkItemId,
-          drinkModifiers:   drinkSlots[2].drinkModifiers,
-          deliveryDay:      document.getElementById('slot-2-day').value,
-          deliveryTime:     document.getElementById('slot-2-time').value,
-          deliveryLocation: document.getElementById('slot-2-location').value,
-        });
-      }
+      const slots = slotNumbers().map(n => ({
+        slotNumber:       n,
+        drinkItemId:      drinkSlots[n].drinkItemId,
+        drinkModifiers:   drinkSlots[n].drinkModifiers,
+        deliveryDay:      document.getElementById(`slot-${n}-day`).value,
+        deliveryTime:     document.getElementById(`slot-${n}-time`).value,
+        deliveryLocation: document.getElementById(`slot-${n}-location`).value,
+      }));
 
 // Re-fetch session to ensure token is fresh
 const { data: { session: freshSession } } = await sb.auth.getSession();
@@ -1294,9 +1278,7 @@ const res = await fetch(`${SUPABASE_URL}/functions/v1/save-card`, {
     const el   = document.getElementById(`delivery-slot-${slotNum}-drink`);
     const label = document.createElement('div');
     label.className = 'delivery-drink-label';
-    label.textContent = selectedPlan?.drinks_per_week === 2
-      ? (slotNum === 1 ? 'First drink' : 'Second drink')
-      : 'Your drink';
+    label.textContent = slotLabels(slotNum).drink;
     const name = document.createElement('div');
     name.className = 'drink-selected-name';
     name.textContent = slot.drinkName || '';
@@ -1313,37 +1295,24 @@ const res = await fetch(`${SUPABASE_URL}/functions/v1/save-card`, {
   // ── Navigation ────────────────────────────────────────────────────────────
   async function goToStep(step) {
     if (step === 2) {
-      // Show/hide slot 2 based on plan
-      const isEagle = selectedPlan?.drinks_per_week === 2;
-      document.getElementById('slot-2-section').style.display   = isEagle ? 'block' : 'none';
-      document.getElementById('delivery-slot-1-title').textContent = isEagle ? 'First Drink Delivery' : 'Delivery Details';
-      renderMenuForSlot(1);
-      if (isEagle) renderMenuForSlot(2);
+      slotNumbers().forEach(renderMenuForSlot);
       checkDrinkStepComplete();
     }
     if (step === 3) {
-      const isEagle = selectedPlan?.drinks_per_week === 2;
-      document.getElementById('delivery-slot-2').style.display = isEagle ? 'block' : 'none';
-      if (!drinkSlots[1].drinkItemId) { alert('Please select a drink for slot 1.'); return; }
-      if (isEagle && !drinkSlots[2].drinkItemId) { alert('Please select a drink for slot 2.'); return; }
-      renderDeliveryDrink(1);
-      if (isEagle) renderDeliveryDrink(2);
+      for (const n of slotNumbers()) {
+        if (!drinkSlots[n].drinkItemId) { alert(`Please select your ${slotLabels(n).short}.`); return; }
+      }
+      slotNumbers().forEach(renderDeliveryDrink);
     }
     if (step === 4) {
-      const loc1 = document.getElementById('slot-1-location').value.trim();
-      if (!loc1) { alert('Please enter a delivery location for slot 1.'); return; }
-      // A COC room is worse on a subscription than on a one-off order: it is a
-      // delivery the crew cannot make, repeating every week.
-      if (isBlockedDeliveryRoom(loc1)) { alert(BLOCKED_ROOM_MSG); return; }
-      if (!document.getElementById('slot-1-time').value) { alert('Please pick a delivery time for slot 1.'); return; }
-      const isEagle = selectedPlan?.drinks_per_week === 2;
-      const loc2 = document.getElementById('slot-2-location').value.trim();
-      if (isEagle && !loc2) {
-        alert('Please enter a delivery location for slot 2.'); return;
-      }
-      if (isEagle && isBlockedDeliveryRoom(loc2)) { alert(BLOCKED_ROOM_MSG); return; }
-      if (isEagle && !document.getElementById('slot-2-time').value) {
-        alert('Please pick a delivery time for slot 2.'); return;
+      for (const n of slotNumbers()) {
+        const what = slotLabels(n).short;
+        const loc = document.getElementById(`slot-${n}-location`).value.trim();
+        if (!loc) { alert(`Please enter a delivery location for your ${what}.`); return; }
+        // A COC room is worse on a subscription than on a one-off order: it is a
+        // delivery the crew cannot make, repeating every week.
+        if (isBlockedDeliveryRoom(loc)) { alert(BLOCKED_ROOM_MSG); return; }
+        if (!document.getElementById(`slot-${n}-time`).value) { alert(`Please pick a delivery time for your ${what}.`); return; }
       }
       renderPaySummary();
       if (!squareCard) await initSquare();
@@ -1407,13 +1376,12 @@ const res = await fetch(`${SUPABASE_URL}/functions/v1/save-card`, {
 
   // ── Location Autocomplete ─────────────────────────────────────────────────
   // Same widget and room lists the order page uses, from /lib/locations.js.
-  // customerType is resolved inside init(), after this runs, so pass a getter
-  // rather than a fixed list.
+  // Each delivery slot's input is wired as its section is built (wireDeliverySlot).
+  // customerType is resolved inside init(), so pass a getter rather than a
+  // fixed list.
   function currentLocationList() {
     return customerType === 'mathews' ? MATHEWS_LOCATIONS : NHS_LOCATIONS;
   }
-  initLocationAutocomplete('slot-1-location', currentLocationList);
-  initLocationAutocomplete('slot-2-location', currentLocationList);
 
   init();
 </script>
