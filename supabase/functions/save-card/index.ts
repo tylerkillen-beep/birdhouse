@@ -174,6 +174,17 @@ serve(async (req) => {
     if (planError || !plan) throw new Error("Invalid plan");
     if (!plan.active) throw new Error("That plan is no longer available");
 
+    // A plan includes a set number of weekly drinks, one delivery slot each,
+    // numbered 1..N. Fewer would shortchange the student and more would be a
+    // giveaway at a flat price, so the request has to match exactly.
+    const drinksPerWeek: number = Math.max(1, plan.drinks_per_week ?? 1);
+    const slotNumbers = drinkSlots.map((s: Record<string, unknown>) => Number(s.slotNumber)).sort((a: number, b: number) => a - b);
+    if (drinkSlots.length !== drinksPerWeek || slotNumbers.some((n: number, i: number) => n !== i + 1)) {
+      throw new Error(
+        `The ${plan.name} plan includes ${drinksPerWeek} drink${drinksPerWeek === 1 ? "" : "s"} a week. Please schedule each one and try again.`
+      );
+    }
+
     // Campus and discount come from the account, the same way process-payment
     // works them out for coffee orders.
     const isTeacherEmail = (user.email || "").toLowerCase().endsWith("@nixaschools.net");
