@@ -470,6 +470,10 @@
     .usage-suggest-label{font-size:0.68rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--accent);font-weight:600}
     .usage-suggest-item{font-size:0.82rem;font-weight:600}
     .usage-suggest input{width:90px;padding:0.35rem 0.5rem;font-size:0.8rem}
+    .usage-deduct{display:flex;flex-wrap:wrap;gap:0.75rem 1rem;align-items:center;justify-content:space-between;margin-bottom:1rem;padding:0.8rem 1rem;border:1px solid var(--border);border-radius:12px;background:var(--card);font-size:0.82rem}
+    .usage-deduct.on{border-color:rgba(200,169,110,0.4)}
+    .usage-deduct-state{font-weight:600}
+    .usage-deduct.on .usage-deduct-state{color:var(--accent)}
     .usage-bulk{display:flex;flex-wrap:wrap;gap:0.75rem;align-items:center;margin-bottom:1rem;padding:0.7rem 0.9rem;border:1px solid rgba(200,169,110,0.35);border-radius:10px;font-size:0.82rem}
     .usage-empty{color:var(--gray-mid);text-align:center;padding:2rem;background:var(--card);border:1px solid var(--border);border-radius:12px}
     .recipe-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.1rem 1.25rem;margin-bottom:0.6rem}
@@ -1211,8 +1215,9 @@
   <div class="section-panel" id="section-usage-setup">
     <div class="page-header">
       <h1>Usage Setup</h1>
-      <p>Tell the site what every sale uses up, so inventory can count itself down as orders come in. Nothing is deducted yet — this is the setup.</p>
+      <p>Tell the site what every sale uses up, so inventory can count itself down as orders come in.</p>
     </div>
+    <div id="usage-deduct"></div>
     <div class="usage-summary" id="usage-summary"></div>
     <div class="section-header">
       <div style="display:flex;gap:0.5rem;flex-wrap:wrap" role="group" aria-label="Usage setup view">
@@ -7259,6 +7264,7 @@ const USAGE_LINK_TABLES = { option: 'recipe_option_ingredients', item: 'menu_ite
 const USAGE_INV_CATEGORIES = { cold_drinks: 'Cold Drinks', hot_drinks: 'Hot Drinks', flavors: 'Flavors & Syrups', supplies: 'Supplies', baked_goods: 'Baked Goods' };
 
 let usageData = null;
+let usageDeduct = null;  // inventory_settings row, or { missing: true } before the phase 2 migration
 let usageTab = 'items';
 let usageAdder = null;   // the target whose "+ Link" form is open
 let usageTargets = [];   // rebuilt every render; inline handlers index into it
@@ -7314,6 +7320,9 @@ async function loadUsageSetup() {
   // Same queries the Inventory and Menu tabs run, so refreshing these is harmless.
   allInventory = inventory;
   allMenuItems = menuItems;
+  // Its own query so a site that hasn't run the phase 2 migration yet still loads.
+  const settings = await sb.from('inventory_settings').select('*').maybeSingle();
+  usageDeduct = settings.error ? { missing: true } : (settings.data || { deduct_orders: false });
   usageData = {
     menuItems, recipes, optionRows, preview, optionLinks, optionSkips, itemLinks, addonLinks, modLists, modOptions,
     recipeByItem: Object.fromEntries(recipeLinks.map(l => [l.menu_item_id, l])),
@@ -7386,8 +7395,56 @@ function usageContext() {
   return { items, options, addons, conversions };
 }
 
+// The switch that lets paid orders take stock off the count. Off, orders still
+// record what they use (so history builds); on, the count moves too.
+function renderUsageDeduct() {
+  const el = document.getElementById('usage-deduct');
+  if (!usageDeduct) { el.innerHTML = ''; return; }
+  if (usageDeduct.missing) {
+    el.innerHTML = '<div class="usage-deduct"><span>Automatic deduction needs <code>supabase/migrations/20260925_inventory_deduction.sql</code> run in the Supabase SQL editor first.</span></div>';
+    return;
+  }
+  const on = usageDeduct.deduct_orders === true;
+  const since = usageDeduct.deduct_enabled_at ? new Date(usageDeduct.deduct_enabled_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+  el.innerHTML = `<div class="usage-deduct ${on ? 'on' : ''}">
+    <div>
+      <div class="usage-deduct-state">Automatic deduction is ${on ? 'ON' + (since ? ' since ' + htmlEscape(since) : '') : 'OFF'}</div>
+      <div class="usage-muted">${on
+        ? 'Each paid order takes what it uses off the count. A cancelled order puts it back.'
+        : 'Paid orders record what they use, but your counts don’t change yet. Count the important items first, then turn this on.'}</div>
+    </div>
+    <div class="usage-actions">
+      <button type="button" class="btn ${on ? 'btn-ghost' : 'btn-primary'} btn-sm" onclick="setUsageDeduction(${!on})">${on ? 'Turn off' : 'Turn on'}</button>
+      <button type="button" class="btn btn-ghost btn-sm" id="usage-rebuild-btn" onclick="rebuildUsageHistory()">Rebuild usage history</button>
+      <span class="usage-muted" id="usage-rebuild-msg" role="status"></span>
+    </div>
+  </div>`;
+}
+
+async function setUsageDeduction(on) {
+  if (on && !confirm('Turn on automatic deduction?\n\nFrom now on every paid order takes what it uses off your counts, starting from the numbers in Inventory today. Make sure the counts for cups, milk, coffee, syrups and cookies are up to date first.')) return;
+  const patch = { deduct_orders: on, updated_by: currentUser.id, updated_at: new Date().toISOString() };
+  if (on) patch.deduct_enabled_at = new Date().toISOString();
+  const { error } = await sb.from('inventory_settings').update(patch).eq('id', true);
+  if (error) { alert('Couldn’t change it: ' + error.message); return; }
+  await loadUsageSetup();
+}
+
+// Re-records what past orders used from today's setup, without touching stock.
+async function rebuildUsageHistory() {
+  const btn = document.getElementById('usage-rebuild-btn');
+  const msg = document.getElementById('usage-rebuild-msg');
+  if (!confirm('Rebuild usage history?\n\nThis re-works what past orders used from your current Usage Setup. It never changes your counts.')) return;
+  btn.disabled = true;
+  msg.textContent = 'Working…';
+  const { data, error } = await sb.rpc('backfill_order_usage', { p_rebuild: true });
+  btn.disabled = false;
+  msg.textContent = error ? 'Error: ' + error.message : `Done — ${data} order${data === 1 ? '' : 's'} recorded.`;
+}
+
 function renderUsageSetup() {
   if (!usageData) return;
+  renderUsageDeduct();
   usageTargets = [];
   const ctx = usageContext();
 
