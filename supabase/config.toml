@@ -62,6 +62,12 @@ verify_jwt = false
 [functions.sync-square-sales]
 verify_jwt = false
 
+# Called by a Google Apps Script in the order-email inbox, which carries no Supabase
+# login. The x-intake-secret header is the gate instead -- the function refuses to
+# run without INTAKE_SECRET set.
+[functions.ingest-order-email]
+verify_jwt = false
+
 [analytics]
 enabled = false
 port = 54327

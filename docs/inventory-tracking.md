@@ -256,11 +256,13 @@ and 2 carry two and slot 3 carries one. It goes by slot, not date, so a delivery
 moved by a closure keeps its cookie.
 
 - The **Order Queue card** says "Include N cookies with this delivery".
-- Pick the cookie under **Usage Setup → Cookie included with subscription
-  plans**. Marking the delivery delivered then records those cookies as used
-  (and takes them off the count when Subscription drinks is on); putting it
-  back or cancelling it returns them. Until one is picked the card still tells
-  staff to include it, but the count doesn't move.
+- Marking the delivery delivered can record those cookies as used (and take
+  them off the count when Subscription drinks is on), but only once a cookie is
+  chosen in `inventory_settings.subscription_cookie_item_id`. There's no screen
+  for it: nobody picked one, so the card tells staff to include the cookie and
+  the count doesn't move. To turn it on, set it in the SQL editor with the menu
+  item's id: `update public.inventory_settings set subscription_cookie_item_id =
+  '<menu item id>';`.
 - The count is snapshotted when the delivery is closed out, so a later plan
   change doesn't rewrite what went out that day. Deliveries closed out before
   this migration carry none.
@@ -324,6 +326,16 @@ select h.inventory_id, i.name, sum(h.base_amount / nullif(i.base_units_per_unit,
 from public.inventory_usage_history h join public.inventory i on i.id = h.inventory_id
 where h.sold_at > now() - interval '28 days' group by 1, 2 order by 3 desc nulls last;
 ```
+
+---
+
+## Email intake
+
+Forward Amazon and Walmart order emails and the site records the order itself, so
+receipts don't have to be uploaded. Setup and behaviour are in
+[`email-intake.md`](email-intake.md); the orders it isn't sure about wait under
+**Admin → Purchases → Needs Review**, and **Email Log** shows what it did with each
+email.
 
 ---
 
