@@ -3,15 +3,16 @@
 The goal: every sale records what it used, inventory counts itself down, and the
 site tells you what to order before you run out. This is being built in
 phases. **Usage is set up and deliveries add stock correctly; app orders record
-what they use and can deduct it once you switch that on. Register and
-subscription sales don't deduct yet.**
+what they use, and so do register sales and subscription drinks; each can
+deduct once you switch it on.**
 
 | Phase | What it does | Status |
 |---|---|---|
 | 1. Usage setup | Links every sale to the inventory it uses | Done |
 | 1b. Receiving | Receipts match themselves; deliveries add the right amount | Done |
 | 2. App orders | Paid app orders deduct stock; cancelled ones put it back | Built — run the migration, then flip the switch |
-| 3. Register + subscriptions | In-person Square sales and subscription drinks deduct too | Planned |
+| 3a. Register | In-person and Square Online sales deduct too | Built — run the migration, then flip the switch |
+| 3b. Subscriptions | Subscription drinks deduct when delivered | Built — run the migration, then flip the switch |
 | 4. Forecasting | Days of stock left, "order by" dates, a Needs Ordering list | Planned |
 
 ---
@@ -189,11 +190,90 @@ from public.order_usage('<order id>') u join public.inventory i on i.id = u.inve
 
 ---
 
+## Register sales
+
+Run `supabase/migrations/20260925_register_sales_deduction.sql` (after the app
+orders one).
+
+`sync-square-sales` copies register and Square Online sales into
+`square_sale_lines` every 15 minutes. It already leaves out the website's own
+payments, so an app order is never counted twice. Each new line is matched to
+its menu item (the Square item behind the variation, then the name it was rung
+up as) and its usage is worked out the same way as for app orders: recipe and
+Always-uses links plus the add-ons rung up, times the quantity.
+
+**Register sales** has its own switch beside App orders in Usage Setup, and it
+works the same way: off until you turn it on. The register has one difference.
+The sync also copies years of past sales, so **only sales closed after you turn
+the switch on come off the count**; older ones are recorded for history only.
+
+- Nothing in the edge function changed. Only sales from the last two days are
+  worked out as they arrive; older lines come in through **Rebuild usage
+  history**, which now also walks register history in batches (it can take a
+  few minutes and shows how many lines are left).
+- A sale can arrive before Square's item behind it is looked up. The match is
+  retried when the sync learns that item.
+- The switch card counts register lines from the last 30 days that matched no
+  menu item. To see which, run the second query at the bottom of the migration:
+  usually an item that isn't synced or was renamed in Square.
+- **Refunds aren't restored** (the sync copies what was sold, not returns), and
+  custom amounts with no item use nothing.
+- As with app orders, a register item with no Usage Setup links deducts nothing.
+
+The manager Inventory cards' **Used** numbers add app orders and register sales
+together (`inventory_usage_history`).
+
+---
+
+## Subscription drinks
+
+Run `supabase/migrations/20260925_subscription_drinks_deduction.sql` (after the
+register one).
+
+A subscription drink is not an order: the weekly charge already paid for it, and
+staff closing it out in the Order Queue is what's recorded, in
+`subscription_deliveries`. That's the moment its usage is worked out, with the
+same rules as every other channel: the drink's recipe and Always-uses links plus
+the add-ons in the slot, one drink each. The drink is the one the slot held
+when it was closed out.
+
+**Subscription drinks** has its own switch in Usage Setup, off until you turn it
+on. Drinks closed out before that are recorded for history only.
+
+- Marking a drink **delivered** takes its usage off; putting it back on the queue
+  (or marking it cancelled) puts it back.
+- **Rebuild usage history** also redoes past subscription drinks.
+
+### Weekly cookies
+
+Run `supabase/migrations/20260925_subscription_drinks_deduction_cookies.sql`
+after the one above.
+
+A plan's **cookies per week** are shared out across the subscription's drink
+slots, so each delivery knows what it carries: with 5 drinks and 2 cookies a
+week, slots 1 and 2 carry one cookie each; with 3 drinks and 5 cookies, slots 1
+and 2 carry two and slot 3 carries one. It goes by slot, not date, so a delivery
+moved by a closure keeps its cookie.
+
+- The **Order Queue card** says "Include N cookies with this delivery".
+- Pick the cookie under **Usage Setup → Cookie included with subscription
+  plans**. Marking the delivery delivered then records those cookies as used
+  (and takes them off the count when Subscription drinks is on); putting it
+  back or cancelling it returns them. Until one is picked the card still tells
+  staff to include it, but the count doesn't move.
+- The count is snapshotted when the delivery is closed out, so a later plan
+  change doesn't rewrite what went out that day. Deliveries closed out before
+  this migration carry none.
+- It's one cookie for every plan. If subscribers get an assortment, pick the one
+  that best stands for it.
+
+The manager Inventory cards' **Used** numbers now add app orders, register sales
+and subscription drinks (`inventory_usage_history`).
+
+---
+
 ## Known gaps, for later phases
 
-- **Register sales** carry a Square variation id; `sync-catalog` only stores an
-  item's first variation, so multi-variation items (Hot/Iced sizes) will need
-  mapping in phase 3.
 - **Legacy `recipe_ingredients` rows** still count toward usage (except syrup
   rows a recipe has replaced with its Syrups checklist). The recipe form no
   longer edits them.

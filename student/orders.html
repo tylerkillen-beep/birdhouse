@@ -689,6 +689,7 @@
       delivery_date: row.delivery_date,
       delivery_day: row.delivery_day,
       moved_from: row.moved_from || null,
+      cookies: Number(row.cookies) || 0,
       delivery_time: row.delivery_time,
       room: row.delivery_location,
       plan_name: row.plan_name,
@@ -1007,6 +1008,7 @@
             ${deliveryInfo ? `<span aria-hidden="true">📍</span> ${escHtml(deliveryInfo)}` : ''}
             ${schedLabel ? ` &nbsp;·&nbsp; <span aria-hidden="true">📅</span> ${escHtml(schedLabel)}` : ''}
           </div>
+          ${isSubscription && order.cookies > 0 ? `<div class="order-note"><span aria-hidden="true">🍪</span> Include ${order.cookies} cookie${order.cookies === 1 ? '' : 's'} with this delivery</div>` : ''}
           ${order.special_instructions ? `<div class="order-note"><span aria-hidden="true">💬</span> ${escHtml(order.special_instructions)}</div>` : ''}
         </div>
         ${actionsHtml}
