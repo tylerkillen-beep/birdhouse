@@ -73,6 +73,8 @@
     .badge-failed   { background: rgba(204,0,0,0.12); color: var(--red-bright); border: 1px solid var(--border); }
     .badge-cancelled{ background: rgba(255,255,255,0.05); color: var(--gray); border: 1px solid var(--border-dim); }
     .sub-slots-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 0.75rem; margin-bottom: 1.25rem; }
+    .sub-notices:empty { display: none; }
+    .sub-notice { background: rgba(245,200,66,0.08); border: 1px solid rgba(245,200,66,0.3); color: #f5c842; border-radius: 10px; padding: 0.65rem 0.9rem; font-size: 0.82rem; margin-bottom: 0.6rem; }
     .sub-slot-card { background: rgba(255,255,255,0.03); border: 1px solid var(--border-dim); border-radius: 10px; padding: 1rem 1.1rem; }
     .sub-slot-label { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--red-bright); margin-bottom: 0.4rem; }
     .sub-slot-drink { font-weight: 500; font-size: 0.92rem; margin-bottom: 0.2rem; }
@@ -434,6 +436,8 @@
     // Render full subscription section
     renderSubSection(sub);
 
+    loadMovedDeliveries(sub);
+
     // Update CTA button
     if (sub && sub.status === 'active') {
       const cta = document.getElementById('overview-sub-cta');
@@ -441,6 +445,24 @@
       cta.onclick = (e) => { e.preventDefault(); showSection('subscription', null); };
       cta.href = '#';
     }
+  }
+
+  /** A closed day never costs a subscriber a drink: it moves to another day that
+   *  week. Say so ahead of time, so a Wednesday delivery isn't a surprise. */
+  async function loadMovedDeliveries(sub) {
+    if (!sub || sub.status !== 'active') return;
+    const { data, error } = await sb.rpc('my_moved_subscription_deliveries');
+    if (error) { console.warn('Could not check for moved deliveries', error); return; }
+    const fmt = d => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+    const slots = sub.subscription_drink_slots || [];
+    const html = (data || []).map(r => {
+      const name = document.createElement('span');
+      name.textContent = r.drink_name || (slots.length > 1 ? `Drink ${r.slot_number}` : 'Your drink');
+      return r.delivery_date
+        ? `<div class="sub-notice"><span aria-hidden="true">📅</span> ${name.innerHTML} was set for ${fmt(r.scheduled_date)}, but we're closed. It's moving to <strong>${fmt(r.delivery_date)}</strong>.</div>`
+        : `<div class="sub-notice"><span aria-hidden="true">📅</span> We're closed all week of ${fmt(r.scheduled_date)}, so ${name.innerHTML} won't be delivered that week.</div>`;
+    }).join('');
+    document.querySelectorAll('.sub-notices').forEach(el => { el.innerHTML = html; });
   }
 
   /** What this subscriber is actually billed each week. The plan price is the
@@ -491,6 +513,7 @@
         </div>
         <span class="sub-status-badge ${badgeClass}">${badgeLabel}</span>
       </div>
+      <div class="sub-notices"></div>
       <div class="sub-slots-grid">${slotsHtml}</div>
       <div class="sub-renewal">Next billing date: <strong>${renewal}</strong></div>
       <div class="sub-actions">
@@ -547,6 +570,7 @@
         </div>
 
         <div class="sub-manage-title">Your Drink${slots.length > 1 ? 's' : ''}</div>
+        <div class="sub-notices"></div>
         <div class="sub-slots-grid" style="margin-bottom:1.25rem">${slotsHtml}</div>
 
         <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
