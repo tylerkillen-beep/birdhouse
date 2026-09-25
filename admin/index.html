@@ -1224,8 +1224,10 @@
       <div style="display:flex;gap:0.4rem;flex-wrap:wrap" id="po-filter-btns" role="group" aria-label="Filter purchases by status">
         <button class="inv-cat-btn active" onclick="filterPO('all',this)" aria-pressed="true">All</button>
         <button class="inv-cat-btn" onclick="filterPO('needs_receipt',this)" aria-pressed="false">Needs Receipt</button>
+        <button class="inv-cat-btn" onclick="filterPO('review',this)" aria-pressed="false">Needs Review</button>
         <button class="inv-cat-btn" onclick="filterPO('pending',this)" aria-pressed="false">On the Way</button>
         <button class="inv-cat-btn" onclick="filterPO('received',this)" aria-pressed="false">Received</button>
+        <button class="inv-cat-btn" onclick="filterPO('emails',this)" aria-pressed="false">Email Log</button>
       </div>
     </div>
     <div id="purchases-content"></div>
@@ -6421,10 +6423,10 @@ async function loadPurchases() {
 
 // What needs the admin: a delivery that arrived with no receipt, or one past
 // its expected date that nobody has confirmed.
-const purchaseNeedsAttention = po => po.status === 'needs_receipt' || isDeliveryOverdue(po);
+const purchaseNeedsAttention = po => po.status === 'needs_receipt' || po.needs_review === true || isDeliveryOverdue(po);
 
 async function loadPurchasesBadge() {
-  const { data } = await sb.from('purchase_orders').select('status, expected_arrival')
+  const { data } = await sb.from('purchase_orders').select('status, expected_arrival, needs_review')
     .in('status', ['pending', 'partial', 'needs_receipt']);
   setPurchasesBadge((data || []).filter(purchaseNeedsAttention).length);
 }
@@ -6468,11 +6470,14 @@ function filterPO(f, btn) {
 
 function renderPurchaseOrders() {
   const el = document.getElementById('purchases-content');
+  if (poFilter === 'emails') { renderEmailLog(); return; }
   const matchesFilter = p => poFilter === 'all' ? true
     : poFilter === 'pending' ? (p.status === 'pending' || p.status === 'partial')
+    : poFilter === 'review' ? p.needs_review === true
     : p.status === poFilter;
-  // Whatever is waiting on someone goes first: no receipt yet, then overdue.
-  const rank = p => p.status === 'needs_receipt' ? 0 : isDeliveryOverdue(p) ? 1 : 2;
+  // Whatever is waiting on someone goes first: no receipt yet, then a check of
+  // an order read from an email, then overdue.
+  const rank = p => p.status === 'needs_receipt' ? 0 : p.needs_review ? 1 : isDeliveryOverdue(p) ? 2 : 3;
   const pos = allPurchaseOrders.filter(matchesFilter).sort((a, b) => rank(a) - rank(b));
   if (!pos.length) { el.innerHTML = '<div style="color:var(--gray-mid);text-align:center;padding:2rem;background:var(--card);border:1px solid var(--border);border-radius:12px">No purchase orders yet. Upload a receipt to get started.</div>'; return; }
   const fmtDate = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
@@ -6502,13 +6507,16 @@ function renderPurchaseOrders() {
         <div style="font-weight:500;font-size:0.9rem">${po.order_number || 'No order #'}</div>
         <div style="font-size:0.72rem;color:var(--gray-mid)">Ordered: ${fmtDate(po.order_date)} · ${itemCount} item${itemCount !== 1 ? 's' : ''} · ${matchedCount}/${itemCount} matched to inventory</div>
         ${po.expected_arrival ? `<div style="font-size:0.72rem;color:var(--gray-mid)">Expected: ${fmtDate(po.expected_arrival)}${isDeliveryOverdue(po) ? ' <span class="po-flag">· overdue — has it arrived?</span>' : ''}</div>` : ''}
+        ${po.source === 'email' ? '<div style="font-size:0.72rem;color:var(--gray-mid)"><span aria-hidden="true">📧</span> Read from an order email</div>' : ''}
+        ${po.needs_review ? `<div class="po-flag"><span aria-hidden="true">⚠</span> Needs a look: ${escHtml(po.review_note || 'check the items')}</div>` : ''}
       </div>
       <div style="text-align:right;margin-right:0.5rem;flex-shrink:0">
         <div style="font-weight:600">${fmtMoney(po.total_cents)}</div>
         <span class="badge ${statusClass}" style="font-size:0.68rem;padding:0.15rem 0.5rem;border-radius:20px">${po.status}</span>
       </div>
       <div style="display:flex;gap:0.4rem;flex-shrink:0">
-        ${po.status === 'pending' || po.status === 'partial' ? `<button class="btn btn-primary btn-sm" onclick="openPurchaseReceive('${po.id}')">${po.status === 'partial' ? 'Receive the Rest' : 'Confirm Arrival'}</button>` : ''}
+        ${po.needs_review ? `<button class="btn btn-primary btn-sm" onclick="openEmailOrderReview('${po.id}')">Review</button>` : ''}
+        ${po.status === 'pending' || po.status === 'partial' ? `<button class="btn ${po.needs_review ? 'btn-ghost' : 'btn-primary'} btn-sm" onclick="openPurchaseReceive('${po.id}')">${po.status === 'partial' ? 'Receive the Rest' : 'Confirm Arrival'}</button>` : ''}
         <button class="btn btn-ghost btn-sm" onclick="deletePO('${po.id}')">🗑</button>
       </div>
     </div>`;
@@ -6802,6 +6810,96 @@ async function savePurchaseOrder() {
   await loadPurchases();
   // Already on the shelf: go straight to confirming what came in.
   if (alreadyHere) openPurchaseReceive(po.id);
+}
+
+// ── Orders read from an email ──
+// The email reader flags an order for a look when a line didn't match inventory,
+// a pack size wasn't clear, or the email listed fewer items than the order has.
+// Fix the matches here; each confirmed match is remembered for next time.
+let reviewPoId = null;
+
+async function openEmailOrderReview(poId) {
+  const po = allPurchaseOrders.find(p => p.id === poId);
+  if (!po) return;
+  if (!allInventory.length) await loadInventory();
+  reviewPoId = poId;
+  document.getElementById('email-review-title').textContent = `${RECEIVING_VENDORS[po.vendor] || po.vendor} order${po.order_number ? ' ' + po.order_number : ''}`;
+  document.getElementById('email-review-note').textContent = po.review_note ? `Needs a look: ${po.review_note}.` : '';
+  document.getElementById('email-review-msg').style.display = 'none';
+  const items = po.purchase_order_items || [];
+  document.getElementById('email-review-lines').innerHTML = items.map((it, i) => {
+    const inv = allInventory.find(v => v.id === it.inventory_id);
+    return `<div class="poi-row" style="grid-template-columns:1fr;gap:0.4rem;margin-bottom:0.6rem">
+      <div style="font-size:0.85rem"><strong>${escHtml(it.raw_name)}</strong> <span style="color:var(--gray-mid)">× ${it.quantity}${it.unit_cost_cents ? ' · $' + (it.unit_cost_cents / 100).toFixed(2) : ''}</span></div>
+      <select id="er-inv-${i}" onchange="updateEmailReviewUnit(${i})" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.8rem;padding:0.35rem 0.5rem;width:100%">
+        ${receivingInventoryOptions(allInventory, it.inventory_id, '— Not tracked —')}
+      </select>
+      <div class="poi-cost"><span>One purchase adds:</span>
+        <input type="number" min="0" step="any" id="er-per-${i}" value="${it.counted_per_purchase ?? ''}" aria-label="Counted units per purchase"/>
+        <span id="er-unit-${i}">${escHtml(inv?.unit || 'units')}</span>
+      </div>
+    </div>`;
+  }).join('') || '<div class="usage-muted">This order has no items.</div>';
+  openModal('email-review-modal');
+}
+
+function updateEmailReviewUnit(i) {
+  const inv = allInventory.find(v => v.id === document.getElementById('er-inv-' + i).value);
+  document.getElementById('er-unit-' + i).textContent = inv?.unit || 'units';
+}
+
+async function saveEmailOrderReview() {
+  const po = allPurchaseOrders.find(p => p.id === reviewPoId);
+  const msg = document.getElementById('email-review-msg');
+  const fail = t => { msg.textContent = t; msg.className = 'msg error'; msg.style.display = 'block'; };
+  const items = po?.purchase_order_items || [];
+  const rows = items.map((it, i) => ({
+    it,
+    inventory_id: document.getElementById('er-inv-' + i).value || null,
+    per: parseFloat(document.getElementById('er-per-' + i).value),
+  }));
+  const missing = rows.filter(r => r.inventory_id && !(r.per > 0));
+  if (missing.length) return fail(`Say how many one purchase adds for ${missing.map(r => r.it.raw_name).join(', ')} — arriving would add the wrong amount otherwise.`);
+
+  for (const r of rows) {
+    const { error } = await sb.from('purchase_order_items')
+      .update({ inventory_id: r.inventory_id, counted_per_purchase: r.inventory_id ? r.per : null }).eq('id', r.it.id);
+    if (error) return fail('Error: ' + error.message);
+  }
+  const aliases = rows.filter(r => r.inventory_id)
+    .map(r => ({ raw_name_norm: normalizeRawName(r.it.raw_name), inventory_id: r.inventory_id, counted_per_purchase: r.per, created_by: currentUser.id }))
+    .filter(a => a.raw_name_norm);
+  if (aliases.length) await sb.from('inventory_aliases').upsert(aliases, { onConflict: 'raw_name_norm' });
+
+  const { error } = await sb.from('purchase_orders').update({ needs_review: false, review_note: null }).eq('id', reviewPoId);
+  if (error) return fail('Error: ' + error.message);
+  closeModal('email-review-modal');
+  await loadPurchases();
+}
+
+// What the email reader did with each email it was sent, newest first.
+async function renderEmailLog() {
+  const el = document.getElementById('purchases-content');
+  el.innerHTML = '<div style="color:var(--gray-mid);padding:1rem 0">Loading…</div>';
+  const { data, error } = await sb.from('order_emails').select('*').order('created_at', { ascending: false }).limit(40);
+  if (error) {
+    el.innerHTML = `<div class="usage-empty" style="color:var(--danger);text-align:left">Couldn’t load the email log: ${escHtml(error.message)}<br>If that mentions a missing table, run <code>supabase/migrations/20260926_email_intake.sql</code> in the Supabase SQL editor.</div>`;
+    return;
+  }
+  if (!data.length) {
+    el.innerHTML = '<div class="usage-empty">No order emails have come in yet. See docs/email-intake.md to set up the forwarding.</div>';
+    return;
+  }
+  const labels = { created: 'New order', matched: 'Matched your order', updated: 'Updated', duplicate: 'Already had it', ignored: 'Ignored', error: 'Error' };
+  el.innerHTML = data.map(m => `<div class="po-row">
+    <span class="po-vendor po-vendor-${escHtml(m.vendor || 'other')}">${escHtml((m.vendor || '?').toUpperCase())}</span>
+    <div style="flex:1;min-width:0">
+      <div style="font-weight:500;font-size:0.88rem">${escHtml(m.subject || '(no subject)')}</div>
+      <div style="font-size:0.72rem;color:var(--gray-mid)">${new Date(m.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}${m.order_numbers?.length ? ' · ' + escHtml(m.order_numbers.join(', ')) : ''}${m.kind ? ' · ' + escHtml(m.kind.replace('_', ' ')) : ''}</div>
+      ${m.note ? `<div style="font-size:0.72rem;color:${m.status === 'error' ? 'var(--danger)' : 'var(--gray-mid)'}">${escHtml(m.note)}</div>` : ''}
+    </div>
+    <span class="badge status-po-${m.status === 'error' ? 'needs_receipt' : m.status === 'ignored' || m.status === 'duplicate' ? 'pending' : 'received'}" style="font-size:0.68rem;padding:0.15rem 0.5rem;border-radius:20px">${labels[m.status] || m.status}</span>
+  </div>`).join('');
 }
 
 async function deletePO(id) {
@@ -7791,24 +7889,6 @@ function renderUsageDeduct() {
       </div>
     </div>`;
   });
-  if ('subscription_cookie_item_id' in usageDeduct) {
-    const cookieOptions = usageData.menuItems
-      .filter(m => m.retired !== true || m.id === usageDeduct.subscription_cookie_item_id)
-      .sort((a, b) => String(a.name).localeCompare(String(b.name)))
-      .map(m => `<option value="${m.id}"${m.id === usageDeduct.subscription_cookie_item_id ? ' selected' : ''}>${htmlEscape(m.name)}</option>`).join('');
-    rows.push(`<div class="usage-deduct">
-      <div>
-        <div class="usage-deduct-state">Cookie included with subscription plans</div>
-        <div class="usage-muted">Delivery cards tell staff how many cookies to include. Pick the cookie so delivering it comes off the count like the drink does.</div>
-      </div>
-      <div class="usage-actions">
-        <label class="visually-hidden" for="usage-cookie-item">Cookie included with subscription plans</label>
-        <select class="form-input" id="usage-cookie-item" onchange="setSubscriptionCookieItem(this.value)" style="width:auto;max-width:260px;padding:0.4rem 0.6rem;font-size:0.8rem">
-          <option value="">None picked</option>${cookieOptions}
-        </select>
-      </div>
-    </div>`);
-  }
   rows.push(`<div class="usage-deduct">
     <div><div class="usage-muted">Re-work what past sales used from today’s Usage Setup. It never changes your counts.</div></div>
     <div class="usage-actions">
@@ -7817,14 +7897,6 @@ function renderUsageDeduct() {
     </div>
   </div>`);
   el.innerHTML = rows.join('');
-}
-
-async function setSubscriptionCookieItem(menuItemId) {
-  const { error } = await sb.from('inventory_settings')
-    .update({ subscription_cookie_item_id: menuItemId || null, updated_by: currentUser.id, updated_at: new Date().toISOString() })
-    .eq('id', true);
-  if (error) { alert('Couldn’t save the cookie: ' + error.message); return; }
-  await loadUsageSetup();
 }
 
 async function setUsageDeduction(col, on) {
@@ -8299,6 +8371,21 @@ function renderUsageConversions(ctx, gapsOnly) {
   }).join('');
 }
 </script>
+
+<!-- Purchases: check an order read from an email -->
+<div class="modal-overlay" id="email-review-modal" role="dialog" aria-modal="true" aria-labelledby="email-review-title">
+  <div class="modal" style="max-width:600px;max-height:calc(100vh - 4rem);overflow:auto">
+    <button class="modal-close" onclick="closeModal('email-review-modal')" aria-label="Close">✕</button>
+    <h2 class="modal-title" id="email-review-title" style="font-weight:normal">Check this order</h2>
+    <p class="usage-help" id="email-review-note"></p>
+    <div id="email-review-lines"></div>
+    <div id="email-review-msg" style="display:none" class="msg"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('email-review-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEmailOrderReview()">Looks right — save</button>
+    </div>
+  </div>
+</div>
 
 <!-- Needs Ordering: an item's usual product -->
 <div class="modal-overlay" id="no-profile-modal" role="dialog" aria-modal="true" aria-labelledby="no-profile-title">
