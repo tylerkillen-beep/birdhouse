@@ -13,6 +13,7 @@
   <script src="/lib/subscription-exclusives.js"></script>
   <script src="/lib/mathews.js"></script>
   <script src="/lib/item-lookup.js"></script>
+  <script src="/lib/usage-suggest.js"></script>
   <style>
     :root {
       --bg: #0a0a0a;
@@ -465,6 +466,11 @@
     .usage-adder-unit,.usage-conv-base{font-size:0.78rem;color:var(--gray-mid)}
     .usage-adder-msg{flex-basis:100%;font-size:0.75rem;color:var(--danger)}
     .usage-adder-msg:empty{display:none}
+    .usage-suggest{display:flex;flex-wrap:wrap;gap:0.4rem;align-items:center;margin-bottom:0.5rem;padding:0.45rem 0.6rem;border:1px dashed rgba(200,169,110,0.35);border-radius:8px}
+    .usage-suggest-label{font-size:0.68rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--accent);font-weight:600}
+    .usage-suggest-item{font-size:0.82rem;font-weight:600}
+    .usage-suggest input{width:90px;padding:0.35rem 0.5rem;font-size:0.8rem}
+    .usage-bulk{display:flex;flex-wrap:wrap;gap:0.75rem;align-items:center;margin-bottom:1rem;padding:0.7rem 0.9rem;border:1px solid rgba(200,169,110,0.35);border-radius:10px;font-size:0.82rem}
     .usage-empty{color:var(--gray-mid);text-align:center;padding:2rem;background:var(--card);border:1px solid var(--border);border-radius:12px}
     .recipe-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.1rem 1.25rem;margin-bottom:0.6rem}
     .visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
@@ -7485,15 +7491,106 @@ async function saveUsageAdder() {
   const amount = parseFloat(document.getElementById('usage-adder-amt').value);
   if (!invId) { msg.textContent = 'Pick an inventory item.'; return; }
   if (!(amount > 0)) { msg.textContent = 'The amount has to be more than 0.'; return; }
-  // Upserts, so linking an item that's already linked just updates its amount.
-  const base = { inventory_id: invId, amount, created_by: currentUser.id };
-  const { error } = t.kind === 'option'
-    ? await sb.from('recipe_option_ingredients').upsert({ ...base, option_type: t.type, option_name: t.name }, { onConflict: 'option_type,option_key,inventory_id' })
-    : t.kind === 'item'
-      ? await sb.from('menu_item_ingredients').upsert({ ...base, menu_item_id: t.id }, { onConflict: 'menu_item_id,inventory_id' })
-      : await sb.from('modifier_option_ingredients').upsert({ ...base, modifier_option_id: t.id }, { onConflict: 'modifier_option_id,inventory_id' });
+  const spec = usageUpsertSpec(t, invId, amount);
+  const { error } = await sb.from(spec.table).upsert(spec.row, { onConflict: spec.onConflict });
   if (error) { msg.textContent = 'Error: ' + error.message; return; }
   usageAdder = null;
+  await loadUsageSetup();
+}
+
+// Upserts, so linking an item that's already linked just updates its amount.
+function usageUpsertSpec(t, invId, amount) {
+  const base = { inventory_id: invId, amount, created_by: currentUser.id };
+  if (t.kind === 'option') return { table: 'recipe_option_ingredients', row: { ...base, option_type: t.type, option_name: t.name }, onConflict: 'option_type,option_key,inventory_id' };
+  if (t.kind === 'item')   return { table: 'menu_item_ingredients', row: { ...base, menu_item_id: t.id }, onConflict: 'menu_item_id,inventory_id' };
+  return { table: 'modifier_option_ingredients', row: { ...base, modifier_option_id: t.id }, onConflict: 'modifier_option_id,inventory_id' };
+}
+
+// ── Suggested links ──
+// Name-matches an unlinked option, add-on or item to an inventory item (see
+// lib/usage-suggest.js). Nothing is saved until Accept; "Not this" hides it
+// until the page is reloaded.
+const usageIgnored = new Set();
+
+function usageSuggestionFor(t) {
+  if (usageIgnored.has(t.key)) return null;
+  return UsageSuggest.suggest({ kind: t.kind, type: t.type, name: t.name, inventory: allInventory });
+}
+
+function usageSuggestionHtml(target, perText) {
+  const s = usageSuggestionFor(target);
+  if (!s) return '';
+  const idx = usageTarget(target);
+  return `<div class="usage-suggest">
+    <span class="usage-suggest-label">Suggested</span>
+    <span class="usage-suggest-item">${htmlEscape(s.inv.name)}</span>
+    <label class="visually-hidden" for="usage-sugg-amt-${idx}">Amount</label>
+    <input class="form-input" id="usage-sugg-amt-${idx}" type="number" min="0" step="any" value="${s.amount ?? ''}" placeholder="how many?"/>
+    <span class="usage-adder-unit">${htmlEscape(usageUnit(s.inv))} ${htmlEscape(perText)}</span>
+    <button type="button" class="btn btn-primary btn-sm" onclick="acceptUsageSuggestion(${idx})">Accept</button>
+    <button type="button" class="btn btn-ghost btn-sm" onclick="ignoreUsageSuggestion(${idx})">Not this</button>
+    <div class="usage-adder-msg" id="usage-sugg-msg-${idx}" role="alert"></div>
+  </div>`;
+}
+
+async function acceptUsageSuggestion(idx) {
+  const t = usageTargets[idx];
+  const msg = document.getElementById(`usage-sugg-msg-${idx}`);
+  const s = usageSuggestionFor(t);
+  const amount = parseFloat(document.getElementById(`usage-sugg-amt-${idx}`).value);
+  if (!s) return;
+  if (!(amount > 0)) { msg.textContent = 'Enter how much one use takes.'; return; }
+  const spec = usageUpsertSpec(t, s.inv.id, amount);
+  const { error } = await sb.from(spec.table).upsert(spec.row, { onConflict: spec.onConflict });
+  if (error) { msg.textContent = 'Error: ' + error.message; return; }
+  await loadUsageSetup();
+}
+
+function ignoreUsageSuggestion(idx) {
+  usageIgnored.add(usageTargets[idx].key);
+  renderUsageSetup();
+}
+
+// Everything on a tab that has a suggestion with an amount worked out from its
+// units. Suggestions that still need an amount are left for a person.
+function usageBulkTargets(kind, ctx) {
+  let targets = [];
+  if (kind === 'option') {
+    targets = ctx.options.filter(o => o.live && !o.done)
+      .map(o => ({ kind: 'option', key: 'option|' + usageOptionKey(o.type, o.key), type: o.type, name: o.name }));
+  } else if (kind === 'addon') {
+    targets = ctx.addons.filter(a => a.live && !a.done)
+      .map(a => ({ kind: 'addon', key: 'addon|' + a.opt.id, id: a.opt.id, name: a.opt.name }));
+  } else {
+    targets = ctx.items.filter(usageItemNeedsSuggestion)
+      .filter(s => s.item.available === true)
+      .map(s => ({ kind: 'item', key: 'item|' + s.item.id, id: s.item.id, name: s.item.name }));
+  }
+  return targets.map(t => ({ t, s: usageSuggestionFor(t) })).filter(x => x.s && x.s.amount > 0);
+}
+
+function usageBulkHtml(kind, ctx) {
+  const n = usageBulkTargets(kind, ctx).length;
+  if (!n) return '';
+  return `<div class="usage-bulk"><span><strong>${n}</strong> suggested link${n === 1 ? '' : 's'} with the amount already worked out from its unit.</span>
+    <button type="button" class="btn btn-primary btn-sm" onclick="acceptAllUsageSuggestions('${kind}')">Accept all ${n}</button>
+    <span class="usage-muted">You can change or remove any of them afterwards.</span></div>`;
+}
+
+async function acceptAllUsageSuggestions(kind) {
+  const found = usageBulkTargets(kind, usageContext());
+  if (!found.length) return;
+  const list = found.slice(0, 40).map(({ t, s }) => `${t.name} → ${s.inv.name} (${fmtUsageQty(s.amount)} ${usageUnit(s.inv)})`).join('\n');
+  if (!confirm(`Link ${found.length} using the suggested items and amounts?\n\n${list}${found.length > 40 ? `\n…and ${found.length - 40} more` : ''}`)) return;
+  const byTable = {};
+  found.forEach(({ t, s }) => {
+    const spec = usageUpsertSpec(t, s.inv.id, s.amount);
+    (byTable[spec.table] ||= { onConflict: spec.onConflict, rows: [] }).rows.push(spec.row);
+  });
+  for (const [table, { rows, onConflict }] of Object.entries(byTable)) {
+    const { error } = await sb.from(table).upsert(rows, { onConflict });
+    if (error) { alert('Error: ' + error.message); break; }
+  }
   await loadUsageSetup();
 }
 
@@ -7551,10 +7648,14 @@ function renderUsageItems(ctx, gapsOnly) {
     if (!byCategory.has(cat)) byCategory.set(cat, []);
     byCategory.get(cat).push(s);
   });
-  return intro + [...byCategory].map(([cat, list]) =>
+  return intro + usageBulkHtml('item', ctx) + [...byCategory].map(([cat, list]) =>
     `<div class="usage-group-title">${htmlEscape(cat)}</div>` + list.map(renderUsageItemRow).join('')
   ).join('');
 }
+
+// Only an item with nothing yet and no recipe to draw from: a cookie, a bottled
+// drink. A latte needs several links, so guessing one of them would mislead.
+const usageItemNeedsSuggestion = s => !s.uses.length && !s.unlinked.length && !s.recipeId && s.item.uses_no_inventory !== true;
 
 function renderUsageItemRow(s) {
   const { item, uses, unlinked } = s;
@@ -7594,6 +7695,7 @@ function renderUsageItemRow(s) {
       <select class="form-input" id="usage-recipe-${item.id}" onchange="setMenuItemRecipe('${item.id}', this.value)">${recipeOptions}</select>
     </div>
     <div class="usage-chips">${chips.length ? chips.join('') : empty}</div>
+    ${usageItemNeedsSuggestion(s) ? usageSuggestionHtml({ kind: 'item', key: 'item|' + item.id, id: item.id, name: item.name }, 'per sale') : ''}
     <div class="usage-actions">${usageAdderHtml({ kind: 'item', key: 'item|' + item.id, id: item.id }, 'Always uses…', 'per sale')}${noStockBtn}</div>
   </div>`;
 }
@@ -7602,6 +7704,7 @@ function renderUsageItemRow(s) {
 function renderUsageOptions(ctx, gapsOnly) {
   const recipeNames = Object.fromEntries(usageData.recipes.map(r => [r.id, r.name]));
   let html = '<p class="usage-help">Link each build step once and every recipe using it picks it up. Syrups are linked per pump and packets per full packet — each recipe\'s pump count or packet size is applied on top.</p>';
+  html += usageBulkHtml('option', ctx);
   let shown = 0;
   USAGE_OPTION_TYPES.forEach(typeInfo => {
     const list = ctx.options
@@ -7632,6 +7735,7 @@ function renderUsageOptionRow(o, typeInfo, recipeNames) {
       ${usageStatusHtml(o.done, o.links.length ? '✓ Linked' : 'Uses no stock', 'Not linked')}
     </div>
     ${chips ? `<div class="usage-chips">${chips}</div>` : ''}
+    ${o.done ? '' : usageSuggestionHtml(target, typeInfo.per)}
     <div class="usage-actions">${usageAdderHtml(target, 'Link inventory item', typeInfo.per)}${skipBtn}</div>
   </div>`;
 }
@@ -7639,6 +7743,7 @@ function renderUsageOptionRow(o, typeInfo, recipeNames) {
 // ── Add-ons tab ──
 function renderUsageAddons(ctx, gapsOnly) {
   let html = '<p class="usage-help">What each add-on uses every time a customer picks it — a pump of vanilla, an extra shot, boba. Custom coffees are counted almost entirely from these.</p>';
+  html += usageBulkHtml('addon', ctx);
   let shown = 0;
   usageData.modLists.forEach(list => {
     const rows = ctx.addons.filter(a => a.list?.id === list.id && (!gapsOnly || (a.live && !a.done)));
@@ -7668,6 +7773,7 @@ function renderUsageAddonRow(a) {
       ${usageStatusHtml(a.done, a.links.length ? '✓ Linked' : 'Uses no stock', 'Not linked')}
     </div>
     ${chips ? `<div class="usage-chips">${chips}</div>` : ''}
+    ${a.done ? '' : usageSuggestionHtml({ kind: 'addon', key: 'addon|' + opt.id, id: opt.id, name: opt.name }, perText)}
     <div class="usage-actions">${usageAdderHtml({ kind: 'addon', key: 'addon|' + opt.id, id: opt.id }, 'Link inventory item', perText)}${noStockBtn}</div>
   </div>`;
 }

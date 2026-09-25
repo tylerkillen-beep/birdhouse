@@ -70,6 +70,14 @@ switching it would make the stored receipt cost mean the wrong thing.
       **Uses no stock**.
    4. **Conversions** — fill in the recipe units per counted unit for every
       item that's linked.
+   **Suggested links.** Each unlinked recipe option, add-on, and stand-alone
+   item (a cookie) shows a dashed **Suggested** line: the inventory item whose
+   name matches best (`lib/usage-suggest.js`), with a starting amount when its
+   unit makes that obvious — a syrup pump is 1 when the item is counted in
+   pumps, a cup is 1 each. Press **Accept**, change the amount first, or press
+   **Not this** and link by hand. **Accept all** on each tab links every
+   suggestion whose amount was worked out; ones that still need an amount (milk
+   in fl oz, boba in oz) are left for you. Nothing is saved until you accept.
 3. When the first tile reads `N/N` — every item on the menu ready — phase 2's
    numbers can be trusted.
 
