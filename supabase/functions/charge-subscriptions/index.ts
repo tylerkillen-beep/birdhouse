@@ -113,9 +113,32 @@ function deliveryDateInWeek(billingDate: string, dayName: string): string | null
   return addDays(billingDate, offset);
 }
 
+// Mathews delivers Monday, Wednesday and Friday only: offsets from that week's
+// Monday. The same days as lib/mathews.js.
+const MATHEWS_WEEKDAY_OFFSETS = [0, 2, 4];
+
+/** The Monday of the Monday-Friday week that dateStr falls in. */
+function mondayOf(dateStr: string): string {
+  return addDays(dateStr, -((dayOfWeek(dateStr) + 6) % 7));
+}
+
+/** True when anything is open for a delivery in the week of dateStr. A drink on
+ *  a closed day moves to another open day in its week (see
+ *  subscription_delivery_date in 20260925_reschedule_closed_subscription_deliveries.sql),
+ *  so it is only lost when the whole week is closed. Which day it moves to
+ *  does not matter for billing, only that there is one. */
+function weekHasOpenDay(dateStr: string, closedDates: Set<string>, mathews: boolean): boolean {
+  const monday = mondayOf(dateStr);
+  for (let i = 0; i < 5; i++) {
+    if (mathews && !MATHEWS_WEEKDAY_OFFSETS.includes(i)) continue;
+    if (!closedDates.has(addDays(monday, i))) return true;
+  }
+  return false;
+}
+
 /** True when this subscriber would receive nothing at all during the week
- *  beginning on billingDate, because every one of their delivery days falls on
- *  a closed date.
+ *  beginning on billingDate, because every day they could be delivered to that
+ *  week is closed.
  *
  *  Charging is the default: with no slots, or a delivery day we cannot parse,
  *  this returns false. Skipping someone's payment needs positive evidence that
@@ -123,12 +146,13 @@ function deliveryDateInWeek(billingDate: string, dayName: string): string | null
 function weekIsFullyClosed(
   billingDate: string,
   deliveryDays: string[],
-  closedDates: Set<string>
+  closedDates: Set<string>,
+  mathews: boolean
 ): boolean {
   if (!deliveryDays.length) return false;
   const dates = deliveryDays.map((d) => deliveryDateInWeek(billingDate, d));
   if (dates.some((d) => d === null)) return false;
-  return dates.every((d) => closedDates.has(d as string));
+  return dates.every((d) => !weekHasOpenDay(d as string, closedDates, mathews));
 }
 
 /** Step past every week the subscriber would receive nothing, a week at a time.
@@ -137,13 +161,14 @@ function weekIsFullyClosed(
 function skipClosedWeeks(
   billingDate: string,
   deliveryDays: string[],
-  closedDates: Set<string>
+  closedDates: Set<string>,
+  mathews: boolean
 ): { billingDate: string; skippedWeeks: number } {
   let cursor = billingDate;
   let skippedWeeks = 0;
   while (
     skippedWeeks < MAX_SKIPPED_WEEKS &&
-    weekIsFullyClosed(cursor, deliveryDays, closedDates)
+    weekIsFullyClosed(cursor, deliveryDays, closedDates, mathews)
   ) {
     cursor = addDays(cursor, BILLING_INTERVAL_DAYS);
     skippedWeeks++;
@@ -294,6 +319,25 @@ serve(async (req) => {
 
     results.due = due?.length ?? 0;
 
+    // Mathews only delivers on some days, which decides whether a closed week
+    // still has anywhere for a drink to move to. If this lookup fails everyone
+    // is treated as non-Mathews, which errs toward charging, never toward
+    // skipping someone's payment.
+    const mathewsUsers = new Set<string>();
+    const dueUserIds = [...new Set((due ?? []).map((s) => s.user_id).filter(Boolean))];
+    if (dueUserIds.length) {
+      const { data: profileRows, error: profileError } = await supabase
+        .from("profiles")
+        .select("id, location")
+        .in("id", dueUserIds);
+      if (profileError) {
+        console.warn("Could not load campuses for billing:", profileError.message);
+      }
+      for (const row of profileRows ?? []) {
+        if (row.location === "mathews") mathewsUsers.add(row.id);
+      }
+    }
+
     for (const sub of due ?? []) {
       const plan = Array.isArray(sub.subscription_plans)
         ? sub.subscription_plans[0]
@@ -324,7 +368,12 @@ serve(async (req) => {
         .map((s: Record<string, string>) => s.delivery_day)
         .filter(Boolean);
 
-      const closure = skipClosedWeeks(scheduledDate, deliveryDays, closedDates);
+      const closure = skipClosedWeeks(
+        scheduledDate,
+        deliveryDays,
+        closedDates,
+        mathewsUsers.has(sub.user_id)
+      );
       const billingDate = closure.billingDate;
 
       if (closure.skippedWeeks > 0) {

@@ -97,6 +97,7 @@
        still reads as Mathews. */
     .order-card.type-subscription::before { background: #2ec4b6 !important; }
     .badge-subscription { background: rgba(46,196,182,0.1); color: #3fd6c8; border: 1px solid rgba(46,196,182,0.25); }
+    .badge-moved { background: rgba(245,200,66,0.1); color: #f5c842; border: 1px solid rgba(245,200,66,0.3); }
 
     .order-top { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.35rem; flex-wrap: wrap; }
     .order-customer { font-weight: 500; font-size: 0.95rem; }
@@ -687,6 +688,7 @@
       delivery_method: 'delivery',
       delivery_date: row.delivery_date,
       delivery_day: row.delivery_day,
+      moved_from: row.moved_from || null,
       delivery_time: row.delivery_time,
       room: row.delivery_location,
       plan_name: row.plan_name,
@@ -907,6 +909,10 @@
       const stickersBadge = isStickers ? `<span class="method-badge badge-stickers"><span aria-hidden="true">🖼️</span> Stickers</span>` : '';
       const isSubscription = !!order._subscription;
       const subscriptionBadge = isSubscription ? `<span class="method-badge badge-subscription"><span aria-hidden="true">🔁</span> Subscription</span>` : '';
+      // A closure moved this drink off its usual day; say so, so nobody wonders why it's here.
+      const movedBadge = isSubscription && order.moved_from
+        ? `<span class="method-badge badge-moved">Moved from ${escHtml(new Date(order.moved_from + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long' }))} — closed</span>`
+        : '';
 
       // Customer name
       const customerName = order.customer_name || 'Unknown';
@@ -994,6 +1000,7 @@
             ${mathewsBadge}
             ${stickersBadge}
             ${subscriptionBadge}
+            ${movedBadge}
           </div>
           <div class="order-items">${itemsHtml}</div>
           <div class="order-detail-row" style="margin-top:0.4rem">

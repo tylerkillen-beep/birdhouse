@@ -101,19 +101,49 @@ and `process-payment` already use, so they are maintained in exactly one place.
 Block a break once in **Admin → Closed Days** (click a start and an end date to
 block the whole range at once) and delivery and billing both respect it.
 
-The rule is per subscriber, not per school week. When a charge comes due, the
-charger works out which dates that subscriber's delivery days land on during the
-week ahead. If **every** one of them is closed, it skips the charge and moves
+### A closed day moves the drink; it doesn't lose it
+
+When a subscriber's delivery day is closed, that week's drink is **rescheduled
+within the same Monday–Friday week**, keeping its time and room:
+
+1. **Wednesday**, if it is open. A closed Monday, Tuesday, Thursday or Friday all
+   land there.
+2. Otherwise the **nearest open weekday** to the original day, the earlier one
+   when two are equally near. A closed Wednesday goes to Tuesday.
+3. **Mathews** only delivers Monday, Wednesday and Friday, so its drinks only
+   move to one of those.
+4. A week with no open day at all delivers nothing (below).
+
+Nothing checks how full the new day is. The drink is owed, so the kitchen makes
+room; a moved drink can land on a Wednesday time that is already busy.
+
+It is worked out live from the closure calendar, so closing or reopening a day
+needs no clean-up of anyone's data. The Order Queue lists the drink on its new
+day with a "Moved from Monday — closed" tag, and the subscriber's dashboard says
+so ahead of time. The rule lives in the database function
+`subscription_delivery_date()`; `charge-subscriptions` keeps its own small copy
+of the "is anything open that week" part, so change them together. Needs
+`20260925_reschedule_closed_subscription_deliveries.sql`.
+
+### When the whole week is closed
+
+The billing rule is per subscriber, not per school week. When a charge comes due,
+the charger looks at the Monday–Friday week each of the subscriber's delivery days
+falls in. If **every** one of them has no open day, it skips the charge and moves
 the billing date forward seven days, repeating until it finds a week where they
 would actually receive something.
 
 Worked examples, for a Tuesday-billed subscriber during a Thanksgiving week with
-Wednesday–Friday closed:
+Wednesday–Friday closed (Monday and Tuesday open):
 
 | Their delivery day | Falls on | Outcome |
 |---|---|---|
-| Wednesday | Nov 25 — closed | **Not charged.** Billing moves to Tue Dec 1 |
-| Monday | Nov 30 — open | **Charged.** They still get their drink |
+| Wednesday | Nov 25 — closed | **Charged.** The drink moves to Tue Nov 24, the nearest open day |
+| Friday | Nov 27 — closed | **Charged.** The drink moves to Tue Nov 24 |
+| Monday | Nov 30 — open | **Charged.** They still get their drink on Monday |
+
+And if the whole week were closed, the same subscriber would not be charged and
+billing would move to the next week.
 
 A two-week break is skipped entirely in one run, and because each step is exactly
 seven days the subscriber keeps their original weekday forever.
