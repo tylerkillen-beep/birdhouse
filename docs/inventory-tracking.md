@@ -3,8 +3,8 @@
 The goal: every sale records what it used, inventory counts itself down, and the
 site tells you what to order before you run out. This is being built in
 phases. **Usage is set up and deliveries add stock correctly; app orders record
-what they use, and so do register sales; each can deduct once you switch it
-on. Subscription drinks don't deduct yet.**
+what they use, and so do register sales and subscription drinks; each can
+deduct once you switch it on. Subscribers' weekly cookies aren't tracked.**
 
 | Phase | What it does | Status |
 |---|---|---|
@@ -12,7 +12,7 @@ on. Subscription drinks don't deduct yet.**
 | 1b. Receiving | Receipts match themselves; deliveries add the right amount | Done |
 | 2. App orders | Paid app orders deduct stock; cancelled ones put it back | Built — run the migration, then flip the switch |
 | 3a. Register | In-person and Square Online sales deduct too | Built — run the migration, then flip the switch |
-| 3b. Subscriptions | Subscription drinks deduct when delivered | Planned |
+| 3b. Subscriptions | Subscription drinks deduct when delivered | Built — run the migration, then flip the switch |
 | 4. Forecasting | Days of stock left, "order by" dates, a Needs Ordering list | Planned |
 
 ---
@@ -222,6 +222,32 @@ the switch on come off the count**; older ones are recorded for history only.
 
 The manager Inventory cards' **Used** numbers add app orders and register sales
 together (`inventory_usage_history`).
+
+---
+
+## Subscription drinks
+
+Run `supabase/migrations/20260925_subscription_drinks_deduction.sql` (after the
+register one).
+
+A subscription drink is not an order: the weekly charge already paid for it, and
+staff closing it out in the Order Queue is what's recorded, in
+`subscription_deliveries`. That's the moment its usage is worked out, with the
+same rules as every other channel: the drink's recipe and Always-uses links plus
+the add-ons in the slot, one drink each. The drink is the one the slot held
+when it was closed out.
+
+**Subscription drinks** has its own switch in Usage Setup, off until you turn it
+on. Drinks closed out before that are recorded for history only.
+
+- Marking a drink **delivered** takes its usage off; putting it back on the queue
+  (or marking it cancelled) puts it back.
+- **Rebuild usage history** also redoes past subscription drinks.
+- **Cookies included in plans aren't tracked.** Nothing records a subscriber's
+  weekly cookie being handed over, so those don't come off the count yet.
+
+The manager Inventory cards' **Used** numbers now add app orders, register sales
+and subscription drinks (`inventory_usage_history`).
 
 ---
 

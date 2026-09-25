@@ -7408,6 +7408,9 @@ const USAGE_DEDUCT_CHANNELS = [
   { col: 'deduct_register', at: 'register_enabled_at', label: 'Register sales',
     on: 'Register and Square Online sales take what they use off the count, from the moment this was turned on. Older sales are only recorded for history.',
     off: 'Register sales are recorded as they come in (every 15 minutes), but your counts don’t change yet.' },
+  { col: 'deduct_subscriptions', at: 'subscriptions_enabled_at', label: 'Subscription drinks',
+    on: 'Each subscription drink takes what it uses off the count when staff mark it delivered. Putting it back on the queue puts it back. Older drinks are only recorded for history.',
+    off: 'Subscription drinks are recorded when staff mark them delivered, but your counts don’t change yet.' },
 ];
 
 function renderUsageDeduct() {
@@ -7419,7 +7422,7 @@ function renderUsageDeduct() {
   }
   const rows = USAGE_DEDUCT_CHANNELS.map(ch => {
     if (!(ch.col in usageDeduct)) {
-      return `<div class="usage-deduct"><div><div class="usage-deduct-state">${ch.label}</div><div class="usage-muted">Needs <code>supabase/migrations/20260925_register_sales_deduction.sql</code> run in the Supabase SQL editor first.</div></div></div>`;
+      return `<div class="usage-deduct"><div><div class="usage-deduct-state">${ch.label}</div><div class="usage-muted">Needs <code>supabase/migrations/${ch.col === 'deduct_register' ? '20260925_register_sales_deduction' : '20260925_subscription_drinks_deduction'}.sql</code> run in the Supabase SQL editor first.</div></div></div>`;
     }
     const on = usageDeduct[ch.col] === true;
     const since = usageDeduct[ch.at] ? new Date(usageDeduct[ch.at]).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
@@ -7478,6 +7481,11 @@ async function rebuildUsageHistory() {
       if (!data.remaining || !data.recorded) break;
     }
     summary += `, ${lines} register sale line${lines === 1 ? '' : 's'}`;
+  }
+  if ('deduct_subscriptions' in usageDeduct) {
+    const subs = await sb.rpc('backfill_subscription_usage', { p_rebuild: true });
+    if (subs.error) return fail(subs.error.message);
+    summary += `, ${subs.data} subscription drink${subs.data === 1 ? '' : 's'}`;
   }
   btn.disabled = false;
   msg.textContent = `Done — ${summary} recorded.`;
