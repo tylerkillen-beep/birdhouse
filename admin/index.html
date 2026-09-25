@@ -14,6 +14,7 @@
   <script src="/lib/mathews.js"></script>
   <script src="/lib/item-lookup.js"></script>
   <script src="/lib/usage-suggest.js"></script>
+  <script src="/lib/inventory-units.js"></script>
   <style>
     :root {
       --bg: #0a0a0a;
@@ -1259,7 +1260,7 @@
         <button class="inv-cat-btn active" data-usage-tab="items" onclick="setUsageTab('items')" aria-pressed="true">Menu Items</button>
         <button class="inv-cat-btn" data-usage-tab="options" onclick="setUsageTab('options')" aria-pressed="false">Recipe Options</button>
         <button class="inv-cat-btn" data-usage-tab="addons" onclick="setUsageTab('addons')" aria-pressed="false">Add-ons</button>
-        <button class="inv-cat-btn" data-usage-tab="conversions" onclick="setUsageTab('conversions')" aria-pressed="false">Conversions</button>
+        <button class="inv-cat-btn" data-usage-tab="conversions" onclick="setUsageTab('conversions')" aria-pressed="false">Units</button>
       </div>
       <div style="display:flex;gap:1rem;flex-wrap:wrap">
         <label class="usage-toggle"><input type="checkbox" id="usage-gaps-only" onchange="renderUsageSetup()"/> Only what needs setup</label>
@@ -1732,6 +1733,14 @@
       <div class="form-group" style="grid-column:1/-1">
         <label class="form-label" for="inv-item-per-unit">Recipe Units per Counted Unit <span style="color:var(--gray-mid);text-transform:none;font-weight:400">(e.g. pumps in one bottle — lets sales count the stock down)</span></label>
         <input class="form-input" id="inv-item-per-unit" type="number" min="0" step="any" placeholder="e.g. 32" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="inv-item-count-unit">Counted By Eye As <span style="color:var(--gray-mid);text-transform:none;font-weight:400">(optional, e.g. Bottles)</span></label>
+        <input class="form-input" id="inv-item-count-unit" placeholder="e.g. Bottles, Sleeves" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="inv-item-count-size">One of Those Is <span style="color:var(--gray-mid);text-transform:none;font-weight:400">(in this item's unit, e.g. 32 oz)</span></label>
+        <input class="form-input" id="inv-item-count-size" type="number" min="0" step="any" placeholder="e.g. 32" />
       </div>
       <div class="form-group" style="grid-column:1/-1">
         <div id="inv-item-cost-note" style="font-size:0.75rem;color:var(--gray-mid)"></div>
@@ -4972,14 +4981,12 @@ function renderInvGrid() {
         <div style="height:100%;width:${Math.round(pct * 100)}%;background:${barColor};border-radius:4px;transition:width 0.4s"></div>
       </div>
       <div class="inv-qty-row">
-        <input class="inv-qty-input" type="number" id="inv-qty-${item.id}" value="${item.quantity}" min="0" step="0.5" />
-        <span class="inv-unit">${item.unit}</span>
+        ${InvUnits.entry('inv-qty-' + item.id, item, item.quantity, { cls: 'inv-qty-input', label: 'Quantity for ' + item.name, unitHtml: `<span class="inv-unit">${item.unit}</span>` })}
       </div>
+      ${InvUnits.helper(item) ? `<div style="font-size:0.72rem;color:var(--gray-mid);margin:-0.3rem 0 0.4rem">${InvUnits.format(item, item.quantity)}</div>` : ''}
       <div class="inv-par">
         Par level:
-        <input type="number" id="inv-par-${item.id}" value="${item.par_level}" min="0" step="0.5"
-          style="width:55px;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--gray-mid);font-size:0.72rem;font-family:'DM Sans',sans-serif;outline:none;padding:0 0.2rem" />
-        ${item.unit}
+        ${InvUnits.entry('inv-par-' + item.id, item, item.par_level, { label: 'Par level for ' + item.name, style: "width:55px;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--gray-mid);font-size:0.72rem;font-family:'DM Sans',sans-serif;outline:none;padding:0 0.2rem", selectStyle: 'font-size:0.7rem', unitHtml: ` ${item.unit}` })}
       </div>
       ${item.notes ? `<div style="font-size:0.72rem;color:var(--gray);margin-bottom:0.5rem">📝 ${item.notes}</div>` : ''}
       <div style="font-size:0.7rem;color:var(--gray);margin-bottom:0.6rem;display:flex;flex-direction:column;gap:0.15rem">
@@ -5010,8 +5017,8 @@ function renderInvGrid() {
 }
 
 async function saveInvItem(id, name, prevQty) {
-  const newQty = parseFloat(document.getElementById('inv-qty-' + id).value) || 0;
-  const newPar = parseFloat(document.getElementById('inv-par-' + id).value) || 0;
+  const newQty = InvUnits.read('inv-qty-' + id) || 0;
+  const newPar = InvUnits.read('inv-par-' + id) || 0;
   const change = newQty - prevQty;
   const changeType = change > 0 ? 'restock' : change < 0 ? 'usage' : 'count';
   const changedByName = document.getElementById('admin-name').textContent || 'Admin';
@@ -5062,6 +5069,8 @@ function renderInvItemCost(item) {
   document.getElementById('inv-item-base-unit').value = item?.base_unit || '';
   document.getElementById('inv-item-pack-size').value = item?.pack_size ?? '';
   document.getElementById('inv-item-per-unit').value = item?.base_units_per_unit ?? '';
+  document.getElementById('inv-item-count-unit').value = item?.count_unit || '';
+  document.getElementById('inv-item-count-size').value = item?.count_unit_size ?? '';
   const note = document.getElementById('inv-item-cost-note');
   if (item?.cost_per_base_unit_cents != null) {
     const when = item.cost_updated_at ? new Date(item.cost_updated_at).toLocaleDateString() : 'unknown date';
@@ -5112,6 +5121,14 @@ async function saveInvItemModal() {
   if (allInventory.some(i => 'base_units_per_unit' in i)) {
     const perUnitVal = parseFloat(document.getElementById('inv-item-per-unit').value);
     payload.base_units_per_unit = Number.isFinite(perUnitVal) && perUnitVal > 0 ? perUnitVal : null;
+  }
+  // Only once 20260926_inventory_base_units.sql has added the columns.
+  if (allInventory.some(i => 'count_unit' in i)) {
+    const countLabel = document.getElementById('inv-item-count-unit').value.trim();
+    const countSize = parseFloat(document.getElementById('inv-item-count-size').value);
+    const both = countLabel && countSize > 0;
+    payload.count_unit = both ? countLabel : null;
+    payload.count_unit_size = both ? countSize : null;
   }
   const { error } = editingInvItemId
     ? await sb.from('inventory').update(payload).eq('id', editingInvItemId)
@@ -6920,6 +6937,7 @@ let noSettings = null;  // inventory_settings row
 let noPicks = {};       // inventory_id -> { on, packs } as edited on screen
 let noProfileId = null; // item whose product form is open
 let noOrderVendor = null;
+let noInvInfo = {};     // inventory_id -> { count_unit, count_unit_size }
 
 const noFmt = (n, d = 1) => {
   n = Number(n);
@@ -6941,6 +6959,9 @@ async function loadNeedsOrdering() {
   }
   noRows = forecast.data || [];
   noSettings = settings.data || null;
+  // How each item is counted by eye (absent until 20260926_inventory_base_units.sql is run).
+  const info = await sb.from('inventory').select('id, count_unit, count_unit_size');
+  noInvInfo = info.error ? {} : Object.fromEntries((info.data || []).map(i => [i.id, i]));
   setNeedsOrderingBadge(noRows.filter(r => r.status === 'order_now').length);
   renderNeedsOrdering();
 }
@@ -7003,7 +7024,7 @@ function renderNeedsOrderingRow(r) {
   const unit = r.unit || 'units';
   const cpp = Number(r.counted_per_purchase) > 0 ? Number(r.counted_per_purchase) : null;
   const facts = [
-    `${noFmt(r.quantity)} ${unit} on hand`,
+    `${InvUnits.helper({ ...noInvInfo[r.inventory_id] }) ? InvUnits.format({ unit, ...noInvInfo[r.inventory_id] }, r.quantity) : noFmt(r.quantity) + ' ' + unit} on hand`,
     Number(r.on_order) > 0 ? `${noFmt(r.on_order)} on order` : '',
     Number(r.avg_daily) > 0 ? `uses ${noFmt(r.avg_daily, 2)} a day` : (r.needs_conversion ? 'needs a conversion in Usage Setup' : 'no usage recorded'),
     r.days_left != null ? `${noFmt(r.days_left)} open days left` : '',
@@ -7035,7 +7056,7 @@ function renderNeedsOrderingRow(r) {
     <div class="usage-actions" style="margin-top:0.4rem">
       <button type="button" class="btn btn-ghost btn-sm" onclick="openNoProfile('${id}')">${r.has_profile ? 'Edit product' : 'Set up product'}</button>
       <label class="usage-muted" for="no-count-${id}">Actually have</label>
-      <input class="form-input" type="number" min="0" step="any" id="no-count-${id}" value="${Number(r.quantity)}" style="width:90px;padding:0.35rem 0.5rem;font-size:0.8rem"/>
+      ${InvUnits.entry('no-count-' + id, { unit, ...noInvInfo[id] }, r.quantity, { cls: 'form-input', style: 'width:90px;padding:0.35rem 0.5rem;font-size:0.8rem', label: 'What is actually on the shelf', selectStyle: 'font-size:0.78rem;padding:0.3rem' })}
       <button type="button" class="btn btn-ghost btn-sm" onclick="noSaveCount('${id}')">Fix count</button>
       <span class="usage-adder-msg" id="no-count-msg-${id}" role="alert"></span>
     </div>
@@ -7050,7 +7071,7 @@ function noSetPacks(id, v) { (noPicks[id] ||= { on: true, packs: 1 }).packs = Ma
 async function noSaveCount(id) {
   const r = noRows.find(x => x.inventory_id === id);
   const msg = document.getElementById('no-count-msg-' + id);
-  const qty = parseFloat(document.getElementById('no-count-' + id).value);
+  const qty = InvUnits.read('no-count-' + id);
   if (!(qty >= 0)) { msg.textContent = 'Enter what’s on the shelf.'; return; }
   const name = document.getElementById('admin-name').textContent || 'Admin';
   const { error } = await sb.from('inventory').update({ quantity: qty, updated_at: new Date().toISOString() }).eq('id', id);
@@ -7973,6 +7994,9 @@ function renderUsageSetup() {
 function usageCountedHtml(inv, amount) {
   const per = Number(inv?.base_units_per_unit);
   if (!inv?.base_unit || !(per > 0)) return ' <span class="usage-chip-sub warn">no conversion</span>';
+  // A converted item keeps its stock in this unit; show the by-eye equivalent instead.
+  const h = InvUnits.helper(inv);
+  if (h) return ` <span class="usage-chip-sub">= ${fmtUsageQty(amount / h.size)} ${htmlEscape(h.label)}</span>`;
   return ` <span class="usage-chip-sub">= ${fmtUsageQty(amount / per)} ${htmlEscape(inv.unit || '')}</span>`;
 }
 
@@ -8180,18 +8204,71 @@ async function setOptionNoInventory(idx, on) {
   await loadUsageSetup();
 }
 
+// Saves what recipes measure the item in and how many are in one counted unit. The
+// unit can be changed here as long as nothing is linked to it (links are amounts in
+// that unit); changing it clears the cost the old unit gave, which the next receipt
+// sets again.
 async function saveUsageConversion(invId) {
   const inv = usageInv(invId);
   const msg = document.getElementById(`usage-conv-msg-${invId}`);
-  const base = inv?.base_unit || document.getElementById(`usage-conv-base-${invId}`)?.value.trim();
+  const base = document.getElementById(`usage-conv-base-${invId}`)?.value.trim();
   const per = parseFloat(document.getElementById(`usage-conv-per-${invId}`).value);
   if (!base) { msg.textContent = 'Say what recipes measure it in — pump, oz, each.'; return; }
-  if (!(per > 0)) { msg.textContent = 'Enter how many recipe units are in one counted unit.'; return; }
-  const { error } = await sb.from('inventory')
-    .update({ base_unit: base, base_units_per_unit: per, updated_at: new Date().toISOString() })
-    .eq('id', invId);
+  if (!(per > 0)) { msg.textContent = 'Enter how many of that are in one counted unit.'; return; }
+  const patch = { base_unit: base, base_units_per_unit: per, updated_at: new Date().toISOString() };
+  const changing = !!inv?.base_unit && inv.base_unit.trim().toLowerCase() !== base.toLowerCase();
+  if (changing) {
+    const linked = [...usageData.optionLinks, ...usageData.itemLinks, ...usageData.addonLinks].some(l => l.inventory_id === invId);
+    if (linked) { msg.textContent = `Recipes already use ${inv.name} in ${inv.base_unit}. Remove those links first, then change the unit.`; return; }
+    if (!confirm(`Change ${inv.name} from ${inv.base_unit} to ${base}?\n\nIts saved cost was per ${inv.base_unit}, so it's cleared until the next receipt sets it again.`)) return;
+    Object.assign(patch, { pack_size: null, cost_per_base_unit_cents: null, cost_updated_at: null });
+  }
+  const { error } = await sb.from('inventory').update(patch).eq('id', invId);
   if (error) { msg.textContent = 'Error: ' + error.message; return; }
   await loadUsageSetup();
+}
+
+// ── Units tab ──
+// "9 Bags (60 cookies)" holds its own answer: 60 each. Only a starting suggestion.
+function usageUnitSuggestion(inv) {
+  const m = String(inv.unit || '').match(/\((\d+(?:\.\d+)?)\s*([A-Za-z][A-Za-z .]*?)\)/);
+  if (!m) return null;
+  const noun = m[2].trim().toLowerCase();
+  const each = /^(cookies?|cups?|pieces?|bars?|items?|count|ct|each|lids?|straws?)$/.test(noun);
+  return { per: Number(m[1]), base: each ? 'each' : noun };
+}
+
+// converted (kept in its ordering unit) | base (already is) | ready | open
+function usageUnitState(inv) {
+  if (Number(inv.count_unit_size) > 0) return 'converted';
+  const per = Number(inv.base_units_per_unit);
+  if (inv.base_unit && per === 1 && String(inv.unit || '').trim().toLowerCase() === inv.base_unit.trim().toLowerCase()) return 'base';
+  return inv.base_unit && per > 0 ? 'ready' : 'open';
+}
+
+async function convertInventoryUnits(ids) {
+  const items = ids.map(usageInv).filter(Boolean);
+  const list = items.slice(0, 30).map(i => `${i.name}: ${fmtUsageQty(i.quantity)} ${i.unit} → ${fmtUsageQty(i.quantity * i.base_units_per_unit)} ${i.base_unit}`).join('\n');
+  if (!confirm(`Keep ${items.length === 1 ? items[0].name : items.length + ' items'} in ${items.length === 1 ? items[0].base_unit : 'their ordering units'}?\n\n${list}${items.length > 30 ? `\n…and ${items.length - 30} more` : ''}\n\nCounts, par levels, recorded usage and pending orders are converted with it. Counting by eye stays the same, and you can undo it.`)) return;
+  const { data, error } = await sb.rpc('convert_inventory_to_base_units', { p_ids: ids });
+  if (error) { alert(`Couldn’t convert: ${error.message}\n\nIf that mentions a missing function or column, run supabase/migrations/20260926_inventory_base_units.sql in the Supabase SQL editor.`); return; }
+  if (data.skipped?.length) alert('Skipped:\n' + data.skipped.map(s => `${s.name} — ${s.reason}`).join('\n'));
+  allInventory = [];
+  await loadUsageSetup();
+}
+
+async function revertInventoryUnits(id) {
+  const inv = usageInv(id);
+  if (!confirm(`Put ${inv.name} back to counting in ${inv.count_unit}?\n\nIts count, par level and recorded usage are converted back.`)) return;
+  const { error } = await sb.rpc('revert_inventory_to_counted_units', { p_ids: [id] });
+  if (error) { alert('Couldn’t undo: ' + error.message); return; }
+  allInventory = [];
+  await loadUsageSetup();
+}
+
+async function convertAllReadyUnits() {
+  const ids = allInventory.filter(i => usageUnitState(i) === 'ready').map(i => i.id);
+  if (ids.length) await convertInventoryUnits(ids);
 }
 
 // ── Menu Items tab ──
@@ -8336,35 +8413,60 @@ function renderUsageAddonRow(a) {
   </div>`;
 }
 
-// ── Conversions tab ──
-// The recipe unit is only editable here while it's blank: once set (often by a
-// receipt), it's what every amount and cost is written against, so changing it
-// belongs in the inventory item itself, not a quick inline edit.
+// ── Units tab (render) ──
 function renderUsageConversions(ctx, gapsOnly) {
-  const intro = '<p class="usage-help">Students count bottles, sleeves, and bags; recipes measure pumps, ounces, and each. Say how many recipe units are in one counted unit so a sale can come off the count. An item shows up here once something is linked to it.</p>';
-  const rows = ctx.conversions
-    .filter(c => !gapsOnly || c.missing)
-    .sort((a, b) => (b.missing - a.missing) || a.inv.name.localeCompare(b.inv.name));
-  if (!rows.length) return intro + usageEmpty(gapsOnly ? 'Every linked item has a conversion.' : 'Nothing is linked yet.');
-  return intro + rows.map(({ inv, missing }) => {
+  const intro = '<p class="usage-help">Keep each item in the unit it’s <strong>ordered</strong> in — oz of syrup, individual cups — so receipts, recipes and sales all use the same unit. Say what that unit is and how many are in one thing you count by eye (a bottle, a sleeve). Press <strong>Convert</strong> and its count is kept in the ordering unit; students still count bottles and sleeves and the site does the math.</p>';
+  const rows = allInventory
+    .map(inv => ({ inv, state: usageUnitState(inv) }))
+    .filter(r => !gapsOnly || (r.state !== 'converted' && r.state !== 'base'))
+    .sort((a, b) => ['open', 'ready', 'base', 'converted'].indexOf(a.state) - ['open', 'ready', 'base', 'converted'].indexOf(b.state)
+      || String(a.inv.category).localeCompare(String(b.inv.category)) || a.inv.name.localeCompare(b.inv.name));
+  if (!rows.length) return intro + usageEmpty(gapsOnly ? 'Every item is in its ordering unit.' : 'No inventory items yet.');
+
+  const ready = rows.filter(r => r.state === 'ready').length;
+  const bulk = ready ? `<div class="usage-bulk"><span><strong>${ready}</strong> item${ready === 1 ? '' : 's'} ready to convert.</span>
+    <button type="button" class="btn btn-primary btn-sm" onclick="convertAllReadyUnits()">Convert all ${ready}</button>
+    <span class="usage-muted">You’ll see each one first.</span></div>` : '';
+  const labels = { converted: '✓ Kept in ' , base: '✓ Already in ', ready: 'Ready to convert', open: 'Needs a unit' };
+
+  return intro + bulk + rows.map(({ inv, state }) => {
     const unit = inv.unit || 'unit';
-    const baseField = inv.base_unit
-      ? `<span class="usage-conv-base">${htmlEscape(inv.base_unit)}</span>`
-      : `<label class="visually-hidden" for="usage-conv-base-${inv.id}">Recipe unit for ${htmlEscape(inv.name)}</label><input class="form-input" id="usage-conv-base-${inv.id}" placeholder="pump, oz, each"/>`;
-    return `<div class="usage-row">
-      <div class="usage-row-head">
+    const sugg = state === 'open' || state === 'ready' ? usageUnitSuggestion(inv) : null;
+    const perVal = inv.base_units_per_unit ?? sugg?.per ?? '';
+    // A unit name like "Bags (60 cookies)" counts pieces, so it beats a weight a receipt
+    // happened to leave behind (oz for a bag of cookies). Only a suggestion until Save.
+    const overridesReceipt = !!sugg && sugg.base === 'each' && !!inv.base_unit && inv.base_unit.trim().toLowerCase() !== 'each' && !(Number(inv.base_units_per_unit) > 0);
+    const baseVal = overridesReceipt ? sugg.base : (inv.base_unit || sugg?.base || '');
+    const suggested = !!sugg && (overridesReceipt || !inv.base_unit || !(Number(inv.base_units_per_unit) > 0));
+    const head = `<div class="usage-row-head">
         <div>
           <div class="usage-row-name">${htmlEscape(inv.name)}</div>
-          <div class="usage-row-sub">${htmlEscape(USAGE_INV_CATEGORIES[inv.category] || inv.category || '')}</div>
+          <div class="usage-row-sub">${htmlEscape(USAGE_INV_CATEGORIES[inv.category] || inv.category || '')} · ${htmlEscape(InvUnits.format(inv, inv.quantity))}</div>
         </div>
-        ${usageStatusHtml(!missing, '✓ Set', 'Missing')}
-      </div>
+        ${usageStatusHtml(state === 'converted' || state === 'base', state === 'converted' || state === 'base' ? labels[state] + htmlEscape(inv.unit || '') : '', labels[state])}
+      </div>`;
+    if (state === 'converted') {
+      return `<div class="usage-row">${head}
+        <div class="usage-actions"><span class="usage-muted">Counted by eye as ${htmlEscape(inv.count_unit)} (1 = ${fmtUsageQty(inv.count_unit_size)} ${htmlEscape(inv.unit)}).</span>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="revertInventoryUnits('${inv.id}')">Undo</button></div>
+      </div>`;
+    }
+    if (state === 'base') {
+      return `<div class="usage-row">${head}</div>`;
+    }
+    const after = state === 'ready'
+      ? `<span class="usage-muted">${htmlEscape(InvUnits.format(inv, inv.quantity))} → <strong>${fmtUsageQty(inv.quantity * inv.base_units_per_unit)} ${htmlEscape(inv.base_unit)}</strong></span>` : '';
+    return `<div class="usage-row">${head}
       <div class="usage-conv">
         <span class="usage-conv-base">1 ${htmlEscape(unit)} =</span>
-        <label class="visually-hidden" for="usage-conv-per-${inv.id}">Recipe units in one ${htmlEscape(unit)}</label>
-        <input class="form-input" type="number" min="0" step="any" id="usage-conv-per-${inv.id}" value="${inv.base_units_per_unit ?? ''}"/>
-        ${baseField}
-        <button type="button" class="btn btn-primary btn-sm" onclick="saveUsageConversion('${inv.id}')">Save</button>
+        <label class="visually-hidden" for="usage-conv-per-${inv.id}">How many ${htmlEscape(inv.base_unit || 'ordering units')} in one ${htmlEscape(unit)}</label>
+        <input class="form-input" type="number" min="0" step="any" id="usage-conv-per-${inv.id}" value="${perVal}"/>
+        <label class="visually-hidden" for="usage-conv-base-${inv.id}">Ordering unit for ${htmlEscape(inv.name)}</label>
+        <input class="form-input" id="usage-conv-base-${inv.id}" value="${htmlEscape(baseVal)}" placeholder="oz, each, fl oz"/>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="saveUsageConversion('${inv.id}')">Save</button>
+        ${state === 'ready' ? `<button type="button" class="btn btn-primary btn-sm" onclick="convertInventoryUnits(['${inv.id}'])">Convert</button>` : ''}
+        ${after}
+        ${suggested ? '<span class="usage-chip-sub">suggested from the unit name — press Save to use it</span>' : ''}
         <div class="usage-adder-msg" id="usage-conv-msg-${inv.id}" role="alert"></div>
       </div>
     </div>`;

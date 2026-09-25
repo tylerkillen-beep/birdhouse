@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <script src="/lib/supabase.js"></script>
 <script src="/lib/receiving.js"></script>
+<script src="/lib/inventory-units.js"></script>
 <style>
   :root{--red:#cc0000;--red-bright:#ff1a1a;--black:#0a0a0a;--card:#111;--border:rgba(204,0,0,0.18);--border-dim:rgba(255,255,255,0.06);--gray:#888;--light-gray:#999;--white:#f0f0f0}
   *{margin:0;padding:0;box-sizing:border-box}
@@ -638,11 +639,11 @@ function renderInventory(){
       <div class="inv-bar" role="progressbar" aria-valuenow="${Math.round(pct*100)}" aria-valuemin="0" aria-valuemax="100" aria-label="Stock level: ${Math.round(pct*100)}% of par"><div class="inv-bar-fill" style="width:${Math.round(pct*100)}%;background:${bc}"></div></div>
       <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.4rem">
         <label for="inv-${item.id}" class="visually-hidden">Current quantity (${item.unit})</label>
-        <input class="inv-qty-input" type="number" id="inv-${item.id}" value="${item.quantity}" min="0" step="0.5"/>
-        <span style="font-size:0.78rem;color:var(--gray)" aria-hidden="true">${item.unit}</span>
+        ${InvUnits.entry('inv-' + item.id, item, item.quantity, { cls: 'inv-qty-input', unitHtml: `<span style="font-size:0.78rem;color:var(--gray)" aria-hidden="true">${item.unit}</span>` })}
         <button class="inv-save-btn" onclick="saveInv('${item.id}','${safeN}',${item.quantity})" aria-label="Save count for ${safeN}">Save Count</button>
       </div>
-      <div style="font-size:0.7rem;color:var(--gray);margin-top:0.35rem">Par: ${item.par_level} ${item.unit}</div>
+      ${InvUnits.helper(item) ? `<div style="font-size:0.7rem;color:var(--gray);margin-top:0.35rem">On hand: ${InvUnits.format(item, item.quantity)}</div>` : ''}
+      <div style="font-size:0.7rem;color:var(--gray);margin-top:0.35rem">Par: ${InvUnits.format(item, item.par_level)}</div>
       ${item.notes?`<div style="font-size:0.7rem;color:var(--gray);margin-top:0.25rem"><span aria-hidden="true">📝</span> ${item.notes}</div>`:''}
       <div class="inv-order-info"><span><span aria-hidden="true">📅</span> Last ordered: ${fmtDate(item.last_ordered_at)}</span><span><span aria-hidden="true">🚚</span> Expected arrival: ${fmtDate(item.expected_arrival)}</span></div>
       ${item._used30>0?`<div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid rgba(255,255,255,0.05);display:grid;grid-template-columns:1fr 1fr;gap:0.3rem">
@@ -673,7 +674,8 @@ function renderInventory(){
   }).join('')+'</div>';
 }
 async function saveInv(id,name,prev){
-  const newQty=parseFloat(document.getElementById('inv-'+id).value);
+  const newQty=InvUnits.read('inv-'+id);
+  if(!Number.isFinite(newQty)||newQty<0){alert('Enter what is on the shelf.');return;}
   const change=newQty-prev;
   const managerName=(currentUser.user_metadata?.first_name||'')+' '+(currentUser.user_metadata?.last_name||'');
   await sb.from('inventory').update({quantity:newQty,updated_at:new Date().toISOString()}).eq('id',id);
