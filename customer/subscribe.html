@@ -130,6 +130,8 @@
     .drink-selected-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:1.1rem 1.25rem; display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; }
     .drink-selected-name { font-weight:500; font-size:0.95rem; }
     .drink-selected-mods { font-size:0.78rem; color:var(--light-gray); margin-top:0.2rem; }
+    .delivery-drink { justify-content:flex-start; }
+    .delivery-drink-label { font-size:0.7rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--light-gray); margin-bottom:0.2rem; }
     .drink-selected-price { font-size:0.88rem; color:var(--red-bright); font-weight:600; }
     .no-drink-selected { background:var(--card); border:1.5px dashed rgba(204,0,0,0.2); border-radius:12px; padding:1.5rem; text-align:center; color:var(--gray); font-size:0.85rem; margin-bottom:1rem; }
 
@@ -374,6 +376,7 @@
           <span style="font-size:1.2rem" aria-hidden="true">📍</span>
           <h3 class="slot-title" id="delivery-slot-1-title">Delivery Details</h3>
         </div>
+        <div class="drink-selected-card delivery-drink" id="delivery-slot-1-drink"></div>
         <div class="delivery-grid">
           <div class="form-group">
             <label for="slot-1-day">Delivery Day</label>
@@ -408,6 +411,7 @@
           <span style="font-size:1.2rem" aria-hidden="true">📍</span>
           <h3 class="slot-title">Second Drink Delivery</h3>
         </div>
+        <div class="drink-selected-card delivery-drink" id="delivery-slot-2-drink"></div>
         <div class="delivery-grid">
           <div class="form-group">
             <label for="slot-2-day">Delivery Day</label>
@@ -1283,6 +1287,29 @@ const res = await fetch(`${SUPABASE_URL}/functions/v1/save-card`, {
     }
   }
 
+  /** Shows which drink a delivery slot is for, so a student scheduling two
+   *  drinks always knows which one they're setting the day and time for. */
+  function renderDeliveryDrink(slotNum) {
+    const slot = drinkSlots[slotNum];
+    const el   = document.getElementById(`delivery-slot-${slotNum}-drink`);
+    const label = document.createElement('div');
+    label.className = 'delivery-drink-label';
+    label.textContent = selectedPlan?.drinks_per_week === 2
+      ? (slotNum === 1 ? 'First drink' : 'Second drink')
+      : 'Your drink';
+    const name = document.createElement('div');
+    name.className = 'drink-selected-name';
+    name.textContent = slot.drinkName || '';
+    const mods = document.createElement('div');
+    mods.className = 'drink-selected-mods';
+    mods.textContent = slot.drinkModifiers?.length
+      ? slot.drinkModifiers.map(m => m.name).join(', ')
+      : 'No customizations';
+    const wrap = document.createElement('div');
+    wrap.append(label, name, mods);
+    el.replaceChildren(wrap);
+  }
+
   // ── Navigation ────────────────────────────────────────────────────────────
   async function goToStep(step) {
     if (step === 2) {
@@ -1299,6 +1326,8 @@ const res = await fetch(`${SUPABASE_URL}/functions/v1/save-card`, {
       document.getElementById('delivery-slot-2').style.display = isEagle ? 'block' : 'none';
       if (!drinkSlots[1].drinkItemId) { alert('Please select a drink for slot 1.'); return; }
       if (isEagle && !drinkSlots[2].drinkItemId) { alert('Please select a drink for slot 2.'); return; }
+      renderDeliveryDrink(1);
+      if (isEagle) renderDeliveryDrink(2);
     }
     if (step === 4) {
       const loc1 = document.getElementById('slot-1-location').value.trim();
