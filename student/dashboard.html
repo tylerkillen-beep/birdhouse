@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="/lib/flatpickr-themes/dark.css" />
   <script src="/lib/flatpickr.js"></script>
   <script src="/lib/item-lookup.js"></script>
+  <script src="/lib/inventory-units.js"></script>
   <script src="/lib/mathews.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -977,13 +978,10 @@
         </div>
         <div class="inv-qty-row">
           <label for="qty-${item.id}" class="visually-hidden">Quantity for ${item.name}</label>
-          <input class="inv-qty-input" type="number" id="qty-${item.id}" value="${item.quantity}" min="0" step="0.5" />
-          <span class="inv-unit">${item.unit}</span>
+          ${InvUnits.entry('qty-' + item.id, item, item.quantity, { cls: 'inv-qty-input', unitHtml: `<span class="inv-unit">${item.unit}</span>` })}
         </div>
-        <div class="inv-par">Par level: <span>${item.par_level} ${item.unit}</span>
-          &nbsp;·&nbsp; <label for="par-${item.id}" class="visually-hidden">Par level for ${item.name}</label>Par: <input type="number" id="par-${item.id}" value="${item.par_level}" min="0" step="0.5"
-            style="width:55px;background:transparent;border:none;border-bottom:1px solid var(--border-dim);color:var(--light-gray);font-size:0.72rem;font-family:'DM Sans',sans-serif;outline:none;padding:0 0.2rem"/>
-          ${item.unit}
+        <div class="inv-par">Par level: <span>${InvUnits.format(item, item.par_level)}</span>
+          &nbsp;·&nbsp; <label for="par-${item.id}" class="visually-hidden">Par level for ${item.name}</label>Par: ${InvUnits.entry('par-' + item.id, item, item.par_level, { style: "width:55px;background:transparent;border:none;border-bottom:1px solid var(--border-dim);color:var(--light-gray);font-size:0.72rem;font-family:'DM Sans',sans-serif;outline:none;padding:0 0.2rem", selectStyle: 'font-size:0.7rem', unitHtml: ` ${item.unit}` })}
         </div>
         ${item.notes?`<div style="font-size:0.72rem;color:var(--gray);margin-bottom:0.5rem"><span aria-hidden="true">📝</span> ${item.notes}</div>`:''}
         ${(item.last_ordered_at||item.expected_arrival)?`<div style="font-size:0.72rem;color:var(--gray);margin-bottom:0.5rem;display:flex;gap:0.75rem;flex-wrap:wrap">
@@ -999,8 +997,8 @@
   }
 
   async function saveInventoryItem(id, name, prevQty) {
-    const newQty = parseFloat(document.getElementById('qty-'+id).value);
-    const newPar = parseFloat(document.getElementById('par-'+id).value);
+    const newQty = InvUnits.read('qty-'+id);
+    const newPar = InvUnits.read('par-'+id);
     const change = newQty - prevQty;
     const changeType = change>0?'restock':change<0?'usage':'count';
     const studentName = currentUser.user_metadata?.first_name+' '+currentUser.user_metadata?.last_name;

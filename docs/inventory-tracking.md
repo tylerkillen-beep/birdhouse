@@ -70,8 +70,8 @@ switching it would make the stored receipt cost mean the wrong thing.
    3. **Menu Items** — add **Always uses** for coffee and food, fix any recipe
       that didn't match by name, and mark things like gift cards
       **Uses no stock**.
-   4. **Conversions** — fill in the recipe units per counted unit for every
-      item that's linked.
+   4. **Units** — say what each item is ordered in and how many are in one thing
+      you count by eye, then keep it in that unit (see below).
    **Suggested links.** Each unlinked recipe option, add-on, and stand-alone
    item (a cookie) shows a dashed **Suggested** line: the inventory item whose
    name matches best (`lib/usage-suggest.js`), with a starting amount when its
@@ -336,6 +336,47 @@ receipts don't have to be uploaded. Setup and behaviour are in
 [`email-intake.md`](email-intake.md); the orders it isn't sure about wait under
 **Admin → Purchases → Needs Review**, and **Email Log** shows what it did with each
 email.
+
+---
+
+## Keeping items in the unit they're ordered in
+
+Run `supabase/migrations/20260926_inventory_base_units.sql`. Then open **Admin →
+Usage Setup → Units**.
+
+Stock can be kept in the unit orders come in — oz of syrup or boba, individual
+cups — instead of the unit people count by eye (bottles, tubs, sleeves). Receipts,
+recipes, sales and the forecast then all use the same unit and no conversion is
+needed. Receiving even works itself out: a 4-pack of 750 ml bottles adds its own
+size.
+
+Counting by eye stays easy. The old unit is kept as a **count unit**: a student types
+"3" against "Bottles" and 96 oz is what's saved. Cards show both ("96 oz (3
+Bottles)"), and the count boxes on the admin, manager and student inventory pages
+and on Needs Ordering (Fix count) have a picker to switch between them.
+
+**Converting an item.** On the Units tab, each item shows what it's counted in now.
+Set two things and press **Save**: *what it's ordered in* (oz, each, fl oz) and *how
+many of that are in one thing you count* (1 Bottle = 32). A unit name like "Bags (60
+cookies)" is read for a starting suggestion, which you can change. When an item shows
+**Ready to convert**, the row previews it ("9 Bags (60 cookies) → 540 each");
+**Convert** does one, **Convert all** does every ready item after listing them.
+
+What conversion changes for an item: its count and par level, the usage already
+recorded for orders, register sales and subscription drinks (so cancelling an old
+order still puts back the right amount), and the "counts as" on pending orders,
+remembered receipt matches and saved products on Needs Ordering. Old inventory log
+rows and received orders stay in the unit they were written in. **Undo** on a
+converted item reverses all of it. Every conversion is recorded in
+`inventory_unit_conversions`.
+
+- Changing an item's ordering unit (say, cookies from `oz` to `each`) clears its saved
+  cost, which was per the old unit; the next receipt sets it again. It's refused while
+  recipes link to the item in the old unit — remove those links first.
+- Do this **before** linking recipes if you can: links are amounts in the ordering
+  unit, so a syrup pump becomes 0.25 oz.
+- New items can be set up the same way from the inventory item form: **Counted By Eye
+  As** and **One of Those Is**.
 
 ---
 
