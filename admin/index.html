@@ -7265,6 +7265,7 @@ const USAGE_INV_CATEGORIES = { cold_drinks: 'Cold Drinks', hot_drinks: 'Hot Drin
 
 let usageData = null;
 let usageDeduct = null;  // inventory_settings row, or { missing: true } before the phase 2 migration
+let usageUnmatched = 0;  // register sale lines in the last 30 days that matched no menu item
 let usageTab = 'items';
 let usageAdder = null;   // the target whose "+ Link" form is open
 let usageTargets = [];   // rebuilt every render; inline handlers index into it
@@ -7323,6 +7324,9 @@ async function loadUsageSetup() {
   // Its own query so a site that hasn't run the phase 2 migration yet still loads.
   const settings = await sb.from('inventory_settings').select('*').maybeSingle();
   usageDeduct = settings.error ? { missing: true } : (settings.data || { deduct_orders: false });
+  const unmatched = await sb.from('square_line_usage').select('square_order_id', { count: 'exact', head: true })
+    .is('menu_item_id', null).gte('sold_at', new Date(Date.now() - 30 * 864e5).toISOString());
+  usageUnmatched = unmatched.error ? 0 : (unmatched.count || 0);
   usageData = {
     menuItems, recipes, optionRows, preview, optionLinks, optionSkips, itemLinks, addonLinks, modLists, modOptions,
     recipeByItem: Object.fromEntries(recipeLinks.map(l => [l.menu_item_id, l])),
@@ -7395,8 +7399,17 @@ function usageContext() {
   return { items, options, addons, conversions };
 }
 
-// The switch that lets paid orders take stock off the count. Off, orders still
-// record what they use (so history builds); on, the count moves too.
+// The switches that let sales take stock off the count. Off, a sale still
+// records what it uses (so history builds); on, the count moves too.
+const USAGE_DEDUCT_CHANNELS = [
+  { col: 'deduct_orders', at: 'deduct_enabled_at', label: 'App orders',
+    on: 'Each paid order takes what it uses off the count. A cancelled order puts it back.',
+    off: 'Paid orders record what they use, but your counts don’t change yet. Count the important items first, then turn this on.' },
+  { col: 'deduct_register', at: 'register_enabled_at', label: 'Register sales',
+    on: 'Register and Square Online sales take what they use off the count, from the moment this was turned on. Older sales are only recorded for history.',
+    off: 'Register sales are recorded as they come in (every 15 minutes), but your counts don’t change yet.' },
+];
+
 function renderUsageDeduct() {
   const el = document.getElementById('usage-deduct');
   if (!usageDeduct) { el.innerHTML = ''; return; }
@@ -7404,42 +7417,71 @@ function renderUsageDeduct() {
     el.innerHTML = '<div class="usage-deduct"><span>Automatic deduction needs <code>supabase/migrations/20260925_inventory_deduction.sql</code> run in the Supabase SQL editor first.</span></div>';
     return;
   }
-  const on = usageDeduct.deduct_orders === true;
-  const since = usageDeduct.deduct_enabled_at ? new Date(usageDeduct.deduct_enabled_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
-  el.innerHTML = `<div class="usage-deduct ${on ? 'on' : ''}">
-    <div>
-      <div class="usage-deduct-state">Automatic deduction is ${on ? 'ON' + (since ? ' since ' + htmlEscape(since) : '') : 'OFF'}</div>
-      <div class="usage-muted">${on
-        ? 'Each paid order takes what it uses off the count. A cancelled order puts it back.'
-        : 'Paid orders record what they use, but your counts don’t change yet. Count the important items first, then turn this on.'}</div>
-    </div>
+  const rows = USAGE_DEDUCT_CHANNELS.map(ch => {
+    if (!(ch.col in usageDeduct)) {
+      return `<div class="usage-deduct"><div><div class="usage-deduct-state">${ch.label}</div><div class="usage-muted">Needs <code>supabase/migrations/20260925_register_sales_deduction.sql</code> run in the Supabase SQL editor first.</div></div></div>`;
+    }
+    const on = usageDeduct[ch.col] === true;
+    const since = usageDeduct[ch.at] ? new Date(usageDeduct[ch.at]).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+    const unmatched = ch.col === 'deduct_register' && usageUnmatched > 0
+      ? ` <span class="usage-chip-sub warn">${usageUnmatched} register sale line${usageUnmatched === 1 ? '' : 's'} in the last 30 days matched no menu item and used nothing.</span>` : '';
+    return `<div class="usage-deduct ${on ? 'on' : ''}">
+      <div>
+        <div class="usage-deduct-state">${ch.label}: automatic deduction is ${on ? 'ON' + (since ? ' since ' + htmlEscape(since) : '') : 'OFF'}</div>
+        <div class="usage-muted">${htmlEscape(on ? ch.on : ch.off)}${unmatched}</div>
+      </div>
+      <div class="usage-actions">
+        <button type="button" class="btn ${on ? 'btn-ghost' : 'btn-primary'} btn-sm" onclick="setUsageDeduction('${ch.col}', ${!on})">${on ? 'Turn off' : 'Turn on'}</button>
+      </div>
+    </div>`;
+  });
+  rows.push(`<div class="usage-deduct">
+    <div><div class="usage-muted">Re-work what past sales used from today’s Usage Setup. It never changes your counts.</div></div>
     <div class="usage-actions">
-      <button type="button" class="btn ${on ? 'btn-ghost' : 'btn-primary'} btn-sm" onclick="setUsageDeduction(${!on})">${on ? 'Turn off' : 'Turn on'}</button>
       <button type="button" class="btn btn-ghost btn-sm" id="usage-rebuild-btn" onclick="rebuildUsageHistory()">Rebuild usage history</button>
       <span class="usage-muted" id="usage-rebuild-msg" role="status"></span>
     </div>
-  </div>`;
+  </div>`);
+  el.innerHTML = rows.join('');
 }
 
-async function setUsageDeduction(on) {
-  if (on && !confirm('Turn on automatic deduction?\n\nFrom now on every paid order takes what it uses off your counts, starting from the numbers in Inventory today. Make sure the counts for cups, milk, coffee, syrups and cookies are up to date first.')) return;
-  const patch = { deduct_orders: on, updated_by: currentUser.id, updated_at: new Date().toISOString() };
-  if (on) patch.deduct_enabled_at = new Date().toISOString();
+async function setUsageDeduction(col, on) {
+  const ch = USAGE_DEDUCT_CHANNELS.find(c => c.col === col);
+  if (on && !confirm(`Turn on automatic deduction for ${ch.label.toLowerCase()}?\n\nFrom now on every sale takes what it uses off your counts, starting from the numbers in Inventory today. Make sure the counts for cups, milk, coffee, syrups and cookies are up to date first.`)) return;
+  const patch = { [col]: on, updated_by: currentUser.id, updated_at: new Date().toISOString() };
+  if (on) patch[ch.at] = new Date().toISOString();
   const { error } = await sb.from('inventory_settings').update(patch).eq('id', true);
   if (error) { alert('Couldn’t change it: ' + error.message); return; }
   await loadUsageSetup();
 }
 
-// Re-records what past orders used from today's setup, without touching stock.
+// Re-records what past sales used from today's setup, without touching stock.
+// Register history can be years of lines, so it goes in batches.
 async function rebuildUsageHistory() {
   const btn = document.getElementById('usage-rebuild-btn');
   const msg = document.getElementById('usage-rebuild-msg');
-  if (!confirm('Rebuild usage history?\n\nThis re-works what past orders used from your current Usage Setup. It never changes your counts.')) return;
+  if (!confirm(`Rebuild usage history?\n\nThis re-works what past sales used from your current Usage Setup. It never changes your counts, and register history can take a few minutes.`)) return;
   btn.disabled = true;
+  const fail = text => { msg.textContent = 'Error: ' + text; btn.disabled = false; };
   msg.textContent = 'Working…';
-  const { data, error } = await sb.rpc('backfill_order_usage', { p_rebuild: true });
+  const orders = await sb.rpc('backfill_order_usage', { p_rebuild: true });
+  if (orders.error) return fail(orders.error.message);
+  let summary = `${orders.data} app order${orders.data === 1 ? '' : 's'}`;
+  if ('deduct_register' in usageDeduct) {
+    let first = true, lines = 0;
+    for (let i = 0; i < 500; i++) {
+      const { data, error } = await sb.rpc('backfill_register_usage', { p_rebuild: first, p_limit: 300 });
+      if (error) return fail(error.message);
+      first = false;
+      lines += data.recorded;
+      msg.textContent = `Working… ${data.remaining} register sale lines to go`;
+      if (!data.remaining || !data.recorded) break;
+    }
+    summary += `, ${lines} register sale line${lines === 1 ? '' : 's'}`;
+  }
   btn.disabled = false;
-  msg.textContent = error ? 'Error: ' + error.message : `Done — ${data} order${data === 1 ? '' : 's'} recorded.`;
+  msg.textContent = `Done — ${summary} recorded.`;
+  await loadUsageSetup();
 }
 
 function renderUsageSetup() {

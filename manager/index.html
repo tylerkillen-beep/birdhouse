@@ -581,13 +581,13 @@ function renderOrders(){
 
 // INVENTORY
 async function loadInventory(){
-  // What sales used comes from order_inventory_usage, which records each paid order's real
-  // recipe + add-on usage (see supabase/migrations/20260925_inventory_deduction.sql). Before
-  // that migration is run the query fails and the cards simply show no usage.
+  // What sales used comes from inventory_usage_history: each app order's and register sale's real
+  // recipe + add-on usage (see supabase/migrations/20260925_*_deduction.sql). Before those
+  // migrations are run the query fails and the cards simply show no usage.
   const since30=new Date(Date.now()-30*864e5).toISOString();
   const [{data},{data:usageRows}]=await Promise.all([
     sb.from('inventory').select('*').order('category').order('name'),
-    sb.from('order_inventory_usage').select('inventory_id,base_amount,sold_at').gte('sold_at',since30)
+    sb.from('inventory_usage_history').select('inventory_id,base_amount,sold_at').gte('sold_at',since30)
   ]);
   allInventory=data||[];
   // Used amounts are in the recipe unit; cards show the counted unit (bottles, sleeves).

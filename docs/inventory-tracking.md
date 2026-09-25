@@ -3,15 +3,16 @@
 The goal: every sale records what it used, inventory counts itself down, and the
 site tells you what to order before you run out. This is being built in
 phases. **Usage is set up and deliveries add stock correctly; app orders record
-what they use and can deduct it once you switch that on. Register and
-subscription sales don't deduct yet.**
+what they use, and so do register sales; each can deduct once you switch it
+on. Subscription drinks don't deduct yet.**
 
 | Phase | What it does | Status |
 |---|---|---|
 | 1. Usage setup | Links every sale to the inventory it uses | Done |
 | 1b. Receiving | Receipts match themselves; deliveries add the right amount | Done |
 | 2. App orders | Paid app orders deduct stock; cancelled ones put it back | Built — run the migration, then flip the switch |
-| 3. Register + subscriptions | In-person Square sales and subscription drinks deduct too | Planned |
+| 3a. Register | In-person and Square Online sales deduct too | Built — run the migration, then flip the switch |
+| 3b. Subscriptions | Subscription drinks deduct when delivered | Planned |
 | 4. Forecasting | Days of stock left, "order by" dates, a Needs Ordering list | Planned |
 
 ---
@@ -189,11 +190,43 @@ from public.order_usage('<order id>') u join public.inventory i on i.id = u.inve
 
 ---
 
+## Register sales
+
+Run `supabase/migrations/20260925_register_sales_deduction.sql` (after the app
+orders one).
+
+`sync-square-sales` copies register and Square Online sales into
+`square_sale_lines` every 15 minutes. It already leaves out the website's own
+payments, so an app order is never counted twice. Each new line is matched to
+its menu item (the Square item behind the variation, then the name it was rung
+up as) and its usage is worked out the same way as for app orders: recipe and
+Always-uses links plus the add-ons rung up, times the quantity.
+
+**Register sales** has its own switch beside App orders in Usage Setup, and it
+works the same way: off until you turn it on. The register has one difference.
+The sync also copies years of past sales, so **only sales closed after you turn
+the switch on come off the count**; older ones are recorded for history only.
+
+- Nothing in the edge function changed. Only sales from the last two days are
+  worked out as they arrive; older lines come in through **Rebuild usage
+  history**, which now also walks register history in batches (it can take a
+  few minutes and shows how many lines are left).
+- A sale can arrive before Square's item behind it is looked up. The match is
+  retried when the sync learns that item.
+- The switch card counts register lines from the last 30 days that matched no
+  menu item. To see which, run the second query at the bottom of the migration:
+  usually an item that isn't synced or was renamed in Square.
+- **Refunds aren't restored** (the sync copies what was sold, not returns), and
+  custom amounts with no item use nothing.
+- As with app orders, a register item with no Usage Setup links deducts nothing.
+
+The manager Inventory cards' **Used** numbers add app orders and register sales
+together (`inventory_usage_history`).
+
+---
+
 ## Known gaps, for later phases
 
-- **Register sales** carry a Square variation id; `sync-catalog` only stores an
-  item's first variation, so multi-variation items (Hot/Iced sizes) will need
-  mapping in phase 3.
 - **Legacy `recipe_ingredients` rows** still count toward usage (except syrup
   rows a recipe has replaced with its Syrups checklist). The recipe form no
   longer edits them.
