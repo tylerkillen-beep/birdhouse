@@ -302,8 +302,8 @@ serve(async (req) => {
       const localDefaults = {
         category: categories.get(seedCategoryId) || "Coffee",
         available: true,
-        is_hot: true,
-        is_iced: false,
+        is_hot: false,
+        is_iced: true,
       };
 
       const { data: existing, error: existingErr } = await serviceClient
