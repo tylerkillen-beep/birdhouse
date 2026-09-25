@@ -7438,6 +7438,24 @@ function renderUsageDeduct() {
       </div>
     </div>`;
   });
+  if ('subscription_cookie_item_id' in usageDeduct) {
+    const cookieOptions = usageData.menuItems
+      .filter(m => m.retired !== true || m.id === usageDeduct.subscription_cookie_item_id)
+      .sort((a, b) => String(a.name).localeCompare(String(b.name)))
+      .map(m => `<option value="${m.id}"${m.id === usageDeduct.subscription_cookie_item_id ? ' selected' : ''}>${htmlEscape(m.name)}</option>`).join('');
+    rows.push(`<div class="usage-deduct">
+      <div>
+        <div class="usage-deduct-state">Cookie included with subscription plans</div>
+        <div class="usage-muted">Delivery cards tell staff how many cookies to include. Pick the cookie so delivering it comes off the count like the drink does.</div>
+      </div>
+      <div class="usage-actions">
+        <label class="visually-hidden" for="usage-cookie-item">Cookie included with subscription plans</label>
+        <select class="form-input" id="usage-cookie-item" onchange="setSubscriptionCookieItem(this.value)" style="width:auto;max-width:260px;padding:0.4rem 0.6rem;font-size:0.8rem">
+          <option value="">None picked</option>${cookieOptions}
+        </select>
+      </div>
+    </div>`);
+  }
   rows.push(`<div class="usage-deduct">
     <div><div class="usage-muted">Re-work what past sales used from today’s Usage Setup. It never changes your counts.</div></div>
     <div class="usage-actions">
@@ -7446,6 +7464,14 @@ function renderUsageDeduct() {
     </div>
   </div>`);
   el.innerHTML = rows.join('');
+}
+
+async function setSubscriptionCookieItem(menuItemId) {
+  const { error } = await sb.from('inventory_settings')
+    .update({ subscription_cookie_item_id: menuItemId || null, updated_by: currentUser.id, updated_at: new Date().toISOString() })
+    .eq('id', true);
+  if (error) { alert('Couldn’t save the cookie: ' + error.message); return; }
+  await loadUsageSetup();
 }
 
 async function setUsageDeduction(col, on) {

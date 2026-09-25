@@ -4,7 +4,7 @@ The goal: every sale records what it used, inventory counts itself down, and the
 site tells you what to order before you run out. This is being built in
 phases. **Usage is set up and deliveries add stock correctly; app orders record
 what they use, and so do register sales and subscription drinks; each can
-deduct once you switch it on. Subscribers' weekly cookies aren't tracked.**
+deduct once you switch it on.**
 
 | Phase | What it does | Status |
 |---|---|---|
@@ -243,8 +243,29 @@ on. Drinks closed out before that are recorded for history only.
 - Marking a drink **delivered** takes its usage off; putting it back on the queue
   (or marking it cancelled) puts it back.
 - **Rebuild usage history** also redoes past subscription drinks.
-- **Cookies included in plans aren't tracked.** Nothing records a subscriber's
-  weekly cookie being handed over, so those don't come off the count yet.
+
+### Weekly cookies
+
+Run `supabase/migrations/20260925_subscription_drinks_deduction_cookies.sql`
+after the one above.
+
+A plan's **cookies per week** are shared out across the subscription's drink
+slots, so each delivery knows what it carries: with 5 drinks and 2 cookies a
+week, slots 1 and 2 carry one cookie each; with 3 drinks and 5 cookies, slots 1
+and 2 carry two and slot 3 carries one. It goes by slot, not date, so a delivery
+moved by a closure keeps its cookie.
+
+- The **Order Queue card** says "Include N cookies with this delivery".
+- Pick the cookie under **Usage Setup → Cookie included with subscription
+  plans**. Marking the delivery delivered then records those cookies as used
+  (and takes them off the count when Subscription drinks is on); putting it
+  back or cancelling it returns them. Until one is picked the card still tells
+  staff to include it, but the count doesn't move.
+- The count is snapshotted when the delivery is closed out, so a later plan
+  change doesn't rewrite what went out that day. Deliveries closed out before
+  this migration carry none.
+- It's one cookie for every plan. If subscribers get an assortment, pick the one
+  that best stands for it.
 
 The manager Inventory cards' **Used** numbers now add app orders, register sales
 and subscription drinks (`inventory_usage_history`).
