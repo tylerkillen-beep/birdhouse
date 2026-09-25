@@ -2,14 +2,15 @@
 
 The goal: every sale records what it used, inventory counts itself down, and the
 site tells you what to order before you run out. This is being built in
-phases. **Usage is set up and deliveries add stock correctly; sales don't
-deduct anything yet.**
+phases. **Usage is set up and deliveries add stock correctly; app orders record
+what they use and can deduct it once you switch that on. Register and
+subscription sales don't deduct yet.**
 
 | Phase | What it does | Status |
 |---|---|---|
 | 1. Usage setup | Links every sale to the inventory it uses | Done |
 | 1b. Receiving | Receipts match themselves; deliveries add the right amount | Done |
-| 2. App orders | Paid app orders deduct stock; cancelled ones put it back | Next |
+| 2. App orders | Paid app orders deduct stock; cancelled ones put it back | Built — run the migration, then flip the switch |
 | 3. Register + subscriptions | In-person Square sales and subscription drinks deduct too | Planned |
 | 4. Forecasting | Days of stock left, "order by" dates, a Needs Ordering list | Planned |
 
@@ -136,10 +137,60 @@ select * from public.menu_item_usage('<menu item id>', array['<modifier square i
 
 ---
 
+## Automatic deduction (app orders)
+
+Run `supabase/migrations/20260925_inventory_deduction.sql` in the SQL editor.
+
+Every website order that is **paid** (or preparing, ready, delivered) records what
+it used in `order_inventory_usage`: each cart line's recipe and Always-uses
+links, plus the add-ons the customer picked, times the quantity. A **cancelled**
+or refunded order puts back exactly what was taken. Sticker orders are skipped.
+
+Whether the count itself moves is the switch at the top of **Admin → Usage
+Setup**. It starts **off**, so nothing changes until you decide:
+
+1. Finish Usage Setup for the important items (cups, milk, coffee, syrups,
+   cookies), with conversions filled in.
+2. Bring their counts in Inventory up to date. Deduction starts from whatever
+   the count says today.
+3. Press **Turn on**. From then on each paid order lowers the counts.
+
+Rules worth knowing:
+
+- Lowering stops at 0, so a stale count never goes negative. The full usage is
+  still recorded, so history and forecasts stay right.
+- An inventory item with no **conversion** is recorded but not deducted.
+- A menu item with no links uses nothing yet, so the count is optimistic until
+  Usage Setup covers it. **Hot vs iced isn't distinguished**: an item uses the
+  same links either way (an add-on can carry the difference).
+- The deduction can never stop an order. If it fails, the order goes through
+  and a warning is logged.
+- **Rebuild usage history** re-works what past orders used from today's setup,
+  without touching counts. Run it after Usage Setup improves, so the manager
+  page's "Used · 7 / 30 days" and later the forecast see the right past.
+  Anything that really came off the count while the switch was on stays.
+
+The manager Inventory cards show **Used · 7 days** and **Used · 30 days** from
+this record, replacing the old Used and Variance numbers that guessed from
+recipe names and mixed units.
+
+```sql
+-- What recent orders took, item by item:
+select o.created_at, o.drink_name, i.name, u.base_amount, i.base_unit, u.applied_amount, i.unit
+from public.order_inventory_usage u
+join public.orders o on o.id = u.order_id
+join public.inventory i on i.id = u.inventory_id
+order by u.sold_at desc limit 50;
+
+-- What one order would use:
+select i.name, u.base_amount, i.base_unit
+from public.order_usage('<order id>') u join public.inventory i on i.id = u.inventory_id;
+```
+
+---
+
 ## Known gaps, for later phases
 
-- **The manager page's "Used" and "Variance" numbers** still come from the old
-  name-guessing code and mix units. Phase 2 replaces them.
 - **Register sales** carry a Square variation id; `sync-catalog` only stores an
   item's first variation, so multi-variation items (Hot/Iced sizes) will need
   mapping in phase 3.

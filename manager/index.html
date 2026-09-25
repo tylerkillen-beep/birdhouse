@@ -581,45 +581,31 @@ function renderOrders(){
 
 // INVENTORY
 async function loadInventory(){
-  const [{data},{data:poItemData},{data:recipeData},{data:orderData}]=await Promise.all([
+  // What sales used comes from order_inventory_usage, which records each paid order's real
+  // recipe + add-on usage (see supabase/migrations/20260925_inventory_deduction.sql). Before
+  // that migration is run the query fails and the cards simply show no usage.
+  const since30=new Date(Date.now()-30*864e5).toISOString();
+  const [{data},{data:usageRows}]=await Promise.all([
     sb.from('inventory').select('*').order('category').order('name'),
-    sb.from('purchase_order_items').select('inventory_id,quantity,received_quantity,received_count,purchase_orders!inner(status)').in('purchase_orders.status',['received','partial']),
-    sb.from('recipe_ingredients').select('inventory_id,amount,recipe_id'),
-    sb.from('orders').select('cart_items,status').in('status',['delivered','ready','preparing'])
+    sb.from('order_inventory_usage').select('inventory_id,base_amount,sold_at').gte('sold_at',since30)
   ]);
   allInventory=data||[];
-  // Build received totals per inventory item
-  const receivedMap={};
-  (poItemData||[]).forEach(it=>{
-    if(!it.inventory_id)return;
-    // received_count is in counted units; older orders only have purchased units.
-    receivedMap[it.inventory_id]=(receivedMap[it.inventory_id]||0)+(it.received_count??it.received_quantity??0);
-  });
-  // Build recipe usage totals per inventory item by matching cart item names to recipe names
-  const usageMap={};
-  const recipeMap={};
-  (recipeData||[]).forEach(ri=>{if(!recipeMap[ri.recipe_id])recipeMap[ri.recipe_id]=[];recipeMap[ri.recipe_id].push(ri);});
-  const {data:recipesWithNames}=await sb.from('recipes').select('id,name');
-  const recipeNameMap={};(recipesWithNames||[]).forEach(r=>{recipeNameMap[r.id]=r.name.toLowerCase();});
-  (orderData||[]).forEach(order=>{
-    const items=Array.isArray(order.cart_items)?order.cart_items:[];
-    items.forEach(ci=>{
-      const ciName=(ci.name||'').toLowerCase();
-      const ciQty=parseFloat(ci.quantity)||1;
-      Object.entries(recipeNameMap).forEach(([rid,rname])=>{
-        if(ciName===rname||ciName.includes(rname)||rname.includes(ciName)){
-          (recipeMap[rid]||[]).forEach(ri=>{
-            if(!ri.inventory_id)return;
-            usageMap[ri.inventory_id]=(usageMap[ri.inventory_id]||0)+(ri.amount*ciQty);
-          });
-        }
-      });
-    });
+  // Used amounts are in the recipe unit; cards show the counted unit (bottles, sleeves).
+  const since7=Date.now()-7*864e5;
+  const usedMap={};
+  (usageRows||[]).forEach(u=>{
+    const inv=allInventory.find(i=>i.id===u.inventory_id);
+    const per=Number(inv?.base_units_per_unit);
+    if(!(per>0))return;
+    const n=Number(u.base_amount)/per;
+    const e=usedMap[u.inventory_id]||(usedMap[u.inventory_id]={d7:0,d30:0});
+    e.d30+=n;
+    if(new Date(u.sold_at).getTime()>=since7)e.d7+=n;
   });
   allInventory=allInventory.map(item=>({
     ...item,
-    _totalReceived:receivedMap[item.id]||0,
-    _totalUsed:usageMap[item.id]||0
+    _used7:usedMap[item.id]?.d7||0,
+    _used30:usedMap[item.id]?.d30||0
   }));
   const low=allInventory.filter(i=>i.quantity<=i.par_level);
   const banner=document.getElementById('low-banner');
@@ -659,10 +645,9 @@ function renderInventory(){
       <div style="font-size:0.7rem;color:var(--gray);margin-top:0.35rem">Par: ${item.par_level} ${item.unit}</div>
       ${item.notes?`<div style="font-size:0.7rem;color:var(--gray);margin-top:0.25rem"><span aria-hidden="true">📝</span> ${item.notes}</div>`:''}
       <div class="inv-order-info"><span><span aria-hidden="true">📅</span> Last ordered: ${fmtDate(item.last_ordered_at)}</span><span><span aria-hidden="true">🚚</span> Expected arrival: ${fmtDate(item.expected_arrival)}</span></div>
-      ${(item._totalReceived>0||item._totalUsed>0)?`<div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid rgba(255,255,255,0.05);display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.3rem">
-        <div style="font-size:0.68rem;text-align:center"><div style="color:var(--gray);text-transform:uppercase;letter-spacing:0.08em;font-size:0.58rem">Received</div><div style="font-weight:600;color:#4caf50">${item._totalReceived.toFixed(1)}</div></div>
-        <div style="font-size:0.68rem;text-align:center"><div style="color:var(--gray);text-transform:uppercase;letter-spacing:0.08em;font-size:0.58rem">Used</div><div style="font-weight:600;color:#2196f3">${item._totalUsed.toFixed(1)}</div></div>
-        <div style="font-size:0.68rem;text-align:center"><div style="color:var(--gray);text-transform:uppercase;letter-spacing:0.08em;font-size:0.58rem">Variance</div><div style="font-weight:600;color:${(item.quantity-(item._totalReceived-item._totalUsed))>0?'#ff9800':'var(--gray)'}">${((item.quantity-(item._totalReceived-item._totalUsed))>0.05?'▼':'')}${Math.abs(item.quantity-(item._totalReceived-item._totalUsed)).toFixed(1)}</div></div>
+      ${item._used30>0?`<div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid rgba(255,255,255,0.05);display:grid;grid-template-columns:1fr 1fr;gap:0.3rem">
+        <div style="font-size:0.68rem;text-align:center"><div style="color:var(--gray);text-transform:uppercase;letter-spacing:0.08em;font-size:0.58rem">Used · 7 days</div><div style="font-weight:600;color:#2196f3">${item._used7.toFixed(1)} ${item.unit}</div></div>
+        <div style="font-size:0.68rem;text-align:center"><div style="color:var(--gray);text-transform:uppercase;letter-spacing:0.08em;font-size:0.58rem">Used · 30 days</div><div style="font-weight:600;color:#2196f3">${item._used30.toFixed(1)} ${item.unit}</div></div>
       </div>`:''}
 
       <div style="border-top:1px solid var(--border-dim);padding-top:0.6rem;margin-top:0.5rem">
