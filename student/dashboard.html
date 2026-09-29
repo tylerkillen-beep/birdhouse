@@ -1269,8 +1269,19 @@
   const coffeeOptions = () => recipeFormCampus() === 'mathews' ? COFFEE_POUR_OPTIONS : MACHINE_DRINK_OPTIONS;
   const pourOptions = () => recipeFormCampus() === 'mathews' ? [...BEVERAGE_POUR_OPTIONS, ...MATHEWS_POUR_EXTRAS] : BEVERAGE_POUR_OPTIONS;
 
+  // Mathews makes hot chocolate from powder, measured in scoops.
+  const COCOA_SCOOP_OPTIONS = [1, 2, 3, 4];
+  const scoopLabel = n => `${n} scoop${Number(n) === 1 ? '' : 's'}`;
+  function fillCocoaField(current) {
+    const opts = COCOA_SCOOP_OPTIONS.includes(Number(current)) || !current ? COCOA_SCOOP_OPTIONS : [...COCOA_SCOOP_OPTIONS, Number(current)];
+    document.getElementById('recipe-cocoa').innerHTML =
+      '<option value="">— None —</option>' +
+      opts.map(n => `<option value="${n}"${Number(current) === n ? ' selected' : ''}>${scoopLabel(n)}</option>`).join('');
+  }
+
   function fillCoffeeAndPourFields({ coffee, pour1, pour2 }) {
     const mathews = recipeFormCampus() === 'mathews';
+    document.getElementById('recipe-cocoa-wrap').hidden = !mathews;
     document.getElementById('recipe-machine-label').textContent = mathews ? 'Coffee Pour' : 'Coffee Machine — Drink';
     document.getElementById('recipe-machine-flavor-title').textContent = mathews ? 'Coffee — Flavor(s)' : 'Coffee Machine — Flavor(s)';
     fillSelectOptions('recipe-machine', coffeeOptions(), coffee, '— None —');
@@ -1401,6 +1412,7 @@
       recipe.syrups ? `Syrups: ${recipe.syrups}` : '',
       recipe.boba ? `Boba: ${recipe.boba}` : '',
       recipe.toppings ? `Toppings: ${recipe.toppings}` : '',
+      recipe.hot_chocolate_scoops ? `Hot chocolate powder: ${scoopLabel(recipe.hot_chocolate_scoops)}` : '',
     ].filter(Boolean);
     return `<div class="recipe-card">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:0.5rem;gap:1rem">
@@ -1506,6 +1518,7 @@
       coffee: (recipeFormCampus() === 'mathews' ? recipe?.coffee_pour : recipe?.coffee_machine_selection) || '',
       pour1, pour2,
     });
+    fillCocoaField(recipe?.hot_chocolate_scoops);
     syncPourState();
 
     // Only one packet per drink now; older recipes could list several, so take
@@ -1566,6 +1579,7 @@
       // On the Mathews menu this dropdown is the coffee pour, not a machine drink.
       coffee_machine_selection: campus === 'mathews' ? null : (machineDrink || null),
       coffee_pour: campus === 'mathews' ? (machineDrink || null) : null,
+      hot_chocolate_scoops: campus === 'mathews' ? (Number(document.getElementById('recipe-cocoa').value) || null) : null,
       coffee_machine_flavor: machineDrink ? (getCheckedValues('machineFlavor').join(', ') || null) : null,
       packet: packetFlavor ? `${packetFlavor} (${packetAmount})` : null,
       beverage_pour: pourTextFromForm(),
@@ -2740,6 +2754,8 @@
         <select id="recipe-pour" onchange="syncPourState()" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"></select></div>
       <div id="recipe-pour-2-wrap" hidden style="margin-bottom:1rem"><label for="recipe-pour-2" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Half &amp; Half With</label>
         <select id="recipe-pour-2" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"></select></div>
+      <div id="recipe-cocoa-wrap" hidden style="margin-bottom:1rem"><label for="recipe-cocoa" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Hot Chocolate Powder</label>
+        <select id="recipe-cocoa" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"></select></div>
       <div style="margin-bottom:1rem"><label for="recipe-packet" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Packet Flavor</label>
         <select id="recipe-packet" onchange="syncPacketAmountState()" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"></select></div>
       <div style="margin-bottom:1rem"><label for="recipe-packet-amount" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Packet — how much</label>

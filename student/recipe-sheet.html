@@ -398,7 +398,7 @@
             <table class="sheet-table">
               <thead><tr>
                 <th>Drink</th><th>Cup</th><th>Ice</th><th>${currentMenu === 'mathews' ? 'Coffee Pour' : 'Coffee Machine Selection'}</th>
-                <th>Syrup Flavors (Pumps)</th><th>Packet</th><th>Beverage Pour</th><th>Boba</th><th>Topping(s)</th>
+                <th>Syrup Flavors (Pumps)</th><th>Packet</th><th>Beverage Pour</th><th>Boba</th><th>Topping(s)</th>${currentMenu === 'mathews' ? '<th>Hot Chocolate Powder</th>' : ''}
               </tr></thead>
               <tbody>${rows}</tbody>
             </table>
@@ -504,6 +504,7 @@
       <td>${cell(recipe.beverage_pour)}</td>
       <td>${cell(boba)}</td>
       <td>${cell(toppings)}</td>
+      ${currentMenu === 'mathews' ? `<td>${cell(recipe.hot_chocolate_scoops ? `${recipe.hot_chocolate_scoops} scoop${Number(recipe.hot_chocolate_scoops) === 1 ? '' : 's'}` : '')}</td>` : ''}
     </tr>`;
   }
 

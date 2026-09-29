@@ -7473,8 +7473,19 @@ const MATHEWS_POUR_EXTRAS = ['Red Bull', 'Milk'];
 const coffeeOptions = () => recipeFormCampus() === 'mathews' ? COFFEE_POUR_OPTIONS : MACHINE_DRINK_OPTIONS;
 const pourOptions = () => recipeFormCampus() === 'mathews' ? [...BEVERAGE_POUR_OPTIONS, ...MATHEWS_POUR_EXTRAS] : BEVERAGE_POUR_OPTIONS;
 
+// Mathews makes hot chocolate from powder, measured in scoops.
+const COCOA_SCOOP_OPTIONS = [1, 2, 3, 4];
+const scoopLabel = n => `${n} scoop${Number(n) === 1 ? '' : 's'}`;
+function fillCocoaField(current) {
+  const opts = COCOA_SCOOP_OPTIONS.includes(Number(current)) || !current ? COCOA_SCOOP_OPTIONS : [...COCOA_SCOOP_OPTIONS, Number(current)];
+  document.getElementById('recipe-cocoa').innerHTML =
+    '<option value="">— None —</option>' +
+    opts.map(n => `<option value="${n}"${Number(current) === n ? ' selected' : ''}>${scoopLabel(n)}</option>`).join('');
+}
+
 function fillCoffeeAndPourFields({ coffee, pour1, pour2 }) {
   const mathews = recipeFormCampus() === 'mathews';
+  document.getElementById('recipe-cocoa-wrap').hidden = !mathews;
   document.getElementById('recipe-machine-label').textContent = mathews ? 'Coffee Pour' : 'Coffee Machine — Drink';
   document.getElementById('recipe-machine-flavor-title').textContent = mathews ? 'Coffee — Flavor(s)' : 'Coffee Machine — Flavor(s)';
   fillSelectOptions('recipe-machine', coffeeOptions(), coffee, '— None —');
@@ -7594,6 +7605,7 @@ function renderRecipes() {
       recipe.syrups ? `Syrups: ${recipe.syrups}` : '',
       recipe.boba ? `Boba: ${recipe.boba}` : '',
       recipe.toppings ? `Toppings: ${recipe.toppings}` : '',
+      recipe.hot_chocolate_scoops ? `Hot chocolate powder: ${scoopLabel(recipe.hot_chocolate_scoops)}` : '',
     ].filter(Boolean);
     return `<div class="recipe-card">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:0.5rem">
@@ -7636,6 +7648,7 @@ function openRecipeModal(id) {
     coffee: (recipeFormCampus() === 'mathews' ? recipe?.coffee_pour : recipe?.coffee_machine_selection) || '',
     pour1, pour2,
   });
+  fillCocoaField(recipe?.hot_chocolate_scoops);
   syncPourState();
 
   // Only one packet per drink now; older recipes could list several, so take
@@ -7738,6 +7751,7 @@ async function saveRecipe() {
     // On the Mathews menu this dropdown is the coffee pour, not a machine drink.
     coffee_machine_selection: campus === 'mathews' ? null : (machineDrink || null),
     coffee_pour: campus === 'mathews' ? (machineDrink || null) : null,
+    hot_chocolate_scoops: campus === 'mathews' ? (Number(document.getElementById('recipe-cocoa').value) || null) : null,
     coffee_machine_flavor: machineDrink ? (getCheckedValues('machineFlavor').join(', ') || null) : null,
     packet: packetFlavor ? `${packetFlavor} (${packetAmount})` : null,
     beverage_pour: pourTextFromForm(),
@@ -8730,6 +8744,10 @@ function renderUsageConversions(ctx, gapsOnly) {
       <div class="form-group" id="recipe-pour-2-wrap" hidden>
         <label class="form-label" for="recipe-pour-2">Half &amp; Half With</label>
         <select class="form-input" id="recipe-pour-2"></select>
+      </div>
+      <div class="form-group" id="recipe-cocoa-wrap" hidden>
+        <label class="form-label" for="recipe-cocoa">Hot Chocolate Powder</label>
+        <select class="form-input" id="recipe-cocoa"></select>
       </div>
     </div>
 
