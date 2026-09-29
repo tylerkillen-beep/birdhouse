@@ -7464,6 +7464,38 @@ function syncMachineFlavorState(checked) {
   renderCheckGroup('machineFlavor', drink ? keep : []);
 }
 
+// Mathews has no coffee machine: the coffee is poured full, half or quarter of
+// a cup and flavored from the same four flavors, so the machine fields turn
+// into those. Mathews also pours Red Bull, which the Birdhouse doesn't have.
+// The Birdhouse choices are unchanged.
+const COFFEE_POUR_OPTIONS = ['Full', 'Half', 'Quarter'];
+const MATHEWS_POUR_EXTRAS = ['Red Bull'];
+const coffeeOptions = () => recipeFormCampus() === 'mathews' ? COFFEE_POUR_OPTIONS : MACHINE_DRINK_OPTIONS;
+const pourOptions = () => recipeFormCampus() === 'mathews' ? [...BEVERAGE_POUR_OPTIONS, ...MATHEWS_POUR_EXTRAS] : BEVERAGE_POUR_OPTIONS;
+
+function fillCoffeeAndPourFields({ coffee, pour1, pour2 }) {
+  const mathews = recipeFormCampus() === 'mathews';
+  document.getElementById('recipe-machine-label').textContent = mathews ? 'Coffee Pour' : 'Coffee Machine — Drink';
+  document.getElementById('recipe-machine-flavor-title').textContent = mathews ? 'Coffee — Flavor(s)' : 'Coffee Machine — Flavor(s)';
+  fillSelectOptions('recipe-machine', coffeeOptions(), coffee, '— None —');
+  fillSelectOptions('recipe-pour', pourOptions(), pour1, '— None —');
+  fillSelectOptions('recipe-pour-2', pourOptions(), pour2, '— None (full pour) —');
+}
+
+// Switching menus in the form: keep each pick that the other menu also offers
+// and drop the rest (a "Latte" isn't a coffee pour).
+function syncRecipeCampusFields() {
+  const opts = { coffee: coffeeOptions(), pour: pourOptions() };
+  const keep = (id, list) => { const v = document.getElementById(id).value; return list.some(o => normalizeName(o) === normalizeName(v)) ? v : ''; };
+  fillCoffeeAndPourFields({
+    coffee: keep('recipe-machine', opts.coffee),
+    pour1: keep('recipe-pour', opts.pour),
+    pour2: keep('recipe-pour-2', opts.pour),
+  });
+  syncPourState();
+  syncMachineFlavorState();
+}
+
 // `checkedValues` can be any casing (it may come straight from saved
 // recipe text) -- matched against the canonically-cased options list by
 // normalized key so a legacy "cold foam" still checks "Cold Foam".
@@ -7552,8 +7584,9 @@ function renderRecipes() {
     const ingList = recipe.recipe_ingredients?.map(ri =>
       `<span style="font-size:0.78rem;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:6px;padding:0.15rem 0.5rem;color:var(--text-muted)">${ri.amount} ${ri.unit || ri.inventory?.unit || ''} ${ri.inventory?.name || '?'}</span>`
     ).join(' ') || '<span style="color:var(--gray-mid);font-size:0.78rem">No ingredients</span>';
-    const machine = recipe.coffee_machine_selection
-      ? recipe.coffee_machine_selection + (recipe.coffee_machine_flavor ? ` (${recipe.coffee_machine_flavor})` : '')
+    const coffeeText = recipe.coffee_machine_selection || (recipe.coffee_pour ? `${recipe.coffee_pour} coffee pour` : '');
+    const machine = coffeeText
+      ? coffeeText + (recipe.coffee_machine_flavor ? ` (${recipe.coffee_machine_flavor})` : '')
       : '';
     const buildBits = [recipe.cup_type ? `${recipe.cup_type} cup` : '', machine, recipe.beverage_pour].filter(Boolean);
     const tagBits = [
@@ -7598,10 +7631,11 @@ function openRecipeModal(id) {
 
   // A saved value the curated list no longer offers stays selected rather
   // than silently reverting to "—" the first time someone opens the recipe.
-  fillSelectOptions('recipe-machine', MACHINE_DRINK_OPTIONS, recipe?.coffee_machine_selection || '', '— None —');
   const [pour1 = '', pour2 = ''] = savedPours(recipe?.beverage_pour);
-  fillSelectOptions('recipe-pour', BEVERAGE_POUR_OPTIONS, pour1, '— None —');
-  fillSelectOptions('recipe-pour-2', BEVERAGE_POUR_OPTIONS, pour2, '— None (full pour) —');
+  fillCoffeeAndPourFields({
+    coffee: (recipeFormCampus() === 'mathews' ? recipe?.coffee_pour : recipe?.coffee_machine_selection) || '',
+    pour1, pour2,
+  });
   syncPourState();
 
   // Only one packet per drink now; older recipes could list several, so take
@@ -7701,7 +7735,9 @@ async function saveRecipe() {
   const buildSpec = {
     cup_type: document.getElementById('recipe-cup').value || null,
     ice_amount: document.getElementById('recipe-ice').value || null,
-    coffee_machine_selection: machineDrink || null,
+    // On the Mathews menu this dropdown is the coffee pour, not a machine drink.
+    coffee_machine_selection: campus === 'mathews' ? null : (machineDrink || null),
+    coffee_pour: campus === 'mathews' ? (machineDrink || null) : null,
     coffee_machine_flavor: machineDrink ? (getCheckedValues('machineFlavor').join(', ') || null) : null,
     packet: packetFlavor ? `${packetFlavor} (${packetAmount})` : null,
     beverage_pour: pourTextFromForm(),
@@ -7747,7 +7783,10 @@ function initItemLookup() {
       openRecipeModal(recipeId || undefined);
       if (!recipeId) {
         const item = allMenuItems.find(m => m.id === menuItemId);
-        if (item) document.getElementById('recipe-campus').value = menuItemCampus(item);
+        if (item) {
+          document.getElementById('recipe-campus').value = menuItemCampus(item);
+          syncRecipeCampusFields();
+        }
         document.getElementById('recipe-name').value = itemName;
         populateRecipeNameOptions();
         updateRecipeNameHint();
@@ -8646,7 +8685,7 @@ function renderUsageConversions(ctx, gapsOnly) {
     <h2 class="modal-title" id="recipe-modal-title" style="font-weight:normal">Add Recipe</h2>
     <div class="form-group">
       <label class="form-label" for="recipe-campus">Menu <span style="color:var(--gray-mid);text-transform:none;font-weight:400">(a drink on both menus gets a recipe for each)</span></label>
-      <select class="form-input" id="recipe-campus" onchange="populateRecipeNameOptions();updateRecipeNameHint()">
+      <select class="form-input" id="recipe-campus" onchange="syncRecipeCampusFields();populateRecipeNameOptions();updateRecipeNameHint()">
         <option value="birdhouse">Birdhouse Menu</option>
         <option value="mathews">Mathews Menu</option>
       </select>
@@ -8681,7 +8720,7 @@ function renderUsageConversions(ctx, gapsOnly) {
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label" for="recipe-machine">Coffee Machine — Drink</label>
+        <label class="form-label" for="recipe-machine" id="recipe-machine-label">Coffee Machine — Drink</label>
         <select class="form-input" id="recipe-machine" onchange="syncMachineFlavorState()"></select>
       </div>
       <div class="form-group">
@@ -8695,7 +8734,7 @@ function renderUsageConversions(ctx, gapsOnly) {
     </div>
 
     <div id="recipe-machine-flavor-wrap" hidden>
-      <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray-mid);margin-bottom:0.6rem;font-weight:600">Coffee Machine — Flavor(s) <span style="text-transform:none;font-weight:400">(pick as many as apply)</span></div>
+      <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray-mid);margin-bottom:0.6rem;font-weight:600"><span id="recipe-machine-flavor-title">Coffee Machine — Flavor(s)</span> <span style="text-transform:none;font-weight:400">(pick as many as apply)</span></div>
       <div id="recipe-machine-flavor-options" class="check-grid" style="margin-bottom:1.25rem"></div>
     </div>
 

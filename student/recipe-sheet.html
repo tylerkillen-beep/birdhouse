@@ -397,7 +397,7 @@
           <div class="sheet-table-wrap">
             <table class="sheet-table">
               <thead><tr>
-                <th>Drink</th><th>Cup</th><th>Ice</th><th>Coffee Machine Selection</th>
+                <th>Drink</th><th>Cup</th><th>Ice</th><th>${currentMenu === 'mathews' ? 'Coffee Pour' : 'Coffee Machine Selection'}</th>
                 <th>Syrup Flavors (Pumps)</th><th>Packet</th><th>Beverage Pour</th><th>Boba</th><th>Topping(s)</th>
               </tr></thead>
               <tbody>${rows}</tbody>
@@ -444,6 +444,12 @@
   // name they'd actually say out loud rather than listing the parts: a Cold cup
   // plus Mocha plus Caramel becomes "Iced Caramel Mocha".
   function machineSelectionLabel(recipe) {
+    // Mathews has no machine: it pours a full, half or quarter cup of coffee,
+    // flavored from the same four flavors -- "Half pour · Hazelnut, Vanilla".
+    if (recipeCampus(recipe) === 'mathews') {
+      if (isNoneish(recipe.coffee_pour)) return '';
+      return [`${String(recipe.coffee_pour).trim()} pour`, splitList(recipe.coffee_machine_flavor).join(', ')].filter(Boolean).join(' · ');
+    }
     if (isNoneish(recipe.coffee_machine_selection)) return '';
     // A legacy free-text value may already carry the prefix ("iced latte"); the
     // cup type supplies it now, so strip it rather than saying "Iced iced latte".
