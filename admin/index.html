@@ -7274,13 +7274,18 @@ async function loadRecipes() {
   tasks.push(sb.from('recipe_costs').select('*'));
   // Kept out of `tasks` so the recipe_costs row lookup below can't pick it up.
   const menuTask = ensureMenuItems();
+  // Only needed to say which menu each name in the picker belongs to.
+  const campusTask = sb.from('square_categories').select('square_id, name')
+    .then(({ data }) => { recipeMathewsIds = mathewsMenuCategoryIds(data); });
   const [{ data }, ...rest] = await Promise.all(tasks);
   allRecipes = data || [];
   const costRows = rest.find(r => Array.isArray(r?.data))?.data || [];
   recipeCostMap = Object.fromEntries(costRows.map(c => [c.recipe_id, c]));
-  await menuTask;
+  await Promise.all([menuTask, campusTask]);
   renderRecipes();
 }
+
+let recipeMathewsIds = new Set();
 
 // Same fetch loadMenuItems() does, for the tabs that need the menu but aren't
 // the Menu tab. Selects everything so allMenuItems has its usual shape.
@@ -7644,7 +7649,8 @@ function populateRecipeNameOptions() {
   if (!dl) return;
   const hasRecipe = new Set(allRecipes.filter(r => r.id !== editingRecipeId).map(r => normalizeName(r.name)));
   dl.innerHTML = allMenuItems.map(item => {
-    const notes = [];
+    // Some drinks share a name across the two menus, so say which one each is.
+    const notes = [isMathewsMenuItem(item, recipeMathewsIds) ? 'Mathews menu' : 'Birdhouse menu'];
     if (hasRecipe.has(normalizeName(item.name))) notes.push('has a recipe');
     if (item.available === false) notes.push('hidden from menu');
     const label = notes.length ? ` label="${htmlEscape(notes.join(' · '))}"` : '';
