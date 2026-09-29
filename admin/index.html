@@ -1003,10 +1003,10 @@
       <table>
         <thead>
           <tr>
-            <th scope="col">Customer</th><th scope="col">Plan</th><th scope="col">Status</th><th scope="col">Next Billing</th><th scope="col">Drinks/Wk</th><th scope="col">Started</th><th scope="col">Actions</th>
+            <th scope="col">Customer</th><th scope="col">Plan</th><th scope="col">Drinks &amp; Delivery</th><th scope="col">Status</th><th scope="col">Next Billing</th><th scope="col">Drinks/Wk</th><th scope="col">Started</th><th scope="col">Actions</th>
           </tr>
         </thead>
-        <tbody id="sub-tbody"><tr class="loading-row"><td colspan="7">Loading…</td></tr></tbody>
+        <tbody id="sub-tbody"><tr class="loading-row"><td colspan="8">Loading…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -3022,10 +3022,24 @@ async function loadSubscriptions() {
 
   if (error) {
     console.error('Failed loading subscriptions', error);
-    document.getElementById('sub-tbody').innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--danger,#ff6b6b);padding:2rem">Could not load subscriptions: ${escHtml(error.message)}</td></tr>`;
+    document.getElementById('sub-tbody').innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--danger,#ff6b6b);padding:2rem">Could not load subscriptions: ${escHtml(error.message)}</td></tr>`;
     return;
   }
   allSubscriptions = data || [];
+
+  // Each drink a subscriber gets, and when it is delivered. Fetched on its own
+  // so a problem here never blanks the whole tab.
+  const subIds = allSubscriptions.map(s => s.id);
+  const slotsBySub = {};
+  if (subIds.length) {
+    const { data: slots, error: slotsError } = await sb.from('subscription_drink_slots')
+      .select('*, menu_items(name)')
+      .in('subscription_id', subIds)
+      .order('slot_number', { ascending: true });
+    if (slotsError) console.error('Failed loading subscription drinks', slotsError);
+    (slots || []).forEach(sl => { (slotsBySub[sl.subscription_id] ||= []).push(sl); });
+  }
+  allSubscriptions.forEach(s => { s.slots = slotsBySub[s.id] || []; });
 
   const userIds = [...new Set(allSubscriptions.map(s => s.user_id).filter(Boolean))];
   if (userIds.length) {
@@ -3083,10 +3097,22 @@ function filterSubscriptions() {
 // subscription itself records it, so the two can never disagree.
 function subscriptionCampus(s) { return s.subscription_plans?.campus || 'birdhouse'; }
 
+function subSlotsHtml(slots) {
+  if (!slots?.length) return '<span style="color:var(--gray-mid)">—</span>';
+  return slots.map(sl => {
+    const mods = (sl.drink_modifiers || []).map(m => m.name).filter(Boolean).join(', ');
+    const when = [sl.delivery_day, sl.delivery_time].filter(Boolean).join(' · ');
+    return `<div style="margin-bottom:0.3rem">
+      <div style="font-size:0.85rem">${escHtml(sl.menu_items?.name || 'Unknown drink')}${mods ? ` <span style="color:var(--gray);font-size:0.75rem">(${escHtml(mods)})</span>` : ''}</div>
+      <div style="font-size:0.75rem;color:var(--gray)">${escHtml(when || 'No time set')}${sl.delivery_location ? ' · ' + escHtml(sl.delivery_location) : ''}</div>
+    </div>`;
+  }).join('');
+}
+
 function renderSubscriptions(list) {
   const tbody = document.getElementById('sub-tbody');
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gray);padding:2rem">No subscriptions found.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--gray);padding:2rem">No subscriptions found.</td></tr>';
     return;
   }
   tbody.innerHTML = list.map(s => {
@@ -3103,6 +3129,7 @@ function renderSubscriptions(list) {
         ${s.subscription_plans?.name || '—'}
         ${subscriptionCampus(s) === 'mathews' ? '<div style="font-size:0.7rem;color:#6699ff;margin-top:0.15rem">🏫 Mathews</div>' : ''}
       </td>
+      <td>${subSlotsHtml(s.slots)}</td>
       <td>${subStatusPill(s.status)}</td>
       <td style="color:var(--gray-mid)">${nextBilling}</td>
       <td style="text-align:center">${s.subscription_plans?.drinks_per_week ?? '—'}</td>
