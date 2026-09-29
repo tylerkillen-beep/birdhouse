@@ -687,6 +687,14 @@
     const today=new Date(); const monday=new Date(today);
     monday.setDate(today.getDate()-(today.getDay()===0?6:today.getDay()-1));
     document.getElementById('summary-week').value=monday.toISOString().split('T')[0];
+
+    // Come back to the page the URL names (set by showSection, or a link such as
+    // dashboard.html#inventory from the Recipe Sheet); otherwise stay on Overview.
+    const savedSection = decodeURIComponent(location.hash.slice(1));
+    if (savedSection && savedSection !== 'overview' && document.getElementById('section-' + savedSection)) {
+      const navItem = [...document.querySelectorAll('.nav-item')].find(n => (n.getAttribute('onclick') || '').includes(`showSection('${savedSection}'`));
+      showSection(savedSection, navItem);
+    }
   }
 
   // ── Orders ──
@@ -2126,6 +2134,8 @@
     if(name==='bio')loadBio();
     if(name==='peer-eval')loadPeerEvalSection();
     if(name==='my-scores')loadMyScores();
+    // Remember the page in the URL so a refresh (or a link like dashboard.html#schedule) comes back to it.
+    try { history.replaceState(null, '', '#' + name); } catch {}
     closeNav();
     window.scrollTo(0,0);
   }
