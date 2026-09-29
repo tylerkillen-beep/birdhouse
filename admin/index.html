@@ -2067,7 +2067,11 @@ async function init() {
     document.getElementById('admin-email').textContent = currentUser.email;
     document.getElementById('dash-date').textContent = new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
 
-    await loadDashboard();
+    // A refresh returns to the page you were on (kept in the URL hash); anything
+    // unrecognized falls back to the dashboard.
+    const savedSection = decodeURIComponent(location.hash.slice(1));
+    if (savedSection && savedSection !== 'dashboard' && document.getElementById('section-' + savedSection)) showSection(savedSection);
+    else await loadDashboard();
     loadPendingBadge();
     loadOrdersBadge();
     loadPurchasesBadge();
@@ -2191,6 +2195,8 @@ function showSection(id) {
       localStorage.setItem('navGroupStates', JSON.stringify(states));
     }
   }
+  // Remember the page in the URL so a refresh (or bookmark) comes back to it.
+  try { history.replaceState(null, '', '#' + id); } catch {}
   closeNav();
 
   const loaders = {
