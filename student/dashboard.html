@@ -1260,6 +1260,38 @@
     renderCheckGroup('machineFlavor', drink ? keep : []);
   }
 
+  // Mathews has no coffee machine: the coffee is poured full, half or quarter of
+  // a cup and flavored from the same four flavors, so the machine fields turn
+  // into those. Mathews also pours Red Bull, which the Birdhouse doesn't have.
+  // The Birdhouse choices are unchanged.
+  const COFFEE_POUR_OPTIONS = ['Full', 'Half', 'Quarter'];
+  const MATHEWS_POUR_EXTRAS = ['Red Bull'];
+  const coffeeOptions = () => recipeFormCampus() === 'mathews' ? COFFEE_POUR_OPTIONS : MACHINE_DRINK_OPTIONS;
+  const pourOptions = () => recipeFormCampus() === 'mathews' ? [...BEVERAGE_POUR_OPTIONS, ...MATHEWS_POUR_EXTRAS] : BEVERAGE_POUR_OPTIONS;
+
+  function fillCoffeeAndPourFields({ coffee, pour1, pour2 }) {
+    const mathews = recipeFormCampus() === 'mathews';
+    document.getElementById('recipe-machine-label').textContent = mathews ? 'Coffee Pour' : 'Coffee Machine — Drink';
+    document.getElementById('recipe-machine-flavor-title').textContent = mathews ? 'Coffee — Flavor(s)' : 'Coffee Machine — Flavor(s)';
+    fillSelectOptions('recipe-machine', coffeeOptions(), coffee, '— None —');
+    fillSelectOptions('recipe-pour', pourOptions(), pour1, '— None —');
+    fillSelectOptions('recipe-pour-2', pourOptions(), pour2, '— None (full pour) —');
+  }
+
+  // Switching menus in the form: keep each pick that the other menu also offers
+  // and drop the rest (a "Latte" isn't a coffee pour).
+  function syncRecipeCampusFields() {
+    const opts = { coffee: coffeeOptions(), pour: pourOptions() };
+    const keep = (id, list) => { const v = document.getElementById(id).value; return list.some(o => normalizeName(o) === normalizeName(v)) ? v : ''; };
+    fillCoffeeAndPourFields({
+      coffee: keep('recipe-machine', opts.coffee),
+      pour1: keep('recipe-pour', opts.pour),
+      pour2: keep('recipe-pour-2', opts.pour),
+    });
+    syncPourState();
+    syncMachineFlavorState();
+  }
+
   // `checkedValues` can be any casing (it may come straight from saved
   // recipe text) -- matched against the canonically-cased options list by
   // normalized key so a legacy "cold foam" still checks "Cold Foam".
@@ -1359,8 +1391,9 @@
     const ingList = recipe.recipe_ingredients?.map(ri =>
       `<span style="font-size:0.78rem;background:rgba(255,255,255,0.04);border:1px solid var(--border-dim);border-radius:6px;padding:0.15rem 0.5rem;color:var(--light-gray)">${ri.amount} ${ri.unit || ri.inventory?.unit || ''} ${ri.inventory?.name || '?'}</span>`
     ).join(' ') || '<span style="color:var(--gray);font-size:0.78rem">No ingredients listed</span>';
-    const machine = recipe.coffee_machine_selection
-      ? recipe.coffee_machine_selection + (recipe.coffee_machine_flavor ? ` (${recipe.coffee_machine_flavor})` : '')
+    const coffeeText = recipe.coffee_machine_selection || (recipe.coffee_pour ? `${recipe.coffee_pour} coffee pour` : '');
+    const machine = coffeeText
+      ? coffeeText + (recipe.coffee_machine_flavor ? ` (${recipe.coffee_machine_flavor})` : '')
       : '';
     const buildBits = [recipe.cup_type ? `${recipe.cup_type} cup` : '', recipe.ice_amount ? `${recipe.ice_amount} ice` : '', machine, recipe.beverage_pour].filter(Boolean);
     const tagBits = [
@@ -1468,10 +1501,11 @@
 
     // A saved value the curated list no longer offers stays selected rather
     // than silently reverting to "—" the first time someone opens the recipe.
-    fillSelectOptions('recipe-machine', MACHINE_DRINK_OPTIONS, recipe?.coffee_machine_selection || '', '— None —');
     const [pour1 = '', pour2 = ''] = savedPours(recipe?.beverage_pour);
-    fillSelectOptions('recipe-pour', BEVERAGE_POUR_OPTIONS, pour1, '— None —');
-    fillSelectOptions('recipe-pour-2', BEVERAGE_POUR_OPTIONS, pour2, '— None (full pour) —');
+    fillCoffeeAndPourFields({
+      coffee: (recipeFormCampus() === 'mathews' ? recipe?.coffee_pour : recipe?.coffee_machine_selection) || '',
+      pour1, pour2,
+    });
     syncPourState();
 
     // Only one packet per drink now; older recipes could list several, so take
@@ -1529,7 +1563,9 @@
     const buildSpec = {
       cup_type: document.getElementById('recipe-cup').value || null,
       ice_amount: document.getElementById('recipe-ice').value || null,
-      coffee_machine_selection: machineDrink || null,
+      // On the Mathews menu this dropdown is the coffee pour, not a machine drink.
+      coffee_machine_selection: campus === 'mathews' ? null : (machineDrink || null),
+      coffee_pour: campus === 'mathews' ? (machineDrink || null) : null,
       coffee_machine_flavor: machineDrink ? (getCheckedValues('machineFlavor').join(', ') || null) : null,
       packet: packetFlavor ? `${packetFlavor} (${packetAmount})` : null,
       beverage_pour: pourTextFromForm(),
@@ -1756,7 +1792,10 @@
         await openRecipeModal(recipeId || undefined);
         if (!recipeId) {
           const item = allMenuItems.find(m => m.id === menuItemId);
-          if (item) document.getElementById('recipe-campus').value = menuItemCampus(item);
+          if (item) {
+            document.getElementById('recipe-campus').value = menuItemCampus(item);
+            syncRecipeCampusFields();
+          }
           document.getElementById('recipe-name').value = itemName;
           populateRecipeNameOptions();
           updateRecipeNameHint();
@@ -2669,7 +2708,7 @@
     <button onclick="closeRecipeModal()" aria-label="Close dialog" style="position:absolute;top:1rem;right:1rem;background:none;border:none;color:#555;font-size:1.2rem;cursor:pointer;line-height:1;padding:0.25rem">✕</button>
     <h2 style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:0.05em;margin-bottom:1.5rem;font-weight:normal" id="recipe-modal-title">Add Recipe</h2>
     <div style="margin-bottom:1rem"><label for="recipe-campus" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Menu <span style="text-transform:none;letter-spacing:normal;color:var(--gray)">(a drink on both menus gets a recipe for each)</span></label>
-      <select id="recipe-campus" onchange="populateRecipeNameOptions();updateRecipeNameHint()" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none">
+      <select id="recipe-campus" onchange="syncRecipeCampusFields();populateRecipeNameOptions();updateRecipeNameHint()" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none">
         <option value="birdhouse">Birdhouse Menu</option>
         <option value="mathews">Mathews Menu</option>
       </select>
@@ -2691,10 +2730,10 @@
         <select id="recipe-ice" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none">
           <option value="">—</option><option value="None">None</option><option value="Half Filled">Half Filled</option><option value="Full">Full</option>
         </select></div>
-      <div style="margin-bottom:1rem"><label for="recipe-machine" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Coffee Machine — Drink</label>
+      <div style="margin-bottom:1rem"><label for="recipe-machine" id="recipe-machine-label" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Coffee Machine — Drink</label>
         <select id="recipe-machine" onchange="syncMachineFlavorState()" style="width:100%;padding:0.78rem 1rem;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:#0d0d0d;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:0.9rem;outline:none"></select></div>
       <div id="recipe-machine-flavor-wrap" style="margin-bottom:1rem" hidden>
-        <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Coffee Machine — Flavor(s) <span style="text-transform:none;letter-spacing:normal">(pick as many as apply)</span></div>
+        <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem"><span id="recipe-machine-flavor-title">Coffee Machine — Flavor(s)</span> <span style="text-transform:none;letter-spacing:normal">(pick as many as apply)</span></div>
         <div id="recipe-machine-flavor-options" class="check-grid"></div>
       </div>
       <div style="margin-bottom:1rem"><label for="recipe-pour" style="display:block;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:#555;margin-bottom:0.35rem">Beverage Pour</label>
