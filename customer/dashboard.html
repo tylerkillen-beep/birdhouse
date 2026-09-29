@@ -777,6 +777,8 @@
       const target = navMap[name] !== undefined ? items[navMap[name]] : null;
       if (target) { target.classList.add('active'); target.setAttribute('aria-current', 'page'); }
     }
+    // Remember the page in the URL so a refresh comes back to it (init reads it).
+    try { history.replaceState(null, '', '#' + name); } catch {}
     closeNav();
     window.scrollTo(0, 0);
     // Move focus to section heading so screen reader users know content changed

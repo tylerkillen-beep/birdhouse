@@ -394,6 +394,12 @@ function showApp(){
   document.getElementById('overview-greeting').textContent=`GOOD ${hr<12?'MORNING':hr<17?'AFTERNOON':'EVENING'}, ${(currentUser.user_metadata?.first_name||'').toUpperCase()}!`;
   loadOverview();
   loadDeliveriesBadge();
+  // A refresh returns to the page the URL names; otherwise stay on the dashboard.
+  const savedSection=decodeURIComponent(location.hash.slice(1));
+  if(savedSection&&savedSection!=='overview'&&document.getElementById('section-'+savedSection)){
+    const navItem=[...document.querySelectorAll('.nav-item')].find(n=>(n.getAttribute('onclick')||'').includes(`showSection('${savedSection}'`));
+    showSection(savedSection,navItem);
+  }
 }
 
 async function doLogin(){
@@ -419,6 +425,7 @@ function showSection(name,el){
   if(name==='inventory')loadInventory();
   if(name==='deliveries')loadDeliveries();
   if(name==='scores')loadScores();
+  try{history.replaceState(null,'','#'+name);}catch{}
   closeNav();
   window.scrollTo(0,0);
   const main=document.getElementById('main-content');

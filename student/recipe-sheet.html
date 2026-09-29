@@ -227,13 +227,19 @@
   ];
   const MATHEWS_SECTIONS = [{ key: 'mathews', title: 'Mathews Menu' }];
 
-  function setMenu(menu) {
+  function updateMenuButtons(menu) {
     currentMenu = menu;
     Object.keys(MENU_TITLES).forEach(k => {
       const btn = document.getElementById('menu-btn-' + k);
       btn.classList.toggle('active', k === menu);
       btn.setAttribute('aria-pressed', k === menu ? 'true' : 'false');
     });
+  }
+
+  // The menu is kept in the URL (#mathews) so a refresh stays on it.
+  function setMenu(menu) {
+    updateMenuButtons(menu);
+    try { history.replaceState(null, '', menu === 'mathews' ? '#mathews' : location.pathname + location.search); } catch {}
     renderSheet();
   }
 
@@ -339,6 +345,7 @@
     });
 
     allRecipes = recipes || [];
+    if (location.hash === '#mathews') updateMenuButtons('mathews');
     renderSheet();
   }
 
