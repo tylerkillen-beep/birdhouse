@@ -7466,10 +7466,10 @@ function syncMachineFlavorState(checked) {
 
 // Mathews has no coffee machine: the coffee is poured full, half or quarter of
 // a cup and flavored from the same four flavors, so the machine fields turn
-// into those. Mathews also pours Red Bull, which the Birdhouse doesn't have.
+// into those. Mathews also pours Red Bull and Milk, which the Birdhouse doesn't have.
 // The Birdhouse choices are unchanged.
 const COFFEE_POUR_OPTIONS = ['Full', 'Half', 'Quarter'];
-const MATHEWS_POUR_EXTRAS = ['Red Bull'];
+const MATHEWS_POUR_EXTRAS = ['Red Bull', 'Milk'];
 const coffeeOptions = () => recipeFormCampus() === 'mathews' ? COFFEE_POUR_OPTIONS : MACHINE_DRINK_OPTIONS;
 const pourOptions = () => recipeFormCampus() === 'mathews' ? [...BEVERAGE_POUR_OPTIONS, ...MATHEWS_POUR_EXTRAS] : BEVERAGE_POUR_OPTIONS;
 
