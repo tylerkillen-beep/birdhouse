@@ -7565,7 +7565,7 @@ function renderRecipes() {
     return `<div class="recipe-card">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:0.5rem">
         <div>
-          <div style="font-weight:600;font-size:0.95rem">${recipe.name}</div>
+          <div style="font-weight:600;font-size:0.95rem">${recipe.name}${recipeCampus(recipe) === 'mathews' ? ' <span style="font-size:0.66rem;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent);border:1px solid var(--border);border-radius:10px;padding:0.1rem 0.5rem;margin-left:0.4rem">Mathews</span>' : ''}</div>
           ${recipe.description ? `<div style="font-size:0.75rem;color:var(--gray-mid);margin-top:0.15rem">${recipe.description}</div>` : ''}
           ${buildBits.length ? `<div style="font-size:0.72rem;color:var(--gray-mid);margin-top:0.15rem">${buildBits.join(' · ')}</div>` : ''}
           ${tagBits.length ? `<div style="font-size:0.72rem;color:var(--text);margin-top:0.15rem">${tagBits.join(' · ')}</div>` : ''}
@@ -7586,6 +7586,7 @@ function openRecipeModal(id) {
   document.getElementById('recipe-modal-title').textContent = id ? 'Edit Recipe' : 'Add Recipe';
   const recipe = id ? allRecipes.find(r => r.id === id) : null;
   document.getElementById('recipe-name').value = recipe?.name || '';
+  document.getElementById('recipe-campus').value = recipe?.campus || 'birdhouse';
   populateRecipeNameOptions();
   updateRecipeNameHint();
   // Only if someone opened the modal before the menu finished loading.
@@ -7647,10 +7648,11 @@ function openRecipeModal(id) {
 function populateRecipeNameOptions() {
   const dl = document.getElementById('recipe-name-options');
   if (!dl) return;
-  const hasRecipe = new Set(allRecipes.filter(r => r.id !== editingRecipeId).map(r => normalizeName(r.name)));
-  dl.innerHTML = allMenuItems.map(item => {
-    // Some drinks share a name across the two menus, so say which one each is.
-    const notes = [isMathewsMenuItem(item, recipeMathewsIds) ? 'Mathews menu' : 'Birdhouse menu'];
+  const campus = recipeFormCampus();
+  const hasRecipe = new Set(allRecipes.filter(r => r.id !== editingRecipeId && recipeCampus(r) === campus).map(r => normalizeName(r.name)));
+  // Each menu has its own recipes, so only that menu's items are offered.
+  dl.innerHTML = allMenuItems.filter(item => menuItemCampus(item) === campus).map(item => {
+    const notes = [];
     if (hasRecipe.has(normalizeName(item.name))) notes.push('has a recipe');
     if (item.available === false) notes.push('hidden from menu');
     const label = notes.length ? ` label="${htmlEscape(notes.join(' · '))}"` : '';
@@ -7658,17 +7660,25 @@ function populateRecipeNameOptions() {
   }).join('');
 }
 
+// A drink can be on both the Birdhouse and Mathews menus with a recipe for
+// each, so a recipe belongs to one menu and matches only that menu's items.
+const recipeCampus = r => r.campus || 'birdhouse';
+const menuItemCampus = item => isMathewsMenuItem(item, recipeMathewsIds) ? 'mathews' : 'birdhouse';
+const recipeFormCampus = () => document.getElementById('recipe-campus').value || 'birdhouse';
+const CAMPUS_NAMES = { birdhouse: 'Birdhouse', mathews: 'Mathews' };
+
 function updateRecipeNameHint() {
   const el = document.getElementById('recipe-name-hint');
   if (!el) return;
   const typed = normalizeName(document.getElementById('recipe-name').value);
   if (!typed) { el.innerHTML = ''; return; }
-  const match = allMenuItems.find(item => normalizeName(item.name) === typed);
+  const campus = recipeFormCampus();
+  const match = allMenuItems.find(item => normalizeName(item.name) === typed && menuItemCampus(item) === campus);
   if (!match) {
-    el.innerHTML = '<span style="color:var(--warning,#e0a030)">⚠ No menu item goes by this name. The recipe will save — link it to its menu item under Usage Setup so its ingredients are counted.</span>';
+    el.innerHTML = `<span style="color:var(--warning,#e0a030)">⚠ No ${CAMPUS_NAMES[campus]} menu item goes by this name. The recipe will save — link it to its menu item under Usage Setup so its ingredients are counted.</span>`;
     return;
   }
-  const dupe = allRecipes.find(r => r.id !== editingRecipeId && normalizeName(r.name) === typed);
+  const dupe = allRecipes.find(r => r.id !== editingRecipeId && recipeCampus(r) === campus && normalizeName(r.name) === typed);
   el.innerHTML = dupe
     ? `<span style="color:var(--warning,#e0a030)">⚠ “${htmlEscape(match.name)}” already has a recipe — saving this creates a second one.</span>`
     : `<span style="color:var(--accent)">✓ Matches the menu item “${htmlEscape(match.name)}”.</span>`;
@@ -7679,7 +7689,8 @@ async function saveRecipe() {
   const typedName = document.getElementById('recipe-name').value.trim();
   // Save the menu item's own spelling when the name matches apart from case, so
   // the name-based match to sales lines up exactly.
-  const name = allMenuItems.find(item => normalizeName(item.name) === normalizeName(typedName))?.name || typedName;
+  const campus = recipeFormCampus();
+  const name = allMenuItems.find(item => normalizeName(item.name) === normalizeName(typedName) && menuItemCampus(item) === campus)?.name || typedName;
   const desc = document.getElementById('recipe-desc').value.trim() || null;
   if (!name) { msgEl.textContent = 'Recipe name is required.'; msgEl.className = 'msg error'; msgEl.style.display = 'block'; return; }
   // No packet picked means no packet, so the amount alongside it is moot; same
@@ -7699,7 +7710,7 @@ async function saveRecipe() {
     toppings: getCheckedValues('topping').join(', ') || null,
   };
   if (editingRecipeId) {
-    const { error } = await sb.from('recipes').update({ name, description: desc, ...buildSpec, updated_at: new Date().toISOString() }).eq('id', editingRecipeId);
+    const { error } = await sb.from('recipes').update({ name, campus, description: desc, ...buildSpec, updated_at: new Date().toISOString() }).eq('id', editingRecipeId);
     if (error) { msgEl.textContent = 'Error: ' + error.message; msgEl.className = 'msg error'; msgEl.style.display = 'block'; return; }
     // The form loaded any legacy flavor-syrup ingredient rows into the syrup
     // checklist, so what was just saved in recipes.syrups replaces them. Left
@@ -7713,7 +7724,7 @@ async function saveRecipe() {
       if (cleanupError) console.warn('Could not clear legacy syrup rows:', cleanupError.message);
     }
   } else {
-    const { error } = await sb.from('recipes').insert({ name, description: desc, ...buildSpec, created_by: currentUser.id });
+    const { error } = await sb.from('recipes').insert({ name, campus, description: desc, ...buildSpec, created_by: currentUser.id });
     if (error) { msgEl.textContent = 'Error: ' + error.message; msgEl.className = 'msg error'; msgEl.style.display = 'block'; return; }
   }
   closeModal('recipe-modal');
@@ -7731,11 +7742,14 @@ function initItemLookup() {
     sb,
     anonKey: REPORT_ANON_KEY,
     theme: { accent: 'var(--accent)', card: 'var(--card)', border: 'var(--border)', muted: 'var(--gray-mid)', text: 'var(--text)' },
-    async onEditRecipe(recipeId, itemName) {
+    async onEditRecipe(recipeId, itemName, menuItemId) {
       await loadRecipes();
       openRecipeModal(recipeId || undefined);
       if (!recipeId) {
+        const item = allMenuItems.find(m => m.id === menuItemId);
+        if (item) document.getElementById('recipe-campus').value = menuItemCampus(item);
         document.getElementById('recipe-name').value = itemName;
+        populateRecipeNameOptions();
         updateRecipeNameHint();
       }
     },
@@ -8630,6 +8644,13 @@ function renderUsageConversions(ctx, gapsOnly) {
   <div class="modal" style="max-width:620px">
     <button class="modal-close" onclick="closeModal('recipe-modal')" aria-label="Close">✕</button>
     <h2 class="modal-title" id="recipe-modal-title" style="font-weight:normal">Add Recipe</h2>
+    <div class="form-group">
+      <label class="form-label" for="recipe-campus">Menu <span style="color:var(--gray-mid);text-transform:none;font-weight:400">(a drink on both menus gets a recipe for each)</span></label>
+      <select class="form-input" id="recipe-campus" onchange="populateRecipeNameOptions();updateRecipeNameHint()">
+        <option value="birdhouse">Birdhouse Menu</option>
+        <option value="mathews">Mathews Menu</option>
+      </select>
+    </div>
     <div class="form-group">
       <label class="form-label" for="recipe-name">Menu Item Name <span style="color:var(--gray-mid);text-transform:none;font-weight:400">(start typing to pick from the menu)</span></label>
       <input class="form-input" id="recipe-name" list="recipe-name-options" autocomplete="off" placeholder="Start typing a menu item…" oninput="updateRecipeNameHint()"/>
