@@ -26,12 +26,12 @@
     /* The banner is authored at exactly the ScreenCloud zone size and then
        scaled to whatever viewport it lands in, so every size below can be a
        plain pixel value and a desktop browser preview still looks right. */
-    .stage { width: 1416px; height: 162px; flex-shrink: 0; transform-origin: center center; }
+    .stage { width: 1920px; height: 130px; flex-shrink: 0; transform-origin: center center; }
 
     .banner {
       position: relative; width: 100%; height: 100%; display: flex; align-items: stretch;
       background: linear-gradient(135deg, #101010 0%, #0a0a0a 55%, #140909 100%);
-      border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
+      border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
     }
     /* Same faint grid as the menu board, so the two screens read as a set. */
     .banner::after {
@@ -44,20 +44,20 @@
       background: linear-gradient(90deg, var(--red) 0%, var(--red-bright) 45%, var(--red) 100%);
     }
 
-    .zone { position: relative; z-index: 1; display: flex; flex-direction: column; justify-content: center; padding: 16px 24px; }
-    .divider { position: relative; z-index: 1; width: 1px; flex-shrink: 0; margin: 24px 0; background: linear-gradient(180deg, transparent, var(--border) 20%, var(--border) 80%, transparent); }
+    .zone { position: relative; z-index: 1; display: flex; flex-direction: column; justify-content: center; padding: 10px 24px; }
+    .divider { position: relative; z-index: 1; width: 1px; flex-shrink: 0; margin: 18px 0; background: linear-gradient(180deg, transparent, var(--border) 20%, var(--border) 80%, transparent); }
 
     .zone-label {
       font-size: 10px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase;
-      color: var(--gray); margin-bottom: 9px;
+      color: var(--gray); margin-bottom: 6px;
     }
 
     /* Left: biggest sale of the day and of the week */
-    .zone-top { width: 340px; flex-shrink: 0; gap: 14px; }
-    .zone-top .zone-label { margin-bottom: 4px; }
+    .zone-top { width: 340px; flex-shrink: 0; gap: 8px; }
+    .zone-top .zone-label { margin-bottom: 3px; }
     .top-row { display: flex; align-items: baseline; gap: 9px; min-width: 0; }
     .top-amount {
-      font-family: 'Bebas Neue', sans-serif; font-size: 40px; line-height: 0.9;
+      font-family: 'Bebas Neue', sans-serif; font-size: 34px; line-height: 0.9;
       letter-spacing: 0.02em; color: var(--red-bright); flex-shrink: 0;
       text-shadow: 0 0 20px rgba(255,26,26,0.3);
       transition: transform 0.45s ease, text-shadow 0.45s ease;
@@ -81,25 +81,30 @@
     }
     .slide.is-active { opacity: 1; transform: none; }
 
-    .review-stars { font-size: 15px; letter-spacing: 0.12em; line-height: 1; color: var(--star); margin-bottom: 8px; }
+    .review-stars { font-size: 14px; letter-spacing: 0.12em; line-height: 1; color: var(--star); margin-bottom: 6px; }
     .review-stars .off { color: rgba(255,255,255,0.16); }
     .review-text {
-      font-size: 20px; font-weight: 400; line-height: 1.32; color: var(--white);
+      font-size: 19px; font-weight: 400; line-height: 1.3; color: var(--white);
       display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
     }
-    .review-meta { margin-top: 7px; font-size: 12.5px; color: var(--gray); }
+    .review-meta { margin-top: 5px; font-size: 12.5px; color: var(--gray); }
     .review-item { color: var(--light-gray); }
 
     /* Right: subscriptions */
     .zone-subs { width: 404px; flex-shrink: 0; }
     .sub-title-row { display: flex; align-items: baseline; gap: 10px; }
-    .sub-name { font-family: 'Bebas Neue', sans-serif; font-size: 34px; line-height: 1; letter-spacing: 0.05em; color: var(--white); }
+    .sub-name { font-family: 'Bebas Neue', sans-serif; font-size: 32px; line-height: 1; letter-spacing: 0.05em; color: var(--white); }
     .sub-price { font-family: 'Bebas Neue', sans-serif; font-size: 25px; line-height: 1; letter-spacing: 0.04em; color: var(--red-bright); }
     .sub-price small { font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 500; letter-spacing: 0.06em; color: var(--gray); }
-    .sub-perks { margin-top: 9px; font-size: 13px; line-height: 1.4; color: var(--light-gray); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .sub-perks { margin-top: 6px; font-size: 13px; line-height: 1.4; color: var(--light-gray); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .sub-perks .sep { color: var(--border); margin: 0 7px; }
-    .feature-head { font-family: 'Bebas Neue', sans-serif; font-size: 30px; line-height: 1.05; letter-spacing: 0.05em; color: var(--red-bright); }
-    .feature-body { margin-top: 8px; font-size: 13.5px; line-height: 1.4; color: var(--light-gray); }
+    .feature-head { font-family: 'Bebas Neue', sans-serif; font-size: 28px; line-height: 1.05; letter-spacing: 0.05em; color: var(--red-bright); }
+    .feature-body { margin-top: 6px; font-size: 13.5px; line-height: 1.4; color: var(--light-gray); }
+
+    /* Far right: the website sign. The image is 2000x721, so at the zone's
+       inner height it lands about 300px wide. */
+    .zone-site { width: 330px; flex-shrink: 0; padding: 11px 16px; align-items: center; }
+    .zone-site img { display: block; height: 100%; width: auto; max-width: 100%; border-radius: 8px; }
 
     .empty { font-size: 14px; color: var(--gray); }
   </style>
@@ -137,6 +142,12 @@
         <div class="zone-label">Weekly Subscriptions</div>
         <div class="slides" id="sub-slides"></div>
       </section>
+
+      <div class="divider" aria-hidden="true"></div>
+
+      <section class="zone zone-site">
+        <img src="/banner-website.webp" alt="nixa.red/birdhouse" />
+      </section>
     </div>
   </div>
 
@@ -167,7 +178,7 @@
       // app never renders, so they'd reach the wall as literal colon-words.
       const SHORTCODE = /:[a-z_]+:/i;
 
-      const STAGE_W = 1416, STAGE_H = 162;
+      const STAGE_W = 1920, STAGE_H = 130;
 
       function escHtml(s) {
         return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -380,7 +391,7 @@
         await Promise.allSettled([loadReviews(), loadPlans()]);
       }
 
-      // ScreenCloud hands this zone 1416x162, but the same URL gets opened in a
+      // ScreenCloud hands this zone 1920x130, but the same URL gets opened in a
       // browser to check on it. Scale the fixed stage to whatever it lands in.
       function fitStage() {
         const scale = Math.min(window.innerWidth / STAGE_W, window.innerHeight / STAGE_H);
