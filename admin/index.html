@@ -663,6 +663,9 @@
       <button type="button" class="nav-item" onclick="showSection('library-split')" id="nav-library-split">
         <span class="nav-icon" aria-hidden="true">📚</span><span class="nav-label"> Library Split</span>
       </button>
+      <button type="button" class="nav-item" onclick="showSection('sales-growth')" id="nav-sales-growth">
+        <span class="nav-icon" aria-hidden="true">📊</span><span class="nav-label"> Sales Growth</span>
+      </button>
     </div>
   </div>
 
@@ -1512,6 +1515,37 @@
   </div>
 
   <!-- ── LIBRARY SPLIT ── -->
+  <div class="section-panel" id="section-sales-growth">
+    <div class="page-header">
+      <h1>Sales Growth</h1>
+      <p>Gross Square sales by month, school year over year (August – May)</p>
+    </div>
+
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.5rem;align-items:center">
+      <button class="btn btn-ghost btn-sm sg-channel-btn active" onclick="setSalesGrowthChannel('total',this)">Total</button>
+      <button class="btn btn-ghost btn-sm sg-channel-btn" onclick="setSalesGrowthChannel('inStore',this)">In-Store</button>
+      <button class="btn btn-ghost btn-sm sg-channel-btn" onclick="setSalesGrowthChannel('online',this)">Square Online</button>
+      <button class="btn btn-ghost btn-sm sg-channel-btn" onclick="setSalesGrowthChannel('app',this)">Birdhouse App</button>
+      <button class="btn btn-ghost btn-sm" onclick="loadSalesGrowth(true)" style="margin-left:auto">Refresh from Square</button>
+    </div>
+    <div id="sg-status" style="font-size:0.8rem;color:var(--gray-mid);margin-bottom:1rem"></div>
+
+    <div class="stats-row" id="sg-stats" style="margin-bottom:1.5rem"></div>
+
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.25rem;margin-bottom:1.5rem">
+      <div id="sg-legend" style="display:flex;gap:1rem;flex-wrap:wrap;font-size:0.72rem;color:var(--gray-mid);margin-bottom:0.75rem"></div>
+      <div id="sg-chart"><span style="color:var(--gray);font-size:0.85rem">Loading…</span></div>
+    </div>
+
+    <div class="table-wrap">
+      <table id="sg-table" style="min-width:640px"></table>
+    </div>
+    <p style="font-size:0.72rem;color:var(--gray);margin-top:0.75rem">
+      Gross payments as Square reports them, by Central-time month. The in-store, Square Online and app channels add up to the total except for
+      payments Square doesn't tie to an order. Months marked * are still in progress. Finished months are remembered in this browser; use Refresh to pull them again.
+    </p>
+  </div>
+
   <div class="section-panel" id="section-library-split">
     <div class="page-header">
       <h1>Library Profit Split</h1>
@@ -2220,6 +2254,7 @@ function showSection(id) {
     'item-lookup': initItemLookup,
     'product-performance': initProductPerformance,
     'library-split': initLibrarySplit,
+    'sales-growth': initSalesGrowth,
     'closed-days': loadClosedDays,
     reviews: loadReviews,
     'peer-evals': () => loadAdminPeerEvals(0),
@@ -5218,6 +5253,248 @@ init();
 // ════════════════════════════════════
 const REPORT_FN_URL = 'https://ljukrhneikqbabcmcpet.supabase.co/functions/v1/get-sales-report';
 const REPORT_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqdWtyaG5laWtxYmFiY21jcGV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyODg1MjEsImV4cCI6MjA4Nzg2NDUyMX0.UbtB_-syG9a9vLcJp04w_k2F3XP2tMScYtB4sez3j78';
+
+// ════════════════════════════════════
+// Sales Growth (year over year)
+// ════════════════════════════════════
+const SG_CACHE_KEY = 'birdhouse.salesGrowth.v1';
+const SG_FIRST_SCHOOL_YEAR = 2023;
+const SG_MONTHS = [7, 8, 9, 10, 11, 0, 1, 2, 3, 4]; // Aug … May, as Date month indexes
+const SG_MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const SG_YEAR_COLORS = ['#7eb8c9', '#9b8fd4', '#c8a96e', '#6fbf8a', '#e57373'];
+let sgChannel = 'total';
+let sgData = {};      // 'YYYY-M' -> { total, inStore, online, app, orders, complete }
+let sgLoading = false;
+
+function sgChicagoMonthStart(year, month) {
+  // The UTC instant a Central-time month begins (midnight, CST or CDT).
+  for (const offset of [6, 5]) {
+    const t = Date.UTC(year, month, 1, offset);
+    const hour = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', hour: 'numeric', hourCycle: 'h23' }).format(t);
+    if (Number(hour) === 0) return new Date(t);
+  }
+  return new Date(Date.UTC(year, month, 1, 6));
+}
+
+function sgMonthList() {
+  const now = new Date();
+  const currentSchoolYear = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
+  const list = [];
+  for (let sy = SG_FIRST_SCHOOL_YEAR; sy <= currentSchoolYear; sy++) {
+    SG_MONTHS.forEach((m, slot) => {
+      const year = m >= 7 ? sy : sy + 1;
+      const start = sgChicagoMonthStart(year, m);
+      if (start > now) return;
+      const end = m === 11 ? sgChicagoMonthStart(year + 1, 0) : sgChicagoMonthStart(year, m + 1);
+      list.push({ key: `${year}-${m}`, schoolYear: sy, slot, start, end, complete: end <= now });
+    });
+  }
+  return list;
+}
+
+function sgReadCache() {
+  try { return JSON.parse(localStorage.getItem(SG_CACHE_KEY) || '{}'); } catch { return {}; }
+}
+function sgWriteCache(cache) {
+  try { localStorage.setItem(SG_CACHE_KEY, JSON.stringify(cache)); } catch {}
+}
+
+function initSalesGrowth() {
+  if (!Object.keys(sgData).length && !sgLoading) loadSalesGrowth(false);
+}
+
+function setSalesGrowthChannel(channel, btn) {
+  sgChannel = channel;
+  document.querySelectorAll('.sg-channel-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderSalesGrowth();
+}
+
+async function sgFetchMonth(month, token) {
+  const res = await fetch(REPORT_FN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': REPORT_ANON_KEY, 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ startDate: month.start.toISOString(), endDate: month.end.toISOString() }),
+  });
+  const raw = await res.text();
+  let data = {};
+  try { data = JSON.parse(raw); } catch (_) {}
+  if (!res.ok || !data.success) throw new Error(data.error || `HTTP ${res.status}`);
+  const sum = (field) => (data.dailyBreakdown || []).reduce((s, d) => s + (d[field] || 0), 0);
+  return {
+    total: data.totalRevenueCents || 0,
+    inStore: sum('inStoreRevenueCents'),
+    online: sum('onlineRevenueCents'),
+    app: sum('inAppRevenueCents'),
+    orders: data.orderCount || 0,
+  };
+}
+
+async function loadSalesGrowth(forceRefresh) {
+  if (sgLoading) return;
+  sgLoading = true;
+  const status = document.getElementById('sg-status');
+  status.style.color = 'var(--gray-mid)';
+  try {
+    let { data: { session } } = await sb.auth.getSession();
+    if (session?.expires_at && Date.now() / 1000 >= session.expires_at - 30) {
+      const { data: refreshed } = await sb.auth.refreshSession();
+      session = refreshed?.session ?? null;
+    }
+    if (!session) { alert('Session expired. Please sign in again.'); window.location.href = 'login.html'; return; }
+
+    const months = sgMonthList();
+    const cache = forceRefresh ? {} : sgReadCache();
+    sgData = {};
+    const todo = [];
+    for (const m of months) {
+      if (m.complete && cache[m.key]) sgData[m.key] = { ...cache[m.key], complete: true };
+      else todo.push(m);
+    }
+    renderSalesGrowth();
+
+    let done = 0, failed = 0;
+    const queue = [...todo];
+    const worker = async () => {
+      while (queue.length) {
+        const m = queue.shift();
+        let result = null;
+        for (let attempt = 0; attempt < 2 && !result; attempt++) {
+          try { result = await sgFetchMonth(m, session.access_token); }
+          catch (err) { console.warn('Sales growth month failed', m.key, err); }
+        }
+        done++;
+        if (result) {
+          sgData[m.key] = { ...result, complete: m.complete };
+          if (m.complete) { cache[m.key] = result; sgWriteCache(cache); }
+        } else failed++;
+        status.textContent = `Loading from Square… ${done} of ${todo.length} months`;
+        renderSalesGrowth();
+      }
+    };
+    if (todo.length) {
+      status.textContent = `Loading from Square… 0 of ${todo.length} months`;
+      await Promise.all([worker(), worker(), worker()]);
+    }
+    status.textContent = failed
+      ? `${failed} month${failed === 1 ? '' : 's'} could not be loaded. Press Refresh to try again.`
+      : `Loaded ${months.length} months.`;
+    if (failed) status.style.color = '#e57373';
+  } catch (err) {
+    console.error('Sales growth error:', err);
+    status.textContent = err.message;
+    status.style.color = '#e57373';
+  } finally {
+    sgLoading = false;
+    renderSalesGrowth();
+  }
+}
+
+function sgMoney(cents) {
+  return '$' + Math.round(cents / 100).toLocaleString('en-US');
+}
+function sgPct(now, before) {
+  if (now == null || before == null || before <= 0) return null;
+  return (now - before) / before * 100;
+}
+function sgPctHtml(p) {
+  if (p == null) return '<span style="color:var(--gray)">—</span>';
+  const color = p >= 0 ? 'var(--success)' : '#e57373';
+  return `<span style="color:${color}">${p >= 0 ? '+' : ''}${p.toFixed(1)}%</span>`;
+}
+function sgYearLabel(sy) { return `${sy}–${String(sy + 1).slice(2)}`; }
+
+function renderSalesGrowth() {
+  const months = sgMonthList();
+  const years = [...new Set(months.map(m => m.schoolYear))];
+  const cell = {}; // `${schoolYear}-${slot}` -> { cents, complete }
+  for (const m of months) {
+    const d = sgData[m.key];
+    if (d) cell[`${m.schoolYear}-${m.slot}`] = { cents: d[sgChannel] || 0, complete: m.complete };
+  }
+  const val = (sy, slot) => cell[`${sy}-${slot}`]?.cents ?? null;
+
+  // Season cards: each year's total, and growth on the prior year over the finished months both have.
+  document.getElementById('sg-stats').innerHTML = years.map((sy, yi) => {
+    let total = 0, n = 0, comparableNow = 0, comparableBefore = 0;
+    for (let slot = 0; slot < SG_MONTHS.length; slot++) {
+      const v = val(sy, slot);
+      if (v == null) continue;
+      total += v; n++;
+      const prev = yi > 0 ? val(years[yi - 1], slot) : null;
+      if (prev != null && cell[`${sy}-${slot}`].complete) { comparableNow += v; comparableBefore += prev; }
+    }
+    const growth = sgPct(comparableNow, comparableBefore);
+    const color = SG_YEAR_COLORS[yi % SG_YEAR_COLORS.length];
+    const sub = yi === 0 ? 'First year'
+      : growth == null ? 'No prior-year months to compare'
+      : `${sgPctHtml(growth)} vs ${sgYearLabel(years[yi - 1])}, same months`;
+    return `<div class="stat-card"><div class="stat-label">${sgYearLabel(sy)}${n < SG_MONTHS.length ? ` (${n} mo)` : ''}</div>
+      <div class="stat-value" style="color:${color}">${n ? sgMoney(total) : '—'}</div>
+      <div class="stat-sub">${sub}</div></div>`;
+  }).join('');
+
+  document.getElementById('sg-legend').innerHTML = years.map((sy, yi) =>
+    `<span style="display:flex;align-items:center;gap:5px"><span style="display:inline-block;width:14px;height:3px;border-radius:2px;background:${SG_YEAR_COLORS[yi % SG_YEAR_COLORS.length]}"></span>${sgYearLabel(sy)}</span>`).join('');
+
+  // Line chart, one line per school year.
+  const W = 900, H = 340, L = 64, R = 16, T = 16, B = 34;
+  const all = Object.values(cell).map(c => c.cents);
+  const rawMax = Math.max(...all, 1);
+  const unit = [1, 2, 5].map(f => f * Math.pow(10, Math.floor(Math.log10(rawMax / 5)))).find(u => rawMax / u <= 5)
+    || Math.pow(10, Math.ceil(Math.log10(rawMax / 5)));
+  const maxY = Math.ceil(rawMax / unit) * unit;
+  const x = (slot) => L + (W - L - R) * slot / (SG_MONTHS.length - 1);
+  const y = (c) => T + (H - T - B) * (1 - c / maxY);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Monthly sales by school year" style="width:100%;height:auto;display:block">`;
+  for (let v = 0; v <= maxY; v += unit) {
+    svg += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="#1e1e1e"/>`
+      + `<text x="${L - 8}" y="${y(v) + 4}" text-anchor="end" fill="#888" font-size="11">${sgMoney(v)}</text>`;
+  }
+  SG_MONTHS.forEach((m, slot) => {
+    svg += `<text x="${x(slot)}" y="${H - 10}" text-anchor="middle" fill="#888" font-size="11">${SG_MONTH_NAMES[m]}</text>`;
+  });
+  years.forEach((sy, yi) => {
+    const color = SG_YEAR_COLORS[yi % SG_YEAR_COLORS.length];
+    let path = '', pen = false;
+    SG_MONTHS.forEach((_, slot) => {
+      const v = val(sy, slot);
+      if (v == null) { pen = false; return; }
+      path += `${pen ? 'L' : 'M'}${x(slot).toFixed(1)},${y(v).toFixed(1)} `;
+      pen = true;
+    });
+    svg += `<path d="${path}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round"/>`;
+    SG_MONTHS.forEach((m, slot) => {
+      const v = val(sy, slot);
+      if (v == null) return;
+      const partial = !cell[`${sy}-${slot}`].complete;
+      svg += `<circle cx="${x(slot).toFixed(1)}" cy="${y(v).toFixed(1)}" r="4" fill="${partial ? '#0a0a0a' : color}" stroke="${color}" stroke-width="2"><title>${sgYearLabel(sy)} ${SG_MONTH_NAMES[m]}: ${sgMoney(v)}${partial ? ' (month in progress)' : ''}</title></circle>`;
+    });
+  });
+  svg += '</svg>';
+  document.getElementById('sg-chart').innerHTML = all.length ? svg : '<span style="color:var(--gray);font-size:0.85rem">Loading…</span>';
+
+  // Table: each year's amount, then the change from the year before.
+  let head = '<thead><tr><th scope="col">Month</th>';
+  years.forEach(sy => { head += `<th scope="col">${sgYearLabel(sy)}</th>`; });
+  years.slice(1).forEach((sy, i) => { head += `<th scope="col">${sgYearLabel(sy)} vs ${sgYearLabel(years[i])}</th>`; });
+  head += '</tr></thead>';
+  let body = '<tbody>';
+  SG_MONTHS.forEach((m, slot) => {
+    body += `<tr><td>${SG_MONTH_NAMES[m]}</td>`;
+    years.forEach(sy => {
+      const c = cell[`${sy}-${slot}`];
+      body += `<td>${c ? sgMoney(c.cents) + (c.complete ? '' : '*') : '<span style="color:var(--gray)">—</span>'}</td>`;
+    });
+    years.slice(1).forEach((sy, i) => {
+      const c = cell[`${sy}-${slot}`];
+      body += `<td>${c && c.complete ? sgPctHtml(sgPct(c.cents, val(years[i], slot))) : '<span style="color:var(--gray)">—</span>'}</td>`;
+    });
+    body += '</tr>';
+  });
+  body += '</tbody>';
+  document.getElementById('sg-table').innerHTML = head + body;
+}
 
 // ════════════════════════════════════
 // Closed Days
