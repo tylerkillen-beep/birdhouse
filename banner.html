@@ -368,7 +368,9 @@
         const res = await rest(
           'subscription_plans?select=name,description,price_cents,drinks_per_week,cookies_per_week,'
           + 'free_modifier_count,early_access,billing_interval,sort_order'
-          + '&active=eq.true&order=sort_order.asc');
+          // The lobby is the high school's; Mathews plans are for the Mathews
+          // campus and never belong on this wall.
+          + '&active=eq.true&campus=eq.birdhouse&order=sort_order.asc');
         if (!res.ok) throw new Error('plans');
 
         const plans = await res.json();
