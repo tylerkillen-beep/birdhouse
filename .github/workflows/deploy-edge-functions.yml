@@ -1,0 +1,85 @@
+name: Deploy edge functions
+
+# Deploys each Supabase edge function whose code changed when a PR merges to
+# main, so the live function never lags behind the repo.
+#
+# Needs one repo secret: SUPABASE_ACCESS_TOKEN (Supabase dashboard -> Account ->
+# Access Tokens). Settings -> Secrets and variables -> Actions -> New secret.
+#
+# A function is only deployed if supabase/config.toml has a [functions.<name>]
+# entry for it. Deploying reads verify_jwt from that file, and a function with
+# no entry would be reset to the default (on), which could break a function
+# that is live with it off. Add the entry first, then it deploys.
+#
+# To push one function by hand: Actions -> Deploy edge functions -> Run workflow.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/functions/**"
+      - "supabase/config.toml"
+  workflow_dispatch:
+    inputs:
+      function:
+        description: "Function folder name to deploy (e.g. get-sales-report)"
+        required: true
+
+concurrency:
+  group: deploy-edge-functions
+  cancel-in-progress: false
+
+env:
+  PROJECT_REF: ljukrhneikqbabcmcpet
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Work out which functions to deploy
+        id: pick
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            names="${{ github.event.inputs.function }}"
+          else
+            before="${{ github.event.before }}"
+            if [ -z "$before" ] || [ "$before" = "0000000000000000000000000000000000000000" ]; then
+              before="${{ github.sha }}^"
+            fi
+            names=$(git diff --name-only "$before" "${{ github.sha }}" -- supabase/functions \
+              | cut -d/ -f3 | sort -u)
+          fi
+
+          deploy=""
+          for name in $names; do
+            if [ ! -f "supabase/functions/$name/index.ts" ]; then
+              echo "::notice::Skipping $name (no supabase/functions/$name/index.ts, probably deleted)"
+              continue
+            fi
+            if ! grep -q "^\[functions\.$name\]" supabase/config.toml; then
+              echo "::warning::Skipping $name: add a [functions.$name] entry with verify_jwt to supabase/config.toml so the deploy keeps its current setting, or deploy it by hand."
+              continue
+            fi
+            deploy="$deploy $name"
+          done
+          echo "names=${deploy# }" >> "$GITHUB_OUTPUT"
+          echo "Deploying: ${deploy:-nothing}"
+
+      - name: Deploy
+        if: steps.pick.outputs.names != ''
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          for name in ${{ steps.pick.outputs.names }}; do
+            echo "::group::Deploy $name"
+            supabase functions deploy "$name" --project-ref "$PROJECT_REF" --use-api
+            echo "::endgroup::"
+          done
