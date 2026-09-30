@@ -12,6 +12,7 @@
   <script src="/lib/receiving.js"></script>
   <script src="/lib/subscription-exclusives.js"></script>
   <script src="/lib/mathews.js"></script>
+  <script src="/lib/banner-reviews.js"></script>
   <script src="/lib/item-lookup.js"></script>
   <script src="/lib/usage-suggest.js"></script>
   <script src="/lib/inventory-units.js"></script>
@@ -1026,7 +1027,7 @@
   <div class="section-panel" id="section-reviews">
     <div class="page-header">
       <h1>Customer Reviews</h1>
-      <p>All drink reviews submitted by customers. Delete any review that is inappropriate.</p>
+      <p>All drink reviews submitted by customers. Delete any review that is inappropriate. The Banner column shows what is in the lobby banner's rotation; add or remove reviews there by hand.</p>
     </div>
     <div class="filter-bar">
       <input class="filter-input" id="reviews-search" placeholder="Search by name, drink, or review…" oninput="filterReviews()" style="flex:1;min-width:200px" aria-label="Search reviews by name, drink, or text" />
@@ -1038,6 +1039,11 @@
         <option value="2">2 Stars</option>
         <option value="1">1 Star</option>
       </select>
+      <select class="filter-select" id="reviews-banner-filter" onchange="filterReviews()" aria-label="Filter reviews by banner rotation">
+        <option value="">Banner: All</option>
+        <option value="on">On the banner</option>
+        <option value="off">Not on the banner</option>
+      </select>
     </div>
     <div class="stats-row" id="reviews-stats-row" style="margin-bottom:1.5rem">
       <div class="stat-card"><div class="stat-label">Total Reviews</div><div class="stat-value accent" id="rev-stat-total">—</div></div>
@@ -1047,9 +1053,9 @@
     <div class="table-wrap">
       <table>
         <thead>
-          <tr><th scope="col">Date</th><th scope="col">Reviewer</th><th scope="col">Drink</th><th scope="col">Rating</th><th scope="col">Review</th><th scope="col">Actions</th></tr>
+          <tr><th scope="col">Date</th><th scope="col">Reviewer</th><th scope="col">Drink</th><th scope="col">Rating</th><th scope="col">Review</th><th scope="col">Banner</th><th scope="col">Actions</th></tr>
         </thead>
-        <tbody id="reviews-tbody"><tr class="loading-row"><td colspan="6">Loading reviews…</td></tr></tbody>
+        <tbody id="reviews-tbody"><tr class="loading-row"><td colspan="7">Loading reviews…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -5970,16 +5976,16 @@ window.fpLib    = flatpickr('#lib-date-range',    fpCommonOpts);
 let allReviews = [];
 
 async function loadReviews() {
-  document.getElementById('reviews-tbody').innerHTML = '<tr class="loading-row"><td colspan="6">Loading reviews…</td></tr>';
+  document.getElementById('reviews-tbody').innerHTML = '<tr class="loading-row"><td colspan="7">Loading reviews…</td></tr>';
 
   // Join with menu_items to get drink name
   const { data, error } = await sb
     .from('reviews')
-    .select('id, rating, review_text, reviewer_name, created_at, menu_item_id, menu_items(name)')
+    .select('id, rating, review_text, reviewer_name, created_at, menu_item_id, banner_pin, menu_items(name)')
     .order('created_at', { ascending: false });
 
   if (error || !data) {
-    document.getElementById('reviews-tbody').innerHTML = '<tr class="loading-row"><td colspan="6">Failed to load reviews.</td></tr>';
+    document.getElementById('reviews-tbody').innerHTML = '<tr class="loading-row"><td colspan="7">Failed to load reviews.</td></tr>';
     return;
   }
 
@@ -6000,9 +6006,12 @@ function renderReviewStats(reviews) {
 function renderReviewsTable(reviews) {
   const tbody = document.getElementById('reviews-tbody');
   if (!reviews.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--gray-mid);padding:2rem">No reviews yet.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gray-mid);padding:2rem">No reviews to show.</td></tr>';
     return;
   }
+  // Worked out over every review, not just the filtered list, so a search
+  // can't change what is said to be on the banner.
+  const onBanner = BannerReviews.rotationIds(allReviews);
   tbody.innerHTML = reviews.map(r => {
     const date     = new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     const stars    = '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
@@ -6016,9 +6025,38 @@ function renderReviewsTable(reviews) {
       <td>${drinkName}</td>
       <td style="color:#f5c842;white-space:nowrap">${stars}</td>
       <td style="max-width:320px;font-size:0.82rem">${text}</td>
+      <td style="white-space:nowrap">${bannerCell(r, onBanner.has(r.id))}</td>
       <td><button class="btn btn-danger btn-sm" onclick="deleteReview('${r.id}',this)">Delete</button></td>
     </tr>`;
   }).join('');
+}
+
+// Status pill plus the button that flips it. A manual choice (pin) beats the
+// automatic rules; "Auto" hands a review back to them.
+function bannerCell(r, isOn) {
+  const hasText = !!(r.review_text || '').trim();
+  const pill = isOn
+    ? `<span class="pill pill-green">On banner${r.banner_pin === true ? ' · manual' : ''}</span>`
+    : `<span class="pill pill-gray">${r.banner_pin === false ? 'Removed' : 'Not on banner'}</span>`;
+  const toggle = isOn
+    ? `<button class="btn btn-ghost btn-sm" onclick="setBannerPin('${r.id}',false,this)">Remove</button>`
+    : hasText ? `<button class="btn btn-primary btn-sm" onclick="setBannerPin('${r.id}',true,this)">Add</button>` : '';
+  const auto = r.banner_pin == null ? ''
+    : `<button class="btn btn-ghost btn-sm" onclick="setBannerPin('${r.id}',null,this)" title="Let the automatic rules decide">Auto</button>`;
+  return `<div style="display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap">${pill}${toggle}${auto}</div>`;
+}
+
+async function setBannerPin(reviewId, pin, btn) {
+  btn.disabled = true;
+  const { error } = await sb.from('reviews').update({ banner_pin: pin }).eq('id', reviewId);
+  if (error) {
+    btn.disabled = false;
+    alert('Failed to update the banner: ' + error.message);
+    return;
+  }
+  const r = allReviews.find(x => x.id === reviewId);
+  if (r) r.banner_pin = pin;
+  filterReviews();
 }
 
 function filterReviews() {
@@ -6026,6 +6064,11 @@ function filterReviews() {
   const rating = document.getElementById('reviews-rating-filter').value;
   let list = allReviews;
   if (rating) list = list.filter(r => String(r.rating) === rating);
+  const banner = document.getElementById('reviews-banner-filter').value;
+  if (banner) {
+    const onBanner = BannerReviews.rotationIds(allReviews);
+    list = list.filter(r => onBanner.has(r.id) === (banner === 'on'));
+  }
   if (query)  list = list.filter(r =>
     (r.reviewer_name || '').toLowerCase().includes(query) ||
     (r.menu_items?.name || '').toLowerCase().includes(query) ||
