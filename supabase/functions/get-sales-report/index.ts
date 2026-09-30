@@ -286,17 +286,20 @@ serve(async (req) => {
     const dailyOnlineMap: Record<string, { revenueCents: number; orderCount: number }> = {};
     const inAppDailyMap: Record<string, { revenueCents: number; orderCount: number }> = {};
 
+    const channelByPaymentId: Record<string, 'online' | 'instore' | 'app'> = {};
     for (const payment of allPayments) {
       const amount = payment.amount_money?.amount ?? 0;
       const day = payment.created_at.slice(0, 10);
 
       if (birdhousePaymentIds.has(payment.id)) {
+        channelByPaymentId[payment.id] = 'app';
         // Birdhouse App payment — revenue already totalled above, just track daily split
         if (!inAppDailyMap[day]) inAppDailyMap[day] = { revenueCents: 0, orderCount: 0 };
         inAppDailyMap[day].revenueCents += amount;
         inAppDailyMap[day].orderCount += 1;
       } else {
         const src = payment.order_id ? squareOrderSourceMap[payment.order_id] : undefined;
+        if (src) channelByPaymentId[payment.id] = src;
         if (src === 'online') {
           if (!dailyOnlineMap[day]) dailyOnlineMap[day] = { revenueCents: 0, orderCount: 0 };
           dailyOnlineMap[day].revenueCents += amount;
@@ -455,6 +458,7 @@ serve(async (req) => {
       // made within particular hours (the Library Split uses class periods).
       payments: allPayments.map((p) => ({
         createdAt: p.created_at,
+        channel: channelByPaymentId[p.id] ?? null,
         amountCents: p.amount_money?.amount ?? 0,
         feeCents: (p.processing_fee || []).reduce((s, f) => s + (f.amount_money?.amount ?? 0), 0),
       })),
