@@ -5501,7 +5501,7 @@ function renderSalesGrowth() {
     });
     years.slice(1).forEach((sy, i) => {
       const c = cell[`${sy}-${slot}`];
-      body += `<td>${c && c.complete ? sgPctHtml(sgPct(c.cents, val(years[i], slot))) : '<span style="color:var(--gray)">—</span>'}</td>`;
+      body += `<td>${c ? sgPctHtml(sgPct(c.cents, val(years[i], slot))) + (c.complete ? '' : '*') : '<span style="color:var(--gray)">—</span>'}</td>`;
     });
     body += '</tr>';
   });
