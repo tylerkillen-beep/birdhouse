@@ -151,6 +151,7 @@
     </div>
   </div>
 
+  <script src="/lib/banner-reviews.js"></script>
   <script>
     (function () {
       'use strict';
@@ -167,16 +168,6 @@
       // Deliberately not equal, so the two panels don't flip in lockstep.
       const REVIEW_ROTATE_MS = 9000;
       const SUB_ROTATE_MS    = 8000;
-
-      // Only 4- and 5-star reviews with something written in them reach the
-      // wall. Anything longer than this gets cut off by the two-line clamp
-      // mid-sentence, which reads worse than not showing it at all.
-      const MIN_RATING = 4;
-      const MAX_REVIEW_CHARS = 155;
-      const MIN_REVIEW_WORDS = 4;
-      // Reviews typed on a phone are full of :sob:-style shortcodes that the
-      // app never renders, so they'd reach the wall as literal colon-words.
-      const SHORTCODE = /:[a-z_]+:/i;
 
       const STAGE_W = 1920, STAGE_H = 130;
 
@@ -308,23 +299,19 @@
           + '</div>';
       }
 
+      // Which reviews make the rotation -- the automatic rules plus any manual
+      // pins from the admin Reviews page -- lives in lib/banner-reviews.js, so
+      // the admin page shows exactly what this shows.
       async function loadReviews() {
         const res = await rest(
-          'reviews?select=rating,review_text,reviewer_name,created_at,menu_items(name)'
-          + '&review_text=not.is.null&rating=gte.' + MIN_RATING
-          + '&order=created_at.desc&limit=40');
+          'reviews?select=id,rating,review_text,reviewer_name,created_at,banner_pin,menu_items(name)'
+          + '&review_text=not.is.null&or=(rating.gte.' + BannerReviews.MIN_RATING + ',banner_pin.eq.true)'
+          + '&order=created_at.desc&limit=300');
         if (!res.ok) throw new Error('reviews');
 
-        const usable = (await res.json()).filter(function (r) {
-          const text = (r.review_text || '').trim();
-          // A bare "ok" is technically a five-star review and says nothing,
-          // and neither does an order shorthand like "diet dp #5". Four words
-          // is the line that separates a sentence from a scrap here; it costs
-          // the odd good two-word review, which is a fair trade on a wall.
-          if (text.length < 8 || text.length > MAX_REVIEW_CHARS) return false;
-          if (SHORTCODE.test(text)) return false;
-          return text.split(/\s+/).length >= MIN_REVIEW_WORDS;
-        });
+        const rows = await res.json();
+        const inRotation = BannerReviews.rotationIds(rows);
+        const usable = rows.filter(function (r) { return inRotation.has(r.id); });
 
         if (!usable.length) {
           reviewRotator.setSlides(['<div class="empty">Reviews coming soon.</div>']);
