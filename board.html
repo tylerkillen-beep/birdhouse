@@ -152,15 +152,16 @@
       // Cold Drinks, then Birdie Brews, then Tasty Treats -- so it gets the
       // full width and height instead of being squeezed into half of it.
       // Specials always shows in full and never rotates.
-      const SPOTLIGHT_MS = 12000; // how long each category stays up
+      // Each category has its own dwell time: the long drink list needs the
+      // longest to read, the short treats list the least.
       const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
       // Same category grouping as menu.html, kept in sync intentionally. The
       // order here is the order they spotlight in.
       const CATEGORIES = [
-        { key: 'soda_tea', title: 'Cold Drinks',  icon: '🥤' },
-        { key: 'coffee',   title: 'Birdie Brews', icon: '☕' },
-        { key: 'food',     title: 'Tasty Treats', icon: '🍪' },
+        { key: 'soda_tea', title: 'Cold Drinks',  icon: '🥤', ms: 16000 },
+        { key: 'coffee',   title: 'Birdie Brews', icon: '☕', ms: 10000 },
+        { key: 'food',     title: 'Tasty Treats', icon: '🍪', ms: 6000 },
       ];
 
       let latestGroups = null; // key -> this load's items, set by loadBoard
@@ -463,17 +464,26 @@
       // the lists column. With one or zero categories stocked there's nowhere
       // to advance to, so it holds -- same as Specials, which never moves.
       function tick() {
-        if (!latestGroups || reducedMotion) return;
-        const stocked = CATEGORIES.filter(c => (latestGroups[c.key] || []).length).length;
-        if (stocked <= 1) return;
-        spotlightIndex = pickSpotlight(spotlightIndex + 1);
-        document.getElementById('board-lists').innerHTML = renderListsHtml();
-        fitBoard();
+        if (latestGroups && !reducedMotion) {
+          const stocked = CATEGORIES.filter(c => (latestGroups[c.key] || []).length).length;
+          if (stocked > 1) {
+            spotlightIndex = pickSpotlight(spotlightIndex + 1);
+            document.getElementById('board-lists').innerHTML = renderListsHtml();
+            fitBoard();
+          }
+        }
+        scheduleTick();
+      }
+
+      // Chained timeouts rather than an interval, since how long the next
+      // screen stays up depends on which category is showing.
+      function scheduleTick() {
+        setTimeout(tick, CATEGORIES[spotlightIndex].ms);
       }
 
       loadBoard();
       setInterval(loadBoard, REFRESH_MS);
-      setInterval(tick, SPOTLIGHT_MS);
+      scheduleTick();
       // Re-fit on resize, and once more after webfonts land (they change metrics).
       let fitTimer;
       window.addEventListener('resize', () => {
