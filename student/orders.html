@@ -936,12 +936,15 @@
               : '';
             return `${escHtml(item.name)}${subMods}`;
           }
-          const temp = item.temp === 'iced' ? 'Iced' : 'Hot';
+          // Mathews drinks pick Iced as a modifier and leave temp at its
+          // default, so the modifier list already says it; skip the "Hot".
+          const icedMod = (item.selectedModifiers || []).some(m => /^iced$/i.test(String(m.name || '').trim()));
+          const temp = item.temp === 'iced' ? 'Iced' : (icedMod ? '' : 'Hot');
           const qty = item.quantity > 1 ? ` ×${item.quantity}` : '';
           const mods = item.selectedModifiers && item.selectedModifiers.length > 0
             ? `<span style="color:var(--gray);font-size:0.75rem"> — ${item.selectedModifiers.map(m => escHtml(m.name)).join(', ')}</span>`
             : '';
-          return `${escHtml(temp)} ${escHtml(item.name)}${escHtml(qty)}${mods}`;
+          return `${temp ? escHtml(temp) + ' ' : ''}${escHtml(item.name)}${escHtml(qty)}${mods}`;
         }).filter(Boolean).join(' · ');
       } else {
         const parts = [order.drink_name, order.size, order.milk].filter(Boolean);
