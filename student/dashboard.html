@@ -2046,6 +2046,17 @@
       photoHelp.textContent = data.bio_photo_pending_url
         ? 'A new photo is already attached to this pending submission. Choose another file to replace it.'
         : 'You can attach a photo to this pending submission by selecting a file before updating.';
+    } else if (data.bio_status === 'unpublished') {
+      banner.style.display = 'block';
+      banner.style.background = 'rgba(150,150,150,0.08)';
+      banner.style.border = '1px solid rgba(150,150,150,0.25)';
+      banner.style.color = '#999';
+      banner.textContent = 'Your bio is not currently shown on the About page. You can edit it and resubmit for review.';
+      textarea.value = data.bio || '';
+      btn.textContent = 'Resubmit Bio →';
+      photoHelp.textContent = data.bio_photo_url
+        ? 'Your last approved photo is still saved. Upload a new one if you want to replace it.'
+        : 'You can include a photo with your submission.';
     } else if (data.bio_status === 'rejected') {
       banner.style.display = 'block';
       banner.style.background = 'rgba(204,0,0,0.08)';

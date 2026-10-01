@@ -814,6 +814,10 @@
     <div id="bio-approvals-container">
       <div class="empty-state">Loading bio submissions…</div>
     </div>
+    <div class="section-title" style="margin-top:1.5rem">Bios on the About Page <span id="bio-live-count-label"></span></div>
+    <div id="bio-live-container">
+      <div class="empty-state">Loading…</div>
+    </div>
   </div>
 
   <!-- ── SCORE RUBRIC ── -->
@@ -2493,11 +2497,12 @@ async function loadOrdersBadge() {
 // Staff / Approvals
 // ════════════════════════════════════
 async function loadStaff() {
-  const [{ data: pending }, { data: active }, { data: teams }, { data: bioPending }] = await Promise.all([
+  const [{ data: pending }, { data: active }, { data: teams }, { data: bioPending }, { data: bioLive }] = await Promise.all([
     sb.from('students').select('*').is('role', null).order('created_at'),
     sb.from('students').select('*,teams(name)').not('role', 'is', null).order('last_name'),
     sb.from('teams').select('id,name,period,color,product_name,cost_cents').order('name'),
     sb.from('students').select('id,first_name,last_name,bio_pending,bio_status,bio_photo_pending_url,bio_photo_url').eq('bio_status','pending').order('last_name'),
+    sb.from('students').select('id,first_name,last_name,bio,bio_status,bio_photo_url').in('bio_status',['approved','unpublished']).order('last_name'),
   ]);
   staffTeams = teams || [];
   allStaff = [...(pending||[]), ...(active||[])];
@@ -2550,6 +2555,33 @@ async function loadStaff() {
           </div>
         </div>
       </div>`).join('');
+  }
+
+  // Published / unpublished bios
+  const liveContainer = document.getElementById('bio-live-container');
+  const liveLabel = document.getElementById('bio-live-count-label');
+  const liveCount = (bioLive || []).filter(s => s.bio_status === 'approved').length;
+  liveLabel.textContent = bioLive?.length ? `(${liveCount} live)` : '';
+  if (!bioLive?.length) {
+    liveContainer.innerHTML = '<div class="empty-state">No approved bios yet.</div>';
+  } else {
+    liveContainer.innerHTML = bioLive.map(s => {
+      const live = s.bio_status === 'approved';
+      return `
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1rem 1.5rem;margin-bottom:0.75rem;border-left:3px solid ${live ? 'var(--success, #4caf50)' : 'var(--gray)'}${live ? '' : ';opacity:0.8'}">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+          <div style="flex:1;min-width:200px">
+            <div style="font-weight:500;font-size:0.95rem;margin-bottom:0.4rem">${s.first_name} ${s.last_name}${live ? '' : ' <span style="font-size:0.75rem;color:var(--gray);font-weight:400">· Unpublished</span>'}</div>
+            <div style="font-size:0.85rem;color:var(--gray-mid);line-height:1.6;white-space:pre-wrap">${escHtml(s.bio || '')}</div>
+          </div>
+          <div style="flex-shrink:0">
+            ${live
+              ? `<button class="btn btn-danger btn-sm" onclick="unpublishBio('${s.id}')">Unpublish</button>`
+              : `<button class="btn btn-success btn-sm" onclick="republishBio('${s.id}')">Republish</button>`}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
   }
 
   // Update nav badge with total pending (staff + bio)
@@ -2795,6 +2827,19 @@ async function approveBio(id) {
     bio_photo_pending_url: null,
     bio_status: 'approved'
   }).eq('id', id);
+  loadStaff();
+}
+
+async function unpublishBio(id) {
+  if (!confirm('Unpublish this bio? It comes off the About page right away. The student keeps their text and you can republish it later.')) return;
+  const { error } = await sb.from('students').update({ bio_status: 'unpublished' }).eq('id', id);
+  if (error) { alert('Unable to unpublish: ' + error.message); return; }
+  loadStaff();
+}
+
+async function republishBio(id) {
+  const { error } = await sb.from('students').update({ bio_status: 'approved' }).eq('id', id);
+  if (error) { alert('Unable to republish: ' + error.message); return; }
   loadStaff();
 }
 
