@@ -1608,9 +1608,6 @@
           </table>
         </div>
       </div>
-      <div style="margin-top:1rem;padding-top:0.75rem;border-top:1px solid var(--border-dim);font-size:0.78rem;color:var(--gray-mid)">
-        Library Gross Sales is the actual sales rung up during these periods (Central time). Passing periods, lunch, and before/after school are not counted.
-      </div>
     </div>
 
     <!-- Summary stats -->
@@ -6240,12 +6237,11 @@ function renderLibrarySplit(data, range) {
   // made during a library period.
   const byDay = {};
   const emptyDay = () => ({ totalCents: 0, libCents: 0, libFeeCents: 0, libCount: 0, supCents: 0, supFeeCents: 0 });
-  let totalGrossCents = 0, libGrossCents = 0, libFeeCents = 0, libCount = 0;
+  let libGrossCents = 0, libFeeCents = 0, libCount = 0;
   for (const p of data.payments) {
     const t = libLocalParts(p.createdAt);
     const d = byDay[t.iso] ??= emptyDay();
     d.totalCents += p.amountCents;
-    totalGrossCents += p.amountCents;
     if (isLibraryTime(t.weekday, t.minute)) {
       d.libCents += p.amountCents;
       d.libFeeCents += p.feeCents;
@@ -6266,11 +6262,10 @@ function renderLibrarySplit(data, range) {
 
   const libCogsCents = Math.round(libGrossCents * COGS_RATE);
   const libNetCents  = libGrossCents - libFeeCents - libCogsCents + supervisionCents;
-  const pctOf = (part, whole) => whole > 0 ? (part / whole * 100).toFixed(1) + '%' : '—';
 
   // Stats row
   document.getElementById('lib-gross').textContent = fmt(libGrossCents);
-  document.getElementById('lib-gross-sub').textContent = `${libCount} sale${libCount === 1 ? '' : 's'} during library hours · ${pctOf(libGrossCents, totalGrossCents)} of total`;
+  document.getElementById('lib-gross-sub').textContent = `${libCount} sale${libCount === 1 ? '' : 's'} during library hours`;
   document.getElementById('lib-fees').textContent = '-' + fmt(libFeeCents);
   document.getElementById('lib-fees-sub').textContent = 'Square fees on those sales';
   document.getElementById('lib-cogs').textContent = '-' + fmt(libCogsCents);
