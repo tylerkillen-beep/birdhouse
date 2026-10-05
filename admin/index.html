@@ -1555,7 +1555,7 @@
   <div class="section-panel" id="section-library-split">
     <div class="page-header">
       <h1>Library Profit Split</h1>
-      <p>Library share of sales during 2nd, 3rd, 4th, STAR, 7th &amp; 8th Hours</p>
+      <p>Library share of sales during 2nd, 3rd, 4th, STAR, 7th &amp; 8th Hours, plus 10% of profit during 1st &amp; 6th Hours</p>
     </div>
 
     <!-- Date range selector -->
@@ -1627,9 +1627,9 @@
         <div class="stat-sub" id="lib-fees-sub"></div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">COGS (65%)</div>
+        <div class="stat-label">COGS</div>
         <div class="stat-value" id="lib-cogs" style="color:#e57373">—</div>
-        <div class="stat-sub" id="lib-cogs-sub">35% profit margin assumed</div>
+        <div class="stat-sub" id="lib-cogs-sub">Cost of goods sold</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Net to Library</div>
@@ -1645,15 +1645,14 @@
         <thead><tr>
           <th scope="col">Date</th>
           <th scope="col">Day</th>
-          <th scope="col">Lib Share</th>
-          <th scope="col">Total Gross</th>
           <th scope="col">Library Gross</th>
           <th scope="col">Sq. Fees</th>
           <th scope="col">COGS</th>
+          <th scope="col">1st/6th Supervision</th>
           <th scope="col">Net</th>
         </tr></thead>
         <tbody id="lib-tbody">
-          <tr class="loading-row"><td colspan="8" style="text-align:center;color:var(--text-muted)">Select a range to load report</td></tr>
+          <tr class="loading-row"><td colspan="7" style="text-align:center;color:var(--text-muted)">Select a range to load report</td></tr>
         </tbody>
       </table>
     </div>
@@ -6037,6 +6036,17 @@ const LIB_PERIODS_TUEFRI = [
   [hm(12,54), hm(13,42)], // 7th
   [hm(13,47), hm(14,35)], // 8th
 ];
+// Supervision hours: the Library also earns a cut of the profit made in
+// these periods (best-guess times; adjust to the bell schedule).
+const SUP_PERIODS_MON = [
+  [hm(8,1),   hm(8,49)],  // 1st
+  [hm(11,36), hm(12,49)], // 6th
+];
+const SUP_PERIODS_TUEFRI = [
+  [hm(7,30),  hm(8,18)],  // 1st
+  [hm(11,37), hm(12,49)], // 6th
+];
+const SUPERVISION_RATE = 0.10; // 10% of profit
 const COGS_RATE = 0.65; // 35% profit margin → 65% COGS
 
 let currentLibRange = 'today';
@@ -6126,6 +6136,13 @@ function isLibraryTime(weekday, minute) {
   return periods.some(([start, end]) => minute >= start && minute < end);
 }
 
+function isSupervisionTime(weekday, minute) {
+  const periods = weekday === 'Mon' ? SUP_PERIODS_MON
+    : ['Tue','Wed','Thu','Fri'].includes(weekday) ? SUP_PERIODS_TUEFRI
+    : [];
+  return periods.some(([start, end]) => minute >= start && minute < end);
+}
+
 async function runLibrarySplit() {
   const range = getLibDateRange();
   if (!range) return;
@@ -6134,7 +6151,7 @@ async function runLibrarySplit() {
   ['lib-total-gross','lib-gross','lib-fees','lib-cogs','lib-net'].forEach(id => {
     document.getElementById(id).textContent = '…';
   });
-  document.getElementById('lib-tbody').innerHTML = '<tr class="loading-row"><td colspan="8">Loading…</td></tr>';
+  document.getElementById('lib-tbody').innerHTML = '<tr class="loading-row"><td colspan="7">Loading…</td></tr>';
 
   try {
     let { data: { session } } = await sb.auth.getSession();
@@ -6165,7 +6182,7 @@ async function runLibrarySplit() {
     ['lib-total-gross','lib-gross','lib-fees','lib-cogs','lib-net'].forEach(id => {
       document.getElementById(id).textContent = 'Error';
     });
-    document.getElementById('lib-tbody').innerHTML = `<tr><td colspan="8" style="text-align:center;color:#e57373;padding:1.5rem">${err.message}</td></tr>`;
+    document.getElementById('lib-tbody').innerHTML = `<tr><td colspan="7" style="text-align:center;color:#e57373;padding:1.5rem">${err.message}</td></tr>`;
   }
 }
 
@@ -6175,14 +6192,14 @@ function renderLibrarySplit(data, range) {
     ['lib-total-gross','lib-gross','lib-fees','lib-cogs','lib-net'].forEach(id => {
       document.getElementById(id).textContent = '—';
     });
-    document.getElementById('lib-tbody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:#e57373;padding:1.5rem">The get-sales-report function needs to be redeployed before library-hour sales can be shown.</td></tr>';
+    document.getElementById('lib-tbody').innerHTML = '<tr><td colspan="7" style="text-align:center;color:#e57373;padding:1.5rem">The get-sales-report function needs to be redeployed before library-hour sales can be shown.</td></tr>';
     return;
   }
 
   // Total every payment by its Central-time day, and separately the ones
   // made during a library period.
   const byDay = {};
-  const emptyDay = () => ({ totalCents: 0, libCents: 0, libFeeCents: 0, libCount: 0 });
+  const emptyDay = () => ({ totalCents: 0, libCents: 0, libFeeCents: 0, libCount: 0, supCents: 0, supFeeCents: 0 });
   let totalGrossCents = 0, libGrossCents = 0, libFeeCents = 0, libCount = 0;
   for (const p of data.payments) {
     const t = libLocalParts(p.createdAt);
@@ -6196,11 +6213,19 @@ function renderLibrarySplit(data, range) {
       libGrossCents += p.amountCents;
       libFeeCents += p.feeCents;
       libCount += 1;
+    } else if (isSupervisionTime(t.weekday, t.minute)) {
+      d.supCents += p.amountCents;
+      d.supFeeCents += p.feeCents;
     }
   }
 
+  // Supervision = 10% of profit (sales - fees - COGS) made in 1st/6th hour
+  const supervisionOf = d => Math.round(Math.max(0, d.supCents - d.supFeeCents - Math.round(d.supCents * COGS_RATE)) * SUPERVISION_RATE);
+  let supervisionCents = 0;
+  for (const d of Object.values(byDay)) supervisionCents += supervisionOf(d);
+
   const libCogsCents = Math.round(libGrossCents * COGS_RATE);
-  const libNetCents  = libGrossCents - libFeeCents - libCogsCents;
+  const libNetCents  = libGrossCents - libFeeCents - libCogsCents + supervisionCents;
   const pctOf = (part, whole) => whole > 0 ? (part / whole * 100).toFixed(1) + '%' : '—';
 
   // Stats row
@@ -6212,7 +6237,7 @@ function renderLibrarySplit(data, range) {
   document.getElementById('lib-cogs').textContent = '-' + fmt(libCogsCents);
   document.getElementById('lib-net').textContent = fmt(libNetCents);
   document.getElementById('lib-net').style.color = libNetCents >= 0 ? 'var(--accent)' : '#e57373';
-  document.getElementById('lib-net-sub').textContent = libNetCents >= 0 ? 'Net profit for Library' : 'Net loss for Library';
+  document.getElementById('lib-net-sub').textContent = (libNetCents >= 0 ? 'Net profit for Library' : 'Net loss for Library') + ` · incl. ${fmt(supervisionCents)} supervision`;
 
   // One row per school day in the range, plus any other day that had sales
   const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -6220,32 +6245,31 @@ function renderLibrarySplit(data, range) {
   const rows = [...days].sort().map(iso => {
     const d = byDay[iso] || emptyDay();
     const cogs = Math.round(d.libCents * COGS_RATE);
-    const net = d.libCents - d.libFeeCents - cogs;
+    const sup = supervisionOf(d);
+    const net = d.libCents - d.libFeeCents - cogs + sup;
     return `<tr>
       <td style="color:var(--gray-mid);font-size:0.8rem">${iso}</td>
       <td>${dayNames[new Date(iso + 'T12:00:00').getDay()]}</td>
-      <td style="color:var(--accent)">${pctOf(d.libCents, d.totalCents)}</td>
-      <td>${fmt(d.totalCents)}</td>
       <td><strong>${fmt(d.libCents)}</strong>${d.libCount ? ` <span style="color:var(--gray-mid);font-size:0.75rem">(${d.libCount})</span>` : ''}</td>
       <td style="color:#e57373">${d.libFeeCents > 0 ? '-' + fmt(d.libFeeCents) : '—'}</td>
       <td style="color:#e57373">${cogs > 0 ? '-' + fmt(cogs) : '—'}</td>
+      <td style="color:#27ae60">${sup > 0 ? '+' + fmt(sup) : '—'}</td>
       <td style="${net >= 0 ? 'color:#27ae60' : 'color:#e57373'}">${fmt(net)}</td>
     </tr>`;
   });
 
   const totalsRow = `<tr style="border-top:2px solid var(--border);font-weight:600;background:rgba(200,169,110,0.04)">
     <td colspan="2" style="color:var(--accent)">Totals</td>
-    <td style="color:var(--accent)">${pctOf(libGrossCents, totalGrossCents)}</td>
-    <td>${fmt(totalGrossCents)}</td>
     <td><strong>${fmt(libGrossCents)}</strong></td>
     <td style="color:#e57373">-${fmt(libFeeCents)}</td>
     <td style="color:#e57373">-${fmt(libCogsCents)}</td>
+    <td style="color:#27ae60">+${fmt(supervisionCents)}</td>
     <td style="${libNetCents >= 0 ? 'color:#27ae60' : 'color:#e57373'}">${fmt(libNetCents)}</td>
   </tr>`;
 
   document.getElementById('lib-tbody').innerHTML = rows.length
     ? rows.join('') + totalsRow
-    : `<tr><td colspan="8" style="text-align:center;color:var(--gray-mid);padding:1.5rem">No sales in this period.</td></tr>`;
+    : `<tr><td colspan="7" style="text-align:center;color:var(--gray-mid);padding:1.5rem">No sales in this period.</td></tr>`;
 }
 
 // ── Flatpickr calendar range pickers ──
