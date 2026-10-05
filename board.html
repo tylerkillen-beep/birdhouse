@@ -72,35 +72,34 @@
     .special-desc { font-size: 1.1rem; color: var(--light-gray); line-height: 1.35; margin-top: 0.25rem; font-weight: 300; }
 
     /* Category lists column. */
-    .lists-col { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start; }
+    /* Static board: all three categories are on screen at once. Cold Drinks
+       (the longest list) gets the left track; Birdie Brews and Tasty Treats
+       stack in the right track. */
+    .lists-col { display: grid; grid-template-columns: 1fr 1fr; gap: 0 2rem; align-items: start; }
     @media (max-width: 700px) { .lists-col { grid-template-columns: 1fr; } }
-    .lists-column { display: flex; flex-direction: column; gap: 1.2rem; }
+    .list-section { display: flex; flex-direction: column; min-width: 0; }
+    .list-section.cat-soda_tea { grid-column: 1; grid-row: 1 / span 2; }
+    .list-section.cat-coffee { grid-column: 2; grid-row: 1; }
+    .list-section.cat-food { grid-column: 2; grid-row: 2; margin-top: 1.25rem; }
+    @media (max-width: 700px) {
+      .list-section.cat-soda_tea, .list-section.cat-coffee, .list-section.cat-food { grid-column: 1; grid-row: auto; }
+    }
     .list-heading {
       display: flex; align-items: center; justify-content: center; gap: 0.6rem;
-      font-family: 'Bebas Neue', sans-serif; font-size: 2rem; letter-spacing: 0.08em; text-transform: uppercase;
+      font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem; letter-spacing: 0.08em; text-transform: uppercase;
       color: var(--red-bright); -webkit-text-stroke: 0.7px var(--red-bright);
       border-bottom: 2px solid var(--border); padding-bottom: 0.5rem; margin-bottom: 0.6rem;
     }
     .list-row {
       display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem;
-      padding: 0.34rem 0; border-bottom: 1px dashed rgba(255,255,255,0.06);
+      padding: 0.28rem 0; border-bottom: 1px dashed rgba(255,255,255,0.06);
     }
     .list-row:last-child { border-bottom: none; }
     /* The board is fitted to the screen height by fitBoard(), so these sizes are
-       ratios, not absolutes: growing a name shortens the fitted root size a
-       little but still nets a bigger name. The spotlight only ever fits one
-       category at a time now, so there's headroom to size the description
-       much closer to the name instead of leaving it as a small afterthought. */
-    .list-row-name { font-size: 1.85rem; color: var(--white); font-weight: 600; }
-    .list-row-desc { font-size: 1.05rem; color: var(--gray); font-weight: 300; margin-top: 0.15rem; }
-    .list-row-price { font-size: 1.85rem; color: var(--red-bright); font-weight: 600; white-space: nowrap; flex-shrink: 0; }
-
-    /* One dot per stocked category, lit up to show which one is spotlighted
-       -- otherwise the swap to the next category could read as the board
-       having lost items rather than having more to show. */
-    .spotlight-dots { display: flex; justify-content: center; gap: 0.5rem; margin-top: 0.75rem; }
-    .spotlight-dot { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--border); }
-    .spotlight-dot.active { background: var(--red-bright); }
+       ratios, not absolutes. */
+    .list-row-name { font-size: 1.6rem; color: var(--white); font-weight: 600; }
+    .list-row-desc { font-size: 0.95rem; color: var(--gray); font-weight: 300; margin-top: 0.15rem; }
+    .list-row-price { font-size: 1.6rem; color: var(--red-bright); font-weight: 600; white-space: nowrap; flex-shrink: 0; }
 
     /* Add-ons, permanently under the spotlighted category rather than
        rotating with it. Four columns because there are usually 3-5 price
@@ -148,24 +147,21 @@
       const SUPABASE_URL = 'https://ljukrhneikqbabcmcpet.supabase.co';
       const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqdWtyaG5laWtxYmFiY21jcGV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyODg1MjEsImV4cCI6MjA4Nzg2NDUyMX0.UbtB_-syG9a9vLcJp04w_k2F3XP2tMScYtB4sez3j78';
       const REFRESH_MS = 5 * 60 * 1000; // kiosk display — refresh every 5 minutes
-      // The right two-thirds spotlights one whole category at a time --
-      // Cold Drinks, then Birdie Brews, then Tasty Treats -- so it gets the
-      // full width and height instead of being squeezed into half of it.
-      // Specials always shows in full and never rotates.
-      // Each category has its own dwell time: the long drink list needs the
-      // longest to read, the short treats list the least.
-      const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      // The right two-thirds shows Cold Drinks, Birdie Brews and Tasty Treats
+      // all at once and never rotates -- a shifting board was unreadable from
+      // across the room. Specials likewise always shows in full.
+      // Item descriptions are left off the category lists to save room; flip
+      // this to bring them back (the board font shrinks to fit).
+      const SHOW_LIST_DESCRIPTIONS = false;
 
-      // Same category grouping as menu.html, kept in sync intentionally. The
-      // order here is the order they spotlight in.
+      // Same category grouping as menu.html, kept in sync intentionally.
       const CATEGORIES = [
-        { key: 'soda_tea', title: 'Cold Drinks',  icon: '🥤', ms: 16000 },
-        { key: 'coffee',   title: 'Birdie Brews', icon: '☕', ms: 10000 },
-        { key: 'food',     title: 'Tasty Treats', icon: '🍪', ms: 6000 },
+        { key: 'soda_tea', title: 'Cold Drinks',  icon: '🥤' },
+        { key: 'coffee',   title: 'Birdie Brews', icon: '☕' },
+        { key: 'food',     title: 'Tasty Treats', icon: '🍪' },
       ];
 
       let latestGroups = null; // key -> this load's items, set by loadBoard
-      let spotlightIndex = 0; // which CATEGORIES entry the right side shows
 
       // Coffee is the coffee menu and nothing else, so it has to be matched
       // explicitly and everything left over falls to cold drinks. This used to
@@ -205,17 +201,6 @@
         if (pb == null) return -1;
         return pa - pb;
       };
-
-      /** The CATEGORIES index to spotlight starting at startIndex: the first
-       *  one (going forward, wrapping) that actually has items. Falls back to
-       *  startIndex itself if every category is empty. */
-      function pickSpotlight(startIndex) {
-        for (let i = 0; i < CATEGORIES.length; i++) {
-          const idx = (startIndex + i) % CATEGORIES.length;
-          if ((latestGroups[CATEGORIES[idx].key] || []).length) return idx;
-        }
-        return startIndex;
-      }
 
       function renderSpecials(items) {
         if (!items.length) return '';
@@ -302,35 +287,25 @@
           <div class="list-row">
             <div>
               <div class="list-row-name">${escHtml(item.name)}</div>
-              ${item.description ? `<div class="list-row-desc">${escHtml(item.description)}</div>` : ''}
+              ${SHOW_LIST_DESCRIPTIONS && item.description ? `<div class="list-row-desc">${escHtml(item.description)}</div>` : ''}
             </div>
             ${formatPrice(item) ? `<div class="list-row-price">${formatPrice(item)}</div>` : ''}
           </div>
         `).join('');
       }
 
-      // The spotlighted category's items span both grid tracks of #board-lists:
-      // the heading across the top, then the items split into two even halves
-      // (cheapest first) so a single category gets the full two-thirds width
-      // instead of sharing it with another category. Reused by both the
-      // initial paint and the spotlight ticker.
+      // Every stocked category as its own section, cheapest first; CSS places
+      // them (Cold Drinks left, Birdie Brews over Tasty Treats on the right).
       function renderListsHtml() {
         if (!latestGroups) return '';
-        const cat = CATEGORIES[spotlightIndex];
-        const items = (latestGroups[cat.key] || []).slice().sort(byPriceAsc);
-        if (!items.length) return '';
-        const half = Math.ceil(items.length / 2);
-        const heading = `<div class="list-heading" style="grid-column:1 / -1"><span aria-hidden="true">${cat.icon}</span> ${cat.title}</div>`;
-        const cols = [items.slice(0, half), items.slice(half)]
-          .map(colItems => `<div class="lists-column">${renderRows(colItems)}</div>`)
-          .join('');
-        const dots = CATEGORIES.filter(c => (latestGroups[c.key] || []).length).length > 1
-          ? `<div class="spotlight-dots" style="grid-column:1 / -1">${CATEGORIES
-              .filter(c => (latestGroups[c.key] || []).length)
-              .map(c => `<span class="spotlight-dot${c.key === cat.key ? ' active' : ''}"></span>`)
-              .join('')}</div>`
-          : '';
-        return heading + cols + dots;
+        return CATEGORIES.map(cat => {
+          const items = (latestGroups[cat.key] || []).slice().sort(byPriceAsc);
+          if (!items.length) return '';
+          return `<div class="list-section cat-${cat.key}">
+            <div class="list-heading"><span aria-hidden="true">${cat.icon}</span> ${cat.title}</div>
+            ${renderRows(items)}
+          </div>`;
+        }).join('');
       }
 
       // Scale the whole board so it exactly fills the TV: binary-search the root
@@ -431,10 +406,6 @@
           });
 
           latestGroups = groups;
-          // Keep spotlighting the same category across a routine reload
-          // (falling forward only if it just went empty), rather than
-          // visibly resetting to Cold Drinks every 5 minutes.
-          spotlightIndex = pickSpotlight(spotlightIndex);
 
           const specialsHtml = renderSpecials(specials);
           const addOnsHtml = addOnData ? renderAddOns(buildAddOnTiers(items, addOnData.lists, addOnData.options)) : '';
@@ -460,30 +431,8 @@
         }
       }
 
-      // Advance the spotlight to the next non-empty category and repaint just
-      // the lists column. With one or zero categories stocked there's nowhere
-      // to advance to, so it holds -- same as Specials, which never moves.
-      function tick() {
-        if (latestGroups && !reducedMotion) {
-          const stocked = CATEGORIES.filter(c => (latestGroups[c.key] || []).length).length;
-          if (stocked > 1) {
-            spotlightIndex = pickSpotlight(spotlightIndex + 1);
-            document.getElementById('board-lists').innerHTML = renderListsHtml();
-            fitBoard();
-          }
-        }
-        scheduleTick();
-      }
-
-      // Chained timeouts rather than an interval, since how long the next
-      // screen stays up depends on which category is showing.
-      function scheduleTick() {
-        setTimeout(tick, CATEGORIES[spotlightIndex].ms);
-      }
-
       loadBoard();
       setInterval(loadBoard, REFRESH_MS);
-      scheduleTick();
       // Re-fit on resize, and once more after webfonts land (they change metrics).
       let fitTimer;
       window.addEventListener('resize', () => {
