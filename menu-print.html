@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex" />
+  <title>The Birdhouse — Printable Menu</title>
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <script src="/lib/subscription-exclusives.js"></script>
+  <script src="/lib/mathews.js"></script>
+  <style>
+    /* Printable, laminate-ready menu: US Letter portrait, no Specials, no
+       Mathews or subscriber items, regular (non-discounted) prices. Open this
+       page and use Print > Save as PDF (turn "Background graphics" on). */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --ink: #1a1a1a; --red: #b30000; --muted: #555; --rule: #d9c7c7; }
+    @page { size: letter portrait; margin: 0.4in; }
+    body { background: #e8e8e8; color: var(--ink); font-family: 'DM Sans', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+    .toolbar { max-width: 8.5in; margin: 1rem auto 0; display: flex; align-items: center; gap: 1rem; padding: 0 0.5rem; font-size: 0.85rem; color: var(--muted); }
+    .toolbar button { background: var(--red); color: #fff; border: 0; border-radius: 6px; padding: 0.55rem 1.1rem; font: 500 0.9rem 'DM Sans', sans-serif; cursor: pointer; }
+
+    .sheet { width: 8.5in; min-height: 11in; margin: 1rem auto; background: #fff; padding: 0.4in; box-shadow: 0 2px 12px rgba(0,0,0,0.2); }
+    .top { text-align: center; border-bottom: 3px solid var(--red); padding-bottom: 0.1in; margin-bottom: 0.15in; }
+    .top img { height: 0.7in; width: auto; }
+    .top .tag { font-size: 0.8rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-top: 0.05in; }
+
+    .cat { margin-bottom: 0.14in; break-inside: avoid; }
+    .cat-name { font-family: 'Bebas Neue', sans-serif; font-size: 1.9rem; letter-spacing: 0.06em; color: var(--red); border-bottom: 1.5px solid var(--rule); margin-bottom: 0.08in; line-height: 1.1; }
+    .items { column-count: 2; column-gap: 0.3in; column-rule: 1px solid var(--rule); list-style: none; }
+    .item { break-inside: avoid; padding: 0.03in 0; }
+    .row { display: flex; justify-content: space-between; align-items: baseline; gap: 0.1in; }
+    .name { font-weight: 700; font-size: 0.95rem; }
+    .price { font-weight: 700; font-size: 0.95rem; color: var(--red); white-space: nowrap; }
+    .desc { font-size: 0.75rem; color: var(--muted); font-weight: 300; line-height: 1.3; }
+
+    .foot { text-align: center; font-size: 0.8rem; color: var(--muted); margin-top: 0.1in; }
+    .msg { padding: 2rem; text-align: center; color: var(--muted); }
+
+    @media print {
+      body { background: #fff; }
+      .toolbar { display: none; }
+      .sheet { width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <button type="button" onclick="window.print()">Print / Save as PDF</button>
+    <span>Letter, portrait. In the print dialog, turn on "Background graphics" and set margins to Default.</span>
+  </div>
+
+  <div class="sheet">
+    <div class="top">
+      <img src="logo.png" alt="The Birdhouse" width="300" height="102" />
+      <div class="tag">Student-run &middot; Nixa High School</div>
+    </div>
+    <div id="menu-content"><p class="msg">Loading menu&hellip;</p></div>
+    <div class="foot">Ask at the counter about this week's specials!</div>
+  </div>
+
+  <script>
+    (function() {
+      const SUPABASE_URL = 'https://ljukrhneikqbabcmcpet.supabase.co';
+      const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqdWtyaG5laWtxYmFiY21jcGV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyODg1MjEsImV4cCI6MjA4Nzg2NDUyMX0.UbtB_-syG9a9vLcJp04w_k2F3XP2tMScYtB4sez3j78';
+
+      // Same names and order as board.html. No Specials -- they change weekly.
+      const CATEGORIES = [
+        { key: 'soda_tea', title: 'Cold Drinks' },
+        { key: 'coffee',   title: 'Birdie Brews' },
+        { key: 'food',     title: 'Tasty Treats' },
+      ];
+
+      // Same grouping as menu.html / board.html, kept in sync intentionally.
+      const COFFEE_CATEGORY_RE = /coffee|espresso|brew|latte|mocha|americano|cappuccino/;
+      function getCategory(item) {
+        const n = String(item.category || '').trim().toLowerCase();
+        if (n.includes('special')) return 'specials';
+        if (n.includes('food') || n.includes('pastry') || n.includes('snack') || n.includes('bak') || n.includes('cookie')) return 'food';
+        if (COFFEE_CATEGORY_RE.test(n)) return 'coffee';
+        return 'soda_tea';
+      }
+
+      function priceCents(item) {
+        if (item.base_price_cents != null) return item.base_price_cents;
+        if (item.base_price != null) return Math.round(parseFloat(item.base_price) * 100);
+        return null;
+      }
+      // Regular price only; website discounts are for online orders.
+      function formatPrice(item) {
+        const c = priceCents(item);
+        return c == null ? '' : '$' + (c / 100).toFixed(2);
+      }
+      const byPriceAsc = (a, b) => {
+        const pa = priceCents(a), pb = priceCents(b);
+        if (pa == null) return pb == null ? 0 : 1;
+        if (pb == null) return -1;
+        return pa - pb;
+      };
+      function escHtml(str) {
+        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      }
+
+      async function loadMenu() {
+        const container = document.getElementById('menu-content');
+        try {
+          const headers = { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY };
+          const [res, catRes] = await Promise.all([
+            fetch(`${SUPABASE_URL}/rest/v1/menu_items?select=name,description,category,base_price_cents,base_price,sort_order,square_category_ids&available=eq.true&order=category.asc,sort_order.asc`, { headers }),
+            fetch(`${SUPABASE_URL}/rest/v1/square_categories?select=square_id,name`, { headers }).catch(() => null),
+          ]);
+          if (!res.ok) throw new Error('Failed to load menu');
+          const squareCategories = catRes?.ok ? await catRes.json() : [];
+          const exclusiveIds = subscriptionExclusiveCategoryIds(squareCategories);
+          const mathewsIds = mathewsMenuCategoryIds(squareCategories);
+          const items = (await res.json()).filter(item =>
+            !isSubscriptionExclusive(item, exclusiveIds) && !isMathewsMenuItem(item, mathewsIds));
+
+          const groups = {};
+          CATEGORIES.forEach(c => { groups[c.key] = []; });
+          items.forEach(item => {
+            const key = getCategory(item);
+            if (groups[key]) groups[key].push(item); // 'specials' has no group, so it is dropped
+          });
+
+          container.innerHTML = CATEGORIES
+            .filter(c => groups[c.key].length > 0)
+            .map(c => `
+              <section class="cat">
+                <h2 class="cat-name">${c.title}</h2>
+                <ul class="items">
+                  ${groups[c.key].sort(byPriceAsc).map(item => `
+                    <li class="item">
+                      <div class="row"><span class="name">${escHtml(item.name)}</span><span class="price">${formatPrice(item)}</span></div>
+                      ${item.description ? `<div class="desc">${escHtml(item.description)}</div>` : ''}
+                    </li>`).join('')}
+                </ul>
+              </section>`).join('') || '<p class="msg">No items available right now.</p>';
+        } catch (err) {
+          container.innerHTML = '<p class="msg">Unable to load menu. Please try again.</p>';
+        }
+      }
+
+      loadMenu();
+    })();
+  </script>
+</body>
+</html>
