@@ -7083,7 +7083,7 @@ function renderPOItemsForReview(items) {
       <input type="number" value="${item.quantity || 1}" min="0" step="0.5" id="poi-qty-${i}" style="width:70px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.8rem;padding:0.3rem 0.4rem;outline:none"/>
       <span style="font-size:0.8rem">${item.unit_cost_cents ? '$' + (item.unit_cost_cents / 100).toFixed(2) : '—'}</span>
       <select id="poi-inv-${i}" onchange="updatePoiCost(${i}); updatePoiCountUnit(${i})" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.78rem;padding:0.3rem 0.4rem;outline:none;width:100%">
-        ${receivingInventoryOptions(allInventory, null, '— Not tracked —')}
+        ${receivingInventoryOptions(allInventory, null, '— Not tracked —', true)}
       </select>
       <div class="poi-cost">
         <span>Pack:</span>
@@ -7095,9 +7095,11 @@ function renderPOItemsForReview(items) {
       </div>
       <div class="poi-cost">
         <span>Counts as:</span>
-        <input type="number" min="0" step="any" id="poi-per-${i}" aria-label="Counted units per purchased unit" />
+        <input type="number" min="0" step="any" id="poi-per-${i}" oninput="updateQuickTotal('poi', ${i})" aria-label="Counted units per purchased unit" />
         <span id="poi-per-unit-${i}">units</span>
         <span>per purchase</span>
+        <span class="derived" id="poi-total-${i}"></span>
+        <span id="poi-fix-${i}"></span>
       </div>
       <div class="poi-match" id="poi-match-${i}"></div>
     </div>`;
@@ -7145,9 +7147,12 @@ function renderPOItemsForReview(items) {
 }
 
 function updatePoiCountUnit(i) {
-  const inv = allInventory.find(v => v.id === document.getElementById('poi-inv-' + i)?.value);
+  const sel = document.getElementById('poi-inv-' + i);
+  if (sel?.value === '__new__') { sel.value = ''; updatePoiCost(i); updateQuickTotal('poi', i); return openQuickItem('poi', i, 'new'); }
+  const inv = allInventory.find(v => v.id === sel?.value);
   const el = document.getElementById('poi-per-unit-' + i);
   if (el) el.textContent = inv?.unit || 'units';
+  updateQuickTotal('poi', i);
 }
 
 // Vendors reword the same product constantly ("Sprite Zero 12pk" vs "Sprite Zero
@@ -7267,20 +7272,26 @@ async function openEmailOrderReview(poId) {
     return `<div class="poi-row" style="grid-template-columns:1fr;gap:0.4rem;margin-bottom:0.6rem">
       <div style="font-size:0.85rem"><strong>${escHtml(it.raw_name)}</strong> <span style="color:var(--gray-mid)">× ${it.quantity}${it.unit_cost_cents ? ' · $' + (it.unit_cost_cents / 100).toFixed(2) : ''}</span></div>
       <select id="er-inv-${i}" onchange="updateEmailReviewUnit(${i})" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.8rem;padding:0.35rem 0.5rem;width:100%">
-        ${receivingInventoryOptions(allInventory, it.inventory_id, '— Not tracked —')}
+        ${receivingInventoryOptions(allInventory, it.inventory_id, '— Not tracked —', true)}
       </select>
       <div class="poi-cost"><span>One purchase adds:</span>
-        <input type="number" min="0" step="any" id="er-per-${i}" value="${it.counted_per_purchase ?? ''}" aria-label="Counted units per purchase"/>
+        <input type="number" min="0" step="any" id="er-per-${i}" value="${it.counted_per_purchase ?? ''}" oninput="updateQuickTotal('er', ${i})" aria-label="Counted units per purchase"/>
         <span id="er-unit-${i}">${escHtml(inv?.unit || 'units')}</span>
+        <span class="derived" id="er-total-${i}"></span>
+        <span id="er-fix-${i}"></span>
       </div>
     </div>`;
   }).join('') || '<div class="usage-muted">This order has no items.</div>';
+  items.forEach((_, i) => updateQuickTotal('er', i));
   openModal('email-review-modal');
 }
 
 function updateEmailReviewUnit(i) {
-  const inv = allInventory.find(v => v.id === document.getElementById('er-inv-' + i).value);
+  const sel = document.getElementById('er-inv-' + i);
+  if (sel.value === '__new__') { sel.value = ''; updateQuickTotal('er', i); return openQuickItem('er', i, 'new'); }
+  const inv = allInventory.find(v => v.id === sel.value);
   document.getElementById('er-unit-' + i).textContent = inv?.unit || 'units';
+  updateQuickTotal('er', i);
 }
 
 async function saveEmailOrderReview() {
@@ -7310,6 +7321,121 @@ async function saveEmailOrderReview() {
   if (error) return fail('Error: ' + error.message);
   closeModal('email-review-modal');
   await loadPurchases();
+}
+
+// ── Track a purchased product in its exact units ──
+// "Cups, 500 pack × 4" should add 2,000 cups, not 4 cases. From a receipt or
+// email line you can add the product as a new inventory item counted in its own
+// units (cups, cookies), or switch an existing item that is counted in cases or
+// bags over to exact units (counting by eye stays in cases/bags).
+let quickItem = null; // { prefix, i, mode, invId }
+
+// What one purchase holds, read from the name: "500 pack" -> 500 cups,
+// "320 ct case" -> 320 cookies. Only a starting suggestion.
+function guessPackFromName(name) {
+  const n = String(name || '');
+  const m = n.match(/(\d[\d,]*)\s*[- ]?\s*(?:pack|pk|ct|count|pcs|pieces)\b/i) || n.match(/\b(?:pack|case|box) of (\d[\d,]*)/i);
+  const unit = (n.match(/\b(cup|lid|cookie|straw|sleeve|napkin|bag|bottle|can|bar|muffin)s?\b/i) || [])[1];
+  return { count: m ? Number(m[1].replace(/,/g, '')) : null, unit: unit ? unit.toLowerCase() + 's' : 'each' };
+}
+
+function quickLine(prefix, i) {
+  const poi = prefix === 'poi';
+  const sel = document.getElementById(prefix + '-inv-' + i);
+  const inv = allInventory.find(v => v.id === sel?.value);
+  const emailLine = poi ? null : allPurchaseOrders.find(p => p.id === reviewPoId)?.purchase_order_items?.[i];
+  return {
+    sel, inv,
+    raw: (poi ? currentParsedReceipt?.items?.[i]?.name : emailLine?.raw_name) || '',
+    purchases: poi ? parseFloat(document.getElementById('poi-qty-' + i)?.value) : Number(emailLine?.quantity),
+  };
+}
+
+const isExactUnit = inv => !!inv && !(Number(inv.count_unit_size) > 0)
+  && !!inv.base_unit && String(inv.unit || '').trim().toLowerCase() === inv.base_unit.trim().toLowerCase();
+
+// "× 4 purchases = 2,000 cups" under the field, and the switch-to-exact link.
+function updateQuickTotal(prefix, i) {
+  const { inv, purchases } = quickLine(prefix, i);
+  const per = parseFloat(document.getElementById(prefix + '-per-' + i)?.value);
+  const out = document.getElementById(prefix + '-total-' + i);
+  if (out) out.textContent = inv && per > 0 && purchases > 0
+    ? `× ${purchases} = ${Number((per * purchases).toFixed(2)).toLocaleString()} ${inv.unit || 'units'}` : '';
+  const fix = document.getElementById(prefix + '-fix-' + i);
+  if (fix) fix.innerHTML = inv && !isExactUnit(inv)
+    ? `<button type="button" class="btn btn-ghost btn-sm" style="padding:0.1rem 0.5rem;font-size:0.7rem" onclick="openQuickItem('${prefix}', ${i}, 'convert')">Count in exact units…</button>` : '';
+}
+
+function openQuickItem(prefix, i, mode) {
+  const { inv, raw } = quickLine(prefix, i);
+  const guess = guessPackFromName(raw);
+  quickItem = { prefix, i, mode, invId: mode === 'convert' ? inv?.id : null };
+  const convert = mode === 'convert';
+  document.getElementById('quick-item-title').textContent = convert ? `Count ${inv.name} in exact units` : 'Add as a new inventory item';
+  document.getElementById('quick-item-name-wrap').hidden = convert;
+  document.getElementById('quick-item-cat-wrap').hidden = convert;
+  document.getElementById('quick-item-size-wrap').hidden = !convert;
+  document.getElementById('quick-item-name').value = raw.replace(/\s*[,(-]?\s*\d[\d,]*\s*(?:pack|pk|ct|count)\b.*$/i, '').trim() || raw;
+  document.getElementById('quick-item-cat').value = /cookie|muffin|bar\b/i.test(raw) ? 'baked_goods' : /cup|lid|straw|napkin|sleeve/i.test(raw) ? 'supplies' : (inv?.category || 'supplies');
+  document.getElementById('quick-item-unit').value = convert ? (inv.base_unit || guess.unit) : guess.unit;
+  document.getElementById('quick-item-per').value = guess.count ?? '';
+  document.getElementById('quick-item-size').value = convert ? (Number(inv.base_units_per_unit) > 0 ? inv.base_units_per_unit : (guess.count ?? '')) : '';
+  document.getElementById('quick-item-size-label').textContent = convert ? `One ${inv.unit || 'unit'} of ${inv.name} is how many?` : '';
+  document.getElementById('quick-item-help').textContent = convert
+    ? `Stock will be kept as an exact number. Today’s count of ${Number(inv.quantity)} ${inv.unit} is converted, and you can still count by eye in ${inv.unit}.`
+    : 'Stock is kept as an exact number in this unit. Add the item’s starting count later from Inventory.';
+  document.getElementById('quick-item-msg').style.display = 'none';
+  document.getElementById('quick-item-save').disabled = false;
+  openModal('quick-item-modal');
+}
+
+async function saveQuickItem() {
+  const q = quickItem;
+  if (!q) return;
+  const msg = document.getElementById('quick-item-msg');
+  const fail = t => { msg.textContent = t; msg.style.display = 'block'; };
+  const unit = document.getElementById('quick-item-unit').value.trim();
+  const per = parseFloat(document.getElementById('quick-item-per').value);
+  if (!unit) return fail('Say what to count it in — cups, cookies, each.');
+  if (!(per > 0)) return fail('Say how many one purchase adds.');
+  const btn = document.getElementById('quick-item-save');
+  btn.disabled = true;
+  let invId = q.invId;
+  if (q.mode === 'new') {
+    const name = document.getElementById('quick-item-name').value.trim();
+    if (!name) { btn.disabled = false; return fail('Give the item a name.'); }
+    const { data, error } = await sb.from('inventory').insert({
+      name, category: document.getElementById('quick-item-cat').value, quantity: 0, par_level: 0,
+      unit, base_unit: unit, base_units_per_unit: 1, created_by: currentUser.id,
+    }).select().single();
+    if (error) { btn.disabled = false; return fail('Error: ' + error.message); }
+    invId = data.id;
+  } else {
+    const size = parseFloat(document.getElementById('quick-item-size').value);
+    if (!(size > 0)) { btn.disabled = false; return fail('Say how many are in one of them.'); }
+    const inv = allInventory.find(v => v.id === invId);
+    // Recipes are written in the item's recipe unit, so changing it is only for
+    // items nothing measures yet.
+    if (inv.base_unit && inv.base_unit.trim().toLowerCase() !== unit.toLowerCase()
+      && !confirm(`Recipes measure ${inv.name} in ${inv.base_unit}. Switch that to ${unit}? Only do this if nothing is linked to it in Usage Setup.`)) { btn.disabled = false; return; }
+    const patch = { base_unit: unit, base_units_per_unit: size };
+    if (inv.base_unit && inv.base_unit.trim().toLowerCase() !== unit.toLowerCase()) Object.assign(patch, { pack_size: null, cost_per_base_unit_cents: null, cost_updated_at: null });
+    const upd = await sb.from('inventory').update(patch).eq('id', invId);
+    if (upd.error) { btn.disabled = false; return fail('Error: ' + upd.error.message); }
+    const { data, error } = await sb.rpc('convert_inventory_to_base_units', { p_ids: [invId] });
+    if (error) { btn.disabled = false; return fail(`Couldn’t convert: ${error.message}. If that mentions a missing function or column, run supabase/migrations/20260926_inventory_base_units.sql.`); }
+    if (data?.skipped?.length) { btn.disabled = false; return fail(`Couldn’t convert: ${data.skipped[0].reason}.`); }
+  }
+  await loadInventory();
+  // Every picker on screen learns about the new item; this line selects it.
+  for (const sel of document.querySelectorAll(`select[id^="${q.prefix}-inv-"]`)) {
+    const idx = sel.id.slice((q.prefix + '-inv-').length);
+    sel.innerHTML = receivingInventoryOptions(allInventory, idx == q.i ? invId : sel.value, '— Not tracked —', true);
+    if (idx == q.i) sel.value = invId;
+  }
+  document.getElementById(q.prefix + '-per-' + q.i).value = per;
+  if (q.prefix === 'poi') { updatePoiCost(q.i); updatePoiCountUnit(q.i); } else updateEmailReviewUnit(q.i);
+  closeModal('quick-item-modal');
 }
 
 // What the email reader did with each email it was sent, newest first.
@@ -9079,6 +9205,46 @@ function renderUsageConversions(ctx, gapsOnly) {
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('receipt-modal')">Cancel</button>
       <button class="btn btn-primary" onclick="savePurchaseOrder()">Save Purchase Order</button>
+    </div>
+  </div>
+</div>
+
+<!-- Purchases: add a product to inventory in its exact units (after the modals it opens from, so it stacks on top) -->
+<div class="modal-overlay" id="quick-item-modal" role="dialog" aria-modal="true" aria-labelledby="quick-item-title">
+  <div class="modal" style="max-width:460px">
+    <button class="modal-close" onclick="closeModal('quick-item-modal')" aria-label="Close">✕</button>
+    <h2 class="modal-title" id="quick-item-title" style="font-weight:normal">Add as a new inventory item</h2>
+    <p class="usage-help" id="quick-item-help"></p>
+    <div class="form-group" id="quick-item-name-wrap">
+      <label class="form-label" for="quick-item-name">Item name</label>
+      <input class="form-input" id="quick-item-name" />
+    </div>
+    <div class="form-group" id="quick-item-cat-wrap">
+      <label class="form-label" for="quick-item-cat">Category</label>
+      <select class="form-input" id="quick-item-cat">
+        <option value="cold_drinks">Cold Drinks</option>
+        <option value="hot_drinks">Hot Drinks</option>
+        <option value="flavors">Flavors &amp; Syrups</option>
+        <option value="supplies">Supplies</option>
+        <option value="baked_goods">Baked Goods</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="quick-item-unit">Count it in <span style="color:var(--gray-mid);text-transform:none;font-weight:400">(cups, cookies, each, oz)</span></label>
+      <input class="form-input" id="quick-item-unit" placeholder="e.g. cups" />
+    </div>
+    <div class="form-group" id="quick-item-size-wrap" hidden>
+      <label class="form-label" for="quick-item-size" id="quick-item-size-label"></label>
+      <input class="form-input" id="quick-item-size" type="number" min="0" step="any" />
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="quick-item-per">One purchase adds <span style="color:var(--gray-mid);text-transform:none;font-weight:400">(a 500 pack = 500)</span></label>
+      <input class="form-input" id="quick-item-per" type="number" min="0" step="any" />
+    </div>
+    <div id="quick-item-msg" style="display:none;font-size:0.78rem;color:var(--danger);margin-top:0.5rem"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('quick-item-modal')">Cancel</button>
+      <button class="btn btn-primary" id="quick-item-save" onclick="saveQuickItem()">Save</button>
     </div>
   </div>
 </div>
