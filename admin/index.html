@@ -667,6 +667,9 @@
       <button type="button" class="nav-item" onclick="showSection('sales-growth')" id="nav-sales-growth">
         <span class="nav-icon" aria-hidden="true">📊</span><span class="nav-label"> Sales Growth</span>
       </button>
+      <button type="button" class="nav-item" onclick="showSection('profit-loss')" id="nav-profit-loss">
+        <span class="nav-icon" aria-hidden="true">💰</span><span class="nav-label"> Profit &amp; Loss</span>
+      </button>
     </div>
   </div>
 
@@ -1557,6 +1560,34 @@
     </p>
   </div>
 
+  <div class="section-panel" id="section-profit-loss">
+    <div class="page-header">
+      <h1>Profit &amp; Loss</h1>
+      <p>Revenue against what we spend, month by month through the school year</p>
+    </div>
+    <div style="display:flex;gap:0.75rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
+      <label for="pnl-year" class="form-label" style="margin:0">School year</label>
+      <select class="form-input" id="pnl-year" style="width:auto" onchange="setPnlYear(this.value)"></select>
+    </div>
+    <div id="pnl-error" class="usage-empty" style="display:none;color:var(--danger);text-align:left;margin-bottom:1rem"></div>
+    <div class="table-wrap"><table id="pnl-table" style="min-width:820px"></table></div>
+    <p class="usage-help" id="pnl-notes" style="margin-top:0.75rem"></p>
+    <p class="usage-help">Two views of cost sit side by side. <strong>Cost of goods sold</strong> is what the food and supplies we sold cost, from recipes and the latest receipt prices. <strong>Purchases</strong> is what receipts say we bought that month. The difference is waste, comps, items not yet linked to recipes, and stock building up. Recipe costs use today’s prices, and sales usage only exists from when each deduction switch was turned on, so older months can read low. Months marked * are still in progress.</p>
+
+    <div class="usage-group-title">Other expenses <span>(equipment, training, anything not on a receipt)</span></div>
+    <div style="display:grid;grid-template-columns:140px 130px 1fr 110px auto;gap:0.5rem;align-items:center;margin-bottom:0.5rem">
+      <input class="form-input" id="pnl-exp-date" type="date" aria-label="Date"/>
+      <select class="form-input" id="pnl-exp-cat" aria-label="Category">
+        <option value="equipment">Equipment</option><option value="training">Training</option><option value="labor">Labor</option><option value="fees">Fees</option><option value="other">Other</option>
+      </select>
+      <input class="form-input" id="pnl-exp-desc" placeholder="What was it?" aria-label="Description"/>
+      <input class="form-input" id="pnl-exp-amount" type="number" min="0" step="0.01" placeholder="Amount $" aria-label="Amount"/>
+      <button class="btn btn-primary btn-sm" onclick="addExpense()">Add</button>
+    </div>
+    <div id="pnl-exp-msg" style="font-size:0.78rem;color:var(--danger);margin-bottom:0.5rem" role="alert"></div>
+    <div id="pnl-expense-list"></div>
+  </div>
+
   <div class="section-panel" id="section-library-split">
     <div class="page-header">
       <h1>Library Profit Split</h1>
@@ -2257,6 +2288,7 @@ function showSection(id) {
     'product-performance': initProductPerformance,
     'library-split': initLibrarySplit,
     'sales-growth': initSalesGrowth,
+    'profit-loss': initProfitLoss,
     'closed-days': loadClosedDays,
     reviews: loadReviews,
     'peer-evals': () => loadAdminPeerEvals(0),
@@ -5455,6 +5487,7 @@ function sgPctHtml(p) {
 function sgYearLabel(sy) { return `${sy}–${String(sy + 1).slice(2)}`; }
 
 function renderSalesGrowth() {
+  if (pnlYear != null && document.getElementById('section-profit-loss')?.classList.contains('active')) renderProfitLoss();
   const months = sgMonthList();
   const years = [...new Set(months.map(m => m.schoolYear))];
   const cell = {}; // `${schoolYear}-${slot}` -> { cents, complete }
@@ -7251,6 +7284,144 @@ async function savePurchaseOrder() {
   await loadPurchases();
   // Already on the shelf: go straight to confirming what came in.
   if (alreadyHere) openPurchaseReceive(po.id);
+}
+
+// ════════════════════════════════════
+// Profit & Loss (by school-year month)
+// ════════════════════════════════════
+// Revenue comes from the Sales Growth data (Square in-store and online, plus the
+// app). Two views of cost sit side by side: what the food and supplies we SOLD
+// cost (recipes x latest receipt prices) and what receipts say we BOUGHT. The gap
+// between them is waste, unlinked items and stock building up. Other costs
+// (equipment, training...) are typed in below the table.
+const PNL_CATEGORIES = { equipment: 'Equipment', training: 'Training', labor: 'Labor', fees: 'Fees', other: 'Other' };
+let pnlYear = null;
+let pnlCogs = {};      // 'YYYY-M' -> { cost, lines, uncosted }
+let pnlPurchases = {}; // 'YYYY-M' -> cents
+let pnlExpenses = [];  // business_expenses rows in the year
+let pnlError = '';
+let pnlLoadedYear = null;
+
+const pnlKey = d => { const [y, m] = String(d).slice(0, 10).split('-').map(Number); return `${y}-${m - 1}`; };
+const pnlMoney = c => (c < 0 ? '−$' : '$') + Math.abs(Math.round(c / 100)).toLocaleString('en-US');
+const pnlMonthName = m => SG_MONTH_NAMES[Number(m.key.split('-')[1])];
+
+function initProfitLoss() {
+  if (!Object.keys(sgData).length && !sgLoading) loadSalesGrowth(false);
+  if (pnlYear == null) pnlYear = Math.max(...sgMonthList().map(m => m.schoolYear));
+  if (pnlLoadedYear !== pnlYear) loadProfitLoss();
+  else renderProfitLoss();
+}
+
+function setPnlYear(y) { pnlYear = Number(y); loadProfitLoss(); }
+
+async function loadProfitLoss() {
+  const months = sgMonthList().filter(m => m.schoolYear === pnlYear);
+  if (!months.length) return;
+  const from = months[0].start.toISOString();
+  const to = months[months.length - 1].end.toISOString();
+  const fromDate = from.slice(0, 10), toDate = to.slice(0, 10);
+  pnlError = '';
+  const [cogs, orders, expenses] = await Promise.all([
+    sb.rpc('pnl_monthly_cogs', { p_from: from, p_to: to }),
+    sb.from('purchase_orders').select('order_date, total_cents, purchase_order_items(quantity, unit_cost_cents)')
+      .gte('order_date', fromDate).lt('order_date', toDate),
+    sb.from('business_expenses').select('*').gte('expense_date', fromDate).lt('expense_date', toDate).order('expense_date'),
+  ]);
+  if (cogs.error) pnlError = `Couldn’t work out cost of goods sold: ${cogs.error.message}. If that mentions a missing function, run supabase/migrations/20261007_profit_loss.sql in the Supabase SQL editor.`;
+  if (expenses.error) pnlError ||= `Couldn’t load expenses: ${expenses.error.message}. Run supabase/migrations/20261007_profit_loss.sql in the Supabase SQL editor.`;
+  pnlCogs = {};
+  (cogs.data || []).forEach(r => { pnlCogs[pnlKey(r.month)] = { cost: Number(r.cost_cents), lines: Number(r.lines), uncosted: Number(r.uncosted_lines) }; });
+  pnlPurchases = {};
+  (orders.data || []).forEach(o => {
+    const cents = o.total_cents ?? (o.purchase_order_items || []).reduce((s, i) => s + Math.round(Number(i.quantity) * Number(i.unit_cost_cents || 0)), 0);
+    pnlPurchases[pnlKey(o.order_date)] = (pnlPurchases[pnlKey(o.order_date)] || 0) + cents;
+  });
+  pnlExpenses = expenses.data || [];
+  pnlLoadedYear = pnlYear;
+  renderProfitLoss();
+}
+
+function renderProfitLoss() {
+  const all = sgMonthList();
+  const years = [...new Set(all.map(m => m.schoolYear))];
+  document.getElementById('pnl-year').innerHTML = years.map(y => `<option value="${y}"${y === pnlYear ? ' selected' : ''}>${sgYearLabel(y)}</option>`).join('');
+  const months = all.filter(m => m.schoolYear === pnlYear);
+  const err = document.getElementById('pnl-error');
+  err.textContent = pnlError;
+  err.style.display = pnlError ? 'block' : 'none';
+
+  const rev = (m, ch) => sgData[m.key]?.[ch] ?? null;
+  const cogs = m => pnlCogs[m.key]?.cost ?? null;
+  const other = (m, cat) => pnlExpenses.filter(e => pnlKey(e.expense_date) === m.key && (!cat || e.category === cat)).reduce((s, e) => s + e.amount_cents, 0);
+  const usedCats = Object.keys(PNL_CATEGORIES).filter(c => pnlExpenses.some(e => e.category === c));
+  const sum = fn => months.reduce((s, m) => s + (fn(m) || 0), 0);
+
+  const dash = '<span style="color:var(--gray)">—</span>';
+  const money = c => c == null ? dash : pnlMoney(c);
+  const pct = v => v == null ? dash : Math.round(v * 100) + '%';
+  const rows = [];
+  const add = (label, fn, o = {}) => {
+    const vals = months.map(fn);
+    rows.push({ label, vals, total: o.total !== undefined ? o.total : (vals.every(v => v == null) ? null : vals.reduce((s, v) => s + (v || 0), 0)), ...o });
+  };
+  add('Revenue — in-store', m => rev(m, 'inStore'), { sub: true });
+  add('Revenue — Square Online', m => rev(m, 'online'), { sub: true });
+  add('Revenue — Birdhouse app', m => rev(m, 'app'), { sub: true });
+  add('Total revenue', m => rev(m, 'total'), { strong: true });
+  add('Cost of goods sold (recipes)', cogs);
+  add('Gross profit', m => rev(m, 'total') == null || cogs(m) == null ? null : rev(m, 'total') - cogs(m), { strong: true });
+  const yearRev = sum(m => rev(m, 'total')), yearCogs = sum(cogs);
+  add('Gross margin', m => rev(m, 'total') > 0 && cogs(m) != null ? (rev(m, 'total') - cogs(m)) / rev(m, 'total') : null,
+    { pct: true, total: yearRev > 0 && yearCogs > 0 ? (yearRev - yearCogs) / yearRev : null });
+  usedCats.forEach(c => add(PNL_CATEGORIES[c], m => other(m, c) || null, { sub: true }));
+  add('Other expenses', m => other(m) || null);
+  add('Net profit (cost of goods sold)', m => rev(m, 'total') == null || cogs(m) == null ? null : rev(m, 'total') - cogs(m) - other(m), { strong: true, net: true });
+  add('Purchases (from receipts)', m => pnlPurchases[m.key] ?? null);
+  add('Purchases above recipe cost', m => pnlPurchases[m.key] != null && cogs(m) != null ? pnlPurchases[m.key] - cogs(m) : null,
+    { hint: 'Waste, unlinked items, comps, or stock building up' });
+  add('Net profit (cash basis)', m => rev(m, 'total') == null ? null : rev(m, 'total') - (pnlPurchases[m.key] || 0) - other(m), { strong: true, net: true });
+
+  const body = rows.map(r => {
+    const f = r.pct ? pct : money;
+    const style = `${r.strong ? 'font-weight:600;' : ''}${r.sub ? 'color:var(--gray-mid);' : ''}`;
+    const color = v => r.net && v != null ? `color:${v >= 0 ? 'var(--success)' : '#e57373'};` : '';
+    return `<tr style="${style}"><td style="white-space:nowrap"${r.hint ? ` title="${htmlEscape(r.hint)}"` : ''}>${htmlEscape(r.label)}</td>${r.vals.map(v => `<td style="text-align:right;${color(v)}">${f(v)}</td>`).join('')}<td style="text-align:right;font-weight:600;${color(r.total)}">${f(r.total)}</td></tr>`;
+  }).join('');
+  const head = `<thead><tr><th></th>${months.map(m => `<th style="text-align:right">${pnlMonthName(m)}${m.complete ? '' : '*'}</th>`).join('')}<th style="text-align:right">Year</th></tr></thead>`;
+  document.getElementById('pnl-table').innerHTML = head + `<tbody>${body}</tbody>`;
+
+  const thin = months.filter(m => pnlCogs[m.key]?.uncosted > 0);
+  document.getElementById('pnl-notes').innerHTML = thin.length
+    ? `<strong>Some sales used ingredients with no receipt cost yet</strong> (${thin.map(pnlMonthName).join(', ')}), so cost of goods sold is understated there. The Costs tab in Usage Setup lists what is missing.`
+    : '';
+
+  document.getElementById('pnl-expense-list').innerHTML = pnlExpenses.length
+    ? pnlExpenses.map(e => `<div class="po-row"><div style="flex:1;min-width:0"><div style="font-weight:500;font-size:0.88rem">${htmlEscape(e.description)}</div><div style="font-size:0.72rem;color:var(--gray-mid)">${e.expense_date} · ${PNL_CATEGORIES[e.category] || e.category}</div></div><div style="font-weight:600;margin-right:0.75rem">$${(e.amount_cents / 100).toFixed(2)}</div><button class="btn btn-ghost btn-sm" onclick="deleteExpense('${e.id}')" aria-label="Delete expense">🗑</button></div>`).join('')
+    : '<div class="usage-muted">No other expenses recorded for this school year.</div>';
+}
+
+async function addExpense() {
+  const date = document.getElementById('pnl-exp-date').value;
+  const desc = document.getElementById('pnl-exp-desc').value.trim();
+  const amount = Math.round(parseFloat(document.getElementById('pnl-exp-amount').value) * 100);
+  const msg = document.getElementById('pnl-exp-msg');
+  if (!date || !desc || !(amount >= 0)) { msg.textContent = 'Add a date, a description and an amount.'; return; }
+  const { error } = await sb.from('business_expenses').insert({
+    expense_date: date, description: desc, amount_cents: amount,
+    category: document.getElementById('pnl-exp-cat').value, created_by: currentUser.id,
+  });
+  if (error) { msg.textContent = 'Error: ' + error.message; return; }
+  msg.textContent = '';
+  document.getElementById('pnl-exp-desc').value = '';
+  document.getElementById('pnl-exp-amount').value = '';
+  loadProfitLoss();
+}
+
+async function deleteExpense(id) {
+  if (!confirm('Delete this expense?')) return;
+  await sb.from('business_expenses').delete().eq('id', id);
+  loadProfitLoss();
 }
 
 // ── Orders read from an email ──
