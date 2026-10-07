@@ -9157,6 +9157,10 @@ function renderUsageItemRow(s) {
 // amount when linking a step, and "Apply to linked items" rewrites links already
 // made. Only links in the same unit as the standard are touched.
 
+const usageDefaultRows = [
+  { type: 'syrup', label: 'One pump of any syrup is', amount: 0.25 },
+  { type: 'pour',  label: 'One beverage pour is', amount: 10 },
+];
 let usageStdNote = { text: '', error: false };
 function stdSay(text, error = false) {
   usageStdNote = { text, error };
@@ -9178,7 +9182,6 @@ function renderUsageStandards() {
     return `<div class="usage-empty" style="color:var(--danger);text-align:left">Standards aren’t set up yet. Run <code>supabase/migrations/20261007_usage_standards.sql</code> in the Supabase SQL editor, then reload.</div>`;
   }
   const typeLabel = t => USAGE_OPTION_TYPES.find(x => x.type === t)?.label || t;
-  const pump = usageStandards.find(s => s.option_type === 'syrup' && s.option_key === '');
   const specific = usageStandards.filter(s => s.option_key !== '')
     .sort((a, b) => typeLabel(a.option_type).localeCompare(typeLabel(b.option_type)) || a.option_key.localeCompare(b.option_key));
   const names = [...new Set(usageData.optionRows.map(o => o.option_name))].sort((a, b) => a.localeCompare(b));
@@ -9186,14 +9189,17 @@ function renderUsageStandards() {
     .map(t => `<option value="${t.type}">${htmlEscape(t.label)}</option>`).join('');
 
   return `<p class="usage-help">Define how much a pump, a pour or a scoop is once, here, instead of typing it for every item. When you link a recipe step to an inventory item the amount fills in from these. If you change one later, press <strong>Apply to linked items</strong> to update what’s already linked. Amounts are in the unit recipes measure the item in (oz, each…), and only items measured in that same unit are changed.</p>
-    <div class="usage-group-title">Flavor pumps</div>
-    <div class="usage-row"><div class="usage-adder">
-      <span>One pump of any syrup is</span>
-      <input class="form-input" id="std-pump-amt" type="number" min="0" step="any" value="${pump?.amount ?? 0.25}" style="width:6rem" aria-label="Amount per pump"/>
-      <input class="form-input" id="std-pump-unit" list="usage-unit-options" value="${htmlEscape(pump?.unit ?? 'oz')}" style="width:6rem" aria-label="Unit"/>
-      <button type="button" class="btn btn-primary btn-sm" onclick="saveUsageStandard('syrup', '', 'std-pump-amt', 'std-pump-unit')">Save</button>
-      <span class="std-say" role="status" style="font-size:0.8rem;color:${usageStdNote.error ? 'var(--danger)' : 'var(--success)'}">${htmlEscape(usageStdNote.text)}</span>
-    </div></div>
+    <div class="usage-group-title">Standard for every one <span>(unless a specific amount below overrides it)</span></div>
+    ${usageDefaultRows.map(d => {
+      const s = usageStandards.find(x => x.option_type === d.type && x.option_key === '');
+      return `<div class="usage-row"><div class="usage-adder">
+        <span>${d.label}</span>
+        <input class="form-input" id="std-${d.type}-amt" type="number" min="0" step="any" value="${s?.amount ?? d.amount ?? ''}" placeholder="Amount" style="width:6rem" aria-label="${d.label} amount"/>
+        <input class="form-input" id="std-${d.type}-unit" list="usage-unit-options" value="${htmlEscape(s?.unit ?? "oz")}" style="width:6rem" aria-label="Unit"/>
+        <button type="button" class="btn btn-primary btn-sm" onclick="saveUsageStandard('${d.type}', '', 'std-${d.type}-amt', 'std-${d.type}-unit')">Save</button>
+        <span class="std-say" role="status" style="font-size:0.8rem;color:${usageStdNote.error ? 'var(--danger)' : 'var(--success)'}">${htmlEscape(usageStdNote.text)}</span>
+      </div></div>`;
+    }).join('')}
     <div class="usage-group-title">Specific amounts <span>(creamer, a scoop, a pour…)</span></div>
     ${specific.map(s => `<div class="usage-row"><div class="usage-row-head">
         <div><div class="usage-row-name">${htmlEscape(typeLabel(s.option_type))}: ${htmlEscape(s.option_key)}</div>
