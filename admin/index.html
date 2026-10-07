@@ -9177,6 +9177,13 @@ function usageStandardFor(type, name) {
 
 const usageSameUnit = (a, b) => !!a && !!b && String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
 
+// The key is stored lower-case; show the step the way the recipe spells it, or
+// capitalize each word when no recipe uses it yet.
+function usageStandardName(s) {
+  const used = usageData.optionRows.find(o => o.option_type === s.option_type && o.option_key === s.option_key);
+  return used?.option_name || s.option_key.replace(/(^|[\s.(-])([a-z])/g, (_, a, b) => a + b.toUpperCase());
+}
+
 function renderUsageStandards() {
   if (usageStandards === null) {
     return `<div class="usage-empty" style="color:var(--danger);text-align:left">Standards aren’t set up yet. Run <code>supabase/migrations/20261007_usage_standards.sql</code> in the Supabase SQL editor, then reload.</div>`;
@@ -9202,7 +9209,7 @@ function renderUsageStandards() {
     }).join('')}
     <div class="usage-group-title">Specific amounts <span>(creamer, a scoop, a pour…)</span></div>
     ${specific.map(s => `<div class="usage-row"><div class="usage-row-head">
-        <div><div class="usage-row-name">${htmlEscape(typeLabel(s.option_type))}: ${htmlEscape(s.option_key)}</div>
+        <div><div class="usage-row-name">${htmlEscape(typeLabel(s.option_type))}: ${htmlEscape(usageStandardName(s))}</div>
           <div class="usage-row-sub">${fmtUsageQty(s.amount)} ${htmlEscape(s.unit)} each time</div></div>
         <button type="button" class="btn btn-ghost btn-sm" onclick="deleteUsageStandard('${s.id}')" aria-label="Remove standard">✕</button>
       </div></div>`).join('') || '<div class="usage-muted" style="margin-bottom:0.6rem">None yet. Add one below.</div>'}
