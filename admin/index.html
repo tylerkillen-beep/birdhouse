@@ -8601,6 +8601,7 @@ async function loadUsageSetup() {
 
 function setUsageTab(tab) {
   usageTab = tab;
+  usageStdNote = { text: '', error: false };
   usageAdder = null;
   document.querySelectorAll('[data-usage-tab]').forEach(b => {
     const on = b.dataset.usageTab === tab;
@@ -9156,6 +9157,12 @@ function renderUsageItemRow(s) {
 // amount when linking a step, and "Apply to linked items" rewrites links already
 // made. Only links in the same unit as the standard are touched.
 
+let usageStdNote = { text: '', error: false };
+function stdSay(text, error = false) {
+  usageStdNote = { text, error };
+  document.querySelectorAll('.std-say').forEach(el => { el.textContent = text; el.style.color = error ? 'var(--danger)' : 'var(--success)'; });
+}
+
 function usageStandardFor(type, name) {
   if (!usageStandards) return null;
   const key = String(name || '').trim().toLowerCase();
@@ -9185,6 +9192,7 @@ function renderUsageStandards() {
       <input class="form-input" id="std-pump-amt" type="number" min="0" step="any" value="${pump?.amount ?? 0.25}" style="width:6rem" aria-label="Amount per pump"/>
       <input class="form-input" id="std-pump-unit" list="usage-unit-options" value="${htmlEscape(pump?.unit ?? 'oz')}" style="width:6rem" aria-label="Unit"/>
       <button type="button" class="btn btn-primary btn-sm" onclick="saveUsageStandard('syrup', '', 'std-pump-amt', 'std-pump-unit')">Save</button>
+      <span class="std-say" role="status" style="font-size:0.8rem;color:${usageStdNote.error ? 'var(--danger)' : 'var(--success)'}">${htmlEscape(usageStdNote.text)}</span>
     </div></div>
     <div class="usage-group-title">Specific amounts <span>(creamer, a scoop, a pour…)</span></div>
     ${specific.map(s => `<div class="usage-row"><div class="usage-row-head">
@@ -9200,7 +9208,7 @@ function renderUsageStandards() {
       <input class="form-input" id="std-new-unit" list="usage-unit-options" value="oz" aria-label="Unit" style="width:6rem"/>
       <button type="button" class="btn btn-primary btn-sm" onclick="addUsageStandard()">Add</button>
     </div>
-    <div class="usage-adder-msg" id="std-msg" role="alert"></div>
+    <div class="usage-adder-msg std-say" role="status" style="color:${usageStdNote.error ? 'var(--danger)' : 'var(--success)'}">${htmlEscape(usageStdNote.text)}</div>
     <div class="usage-actions" style="margin-top:1.25rem">
       <button type="button" class="btn btn-ghost btn-sm" onclick="applyUsageStandards()">Apply to linked items…</button>
     </div>
@@ -9208,27 +9216,27 @@ function renderUsageStandards() {
 }
 
 async function saveUsageStandard(type, key, amtId, unitId) {
-  const msg = document.getElementById('std-msg');
   const amount = parseFloat(document.getElementById(amtId).value);
   const unit = document.getElementById(unitId).value.trim();
-  if (!(amount > 0) || !unit) { msg.textContent = 'Give an amount above 0 and a unit.'; return false; }
+  if (!(amount > 0) || !unit) { stdSay('Give an amount above 0 and a unit.', true); return false; }
   const { error } = await sb.from('usage_standards').upsert(
     { option_type: type, option_key: key, amount, unit, updated_by: currentUser.id, updated_at: new Date().toISOString() },
     { onConflict: 'option_type,option_key' });
-  if (error) { msg.textContent = 'Error: ' + error.message; return false; }
+  if (error) { stdSay('Couldn’t save: ' + error.message, true); return false; }
+  usageStdNote = { text: 'Saved ✓', error: false };
   await loadUsageSetup();
   return true;
 }
 
 async function addUsageStandard() {
   const name = document.getElementById('std-new-name').value.trim();
-  if (!name) { document.getElementById('std-msg').textContent = 'Say which step this is for.'; return; }
+  if (!name) { stdSay('Say which step this is for.', true); return; }
   await saveUsageStandard(document.getElementById('std-new-type').value, name.toLowerCase(), 'std-new-amt', 'std-new-unit');
 }
 
 async function deleteUsageStandard(id) {
   const { error } = await sb.from('usage_standards').delete().eq('id', id);
-  if (error) { document.getElementById('std-msg').textContent = 'Error: ' + error.message; return; }
+  if (error) { stdSay('Couldn’t remove: ' + error.message, true); return; }
   await loadUsageSetup();
 }
 
