@@ -1274,6 +1274,7 @@
         <button class="inv-cat-btn" data-usage-tab="options" onclick="setUsageTab('options')" aria-pressed="false">Recipe Options</button>
         <button class="inv-cat-btn" data-usage-tab="addons" onclick="setUsageTab('addons')" aria-pressed="false">Add-ons</button>
         <button class="inv-cat-btn" data-usage-tab="conversions" onclick="setUsageTab('conversions')" aria-pressed="false">Units</button>
+        <button class="inv-cat-btn" data-usage-tab="costs" onclick="setUsageTab('costs')" aria-pressed="false">Costs</button>
       </div>
       <div style="display:flex;gap:1rem;flex-wrap:wrap">
         <label class="usage-toggle"><input type="checkbox" id="usage-gaps-only" onchange="renderUsageSetup()"/> Only what needs setup</label>
@@ -8603,7 +8604,7 @@ function renderUsageSetup() {
   }).join('');
 
   const gapsOnly = document.getElementById('usage-gaps-only').checked;
-  const render = { items: renderUsageItems, options: renderUsageOptions, addons: renderUsageAddons, conversions: renderUsageConversions }[usageTab];
+  const render = { items: renderUsageItems, options: renderUsageOptions, addons: renderUsageAddons, conversions: renderUsageConversions, costs: renderUsageCosts }[usageTab];
   document.getElementById('usage-content').innerHTML = render(ctx, gapsOnly);
 }
 
@@ -8950,6 +8951,55 @@ function renderUsageItemRow(s) {
     ${usageItemNeedsSuggestion(s) ? usageSuggestionHtml({ kind: 'item', key: 'item|' + item.id, id: item.id, name: item.name }, 'per sale') : ''}
     <div class="usage-actions">${usageAdderHtml({ kind: 'item', key: 'item|' + item.id, id: item.id }, 'Always uses…', 'per sale')}${noStockBtn}</div>
   </div>`;
+}
+
+// ── Costs tab ──
+// What one plain sale of each item costs us: its recipe/"always uses" amounts
+// times each ingredient's latest receipt cost. Add-ons a customer picks are extra.
+// Anything without a receipt cost yet is named, because a partial total reads as
+// "cheap" when it really means "unknown".
+function usageItemCost(item) {
+  const uses = usageData.preview.filter(u => u.menu_item_id === item.id);
+  let cents = 0;
+  const missing = [];
+  uses.forEach(u => {
+    const inv = usageInv(u.inventory_id);
+    const c = inv?.cost_per_base_unit_cents;
+    if (c == null) missing.push(inv?.name || 'Unknown item'); else cents += Number(c) * Number(u.amount);
+  });
+  return { cents, missing: [...new Set(missing)], hasUses: uses.length > 0 };
+}
+
+function renderUsageCosts(ctx, gapsOnly) {
+  const showHidden = document.getElementById('usage-show-hidden').checked;
+  const money = c => '$' + (c / 100).toFixed(2);
+  const rows = ctx.items.filter(s => showHidden || s.item.available === true).map(s => {
+    const price = Math.round(Number(s.item.price || 0) * 100);
+    const cost = usageItemCost(s.item);
+    const state = !cost.hasUses ? 'none' : cost.missing.length ? 'partial' : 'full';
+    return { item: s.item, price, cost, state };
+  }).filter(r => !gapsOnly || r.state !== 'full');
+  const full = rows.filter(r => r.state === 'full').length;
+  const intro = `<p class="usage-help">What one plain sale of each item costs us: the recipe amounts times each ingredient’s latest receipt cost. Add-ons are extra. An item is only trustworthy once every ingredient has a cost — load receipts for the ones listed, and link cups, lids and sleeves under Usage so they’re counted. <strong>${full} of ${rows.length}</strong> shown are fully costed.</p>`;
+  if (!rows.length) return intro + usageEmpty(gapsOnly ? 'Every menu item is fully costed.' : 'No menu items to show.');
+  const byCategory = new Map();
+  rows.forEach(r => { const cat = r.item.category || 'Other'; if (!byCategory.has(cat)) byCategory.set(cat, []); byCategory.get(cat).push(r); });
+  return intro + [...byCategory].map(([cat, list]) => `<div class="usage-group-title">${htmlEscape(cat)}</div>` + list.map(r => {
+    const { item, price, cost, state } = r;
+    const profit = price - cost.cents;
+    const margin = price > 0 ? Math.round(profit / price * 100) : null;
+    const figures = state === 'none'
+      ? '<span class="usage-muted">Nothing linked yet</span>'
+      : `Cost ${money(cost.cents)}${state === 'partial' ? '+' : ''} · Price ${money(price)} · Profit ${state === 'partial' ? '≥ ' : ''}${money(profit)}${margin != null ? ` (${margin}%${state === 'partial' ? ' at most' : ''})` : ''}`;
+    const note = state === 'partial' ? `<div class="usage-row-sub">No cost yet for: ${htmlEscape(cost.missing.join(', '))}</div>` : '';
+    return `<div class="usage-row">
+      <div class="usage-row-head">
+        <div><div class="usage-row-name">${htmlEscape(item.name)}${item.available === true ? '' : ' <span class="usage-muted">(hidden)</span>'}</div>
+          <div class="usage-row-sub">${figures}</div>${note}</div>
+        ${usageStatusHtml(state === 'full', '✓ Costed', state === 'partial' ? 'Missing costs' : 'Not set up')}
+      </div>
+    </div>`;
+  }).join('')).join('');
 }
 
 // ── Recipe Options tab ──
