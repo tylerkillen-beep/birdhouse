@@ -8974,7 +8974,7 @@ function renderUsageCosts(ctx, gapsOnly) {
   const showHidden = document.getElementById('usage-show-hidden').checked;
   const money = c => '$' + (c / 100).toFixed(2);
   const rows = ctx.items.filter(s => showHidden || s.item.available === true).map(s => {
-    const price = Math.round(Number(s.item.price || 0) * 100);
+    const price = s.item.base_price_cents ?? Math.round((parseFloat(s.item.base_price) || 0) * 100);
     const cost = usageItemCost(s.item);
     const state = !cost.hasUses ? 'none' : cost.missing.length ? 'partial' : 'full';
     return { item: s.item, price, cost, state };
