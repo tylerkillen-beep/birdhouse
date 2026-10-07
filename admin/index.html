@@ -8831,6 +8831,8 @@ function usageAdderHtml(target, buttonLabel, perText) {
     <label class="visually-hidden" for="usage-adder-amt">Amount</label>
     <input class="form-input" id="usage-adder-amt" type="number" min="0" step="any" value="1"/>
     <span class="usage-adder-unit" id="usage-adder-unit" data-per="${htmlEscape(perText)}">${htmlEscape(perText)}</span>
+    <input class="form-input" id="usage-adder-baseunit" list="usage-unit-options" placeholder="unit, e.g. oz" aria-label="Unit this item is measured in" style="display:none;width:9rem"/>
+    <datalist id="usage-unit-options"><option value="oz"></option><option value="each"></option><option value="pump"></option><option value="g"></option></datalist>
     <button type="button" class="btn btn-primary btn-sm" onclick="saveUsageAdder()">Add</button>
     <button type="button" class="btn btn-ghost btn-sm" onclick="closeUsageAdder()">Cancel</button>
     <div class="usage-adder-msg" id="usage-adder-msg" role="alert"></div>
@@ -8852,6 +8854,12 @@ function updateUsageAdderUnit() {
   const inv = usageInv(document.getElementById('usage-adder-inv').value);
   const el = document.getElementById('usage-adder-unit');
   el.textContent = inv ? `${usageUnit(inv)} ${el.dataset.per}` : el.dataset.per;
+  // An item nobody has given a recipe unit yet reads "units", which says nothing
+  // about whether 1 means an ounce or a bottle -- so ask for it right here.
+  const needsUnit = !!inv && !inv.base_unit;
+  const unitBox = document.getElementById('usage-adder-baseunit');
+  unitBox.style.display = needsUnit ? '' : 'none';
+  if (needsUnit) el.textContent = `← what is ${inv.name} measured in? (${el.dataset.per})`;
 }
 
 async function saveUsageAdder() {
@@ -8862,6 +8870,14 @@ async function saveUsageAdder() {
   const amount = parseFloat(document.getElementById('usage-adder-amt').value);
   if (!invId) { msg.textContent = 'Pick an inventory item.'; return; }
   if (!(amount > 0)) { msg.textContent = 'The amount has to be more than 0.'; return; }
+  const inv = usageInv(invId);
+  if (inv && !inv.base_unit) {
+    const unit = document.getElementById('usage-adder-baseunit').value.trim();
+    if (!unit) { msg.textContent = `Say what ${inv.name} is measured in (oz, each, pump…) so the amount means something.`; return; }
+    const { error: unitErr } = await sb.from('inventory').update({ base_unit: unit }).eq('id', invId);
+    if (unitErr) { msg.textContent = 'Error: ' + unitErr.message; return; }
+    msg.textContent = '';
+  }
   const spec = usageUpsertSpec(t, invId, amount);
   const { error } = await sb.from(spec.table).upsert(spec.row, { onConflict: spec.onConflict });
   if (error) { msg.textContent = 'Error: ' + error.message; return; }
