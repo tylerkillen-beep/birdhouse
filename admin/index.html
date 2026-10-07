@@ -1278,6 +1278,7 @@
         <button class="inv-cat-btn" data-usage-tab="addons" onclick="setUsageTab('addons')" aria-pressed="false">Add-ons</button>
         <button class="inv-cat-btn" data-usage-tab="conversions" onclick="setUsageTab('conversions')" aria-pressed="false">Units</button>
         <button class="inv-cat-btn" data-usage-tab="costs" onclick="setUsageTab('costs')" aria-pressed="false">Costs</button>
+        <button class="inv-cat-btn" data-usage-tab="standards" onclick="setUsageTab('standards')" aria-pressed="false">Standards</button>
       </div>
       <div style="display:flex;gap:1rem;flex-wrap:wrap">
         <label class="usage-toggle"><input type="checkbox" id="usage-gaps-only" onchange="renderUsageSetup()"/> Only what needs setup</label>
@@ -8525,6 +8526,7 @@ const USAGE_LINK_TABLES = { option: 'recipe_option_ingredients', item: 'menu_ite
 const USAGE_INV_CATEGORIES = { cold_drinks: 'Cold Drinks', hot_drinks: 'Hot Drinks', flavors: 'Flavors & Syrups', supplies: 'Supplies', baked_goods: 'Baked Goods' };
 
 let usageData = null;
+let usageStandards = []; // usage_standards rows, or null before 20261007_usage_standards.sql is run
 let usageDeduct = null;  // inventory_settings row, or { missing: true } before the phase 2 migration
 let usageUnmatched = 0;  // register sale lines in the last 30 days that matched no menu item
 let usageTab = 'items';
@@ -8583,6 +8585,8 @@ async function loadUsageSetup() {
   allInventory = inventory;
   allMenuItems = menuItems;
   // Its own query so a site that hasn't run the phase 2 migration yet still loads.
+  const standards = await sb.from('usage_standards').select('*');
+  usageStandards = standards.error ? null : (standards.data || []);
   const settings = await sb.from('inventory_settings').select('*').maybeSingle();
   usageDeduct = settings.error ? { missing: true } : (settings.data || { deduct_orders: false });
   const unmatched = await sb.from('square_line_usage').select('square_order_id', { count: 'exact', head: true })
@@ -8775,7 +8779,7 @@ function renderUsageSetup() {
   }).join('');
 
   const gapsOnly = document.getElementById('usage-gaps-only').checked;
-  const render = { items: renderUsageItems, options: renderUsageOptions, addons: renderUsageAddons, conversions: renderUsageConversions, costs: renderUsageCosts }[usageTab];
+  const render = { items: renderUsageItems, options: renderUsageOptions, addons: renderUsageAddons, conversions: renderUsageConversions, costs: renderUsageCosts, standards: renderUsageStandards }[usageTab];
   document.getElementById('usage-content').innerHTML = render(ctx, gapsOnly);
 }
 
@@ -8860,6 +8864,12 @@ function updateUsageAdderUnit() {
   const unitBox = document.getElementById('usage-adder-baseunit');
   unitBox.style.display = needsUnit ? '' : 'none';
   if (needsUnit) el.textContent = `← what is ${inv.name} measured in? (${el.dataset.per})`;
+  // A standard for this step fills in the amount, when it's in the item's unit.
+  const std = inv && usageAdder?.kind === 'option' ? usageStandardFor(usageAdder.type, usageAdder.name) : null;
+  if (std && usageSameUnit(inv.base_unit, std.unit)) {
+    document.getElementById('usage-adder-amt').value = std.amount;
+    el.textContent += ' · standard';
+  }
 }
 
 async function saveUsageAdder() {
@@ -9138,6 +9148,112 @@ function renderUsageItemRow(s) {
     ${usageItemNeedsSuggestion(s) ? usageSuggestionHtml({ kind: 'item', key: 'item|' + item.id, id: item.id, name: item.name }, 'per sale') : ''}
     <div class="usage-actions">${usageAdderHtml({ kind: 'item', key: 'item|' + item.id, id: item.id }, 'Always uses…', 'per sale')}${noStockBtn}</div>
   </div>`;
+}
+
+// ── Standards tab ──
+// How much one pump, one pour or one scoop is, defined once. A specific step
+// ("creamer") beats the whole type ("a pump of any syrup"). Standards pre-fill the
+// amount when linking a step, and "Apply to linked items" rewrites links already
+// made. Only links in the same unit as the standard are touched.
+
+function usageStandardFor(type, name) {
+  if (!usageStandards) return null;
+  const key = String(name || '').trim().toLowerCase();
+  return usageStandards.find(s => s.option_type === type && s.option_key === key && key)
+    || usageStandards.find(s => s.option_type === type && s.option_key === '')
+    || null;
+}
+
+const usageSameUnit = (a, b) => !!a && !!b && String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
+
+function renderUsageStandards() {
+  if (usageStandards === null) {
+    return `<div class="usage-empty" style="color:var(--danger);text-align:left">Standards aren’t set up yet. Run <code>supabase/migrations/20261007_usage_standards.sql</code> in the Supabase SQL editor, then reload.</div>`;
+  }
+  const typeLabel = t => USAGE_OPTION_TYPES.find(x => x.type === t)?.label || t;
+  const pump = usageStandards.find(s => s.option_type === 'syrup' && s.option_key === '');
+  const specific = usageStandards.filter(s => s.option_key !== '')
+    .sort((a, b) => typeLabel(a.option_type).localeCompare(typeLabel(b.option_type)) || a.option_key.localeCompare(b.option_key));
+  const names = [...new Set(usageData.optionRows.map(o => o.option_name))].sort((a, b) => a.localeCompare(b));
+  const typeOptions = USAGE_OPTION_TYPES.filter(t => t.type !== 'syrup')
+    .map(t => `<option value="${t.type}">${htmlEscape(t.label)}</option>`).join('');
+
+  return `<p class="usage-help">Define how much a pump, a pour or a scoop is once, here, instead of typing it for every item. When you link a recipe step to an inventory item the amount fills in from these. If you change one later, press <strong>Apply to linked items</strong> to update what’s already linked. Amounts are in the unit recipes measure the item in (oz, each…), and only items measured in that same unit are changed.</p>
+    <div class="usage-group-title">Flavor pumps</div>
+    <div class="usage-row"><div class="usage-adder">
+      <span>One pump of any syrup is</span>
+      <input class="form-input" id="std-pump-amt" type="number" min="0" step="any" value="${pump?.amount ?? 0.25}" style="width:6rem" aria-label="Amount per pump"/>
+      <input class="form-input" id="std-pump-unit" list="usage-unit-options" value="${htmlEscape(pump?.unit ?? 'oz')}" style="width:6rem" aria-label="Unit"/>
+      <button type="button" class="btn btn-primary btn-sm" onclick="saveUsageStandard('syrup', '', 'std-pump-amt', 'std-pump-unit')">Save</button>
+    </div></div>
+    <div class="usage-group-title">Specific amounts <span>(creamer, a scoop, a pour…)</span></div>
+    ${specific.map(s => `<div class="usage-row"><div class="usage-row-head">
+        <div><div class="usage-row-name">${htmlEscape(typeLabel(s.option_type))}: ${htmlEscape(s.option_key)}</div>
+          <div class="usage-row-sub">${fmtUsageQty(s.amount)} ${htmlEscape(s.unit)} each time</div></div>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="deleteUsageStandard('${s.id}')" aria-label="Remove standard">✕</button>
+      </div></div>`).join('') || '<div class="usage-muted" style="margin-bottom:0.6rem">None yet. Add one below.</div>'}
+    <div class="usage-adder" style="margin-top:0.5rem">
+      <select class="form-input" id="std-new-type" aria-label="Kind of step" style="width:auto">${typeOptions}</select>
+      <input class="form-input" id="std-new-name" list="std-names" placeholder="Name, e.g. Creamer" aria-label="Name of the step" style="width:12rem"/>
+      <datalist id="std-names">${names.map(n => `<option value="${htmlEscape(n)}"></option>`).join('')}</datalist>
+      <input class="form-input" id="std-new-amt" type="number" min="0" step="any" placeholder="Amount" aria-label="Amount" style="width:6rem"/>
+      <input class="form-input" id="std-new-unit" list="usage-unit-options" value="oz" aria-label="Unit" style="width:6rem"/>
+      <button type="button" class="btn btn-primary btn-sm" onclick="addUsageStandard()">Add</button>
+    </div>
+    <div class="usage-adder-msg" id="std-msg" role="alert"></div>
+    <div class="usage-actions" style="margin-top:1.25rem">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="applyUsageStandards()">Apply to linked items…</button>
+    </div>
+    <datalist id="usage-unit-options"><option value="oz"></option><option value="each"></option><option value="pump"></option><option value="g"></option></datalist>`;
+}
+
+async function saveUsageStandard(type, key, amtId, unitId) {
+  const msg = document.getElementById('std-msg');
+  const amount = parseFloat(document.getElementById(amtId).value);
+  const unit = document.getElementById(unitId).value.trim();
+  if (!(amount > 0) || !unit) { msg.textContent = 'Give an amount above 0 and a unit.'; return false; }
+  const { error } = await sb.from('usage_standards').upsert(
+    { option_type: type, option_key: key, amount, unit, updated_by: currentUser.id, updated_at: new Date().toISOString() },
+    { onConflict: 'option_type,option_key' });
+  if (error) { msg.textContent = 'Error: ' + error.message; return false; }
+  await loadUsageSetup();
+  return true;
+}
+
+async function addUsageStandard() {
+  const name = document.getElementById('std-new-name').value.trim();
+  if (!name) { document.getElementById('std-msg').textContent = 'Say which step this is for.'; return; }
+  await saveUsageStandard(document.getElementById('std-new-type').value, name.toLowerCase(), 'std-new-amt', 'std-new-unit');
+}
+
+async function deleteUsageStandard(id) {
+  const { error } = await sb.from('usage_standards').delete().eq('id', id);
+  if (error) { document.getElementById('std-msg').textContent = 'Error: ' + error.message; return; }
+  await loadUsageSetup();
+}
+
+// Rewrite the amount on every existing link that has a standard, if the item is
+// measured in the standard's unit. Anything in another unit is listed, not changed.
+async function applyUsageStandards() {
+  const changes = [], skipped = [];
+  for (const l of usageData.optionLinks) {
+    const st = usageStandardFor(l.option_type, l.option_key);
+    if (!st) continue;
+    const inv = usageInv(l.inventory_id);
+    const label = `${l.option_name || l.option_key} → ${inv?.name || 'unknown item'}`;
+    if (!usageSameUnit(inv?.base_unit, st.unit)) { skipped.push(`${label} (measured in ${inv?.base_unit || 'no unit'}, standard is ${st.unit})`); continue; }
+    if (Number(l.amount) !== Number(st.amount)) changes.push({ l, st, label });
+  }
+  if (!changes.length && !skipped.length) { alert('Every linked item already matches its standard.'); return; }
+  const lines = changes.slice(0, 20).map(c => `${c.label}: ${fmtUsageQty(c.l.amount)} → ${fmtUsageQty(c.st.amount)} ${c.st.unit}`).join('\n');
+  const skipText = skipped.length ? `\n\nLeft alone (different unit):\n${skipped.slice(0, 10).join('\n')}${skipped.length > 10 ? `\n…and ${skipped.length - 10} more` : ''}` : '';
+  if (!changes.length) { alert('Nothing to change.' + skipText); return; }
+  if (!confirm(`Update ${changes.length} link${changes.length === 1 ? '' : 's'} to the standard?\n\n${lines}${changes.length > 20 ? `\n…and ${changes.length - 20} more` : ''}${skipText}`)) return;
+  for (const c of changes) {
+    const { error } = await sb.from('recipe_option_ingredients').update({ amount: c.st.amount }).eq('id', c.l.id);
+    if (error) { alert('Error: ' + error.message); break; }
+  }
+  await loadUsageSetup();
 }
 
 // ── Costs tab ──
