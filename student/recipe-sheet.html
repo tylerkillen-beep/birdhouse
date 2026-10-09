@@ -213,6 +213,7 @@
   let menuItemsByName = {};              // "menu|normalized name" -> menu_items row
   let subscriptionCategoryIds = new Set(); // Square category ids of subscription-only drinks
   let mathewsCategoryIds = new Set();      // Square category ids of the Teacher Menu
+  let specialsCategoryIds = new Set();     // Square category ids of Birdhouse Specials
   let currentMenu = 'birdhouse';           // which menu the sheet is showing (and printing)
 
   const MENU_TITLES = { birdhouse: 'Birdhouse Menu', mathews: 'Mathews Menu' };
@@ -334,6 +335,9 @@
     const rank = mi => (!isRetired(mi) ? 2 : 0) + (mi.available !== false ? 1 : 0);
     subscriptionCategoryIds = subscriptionExclusiveCategoryIds(squareCategories);
     mathewsCategoryIds = mathewsMenuCategoryIds(squareCategories);
+    specialsCategoryIds = new Set((squareCategories || [])
+      .filter(c => normalize(c.name) === 'birdhouse specials')
+      .map(c => c.square_id));
 
     // A drink on both menus is two menu items with the same name and, now, two
     // recipes, so the match is by menu as well as name.
@@ -352,23 +356,25 @@
   // Deleted from Square (set by the sync) or retired by hand in admin.
   const isRetired = mi => mi.in_square === false || mi.retired === true;
 
-  // Subscriptions are checked first because a subscription drink can carry a
-  // cold-drink category on the site too. Cold Drinks is unchanged. Everything
-  // else is a special, placed by where it is in the weekly rotation: switched
-  // on now, hidden but not retired (next week's, being prepped), or retired
-  // (left off, though the recipe stays saved). A recipe that matches no menu
-  // item isn't on the menu yet, so it waits with next week's. Returns null for
-  // a recipe the sheet leaves off.
+  // Retired items never appear (the recipe stays saved), and neither does a
+  // recipe with no menu item behind it -- that's a special that was deleted
+  // from Square. Subscriptions are checked first because a subscription drink
+  // can carry a cold-drink category on the site too. Specials are only the
+  // drinks Square files under Birdhouse Specials (which leaves out the hot
+  // drinks), placed by where they are in the weekly rotation: switched on now,
+  // or hidden but not retired (next week's, being prepped). Returns null for a
+  // recipe the sheet leaves off.
   function sectionFor(recipe) {
     const item = itemFor(recipe);
     // The Teacher Menu has a sheet of its own, so it never mixes into the
     // Birdhouse sections below. Its recipes show even before Square has the
     // item, since there is no next-week rotation to hold them in.
     if (recipeCampus(recipe) === 'mathews') return item && isRetired(item) ? null : 'mathews';
-    if (!item) return 'next_specials';
-    if ((item.square_category_ids || []).some(id => subscriptionCategoryIds.has(id))) return 'subscriptions';
+    if (!item || isRetired(item)) return null;
+    const categoryIds = item.square_category_ids || [];
+    if (categoryIds.some(id => subscriptionCategoryIds.has(id))) return 'subscriptions';
     if (getMenuCategory(item.category) === 'soda_tea') return 'soda_tea';
-    if (isRetired(item)) return null;
+    if (!categoryIds.some(id => specialsCategoryIds.has(id))) return null;
     return item.available === false ? 'next_specials' : 'specials';
   }
 
