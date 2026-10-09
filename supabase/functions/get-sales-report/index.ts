@@ -41,9 +41,17 @@ interface SquarePayment {
   created_at: string;
   status: string;
   order_id?: string;
+  note?: string;
   amount_money?: { amount: number; currency: string };
   processing_fee?: Array<{ amount_money?: { amount: number; currency: string } }>;
 }
+
+// charge-subscriptions and save-card (the first week) both note their charges
+// this way. They are bare payments with no Square order and no app order, so
+// the note is the only thing that marks them as subscription revenue.
+const SUBSCRIPTION_NOTE_PREFIX = "birdhouse subscription";
+const isSubscriptionPayment = (p: SquarePayment) =>
+  (p.note || "").trim().toLowerCase().startsWith(SUBSCRIPTION_NOTE_PREFIX);
 
 interface SquareLineItem {
   name?: string;
@@ -285,13 +293,20 @@ serve(async (req) => {
     const dailyInStoreMap: Record<string, { revenueCents: number; orderCount: number }> = {};
     const dailyOnlineMap: Record<string, { revenueCents: number; orderCount: number }> = {};
     const inAppDailyMap: Record<string, { revenueCents: number; orderCount: number }> = {};
+    const dailySubscriptionMap: Record<string, { revenueCents: number; orderCount: number }> = {};
 
-    const channelByPaymentId: Record<string, 'online' | 'instore' | 'app'> = {};
+    const channelByPaymentId: Record<string, 'online' | 'instore' | 'app' | 'subscription'> = {};
     for (const payment of allPayments) {
       const amount = payment.amount_money?.amount ?? 0;
       const day = payment.created_at.slice(0, 10);
 
-      if (birdhousePaymentIds.has(payment.id)) {
+      if (isSubscriptionPayment(payment)) {
+        // Counted on the day it was charged, like every other payment.
+        channelByPaymentId[payment.id] = 'subscription';
+        if (!dailySubscriptionMap[day]) dailySubscriptionMap[day] = { revenueCents: 0, orderCount: 0 };
+        dailySubscriptionMap[day].revenueCents += amount;
+        dailySubscriptionMap[day].orderCount += 1;
+      } else if (birdhousePaymentIds.has(payment.id)) {
         channelByPaymentId[payment.id] = 'app';
         // Birdhouse App payment — revenue already totalled above, just track daily split
         if (!inAppDailyMap[day]) inAppDailyMap[day] = { revenueCents: 0, orderCount: 0 };
@@ -420,6 +435,7 @@ serve(async (req) => {
         const inApp = inAppDailyMap[date] || { revenueCents: 0, orderCount: 0 };
         const inStore = dailyInStoreMap[date] || { revenueCents: 0, orderCount: 0 };
         const online = dailyOnlineMap[date] || { revenueCents: 0, orderCount: 0 };
+        const subscription = dailySubscriptionMap[date] || { revenueCents: 0, orderCount: 0 };
         return {
           date,
           revenueCents: d.revenueCents,
@@ -430,6 +446,8 @@ serve(async (req) => {
           onlineOrderCount: online.orderCount,
           inAppRevenueCents: inApp.revenueCents,
           inAppOrderCount: inApp.orderCount,
+          subscriptionRevenueCents: subscription.revenueCents,
+          subscriptionOrderCount: subscription.orderCount,
         };
       })
       .sort((a, b) => a.date.localeCompare(b.date));
