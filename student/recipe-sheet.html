@@ -226,6 +226,9 @@
     { key: 'subscriptions', title: 'Subscriptions' },
     { key: 'next_specials', title: 'Next Week’s Specials' },
   ];
+  // Drinks staff already know by heart, so the Birdhouse sheet leaves them off
+  // (the recipe stays saved). Names are normalized.
+  const SHEET_HIDDEN_DRINKS = new Set(['iced tea']);
   const MATHEWS_SECTIONS = [{ key: 'mathews', title: 'Mathews Menu' }];
 
   function updateMenuButtons(menu) {
@@ -371,6 +374,7 @@
     // item, since there is no next-week rotation to hold them in.
     if (recipeCampus(recipe) === 'mathews') return item && isRetired(item) ? null : 'mathews';
     if (!item || isRetired(item)) return null;
+    if (SHEET_HIDDEN_DRINKS.has(normalize(recipe.name))) return null;
     const categoryIds = item.square_category_ids || [];
     if (categoryIds.some(id => subscriptionCategoryIds.has(id))) return 'subscriptions';
     if (getMenuCategory(item.category) === 'soda_tea') return 'soda_tea';
@@ -402,7 +406,9 @@
       .filter(c => groups[c.key].length > 0)
       .map(c => {
         const rows = groups[c.key]
-          .sort((a, b) => (a.sortOrder - b.sortOrder) || a.recipe.name.localeCompare(b.recipe.name))
+          .sort((a, b) => c.key === 'soda_tea'
+            ? a.recipe.name.localeCompare(b.recipe.name)
+            : (a.sortOrder - b.sortOrder) || a.recipe.name.localeCompare(b.recipe.name))
           .map(({ recipe }) => renderRow(recipe))
           .join('');
         return `<div class="category-block">
