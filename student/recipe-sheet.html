@@ -116,7 +116,9 @@
       .page-header { margin-bottom: 0.15rem; }
       .page-title { font-size: 1.5rem; color: #000; }
 
-      .category-block { margin-bottom: 1rem; }
+      .category-block { margin-bottom: 0.7rem; }
+      /* Specials and Cold Drinks share page one; everything after starts page two. */
+      .category-block[data-section="subscriptions"] { break-before: page; }
       /* Never leave a category heading stranded at the foot of a page. */
       .category-heading { color: #000; font-size: 1rem; border-bottom: 1.5px solid #000; margin-bottom: 0.4rem; break-after: avoid; }
 
@@ -130,7 +132,7 @@
       table.sheet-table thead { display: table-header-group; }
       table.sheet-table tr { break-inside: avoid; }
       table.sheet-table th, table.sheet-table td {
-        color: #000; font-size: 8.5pt; padding: 0.28rem 0.4rem;
+        color: #000; font-size: 8pt; padding: 0.18rem 0.4rem; line-height: 1.25;
         border-bottom: 1px solid #bbb; word-wrap: break-word;
       }
       table.sheet-table th {
@@ -140,7 +142,8 @@
       table.sheet-table tr:hover td { background: none; }
       .drink-name-cell { color: #000; white-space: normal; }
       .cell-muted { color: #888; }
-      .ice-pill, .ice-pill.filled { background: none !important; color: #000; border: 1px solid #999; }
+      /* One line, not a two-line pill: it was the tallest thing in every row. */
+      .ice-pill, .ice-pill.filled { background: none !important; color: #000; border: 1px solid #999; white-space: nowrap; padding: 0 0.45rem; font-size: 7pt; }
       .empty-state { border: 1px solid #ccc; color: #000; }
     }
   </style>
@@ -411,7 +414,7 @@
             : (a.sortOrder - b.sortOrder) || a.recipe.name.localeCompare(b.recipe.name))
           .map(({ recipe }) => renderRow(recipe))
           .join('');
-        return `<div class="category-block">
+        return `<div class="category-block" data-section="${c.key}">
           <div class="category-heading">${escHtml(c.title)}</div>
           <div class="sheet-table-wrap">
             <table class="sheet-table">
