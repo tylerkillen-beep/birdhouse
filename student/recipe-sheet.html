@@ -449,7 +449,7 @@
   });
   window.addEventListener('afterprint', () => { document.title = PAGE_TITLE; });
 
-  const BOBA_NAMES = ['Strawberry', 'Raspberry', 'Mango', 'Dragonfruit', 'Kiwi'];
+  const BOBA_NAMES = ['Strawberry', 'Raspberry', 'Mango', 'Dragonfruit', 'Kiwi', 'Brown Sugar'];
   const isBobaValue = v => /boba/i.test(v) || BOBA_NAMES.some(o => o.toLowerCase() === String(v).trim().toLowerCase());
   const splitList = raw => String(raw || '').split(',').map(s => s.trim()).filter(Boolean);
 
