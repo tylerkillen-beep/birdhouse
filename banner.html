@@ -52,22 +52,20 @@
       color: var(--gray); margin-bottom: 6px;
     }
 
-    /* Left: biggest sale of the day and of the week */
-    .zone-top { width: 340px; flex-shrink: 0; gap: 8px; }
-    .zone-top .zone-label { margin-bottom: 3px; }
-    .top-row { display: flex; align-items: baseline; gap: 9px; min-width: 0; }
-    .top-amount {
-      font-family: 'Bebas Neue', sans-serif; font-size: 34px; line-height: 0.9;
+    /* Left: Thirsty Games class leaders, one class at a time */
+    .zone-top { width: 340px; flex-shrink: 0; }
+    .top-row { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+    .top-rank {
+      font-family: 'Bebas Neue', sans-serif; font-size: 44px; line-height: 0.9;
       letter-spacing: 0.02em; color: var(--red-bright); flex-shrink: 0;
       text-shadow: 0 0 20px rgba(255,26,26,0.3);
-      transition: transform 0.45s ease, text-shadow 0.45s ease;
     }
-    /* transform-origin, or a growing amount shoves the name sideways. */
-    .top-amount.bumped { transform: scale(1.08); transform-origin: left center; text-shadow: 0 0 36px rgba(255,26,26,0.65); }
     .top-name {
-      font-size: 13.5px; color: var(--light-gray); min-width: 0;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      font-family: 'Bebas Neue', sans-serif; font-size: 28px; line-height: 1; letter-spacing: 0.04em;
+      color: var(--white); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
+    .top-meta { margin-top: 5px; font-size: 13.5px; color: var(--light-gray); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .top-meta strong { font-weight: 700; color: var(--red-bright); }
 
     /* Middle: reviews */
     .zone-reviews { flex: 1; min-width: 0; }
@@ -113,20 +111,8 @@
   <div class="stage" id="stage">
     <div class="banner">
       <section class="zone zone-top">
-        <div>
-          <div class="zone-label">Biggest Order Today</div>
-          <div class="top-row">
-            <span class="top-amount" id="today-amount">&mdash;</span>
-            <span class="top-name" id="today-name"></span>
-          </div>
-        </div>
-        <div>
-          <div class="zone-label">Biggest Order This Week</div>
-          <div class="top-row">
-            <span class="top-amount" id="week-amount">&mdash;</span>
-            <span class="top-name" id="week-name"></span>
-          </div>
-        </div>
+        <div class="zone-label">The Thirsty Games &middot; Class Leaders</div>
+        <div class="slides" id="games-slides"></div>
       </section>
 
       <div class="divider" aria-hidden="true"></div>
@@ -159,11 +145,13 @@
       const SUPABASE_URL = 'https://ljukrhneikqbabcmcpet.supabase.co';
       const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqdWtyaG5laWtxYmFiY21jcGV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyODg1MjEsImV4cCI6MjA4Nzg2NDUyMX0.UbtB_-syG9a9vLcJp04w_k2F3XP2tMScYtB4sez3j78';
 
-      // The top sales are the only live figures, so they poll the most often --
-      // but this runs on a wall all day, so 90s. A new leader appearing a
-      // minute later is invisible across a room and halves the requests.
-      // Reviews and plans change a few times a term at most.
+      // The Thirsty Games standings are the only live figures, so they poll the
+      // most often -- but this runs on a wall all day, so 90s. A new leader
+      // appearing a minute later is invisible across a room and halves the
+      // requests. Reviews and plans change a few times a term at most.
       const TOP_SALES_REFRESH_MS = 90 * 1000;
+      const GAMES_ROTATE_MS = 6000;
+      const GAMES_SHOWN = 5;
       const CONTENT_REFRESH_MS = 15 * 60 * 1000;
       // Deliberately not equal, so the two panels don't flip in lockstep.
       const REVIEW_ROTATE_MS = 9000;
@@ -230,43 +218,38 @@
       const reviewRotator = makeRotator(document.getElementById('review-slides'), REVIEW_ROTATE_MS);
       const subRotator    = makeRotator(document.getElementById('sub-slides'), SUB_ROTATE_MS);
 
-      // Biggest sale of the day and of the week
-      const lastAmount = { today: null, week: null };
+      // The Thirsty Games: the top classes by total spent, one at a time.
+      // thirsty_games_standings() returns only class names and dollar totals.
+      const gamesRotator = makeRotator(document.getElementById('games-slides'), GAMES_ROTATE_MS);
 
-      // The name is already shortened to a first name and last initial by the
-      // database, so the page never receives a full one.
-      function paintTop(key, row) {
-        const amountEl = document.getElementById(key + '-amount');
-        const nameEl   = document.getElementById(key + '-name');
-        const amount   = row && Number(row.amount);
+      // Standings store teachers as "Last, First"; the wall reads better as
+      // "First Last".
+      function teacherDisplay(name) {
+        const parts = String(name || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+        return parts.length === 2 ? parts[1] + ' ' + parts[0] : (parts[0] || 'A STAR class');
+      }
 
-        if (!Number.isFinite(amount)) {
-          // No qualifying sale yet -- a fresh Monday, or the first order of the
-          // day is still to come.
-          amountEl.textContent = '—';
-          nameEl.textContent = '';
-          lastAmount[key] = null;
-          return;
-        }
-
-        amountEl.textContent = '$' + amount.toFixed(2);
-        nameEl.textContent = row.name || '';
-        // Flash only on a real change, so the first paint doesn't pulse.
-        if (lastAmount[key] !== null && amount !== lastAmount[key]) {
-          amountEl.classList.add('bumped');
-          setTimeout(() => amountEl.classList.remove('bumped'), 450);
-        }
-        lastAmount[key] = amount;
+      function renderClass(c) {
+        const orders = Number(c.order_count) || 0;
+        return '<div class="top-row"><span class="top-rank">#' + escHtml(c.rank) + '</span>'
+          + '<span class="top-name">' + escHtml(teacherDisplay(c.teacher_name)) + '</span></div>'
+          + '<div class="top-meta"><strong>$' + Number(c.total_amount).toFixed(2) + '</strong>'
+          + (c.subject ? ' &middot; ' + escHtml(c.subject) : '')
+          + ' &middot; ' + plural(orders, 'order') + '</div>';
       }
 
       async function loadTopSales() {
         try {
-          const res = await rpc('banner_top_sales');
-          if (!res.ok) return;                 // keep the last good figures up
-          const data = await res.json();
-          if (!data || typeof data !== 'object') return;
-          paintTop('today', data.today);
-          paintTop('week', data.week);
+          const res = await rpc('thirsty_games_standings');
+          if (!res.ok) return;                 // keep the last good standings up
+          const rows = await res.json();
+          if (!Array.isArray(rows)) return;
+          // Classes with no sales yet are in the standings at $0; they have
+          // nothing to brag about, so the wall only shows classes on the board.
+          const leaders = rows.filter(function (c) { return Number(c.total_amount) > 0; }).slice(0, GAMES_SHOWN);
+          gamesRotator.setSlides(leaders.length
+            ? leaders.map(renderClass)
+            : ['<div class="empty">Order online to put your class on the board!</div>']);
         } catch (err) { /* offline for a beat; the next poll picks it up */ }
       }
 
