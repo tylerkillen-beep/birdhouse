@@ -45,6 +45,12 @@ enable_confirmations = false
 [functions.get-sales-report]
 verify_jwt = false
 
+# Checks the caller's token itself (auth.getUser) and answers CORS preflight, so
+# the gateway check stays off. Without this entry the deploy workflow skipped
+# the function, and merged changes never went live.
+[functions.process-payment]
+verify_jwt = false
+
 [functions.request-receipt]
 verify_jwt = true
 
