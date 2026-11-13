@@ -91,6 +91,8 @@
        ratios, not absolutes. */
     .list-row-name { font-size: 1.6rem; color: var(--white); font-weight: 600; }
     .list-row-desc { font-size: 0.95rem; color: var(--gray); font-weight: 300; margin-top: 0.15rem; }
+    /* Fixed notes (e.g. Ice Cream's sundae line): indented and a bit larger than descriptions. */
+    .list-row-note { font-size: 1.15rem; padding-left: 1.25rem; }
     .list-row-price { font-size: 1.6rem; color: var(--red-bright); font-weight: 600; white-space: nowrap; flex-shrink: 0; }
 
     /* Add-ons, permanently under Specials on the left. Two columns to suit
@@ -274,18 +276,19 @@
       // Fixed notes shown under a row whatever the category's `desc` setting,
       // matched on the item name.
       const ITEM_NOTES = [
-        { match: /^ice cream$/i, note: 'Sundae options available' },
+        { match: /^ice cream$/i, note: 'Sundae Toppings Available' },
       ];
 
       function renderRows(items, showDesc) {
         return items.map(item => {
           const fixed = ITEM_NOTES.find(n => n.match.test(String(item.name || '').trim()));
           const desc = fixed ? fixed.note : (showDesc ? item.description : '');
+          const descClass = fixed ? 'list-row-desc list-row-note' : 'list-row-desc';
           return `
           <div class="list-row">
             <div>
               <div class="list-row-name">${escHtml(item.name)}</div>
-              ${desc ? `<div class="list-row-desc">${escHtml(desc)}</div>` : ''}
+              ${desc ? `<div class="${descClass}">${escHtml(desc)}</div>` : ''}
             </div>
             ${formatPrice(item) ? `<div class="list-row-price">${formatPrice(item)}</div>` : ''}
           </div>
