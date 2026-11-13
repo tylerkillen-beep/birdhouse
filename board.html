@@ -271,16 +271,26 @@
         return `<div class="addons-section"><div class="addons-heading">Add-Ons</div><div class="addons-grid">${tiles}</div></div>`;
       }
 
+      // Fixed notes shown under a row whatever the category's `desc` setting,
+      // matched on the item name.
+      const ITEM_NOTES = [
+        { match: /^ice cream$/i, note: 'Sundae options available' },
+      ];
+
       function renderRows(items, showDesc) {
-        return items.map(item => `
+        return items.map(item => {
+          const fixed = ITEM_NOTES.find(n => n.match.test(String(item.name || '').trim()));
+          const desc = fixed ? fixed.note : (showDesc ? item.description : '');
+          return `
           <div class="list-row">
             <div>
               <div class="list-row-name">${escHtml(item.name)}</div>
-              ${showDesc && item.description ? `<div class="list-row-desc">${escHtml(item.description)}</div>` : ''}
+              ${desc ? `<div class="list-row-desc">${escHtml(desc)}</div>` : ''}
             </div>
             ${formatPrice(item) ? `<div class="list-row-price">${formatPrice(item)}</div>` : ''}
           </div>
-        `).join('');
+        `;
+        }).join('');
       }
 
       // Every stocked category as its own section, cheapest first; CSS places
