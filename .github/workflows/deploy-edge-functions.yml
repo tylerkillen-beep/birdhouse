@@ -80,6 +80,6 @@ jobs:
         run: |
           for name in ${{ steps.pick.outputs.names }}; do
             echo "::group::Deploy $name"
-            supabase functions deploy "$name" --project-ref "$PROJECT_REF" --use-api
+            supabase functions deploy "$name" --project-ref "$PROJECT_REF" --use-api --yes
             echo "::endgroup::"
           done

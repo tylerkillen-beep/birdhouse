@@ -288,6 +288,7 @@
       <a class="nav-item active" href="order.html" aria-current="page"><span aria-hidden="true">☕</span> Place an Order</a>
       <a class="nav-item" href="stickers.html"><span aria-hidden="true">🖼️</span> Sticker Sheets</a>
       <a class="nav-item" href="orders.html"><span aria-hidden="true">📋</span> My Orders</a>
+      <a class="nav-item" href="thirsty-games.html"><span aria-hidden="true">🏆</span> Thirsty Games</a>
       <a class="nav-item" href="dashboard.html#subscription"><span aria-hidden="true">📦</span> My Subscription</a>
       <a class="nav-item" href="dashboard.html#loyalty"><span aria-hidden="true">⭐</span> Birdhouse Bucks</a>
     </nav>
@@ -363,6 +364,12 @@
               aria-expanded="false" aria-controls="ac-backup-location" />
             <div class="autocomplete-dropdown" id="ac-backup-location" role="listbox" aria-label="Backup location suggestions"></div>
           </div>
+        </div>
+        <!-- The Thirsty Games (Nov 2-30) — high school customers only -->
+        <div class="form-group" id="star-group" style="display:none">
+          <label for="star-class"><span aria-hidden="true">🏆</span> The Thirsty Games — Your STAR Teacher <span style="color:var(--gray);font-weight:300">(optional)</span></label>
+          <select id="star-class"><option value="">Not playing</option></select>
+          <p style="font-size:0.76rem;color:var(--gray);margin-top:0.4rem;line-height:1.5">The STAR class with the most online sales wins a free drink for everyone in the class. <a href="thirsty-games.html" style="color:var(--red-bright)">See the standings →</a></p>
         </div>
       </div>
       <div class="btn-row">
@@ -637,8 +644,44 @@
     // Pickup is at the Birdhouse, so Mathews is delivery only and gets no toggle.
     if (customerType !== 'mathews') document.getElementById('delivery-method-group').style.display = '';
 
-    await Promise.all([loadMenu(), setupDeliveryPicker()]);
+    await Promise.all([loadMenu(), setupDeliveryPicker(), setupThirstyGames()]);
     await loadReorder();
+  }
+
+  // ── The Thirsty Games ─────────────────────────────────────────────────────
+  // Nov 2-30: customers can pick their STAR teacher; the class with the most
+  // online sales wins. Mirrors thirsty_games_window() in the database and
+  // process-payment -- change them together.
+  const THIRSTY_GAMES_START = '2026-11-02';
+  const THIRSTY_GAMES_END   = '2026-11-30';
+
+  function thirstyGamesOn() {
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(new Date());
+    return today >= THIRSTY_GAMES_START && today <= THIRSTY_GAMES_END;
+  }
+
+  async function setupThirstyGames() {
+    // Mathews is elementary and has no STAR classes.
+    if (!thirstyGamesOn() || customerType === 'mathews') return;
+    const { data: classes } = await sb.from('star_classes').select('id, teacher_name, subject').eq('active', true).order('teacher_name');
+    if (!classes?.length) return;
+    const select = document.getElementById('star-class');
+    classes.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.subject ? `${c.teacher_name} — ${c.subject}` : c.teacher_name;
+      select.appendChild(opt);
+    });
+    // Separate from the main profile read so a missing column can't break checkout.
+    const { data: saved } = await sb.from('profiles').select('star_class_id').eq('id', currentUser.id).maybeSingle();
+    if (saved?.star_class_id) select.value = String(saved.star_class_id);
+    document.getElementById('star-group').style.display = '';
+  }
+
+  function selectedStarClassId() {
+    const group = document.getElementById('star-group');
+    const val = document.getElementById('star-class').value;
+    return group.style.display === 'none' || !val ? null : Number(val);
   }
 
   // ── Square SDK ────────────────────────────────────────────────────────────
@@ -1627,6 +1670,7 @@
           deliveryTime:     document.getElementById('delivery-time').value,
           notes:            document.getElementById('backup-location').value,
           customerLocation: customerType,
+          starClassId:      selectedStarClassId(),
         },
       }),
     });
@@ -1650,6 +1694,11 @@
       if (roomVal) {
         await sb.from('profiles').upsert({ id: currentUser.id, last_room: roomVal }, { onConflict: 'id' });
       }
+    }
+
+    // Remember the pick for next time (including clearing it).
+    if (document.getElementById('star-group').style.display !== 'none') {
+      await sb.from('profiles').upsert({ id: currentUser.id, star_class_id: selectedStarClassId() }, { onConflict: 'id' });
     }
 
     document.getElementById('success-sub-msg').textContent = isPickup

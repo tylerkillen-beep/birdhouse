@@ -222,6 +222,11 @@ async function priceMenuCart(
 const SCHOOL_TIME_ZONE = "America/Chicago";
 
 /** Today's local calendar date at the school, as YYYY-MM-DD. */
+// The Thirsty Games window; mirrors thirsty_games_window() in the database and
+// customer/order.html -- change them together.
+const THIRSTY_GAMES_START = "2026-11-02";
+const THIRSTY_GAMES_END   = "2026-11-30";
+
 function localToday(): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: SCHOOL_TIME_ZONE,
@@ -683,9 +688,25 @@ serve(async (req) => {
 
     const itemName = items.map(i => i.name).join(', ');
 
+    // The customer's Thirsty Games class, if the contest is on and the id is a
+    // real active class. A bad or stale pick is dropped rather than failing an
+    // order that is already paid.
+    let starClassId: number | null = null;
+    const today = localToday();
+    if (!isStickerOrder && customerInfo.starClassId && today >= THIRSTY_GAMES_START && today <= THIRSTY_GAMES_END) {
+      const { data: starClass } = await supabase
+        .from("star_classes")
+        .select("id")
+        .eq("id", Number(customerInfo.starClassId))
+        .eq("active", true)
+        .maybeSingle();
+      starClassId = starClass?.id ?? null;
+    }
+
     const { data: order, error: dbError } = await supabase
       .from("orders")
       .insert({
+        star_class_id: starClassId,
         user_id: userId,
         customer_name: customerInfo.customerName || null,
         drink_name: drinkName,

@@ -7,6 +7,8 @@
   <link rel="icon" type="image/png" href="/favicon.png" />
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <script src="/lib/supabase.js"></script>
+<link rel="stylesheet" href="/lib/flatpickr-themes/dark.css" />
+<script src="/lib/flatpickr.js"></script>
 <script src="/lib/receiving.js"></script>
 <script src="/lib/inventory-units.js"></script>
 <style>
@@ -151,6 +153,17 @@
   .poi-row{display:grid;grid-template-columns:1fr 80px 100px 1fr;gap:0.5rem;align-items:center;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.82rem}
   .poi-row:last-child{border-bottom:none}
   .poi-header{font-size:0.62rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);font-weight:600}
+  /* Library profit split */
+  .lib-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem}
+  @media(max-width:900px){.lib-stats{grid-template-columns:1fr 1fr}}
+  @media(max-width:500px){.lib-stats{grid-template-columns:1fr}}
+  .lib-stat-sub{font-size:0.72rem;color:var(--gray);margin-top:0.25rem}
+  .lib-table-wrap{background:var(--card);border:1px solid var(--border-dim);border-radius:12px;overflow-x:auto}
+  .lib-table{width:100%;border-collapse:collapse;min-width:560px}
+  .lib-table thead tr{background:#0d0d0d}
+  .lib-table th{padding:0.6rem 1.1rem;text-align:left;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--gray);border-bottom:1px solid var(--border-dim);white-space:nowrap}
+  .lib-table td{padding:0.55rem 1.1rem;border-bottom:1px solid var(--border-dim);font-size:0.84rem;vertical-align:middle}
+  .lib-table tbody tr:last-child td{border-bottom:none}
 </style>
 </head>
 <body>
@@ -195,6 +208,7 @@
     <button class="nav-item" onclick="showSection('orders',this)"><span aria-hidden="true">🧾</span> Active Orders</button>
     <button class="nav-item" onclick="showSection('inventory',this)"><span aria-hidden="true">📦</span> Inventory<span class="nav-badge" id="inv-nav-badge" style="display:none" aria-label=""></span></button>
     <button class="nav-item" onclick="showSection('deliveries',this)"><span aria-hidden="true">🚚</span> Deliveries<span class="nav-badge" id="deliv-nav-badge" style="display:none" aria-label=""></span></button>
+    <button class="nav-item" onclick="showSection('library-split',this)"><span aria-hidden="true">📚</span> Library Profit Split</button>
     <a class="nav-item" href="../student/recipe-sheet.html" target="_blank" rel="noopener"><span aria-hidden="true">🗒️</span> Recipe Sheet</a>
     <a class="nav-item" href="../board.html" target="_blank" rel="noopener"><span aria-hidden="true">🖥️</span> Menu Board</a>
     <div class="nav-section">Students</div>
@@ -285,6 +299,67 @@
       <h1 class="page-title">WEEKLY SCORES</h1>
       <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap" id="score-week-nav"></div>
       <div id="scores-content"></div>
+    </div>
+
+    <div class="section" id="section-library-split">
+      <div class="page-eyebrow">Operations</div>
+      <h1 class="page-title">LIBRARY PROFIT SPLIT</h1>
+      <p style="font-size:0.84rem;color:var(--light-gray);margin:-1rem 0 1.5rem">Library share of sales during 2nd, 3rd, 4th, STAR, 7th &amp; 8th Hours, plus 10% of profit during 1st &amp; 6th Hours. Today is added once 1st Hour has ended.</p>
+
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.5rem;align-items:center">
+        <button class="cat-btn lib-range-btn active" id="lib-range-btn-today" onclick="setLibRange('today',this)">Today</button>
+        <button class="cat-btn lib-range-btn" id="lib-range-btn-week" onclick="setLibRange('week',this)">This Week</button>
+        <button class="cat-btn lib-range-btn" id="lib-range-btn-month" onclick="setLibRange('month',this)">This Month</button>
+        <button class="cat-btn lib-range-btn" id="lib-range-btn-custom" onclick="setLibRange('custom',this)">Custom</button>
+        <div id="lib-custom-inputs" style="display:none;gap:0.5rem;align-items:center;flex-wrap:wrap">
+          <label for="lib-date-range" class="visually-hidden">Date range</label>
+          <input type="text" id="lib-date-range" class="form-input" placeholder="Select date range…" readonly style="width:auto;padding:0.4rem 0.6rem;font-size:0.85rem;cursor:pointer;min-width:210px" />
+          <button class="btn btn-primary btn-sm" onclick="runLibrarySplit()">Run Report</button>
+        </div>
+        <span id="lib-range-label" style="margin-left:0.5rem;font-size:0.8rem;color:var(--gray)"></span>
+      </div>
+      <div id="lib-today-note" style="display:none;font-size:0.8rem;color:var(--gray);margin-bottom:1rem"></div>
+
+      <div class="lib-stats">
+        <div class="stat-card">
+          <div class="stat-label">Library Gross Sales</div>
+          <div class="stat-value" id="lib-gross">—</div>
+          <div class="lib-stat-sub" id="lib-gross-sub"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Sq. Processing Fees</div>
+          <div class="stat-value" id="lib-fees" style="color:#e57373">—</div>
+          <div class="lib-stat-sub" id="lib-fees-sub"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">COGS</div>
+          <div class="stat-value" id="lib-cogs" style="color:#e57373">—</div>
+          <div class="lib-stat-sub" id="lib-cogs-sub">Cost of goods sold</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Net to Library</div>
+          <div class="stat-value" id="lib-net">—</div>
+          <div class="lib-stat-sub" id="lib-net-sub"></div>
+        </div>
+      </div>
+
+      <div class="section-header"><div class="nav-section" style="margin:0;padding:0">Day-by-Day Breakdown</div></div>
+      <div class="lib-table-wrap">
+        <table class="lib-table">
+          <thead><tr>
+            <th scope="col">Date</th>
+            <th scope="col">Day</th>
+            <th scope="col">Library Gross</th>
+            <th scope="col">Sq. Fees</th>
+            <th scope="col">COGS</th>
+            <th scope="col">1st/6th Supervision</th>
+            <th scope="col">Net</th>
+          </tr></thead>
+          <tbody id="lib-tbody">
+            <tr><td colspan="7" style="text-align:center;color:var(--gray)">Select a range to load report</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
   </main>
@@ -425,11 +500,203 @@ function showSection(name,el){
   if(name==='inventory')loadInventory();
   if(name==='deliveries')loadDeliveries();
   if(name==='scores')loadScores();
+  if(name==='library-split')initLibrarySplit();
   try{history.replaceState(null,'','#'+name);}catch{}
   closeNav();
   window.scrollTo(0,0);
   const main=document.getElementById('main-content');
   if(main)main.focus({preventScroll:true});
+}
+
+// LIBRARY PROFIT SPLIT
+// Periods (from the Bell Schedule) as [start, end) minutes after midnight
+// Central time. Only payments made inside one of these count.
+const hm=(h,m)=>h*60+m;
+const LIB_PERIODS_MON=[[hm(8,54),hm(9,43)],[hm(9,48),hm(10,37)],[hm(10,42),hm(11,31)],[hm(12,54),hm(13,42)],[hm(13,47),hm(14,35)]];
+const LIB_PERIODS_TUEFRI=[[hm(8,23),hm(9,11)],[hm(9,16),hm(10,4)],[hm(10,9),hm(10,57)],[hm(11,7),hm(11,32)],[hm(12,54),hm(13,42)],[hm(13,47),hm(14,35)]];
+// Supervision hours (1st & 6th): the Library earns a cut of the profit made here.
+const SUP_PERIODS_MON=[[hm(8,1),hm(8,49)],[hm(11,36),hm(12,49)]];
+const SUP_PERIODS_TUEFRI=[[hm(7,30),hm(8,18)],[hm(11,37),hm(12,49)]];
+const SUPERVISION_RATE=0.10;
+const COGS_RATE=0.65; // 35% profit margin
+let currentLibRange='today',fpLib=null;
+
+function initLibrarySplit(){
+  if(!fpLib)fpLib=flatpickr('#lib-date-range',{mode:'range',dateFormat:'Y-m-d',maxDate:'today',disableMobile:true});
+  if(document.getElementById('lib-gross').textContent==='—')setLibRange('today',document.getElementById('lib-range-btn-today'));
+}
+
+function setLibRange(range,btn){
+  currentLibRange=range;
+  document.querySelectorAll('.lib-range-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const custom=document.getElementById('lib-custom-inputs');
+  if(range==='custom'){custom.style.display='flex';return;}
+  custom.style.display='none';
+  runLibrarySplit();
+}
+
+function getLibDateRange(){
+  const now=new Date();
+  const pad=n=>String(n).padStart(2,'0');
+  const toISO=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const endOfToday=new Date(now);endOfToday.setHours(23,59,59,999);
+  if(currentLibRange==='today'){
+    const start=new Date(now);start.setHours(0,0,0,0);
+    return{startDate:start.toISOString(),endDate:endOfToday.toISOString(),label:'Today',startISO:toISO(start),endISO:toISO(endOfToday)};
+  }
+  if(currentLibRange==='week'){
+    const start=new Date(now);
+    start.setDate(start.getDate()+(start.getDay()===0?-6:1-start.getDay()));start.setHours(0,0,0,0);
+    return{startDate:start.toISOString(),endDate:endOfToday.toISOString(),label:`Week of ${toISO(start)}`,startISO:toISO(start),endISO:toISO(endOfToday)};
+  }
+  if(currentLibRange==='month'){
+    const start=new Date(now.getFullYear(),now.getMonth(),1);
+    return{startDate:start.toISOString(),endDate:endOfToday.toISOString(),label:`${now.toLocaleString('default',{month:'long'})} ${now.getFullYear()}`,startISO:toISO(start),endISO:toISO(endOfToday)};
+  }
+  const dates=fpLib?.selectedDates||[];
+  if(dates.length<2){alert('Please select both a start and end date.');return null;}
+  const s=toISO(dates[0]),e=toISO(dates[1]);
+  return{startDate:new Date(s+'T00:00:00').toISOString(),endDate:new Date(e+'T23:59:59').toISOString(),label:`${s} — ${e}`,startISO:s,endISO:e};
+}
+
+// School days (Mon–Fri) in the range
+function getSchoolDaysInRange(startISO,endISO){
+  const days=[];
+  const cur=new Date(startISO+'T12:00:00'),end=new Date(endISO+'T12:00:00');
+  const pad=n=>String(n).padStart(2,'0');
+  while(cur<=end){
+    const dow=cur.getDay();
+    if(dow>=1&&dow<=5)days.push(`${cur.getFullYear()}-${pad(cur.getMonth()+1)}-${pad(cur.getDate())}`);
+    cur.setDate(cur.getDate()+1);
+  }
+  return days;
+}
+
+// Central-time date, weekday and minute of day for a Square timestamp
+const libTzFmt=new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit',weekday:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
+function libLocalParts(iso){
+  const p=Object.fromEntries(libTzFmt.formatToParts(new Date(iso)).map(x=>[x.type,x.value]));
+  return{iso:`${p.year}-${p.month}-${p.day}`,weekday:p.weekday,minute:Number(p.hour)*60+Number(p.minute)};
+}
+function libPeriods(table,weekday){
+  return weekday==='Mon'?table.mon:['Tue','Wed','Thu','Fri'].includes(weekday)?table.tf:[];
+}
+const LIB_TABLE={mon:LIB_PERIODS_MON,tf:LIB_PERIODS_TUEFRI};
+const SUP_TABLE={mon:SUP_PERIODS_MON,tf:SUP_PERIODS_TUEFRI};
+const inPeriod=(periods,minute)=>periods.some(([s,e])=>minute>=s&&minute<e);
+
+// Today only counts once 1st Hour has ended; until then it is left out of
+// every range. Returns the Central date being held back, or null.
+function libHeldBackDay(){
+  const now=libLocalParts(new Date().toISOString());
+  const first=libPeriods(SUP_TABLE,now.weekday)[0];
+  return first&&now.minute<first[1]?now.iso:null;
+}
+
+async function runLibrarySplit(){
+  const range=getLibDateRange();
+  if(!range)return;
+  document.getElementById('lib-range-label').textContent=range.label;
+  ['lib-gross','lib-fees','lib-cogs','lib-net'].forEach(id=>{document.getElementById(id).textContent='…';});
+  document.getElementById('lib-tbody').innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--gray)">Loading…</td></tr>';
+  try{
+    let {data:{session}}=await sb.auth.getSession();
+    if(session?.expires_at&&Date.now()/1000>=session.expires_at-30){
+      const {data:refreshed}=await sb.auth.refreshSession();
+      session=refreshed?.session??null;
+    }
+    if(!session){alert('Session expired. Please sign in again.');window.location.reload();return;}
+    const res=await fetch('https://ljukrhneikqbabcmcpet.supabase.co/functions/v1/get-sales-report',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqdWtyaG5laWtxYmFiY21jcGV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyODg1MjEsImV4cCI6MjA4Nzg2NDUyMX0.UbtB_-syG9a9vLcJp04w_k2F3XP2tMScYtB4sez3j78','Authorization':`Bearer ${session.access_token}`},
+      body:JSON.stringify({startDate:range.startDate,endDate:range.endDate}),
+    });
+    const rawText=await res.text();
+    let data={};
+    try{data=JSON.parse(rawText);}catch(_){}
+    if(!res.ok||!data.success)throw new Error(data.error||`HTTP ${res.status}: ${rawText.slice(0,200)}`);
+    renderLibrarySplit(data,range);
+  }catch(err){
+    console.error('Library split error:',err);
+    ['lib-gross','lib-fees','lib-cogs','lib-net'].forEach(id=>{document.getElementById(id).textContent='Error';});
+    document.getElementById('lib-tbody').innerHTML=`<tr><td colspan="7" style="text-align:center;color:#e57373;padding:1.5rem">${String(err.message).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</td></tr>`;
+  }
+}
+
+function renderLibrarySplit(data,range){
+  const fmt=c=>`$${(c/100).toFixed(2)}`;
+  if(!Array.isArray(data.payments)){
+    ['lib-gross','lib-fees','lib-cogs','lib-net'].forEach(id=>{document.getElementById(id).textContent='—';});
+    document.getElementById('lib-tbody').innerHTML='<tr><td colspan="7" style="text-align:center;color:#e57373;padding:1.5rem">Library-hour sales are not available right now. Please tell Mr. Killen.</td></tr>';
+    return;
+  }
+  const held=libHeldBackDay();
+  const note=document.getElementById('lib-today-note');
+  const inRange=held&&held>=range.startISO&&held<=range.endISO;
+  note.style.display=inRange?'block':'none';
+  note.textContent=inRange?"Today's sales will be added once 1st Hour has ended.":'';
+
+  const byDay={};
+  const emptyDay=()=>({libCents:0,libFeeCents:0,libCount:0,supCents:0,supFeeCents:0});
+  let libGrossCents=0,libFeeCents=0,libCount=0;
+  for(const p of data.payments){
+    const t=libLocalParts(p.createdAt);
+    if(t.iso===held)continue;
+    const d=byDay[t.iso]??=emptyDay();
+    if(inPeriod(libPeriods(LIB_TABLE,t.weekday),t.minute)){
+      d.libCents+=p.amountCents;d.libFeeCents+=p.feeCents;d.libCount+=1;
+      libGrossCents+=p.amountCents;libFeeCents+=p.feeCents;libCount+=1;
+    }else if(inPeriod(libPeriods(SUP_TABLE,t.weekday),t.minute)){
+      d.supCents+=p.amountCents;d.supFeeCents+=p.feeCents;
+    }
+  }
+  // Supervision = 10% of profit (sales - fees - COGS) made in 1st/6th hour
+  const supervisionOf=d=>Math.round(Math.max(0,d.supCents-d.supFeeCents-Math.round(d.supCents*COGS_RATE))*SUPERVISION_RATE);
+  let supervisionCents=0;
+  for(const d of Object.values(byDay))supervisionCents+=supervisionOf(d);
+  const libCogsCents=Math.round(libGrossCents*COGS_RATE);
+  const libNetCents=libGrossCents-libFeeCents-libCogsCents+supervisionCents;
+
+  document.getElementById('lib-gross').textContent=fmt(libGrossCents);
+  document.getElementById('lib-gross-sub').textContent=`${libCount} sale${libCount===1?'':'s'} during library hours`;
+  document.getElementById('lib-fees').textContent='-'+fmt(libFeeCents);
+  document.getElementById('lib-fees-sub').textContent='Square fees on those sales';
+  document.getElementById('lib-cogs').textContent='-'+fmt(libCogsCents);
+  const net=document.getElementById('lib-net');
+  net.textContent=fmt(libNetCents);
+  net.style.color=libNetCents>=0?'#4caf50':'#e57373';
+  document.getElementById('lib-net-sub').textContent=(libNetCents>=0?'Net profit for Library':'Net loss for Library')+` · incl. ${fmt(supervisionCents)} supervision`;
+
+  const dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const days=new Set([...getSchoolDaysInRange(range.startISO,range.endISO),...Object.keys(byDay)]);
+  if(held)days.delete(held);
+  const rows=[...days].sort().map(iso=>{
+    const d=byDay[iso]||emptyDay();
+    const cogs=Math.round(d.libCents*COGS_RATE);
+    const sup=supervisionOf(d);
+    const dayNet=d.libCents-d.libFeeCents-cogs+sup;
+    return `<tr>
+      <td style="color:var(--gray);font-size:0.8rem">${iso}</td>
+      <td>${dayNames[new Date(iso+'T12:00:00').getDay()]}</td>
+      <td><strong>${fmt(d.libCents)}</strong>${d.libCount?` <span style="color:var(--gray);font-size:0.75rem">(${d.libCount})</span>`:''}</td>
+      <td style="color:#e57373">${d.libFeeCents>0?'-'+fmt(d.libFeeCents):'—'}</td>
+      <td style="color:#e57373">${cogs>0?'-'+fmt(cogs):'—'}</td>
+      <td style="color:#4caf50">${sup>0?'+'+fmt(sup):'—'}</td>
+      <td style="color:${dayNet>=0?'#4caf50':'#e57373'}">${fmt(dayNet)}</td>
+    </tr>`;
+  });
+  const totalsRow=`<tr style="border-top:2px solid var(--border);font-weight:600;background:rgba(255,255,255,0.03)">
+    <td colspan="2">Totals</td>
+    <td><strong>${fmt(libGrossCents)}</strong></td>
+    <td style="color:#e57373">-${fmt(libFeeCents)}</td>
+    <td style="color:#e57373">-${fmt(libCogsCents)}</td>
+    <td style="color:#4caf50">+${fmt(supervisionCents)}</td>
+    <td style="color:${libNetCents>=0?'#4caf50':'#e57373'}">${fmt(libNetCents)}</td>
+  </tr>`;
+  document.getElementById('lib-tbody').innerHTML=rows.length
+    ?rows.join('')+totalsRow
+    :`<tr><td colspan="7" style="text-align:center;color:var(--gray);padding:1.5rem">No sales in this period.</td></tr>`;
 }
 
 // OVERVIEW

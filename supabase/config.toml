@@ -21,11 +21,6 @@ major_version = 15
 [studio]
 port = 54323
 
-[inbucket]
-port = 54324
-smtp_port = 54325
-pop3_port = 54326
-
 [storage]
 file_size_limit = "50MiB"
 
@@ -43,6 +38,12 @@ double_confirm_changes = true
 enable_confirmations = false
 
 [functions.get-sales-report]
+verify_jwt = false
+
+# Checks the caller's token itself (auth.getUser) and answers CORS preflight, so
+# the gateway check stays off. Without this entry the deploy workflow skipped
+# the function, and merged changes never went live.
+[functions.process-payment]
 verify_jwt = false
 
 [functions.request-receipt]
