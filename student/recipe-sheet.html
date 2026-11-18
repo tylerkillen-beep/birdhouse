@@ -219,12 +219,11 @@
   const MENU_TITLES = { birdhouse: 'Birdhouse Menu', mathews: 'Mathews Menu' };
 
   // Coffee and food are a la carte and need no recipe, so the sheet is just
-  // these. Next Week's Specials only appears when there are some.
+  // these. Drinks hidden on the menu are left off the sheet.
   const CATEGORIES = [
     { key: 'specials',      title: 'Specials' },
     { key: 'soda_tea',      title: 'Cold Drinks' },
     { key: 'subscriptions', title: 'Subscriptions' },
-    { key: 'next_specials', title: 'Next Week’s Specials' },
   ];
   const MATHEWS_SECTIONS = [{ key: 'mathews', title: 'Mathews Menu' }];
 
@@ -369,13 +368,14 @@
     // The Teacher Menu has a sheet of its own, so it never mixes into the
     // Birdhouse sections below. Its recipes show even before Square has the
     // item, since there is no next-week rotation to hold them in.
-    if (recipeCampus(recipe) === 'mathews') return item && isRetired(item) ? null : 'mathews';
-    if (!item || isRetired(item)) return null;
+    if (recipeCampus(recipe) === 'mathews') return item && (isRetired(item) || item.available === false) ? null : 'mathews';
+    // A drink switched off on the menu is switched off here too.
+    if (!item || isRetired(item) || item.available === false) return null;
     const categoryIds = item.square_category_ids || [];
     if (categoryIds.some(id => subscriptionCategoryIds.has(id))) return 'subscriptions';
     if (getMenuCategory(item.category) === 'soda_tea') return 'soda_tea';
     if (!categoryIds.some(id => specialsCategoryIds.has(id))) return null;
-    return item.available === false ? 'next_specials' : 'specials';
+    return 'specials';
   }
 
   // ── Rendering ──────────────────────────────────────────────────────────────
